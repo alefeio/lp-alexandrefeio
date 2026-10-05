@@ -10,7 +10,6 @@ export function DifferentialsSection() {
         <SectionHeading
           eyebrow={differentialsContent.eyebrow}
           title={differentialsContent.title}
-          description={differentialsContent.description}
           titleId="diferenca-titulo"
         />
 

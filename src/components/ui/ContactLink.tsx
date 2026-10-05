@@ -13,6 +13,7 @@ export function ContactLink({
   variant = "primary",
   className,
   onClick,
+  label,
 }: {
   location: string;
   serviceId?: string;
@@ -20,6 +21,7 @@ export function ContactLink({
   variant?: ButtonVariant;
   className?: string;
   onClick?: () => void;
+  label?: string;
 }) {
   const target = resolveCta(serviceId);
   const classNames = buttonClass(variant, className);
@@ -35,14 +37,14 @@ export function ContactLink({
 
   if (target.external) {
     return (
-      <a href={target.href} className={classNames} target="_blank" rel="noopener noreferrer" onClick={handleClick}>
+      <a href={target.href} className={classNames} aria-label={label} target="_blank" rel="noopener noreferrer" onClick={handleClick}>
         {children}
       </a>
     );
   }
 
   return (
-    <Link href={target.href} className={classNames} onClick={handleClick}>
+    <Link href={target.href} className={classNames} aria-label={label} onClick={handleClick}>
       {children}
     </Link>
   );

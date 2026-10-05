@@ -42,7 +42,6 @@ export function Hero() {
         >
           <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Fluxo ilustrativo</p>
-            <p className="text-xs text-subtle">não é resultado real</p>
           </div>
 
           <ol className="px-4 py-5 sm:px-5">

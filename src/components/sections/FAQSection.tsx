@@ -10,7 +10,6 @@ export function FAQSection() {
         <SectionHeading
           eyebrow={faqIntro.eyebrow}
           title={faqIntro.title}
-          description={faqIntro.description}
           titleId="faq-titulo"
         />
 

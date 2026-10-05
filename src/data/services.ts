@@ -3,39 +3,28 @@ import type { Service } from "@/types/content";
 export const servicesIntro = {
   eyebrow: "Serviços",
   title: "Escolha o ponto de partida.",
-  description:
-    "Três caminhos. O escopo e o valor são definidos depois de entender o negócio — sem preço genérico e sem promessa de quantidade de clientes.",
+  description: "O valor é definido depois de entender o negócio.",
 };
 
 export const services: readonly Service[] = [
   {
     id: "site-essencial",
     name: "Site Essencial",
-    description: "Para empresas que precisam construir ou melhorar a presença profissional.",
-    items: [
-      "Landing page ou site institucional",
-      "Boa leitura no celular",
-      "Página rápida",
-      "Base para ser encontrada na busca",
-      "Caminho direto para o WhatsApp",
-      "Preparado para medir os contatos depois",
-    ],
-    cta: "Quero um site",
+    description: "Para colocar ou melhorar a presença profissional.",
+    items: ["Landing page ou site institucional", "Leitura boa no celular", "Caminho para o WhatsApp"],
+    cta: "Quero este serviço",
     objectiveId: "criar-site",
   },
   {
     id: "site-trafego",
     name: "Site + Tráfego",
-    description: "Uma estrutura para começar a gerar oportunidades pela internet.",
+    description: "Para quem quer a página e a campanha no mesmo projeto.",
     items: [
-      "Página feita para gerar contato",
-      "Preparação da oferta e da mensagem",
-      "Campanha no Google, no Meta ou nos dois, conforme o caso",
-      "Registro inicial dos contatos que vêm do anúncio",
-      "Acompanhamento do começo",
-      "Ajustes a partir do que acontecer",
+      "Página feita para o anúncio",
+      "Campanha no Google, no Meta ou nos dois",
+      "Acompanhamento inicial",
     ],
-    cta: "Quero começar",
+    cta: "Quero este serviço",
     objectiveId: "site-trafego",
     featured: true,
     tag: "Mais completo",
@@ -43,16 +32,9 @@ export const services: readonly Service[] = [
   {
     id: "gestao-trafego",
     name: "Gestão de Tráfego",
-    description: "Para quem já tem uma presença digital e quer conduzir a aquisição com mais clareza.",
-    items: [
-      "Planejamento das campanhas",
-      "Criação e configuração",
-      "Acompanhamento",
-      "Otimização ao longo do período",
-      "Leitura dos contatos gerados",
-      "Relatórios sobre o que aproxima uma oportunidade",
-    ],
-    cta: "Quero melhorar minhas campanhas",
+    description: "Para quem já tem site e quer conduzir os anúncios.",
+    items: ["Planejamento das campanhas", "Ajustes ao longo do período", "Leitura dos contatos gerados"],
+    cta: "Quero este serviço",
   },
 ];
 

@@ -9,14 +9,14 @@ export const heroContent = {
   eyebrow: "Sites + Tráfego Pago",
   title: "Transforme sua presença digital em oportunidades de negócio.",
   description:
-    "Crio sites rápidos e campanhas de tráfego pago pensados para levar as pessoas certas até sua empresa — e transformar visitas em contatos.",
+    "Crio sites e campanhas de tráfego pago para levar as pessoas certas até sua empresa e transformar a visita em contato.",
 };
 
 export const heroFlow: readonly FlowStep[] = [
-  { number: "01", title: "Tráfego", description: "As pessoas certas chegam" },
-  { number: "02", title: "Landing page", description: "A oferta pede o próximo passo" },
-  { number: "03", title: "Lead", description: "O interesse vira contato" },
-  { number: "04", title: "Oportunidade", description: "A empresa ganha uma conversa" },
+  { number: "01", title: "Tráfego", description: "Quem tem interesse chega" },
+  { number: "02", title: "Landing page", description: "A página recebe a visita" },
+  { number: "03", title: "Lead", description: "Vira contato" },
+  { number: "04", title: "Oportunidade", description: "Vira conversa" },
 ];
 
 export const heroMetrics: readonly IllustrativeMetric[] = [
@@ -26,64 +26,43 @@ export const heroMetrics: readonly IllustrativeMetric[] = [
   { label: "Custo por lead", value: "R$ 18" },
 ];
 
-export const heroMetricsNote =
-  "Números fictícios para demonstrar a interface. Não são resultados reais.";
+export const heroMetricsNote = "Números fictícios. Não são resultados reais.";
 
 export const problemContent = {
   title: "Ter um site não significa gerar negócios.",
-  description:
-    "A empresa aparece na internet, mas a visita não vira conversa. Ou a conversa acontece e ninguém sabe o que a provocou.",
+  description: "A visita não vira conversa, ou a conversa acontece sem saber o que a provocou.",
   items: [
-    "Site lento, abandonado antes de a oferta ficar clara",
     "Página que não conduz o visitante até o contato",
-    "Anúncio apontando para uma página que não converte",
-    "Presença que depende quase só do Instagram",
-    "Contatos que chegam sem acompanhamento",
-    "Campanha sem medida do que gera oportunidade",
-    "Mídia paga sem clareza do que aproxima uma venda",
+    "Anúncio levando para uma página que não converte",
+    "Investimento sem saber quais ações geram contatos",
   ],
-  statement: "O resultado aparece quando site, tráfego e conversão trabalham juntos.",
 };
 
-export const problemFlow: readonly FlowStep[] = [
-  { number: "01", title: "Site", description: "A página segura a visita." },
-  { number: "02", title: "Tráfego", description: "O anúncio traz gente qualificada." },
-  { number: "03", title: "Conversão", description: "O clique vira contato." },
-  { number: "04", title: "Oportunidade", description: "A empresa ganha uma conversa." },
-];
-
 export const valueContent = {
-  eyebrow: "Proposta",
-  title: "Uma estrutura digital pensada para gerar oportunidades.",
-  description:
-    "Não basta levar pessoas até sua empresa. É preciso criar uma estrutura capaz de transformar essas visitas em oportunidades.",
+  title: "Site, tráfego e conversão.",
 };
 
 export const valuePillars: readonly ValuePillar[] = [
   {
     number: "01",
     title: "Site",
-    description:
-      "Uma página rápida, profissional e preparada para converter. Quem chega entende a oferta e sabe como falar com você.",
+    description: "Página rápida e preparada para converter.",
   },
   {
     number: "02",
     title: "Tráfego",
-    description:
-      "Campanhas para levar pessoas com maior potencial até sua empresa, com a página já pronta para recebê-las.",
+    description: "Pessoas com maior potencial chegando até a empresa.",
   },
   {
     number: "03",
     title: "Conversão",
-    description:
-      "Uma jornada clara para transformar visitas em contatos e oportunidades que dá para acompanhar.",
+    description: "Um caminho claro da visita até o contato.",
   },
 ];
 
 export const differentialsContent = {
   eyebrow: "Diferenciais",
   title: "Desenvolvimento e marketing trabalhando para o mesmo objetivo.",
-  description: "O trabalho fica na ligação entre a página e a aquisição, não na entrega de peças soltas.",
 };
 
 export const differentials: readonly Differential[] = [
@@ -103,26 +82,25 @@ export const differentials: readonly Differential[] = [
     beforeLabel: "Não é apenas",
     before: "Mostrar métricas.",
     afterLabel: "É",
-    after: "Medir as ações que aproximam a empresa de uma oportunidade comercial.",
+    after: "Medir os contatos, não só os cliques.",
   },
 ];
 
 export const midCtaContent = {
-  title: "Não sabe se precisa primeiro de um site ou de tráfego?",
-  description: "Conte um pouco sobre seu negócio e podemos identificar o melhor ponto de partida.",
+  title: "Não sabe por onde começar?",
+  description: "Me conte sobre seu negócio e eu te ajudo a identificar o melhor ponto de partida.",
 };
 
 export const aboutContent = {
   eyebrow: "Sobre",
-  title: "Tecnologia e marketing trabalhando juntos.",
+  title: "A página e a campanha nascem juntas.",
   description:
-    "Trabalho unindo desenvolvimento, estratégia digital e tráfego pago para criar estruturas que ajudem empresas a transformar sua presença online em oportunidades reais de negócio.",
+    "Eu desenvolvo o site e conduzo o tráfego pago. O anúncio não aponta para uma página feita sem pensar na campanha.",
   photoLabel: "Espaço reservado para foto profissional",
 };
 
 export const finalCtaContent = {
-  title: "Quer transformar sua presença digital em uma fonte de oportunidades?",
-  description:
-    "Me conte um pouco sobre seu negócio e eu te ajudo a identificar o melhor ponto de partida.",
-  microcopy: "Sem compromisso e sem apresentação comercial interminável.",
+  title: "Quer transformar sua presença digital em oportunidades?",
+  description: "Conte um pouco sobre seu negócio.",
+  microcopy: "Sem compromisso.",
 };

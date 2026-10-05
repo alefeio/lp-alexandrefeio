@@ -46,6 +46,7 @@ export function ServiceCard({ service, selected }: { service: Service; selected:
         serviceId={service.id}
         variant={featured ? "inverted" : "primary"}
         className="mt-8 w-full"
+        label={`${service.cta}: ${service.name}`}
       >
         {service.cta}
       </ContactLink>

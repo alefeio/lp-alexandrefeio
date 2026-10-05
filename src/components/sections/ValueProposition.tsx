@@ -7,12 +7,7 @@ export function ValueProposition() {
   return (
     <Section id="proposta" titleId="proposta-titulo">
       <Container>
-        <SectionHeading
-          eyebrow={valueContent.eyebrow}
-          title={valueContent.title}
-          description={valueContent.description}
-          titleId="proposta-titulo"
-        />
+        <SectionHeading title={valueContent.title} titleId="proposta-titulo" />
 
         <div className="relative mt-14">
           <div className="absolute top-4 right-[12%] left-[12%] hidden h-px bg-border md:block" aria-hidden="true" />

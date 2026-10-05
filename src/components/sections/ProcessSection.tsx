@@ -10,7 +10,6 @@ export function ProcessSection() {
         <SectionHeading
           eyebrow={processIntro.eyebrow}
           title={processIntro.title}
-          description={processIntro.description}
           titleId="como-funciona-titulo"
         />
 

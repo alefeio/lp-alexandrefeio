@@ -2,11 +2,6 @@ import type { CaseStudy } from "@/types/content";
 
 export const casesIntro = {
   eyebrow: "Resultados",
-  title: "Cases reais entram quando puderem ser publicados.",
-  description:
-    "Esta área já está pronta para receber projetos com autorização de uso. Até lá, ela não mostra clientes, depoimentos ou números.",
-  devNote:
-    "Conteúdo demonstrativo. Os objetos em src/data/cases.ts continuam mockados e não são exibidos como prova.",
 };
 
 export const cases: readonly CaseStudy[] = [
