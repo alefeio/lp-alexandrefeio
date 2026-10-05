@@ -14,16 +14,15 @@ Este arquivo existe para impedir que conteúdo fictício seja publicado como inf
 - CTAs gerais abrem o formulário; "Quero conversar" abre o WhatsApp
 - Abstração `trackEvent`, incluindo `form_success`
 - Cases mockados permanecem no código e ficam fora da página enquanto `isMock` for verdadeiro
+- Fotografia profissional em `public/alexandre.jpg`
 
 ## MOCKADO
 
 - Cases em `src/data/cases.ts` (`isMock: true`)
-- Foto profissional (espaço reservado, sem imagem)
 - Preços (não há valor publicado)
 
 ## PENDENTE
 
-- Fotografia profissional
 - Cases reais
 - Preços, se forem publicados
 - Analytics

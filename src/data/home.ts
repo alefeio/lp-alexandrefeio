@@ -82,7 +82,6 @@ export const aboutContent = {
   title: "Tecnologia e marketing fazem parte da mesma trajetória.",
   description:
     "Sou Alexandre Feio. Uno Sistemas de Informação e Marketing para construir páginas e campanhas com o mesmo objetivo: gerar oportunidades.",
-  photoLabel: "Espaço reservado para foto profissional",
 };
 
 export const finalCtaContent = {
