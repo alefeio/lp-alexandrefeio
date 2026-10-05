@@ -22,8 +22,9 @@ npm install
 2. Crie o arquivo `.env.local` a partir de `.env.example`.
 3. Preencha `RESEND_API_KEY` com a chave da conta Resend.
 4. Confirme `CONTACT_TO_EMAIL`, o endereço que recebe os contatos.
-5. Preencha `CONTACT_FROM_EMAIL` com um remetente aceito pela conta Resend. Exemplo, depois que o domínio estiver verificado: `Alexandre Feio <contato@alexandrefeio.com.br>`.
-6. Suba o site:
+5. Preencha `CONTACT_FROM_EMAIL` com um remetente autorizado na conta Resend. O remetente pretendido, depois da verificação do domínio, é `Alexandre Feio <contato@alexandrefeio.com.br>`.
+6. Confirme `CONTACT_REPLY_TO_EMAIL`. A confirmação enviada ao lead usa esse endereço como resposta.
+7. Suba o site:
 
 ```bash
 npm run dev
@@ -31,7 +32,7 @@ npm run dev
 
 Abra [http://localhost:3000](http://localhost:3000).
 
-7. Para testar o formulário, preencha nome, empresa, WhatsApp e objetivo na seção de contato. O envio só conclui quando as três variáveis estão corretas e o Resend aceita o remetente.
+8. Para testar o formulário, preencha nome, empresa, WhatsApp, e-mail e objetivo na seção de contato. O envio só conclui quando as variáveis estão corretas e o Resend aceita o remetente. Alexandre recebe o contato. O lead recebe a confirmação em seguida.
 
 Outros comandos:
 
@@ -71,8 +72,6 @@ CTAs gerais abrem o formulário. "Quero conversar" abre o WhatsApp.
 
 ## Ainda demonstrativo
 
-- Métricas do hero
 - Cases, enquanto `isMock` for verdadeiro
-- Foto profissional
 
 O detalhe está em `MVP_STATUS.md`.

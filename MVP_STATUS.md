@@ -8,7 +8,8 @@ Este arquivo existe para impedir que conteúdo fictício seja publicado como inf
 - Header, menu mobile, seções da página e footer
 - WhatsApp real, e-mail público e Instagram
 - Domínio `https://alexandrefeio.com.br` no código (metadata, canonical, Open Graph, sitemap e robots)
-- Formulário com validação no navegador e no servidor, envio por e-mail e estados de envio, sucesso e erro
+- Formulário com nome, empresa, WhatsApp, e-mail e objetivo, validado no navegador e no servidor
+- Envio administrativo e confirmação ao lead no servidor: a confirmação só parte depois que o e-mail para Alexandre é aceito; se a confirmação falhar, o contato continua recebido
 - Página `/privacidade`
 - Seleção de oferta levando ao formulário (`?servico=`)
 - CTAs gerais abrem o formulário; "Quero conversar" abre o WhatsApp
@@ -30,4 +31,6 @@ Este arquivo existe para impedir que conteúdo fictício seja publicado como inf
 - Meta Pixel
 - Ajustes finais da política de privacidade, se o uso dos dados mudar
 - Publicação e DNS de `alexandrefeio.com.br` (a URL no código não significa que o domínio já aponta para este site)
-- Verificação do domínio no provedor de e-mail e remetente de produção
+- Teste real do envio: nesta máquina não há `.env.local`, então o Resend não foi chamado
+- Verificação de `contato@alexandrefeio.com.br` no Resend e remetente autorizado em `CONTACT_FROM_EMAIL`
+- Variáveis na Vercel: `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` e `CONTACT_REPLY_TO_EMAIL`

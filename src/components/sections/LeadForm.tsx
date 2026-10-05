@@ -16,6 +16,7 @@ interface FormValues {
   name: string;
   company: string;
   whatsapp: string;
+  email: string;
   objective: string;
 }
 
@@ -25,6 +26,7 @@ const EMPTY_VALUES: FormValues = {
   name: "",
   company: "",
   whatsapp: "",
+  email: "",
   objective: "",
 };
 
@@ -48,6 +50,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
   const [errors, setErrors] = useState<LeadErrors>({});
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<FormStatus>("idle");
+  const [confirmationSent, setConfirmationSent] = useState(false);
   const whatsappHref = buildWhatsAppUrl();
 
   const selectedId = selectedService?.id;
@@ -114,6 +117,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
       });
 
       if (result.ok) {
+        setConfirmationSent(result.confirmation === "sent");
         setStatus("success");
         trackEvent("form_success", { location: "contact_form", action: values.objective });
         return;
@@ -147,7 +151,9 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
           className="flex items-start gap-3 text-2xl font-semibold tracking-tight"
         >
           <span aria-hidden="true" className="mt-2 size-2 shrink-0 rounded-full bg-cta" />
-          Recebi seu contato. Em breve conversamos.
+          {confirmationSent
+            ? "Recebi seu contato. Enviei uma confirmação para o seu e-mail."
+            : "Recebi seu contato. Em breve conversamos."}
         </h3>
       </div>
     );
@@ -243,6 +249,31 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
         </div>
 
         <div>
+          <label htmlFor="email" className="block text-sm font-medium">
+            E-mail
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            maxLength={254}
+            value={values.email}
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? "email-erro" : undefined}
+            aria-required="true"
+            className={cn(fieldClass(Boolean(errors.email)), "mt-2")}
+            onChange={(event) => updateField("email", event.target.value)}
+          />
+          {errors.email ? (
+            <p id="email-erro" className="mt-2 text-sm text-danger">
+              {errors.email}
+            </p>
+          ) : null}
+        </div>
+
+        <div>
           <label htmlFor="objective" className="block text-sm font-medium">
             Principal objetivo
           </label>
@@ -295,7 +326,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
       </button>
 
       <p className="mt-3 text-center text-sm leading-relaxed text-muted">
-        Seus dados serão usados apenas para responder ao seu contato.{" "}
+        Seus dados serão usados para responder ao contato e enviar a confirmação desta solicitação.{" "}
         <Link href="/privacidade" className="underline underline-offset-4">
           Privacidade
         </Link>

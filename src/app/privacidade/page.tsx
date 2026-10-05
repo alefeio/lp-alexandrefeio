@@ -20,12 +20,13 @@ export default function PrivacyPage() {
           <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">Como o contato é usado</h1>
           <div className="mt-8 space-y-6 text-base leading-relaxed text-muted">
             <p>
-              O formulário de {host} envia nome, empresa, WhatsApp e o interesse escolhido. Esses dados servem apenas
-              para responder ao seu contato. Eles não são vendidos.
+              O formulário de {host} envia nome, empresa, WhatsApp, e-mail e o interesse escolhido. Esses dados servem
+              para responder ao contato e para enviar a confirmação desta solicitação. Eles não são vendidos.
             </p>
             <p>
               Nesta versão o site não guarda os contatos em um banco de dados. A mensagem passa por um provedor de
-              e-mail e chega na caixa de {siteConfig.fullName}.
+              e-mail e chega na caixa de {siteConfig.fullName}. A confirmação segue para o e-mail informado no
+              formulário.
             </p>
             <p>
               Dúvidas sobre este uso podem ser enviadas para{" "}
