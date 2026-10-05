@@ -1,24 +1,37 @@
-# Site profissional — MVP
+# Alexandre Feio
 
-Landing page para validar posicionamento, oferta e conversão de um profissional que cria sites e estrutura tráfego pago. O objetivo do trabalho é gerar oportunidades de negócio, não vender “marketing digital” genérico.
+Landing page de Alexandre Feio: sites e tráfego pago para empresas que querem gerar oportunidades.
 
-Neste ciclo existe apenas o front-end. Não há backend, banco, envio real de formulário nem integrações.
+O formulário envia o contato por e-mail. Não há banco de dados.
 
 ## Stack
 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS
-- Lucide Icons
+- Resend
 - ESLint
 
 ## Como executar
 
+1. Instale as dependências:
+
 ```bash
 npm install
+```
+
+2. Crie o arquivo `.env.local` a partir de `.env.example`.
+3. Preencha `RESEND_API_KEY` com a chave da conta Resend.
+4. Confirme `CONTACT_TO_EMAIL`, o endereço que recebe os contatos.
+5. Preencha `CONTACT_FROM_EMAIL` com um remetente aceito pela conta Resend. Exemplo, depois que o domínio estiver verificado: `Alexandre Feio <contato@alexandrefeio.com.br>`.
+6. Suba o site:
+
+```bash
 npm run dev
 ```
 
 Abra [http://localhost:3000](http://localhost:3000).
+
+7. Para testar o formulário, preencha nome, empresa, WhatsApp e objetivo na seção de contato. O envio só conclui quando as três variáveis estão corretas e o Resend aceita o remetente.
 
 Outros comandos:
 
@@ -33,44 +46,33 @@ npm start
 
 ```text
 src/
-  app/                  rotas, metadata, robots, sitemap, ícone e Open Graph
+  app/                  rotas, metadata, robots, sitemap e a ação de envio
+  app/privacidade/      política curta do formulário
   components/layout/    header, menu mobile e footer
   components/sections/  seções da landing
   components/ui/        container, links e heading
-  data/                 conteúdo e configuração
-  lib/                  analytics, WhatsApp e estilos de botão
-  types/                tipos do conteúdo
+  data/                 conteúdo e configuração pública
+  lib/                  validação do contato, WhatsApp e analytics
 ```
 
 ## Onde alterar
 
 | O que mudar | Arquivo |
 | --- | --- |
-| Nome, WhatsApp, e-mail, Instagram, domínio, CTAs | `src/data/site-config.ts` |
+| Nome, WhatsApp, e-mail público, Instagram, domínio, CTAs | `src/data/site-config.ts` |
+| Chave e remetente do formulário | `.env.local` |
 | Cores e tokens | `src/app/globals.css` |
 | Serviços | `src/data/services.ts` |
 | Cases | `src/data/cases.ts` |
 | FAQ | `src/data/faq.ts` |
-| Processo | `src/data/process.ts` |
-| Textos das seções, métricas ilustrativas | `src/data/home.ts` |
 | Objetivos do formulário | `src/data/lead-objectives.ts` |
-| Menu | `src/data/navigation.ts` |
 
-Enquanto `contact.whatsapp` for um placeholder (`{{WHATSAPP}}`), os botões não abrem um telefone. Eles levam ao formulário. Com um número real, os CTAs gerais passam a abrir o WhatsApp com a mensagem definida em `contact.whatsappMessage`.
+CTAs gerais abrem o formulário. "Quero conversar" abre o WhatsApp.
 
-## Itens mockados
+## Ainda demonstrativo
 
-- E-mail, Instagram e WhatsApp (`{{...}}`)
-- Domínio (`https://seudominio.com.br`)
 - Métricas do hero
-- Cases (existem no código, mas não são exibidos enquanto `isMock` for verdadeiro)
-- Envio do formulário (`features.leadForm: "mock"`)
-- Foto profissional (espaço vazio)
+- Cases, enquanto `isMock` for verdadeiro
+- Foto profissional
 
-Não publique esses mocks como se fossem informações reais. O detalhe está em `MVP_STATUS.md`.
-
-## Próximos passos
-
-1. Trocar WhatsApp, e-mail, Instagram e domínio em `src/data/site-config.ts`.
-2. Conectar o formulário a um envio real e mudar `features.leadForm` para `"live"`.
-3. Publicar cases reais, adicionar a foto e incluir política de privacidade, analytics e pixels.
+O detalhe está em `MVP_STATUS.md`.

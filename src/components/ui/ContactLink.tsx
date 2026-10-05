@@ -14,6 +14,7 @@ export function ContactLink({
   className,
   onClick,
   label,
+  channel = "form",
 }: {
   location: string;
   serviceId?: string;
@@ -22,8 +23,9 @@ export function ContactLink({
   className?: string;
   onClick?: () => void;
   label?: string;
+  channel?: "form" | "whatsapp";
 }) {
-  const target = resolveCta(serviceId);
+  const target = resolveCta(serviceId, channel);
   const classNames = buttonClass(variant, className);
   const params = {
     location,

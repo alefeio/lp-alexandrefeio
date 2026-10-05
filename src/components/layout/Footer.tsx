@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { footerNavigation } from "@/data/navigation";
 import { siteConfig } from "@/data/site-config";
 import { Container } from "@/components/ui/Container";
-import { buildWhatsAppUrl, emailHref, instagramHref, isPlaceholder } from "@/lib/contact";
+import { buildWhatsAppUrl, emailHref, instagramHref } from "@/lib/contact";
 
 function ContactLine({
   label,
@@ -20,6 +21,7 @@ function ContactLine({
       {href ? (
         <a
           href={href}
+          aria-label={`${label}: ${value}`}
           className="underline-offset-4 hover:underline"
           {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
         >
@@ -37,10 +39,6 @@ export function Footer() {
   const whatsappHref = buildWhatsAppUrl();
   const mailHref = emailHref();
   const instagram = instagramHref();
-  const hasPlaceholder =
-    isPlaceholder(siteConfig.contact.whatsapp) ||
-    isPlaceholder(siteConfig.contact.email) ||
-    isPlaceholder(siteConfig.contact.instagram);
 
   return (
     <footer className="border-t border-border py-14">
@@ -84,12 +82,14 @@ export function Footer() {
 
       <Container className="mt-12">
         <p className="text-xs text-subtle">
-          © {year} {siteConfig.name}. {siteConfig.location.short}.
+          © {year} {siteConfig.name}. {siteConfig.location.short}.{" "}
+          <Link href="/privacidade" className="underline-offset-4 hover:underline">
+            Privacidade
+          </Link>
         </p>
-        {process.env.NODE_ENV === "development" && hasPlaceholder ? (
+        {process.env.NODE_ENV === "development" ? (
           <p className="mt-3 max-w-xl text-xs leading-relaxed text-subtle">
-            WhatsApp, e-mail e Instagram ainda não estão configurados em src/data/site-config.ts. Métricas do hero e o
-            formulário são demonstrativos. Cases mockados não são exibidos como prova.
+            Métricas do hero são fictícias. Cases mockados não são exibidos como prova.
           </p>
         ) : null}
       </Container>

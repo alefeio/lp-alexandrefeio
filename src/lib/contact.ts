@@ -1,4 +1,4 @@
-import { siteConfig } from "@/data/site-config";
+import { siteConfig } from "../data/site-config";
 import type { AnalyticsEventName } from "@/lib/analytics";
 
 const PLACEHOLDER_PATTERN = /\{\{[^{}]+\}\}/;
@@ -27,6 +27,11 @@ export function emailHref(): string | null {
 }
 
 export function instagramHref(): string | null {
+  const explicit = siteConfig.contact.instagramUrl.trim();
+  if (!isPlaceholder(explicit) && (explicit.startsWith("https://") || explicit.startsWith("http://"))) {
+    return explicit;
+  }
+
   const instagram = siteConfig.contact.instagram.trim();
   if (isPlaceholder(instagram)) return null;
   if (instagram.startsWith("http://") || instagram.startsWith("https://")) return instagram;
@@ -36,6 +41,12 @@ export function instagramHref(): string | null {
   return `https://instagram.com/${handle}`;
 }
 
+/** Link para conversar com um número informado pelo visitante. */
+export function visitorWhatsAppUrl(digits: string): string | null {
+  if (!/^\d{10,15}$/.test(digits)) return null;
+  return `https://wa.me/${digits}`;
+}
+
 export interface CtaTarget {
   href: string;
   external: boolean;
@@ -43,11 +54,10 @@ export interface CtaTarget {
 }
 
 /**
- * CTAs gerais abrem WhatsApp somente com número real.
- * Sem número, levam ao formulário.
- * CTAs de serviço sempre abrem o formulário com a oferta selecionada.
+ * CTAs gerais e de serviço abrem o formulário.
+ * Só o canal "whatsapp" abre a conversa direta.
  */
-export function resolveCta(serviceId?: string): CtaTarget {
+export function resolveCta(serviceId?: string, channel: "form" | "whatsapp" = "form"): CtaTarget {
   if (serviceId) {
     return {
       href: `/?servico=${encodeURIComponent(serviceId)}#contato`,
@@ -56,9 +66,11 @@ export function resolveCta(serviceId?: string): CtaTarget {
     };
   }
 
-  const whatsappUrl = buildWhatsAppUrl();
-  if (whatsappUrl) {
-    return { href: whatsappUrl, external: true, event: "whatsapp_click" };
+  if (channel === "whatsapp") {
+    const whatsappUrl = buildWhatsAppUrl();
+    if (whatsappUrl) {
+      return { href: whatsappUrl, external: true, event: "whatsapp_click" };
+    }
   }
 
   return { href: "#contato", external: false, event: "cta_click" };

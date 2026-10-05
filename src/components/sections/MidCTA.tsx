@@ -13,7 +13,7 @@ export function MidCTA() {
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">{midCtaContent.description}</p>
         </div>
-        <ContactLink location="mid_cta" className="w-full sm:w-auto">
+        <ContactLink location="mid_cta" channel="whatsapp" className="w-full sm:w-auto">
           {siteConfig.ctas.talk}
         </ContactLink>
       </Container>

@@ -1,4 +1,4 @@
-import type { LeadObjective } from "@/types/content";
+import type { LeadObjective } from "../types/content";
 
 export const leadObjectives: readonly LeadObjective[] = [
   { value: "criar-site", label: "Criar um site" },

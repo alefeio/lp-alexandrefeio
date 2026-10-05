@@ -1,11 +1,11 @@
 /**
- * Único lugar para identidade, contato, SEO e textos de CTA.
- * WhatsApp, e-mail e Instagram ainda são placeholders.
- * Enquanto o WhatsApp contiver {{...}}, os CTAs não abrem wa.me.
+ * Identidade, contato público, SEO e textos de CTA.
+ * O envio do formulário usa variáveis de ambiente, não estes campos.
  */
 export const siteConfig = {
   name: "Alexandre Feio",
-  url: "https://seudominio.com.br",
+  fullName: "Alexandre Thiago Feio Penha",
+  url: "https://alexandrefeio.com.br",
   location: {
     city: "Belém",
     state: "Pará",
@@ -13,11 +13,11 @@ export const siteConfig = {
     serviceArea: "Atendimento em Belém/PA e projetos para todo o Brasil.",
   },
   contact: {
-    whatsapp: "{{WHATSAPP}}",
-    email: "{{EMAIL}}",
-    instagram: "{{INSTAGRAM}}",
-    whatsappMessage:
-      "Olá, vi seu site e gostaria de conversar sobre como melhorar a presença digital da minha empresa.",
+    whatsapp: "+55 91 98577-6798",
+    email: "alexandrefpenha@gmail.com",
+    instagram: "@ale.feio",
+    instagramUrl: "https://instagram.com/ale.feio",
+    whatsappMessage: "Olá, Alexandre. Vi seu site e gostaria de conversar sobre meu projeto.",
   },
   ctas: {
     primary: "Quero atrair mais clientes",
@@ -30,12 +30,5 @@ export const siteConfig = {
     description:
       "Criação de sites, landing pages e gestão de tráfego pago para empresas que querem gerar mais oportunidades. Atendimento em Belém e projetos para todo o Brasil.",
     locale: "pt_BR",
-  },
-  features: {
-    /**
-     * "mock": envio simulado, sem rede.
-     * "live": bloqueia o sucesso simulado até o POST real ser implementado em LeadForm.
-     */
-    leadForm: "mock" as "mock" | "live",
   },
 };

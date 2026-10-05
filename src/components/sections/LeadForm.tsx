@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { submitLead } from "@/app/actions/submit-lead";
 import { leadObjectives } from "@/data/lead-objectives";
 import { siteConfig } from "@/data/site-config";
 import { trackEvent } from "@/lib/analytics";
 import { buttonClass } from "@/lib/button-styles";
+import { buildWhatsAppUrl } from "@/lib/contact";
+import { validateLead, type LeadErrors, type LeadField } from "@/lib/lead";
 import { cn } from "@/lib/cn";
 import type { Service } from "@/types/content";
 
@@ -15,7 +19,6 @@ interface FormValues {
   objective: string;
 }
 
-type FormErrors = Partial<Record<keyof FormValues, string>>;
 type FormStatus = "idle" | "success" | "error";
 
 const EMPTY_VALUES: FormValues = {
@@ -25,29 +28,6 @@ const EMPTY_VALUES: FormValues = {
   objective: "",
 };
 
-function validate(values: FormValues): FormErrors {
-  const errors: FormErrors = {};
-
-  if (values.name.trim().length < 2) {
-    errors.name = "Informe seu nome.";
-  }
-
-  if (values.company.trim().length < 2) {
-    errors.company = "Informe a empresa.";
-  }
-
-  const digits = values.whatsapp.replace(/\D/g, "");
-  if (digits.length < 10 || digits.length > 13) {
-    errors.whatsapp = "Informe um WhatsApp válido, com DDD.";
-  }
-
-  if (!leadObjectives.some((objective) => objective.value === values.objective)) {
-    errors.objective = "Selecione o principal objetivo.";
-  }
-
-  return errors;
-}
-
 function fieldClass(invalid: boolean): string {
   return cn(
     "min-h-12 w-full rounded-lg border bg-background px-3 text-base text-foreground",
@@ -55,25 +35,26 @@ function fieldClass(invalid: boolean): string {
   );
 }
 
-/**
- * Formulário do MVP.
- * O envio é simulado: nenhum dado sai do navegador.
- * Para conectar uma API, substitua o bloco de submit e altere
- * siteConfig.features.leadForm para "live".
- */
 export function LeadForm({ selectedService }: { selectedService?: Service }) {
   const statusTitleId = useId();
   const started = useRef(false);
+  const sending = useRef(false);
+  const startedAt = useRef(0);
   const successRef = useRef<HTMLHeadingElement>(null);
   const [values, setValues] = useState<FormValues>({
     ...EMPTY_VALUES,
     objective: selectedService?.objectiveId ?? "",
   });
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<LeadErrors>({});
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<FormStatus>("idle");
+  const whatsappHref = buildWhatsAppUrl();
 
   const selectedId = selectedService?.id;
+
+  useEffect(() => {
+    startedAt.current = Date.now();
+  }, []);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -99,57 +80,66 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
   function updateField(field: keyof FormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
+    setStatus("idle");
+  }
+
+  function focusFirstError(nextErrors: LeadErrors) {
+    const firstInvalid = (Object.keys(nextErrors) as LeadField[]).find((field) => nextErrors[field]);
+    if (firstInvalid) document.getElementById(firstInvalid)?.focus();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextErrors = validate(values);
-    setErrors(nextErrors);
+    if (sending.current) return;
 
-    const firstInvalid = Object.keys(nextErrors)[0];
-    if (firstInvalid) {
-      document.getElementById(firstInvalid)?.focus();
+    const nextErrors = validateLead(values);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      focusFirstError(nextErrors);
       return;
     }
 
+    const extra = String(new FormData(event.currentTarget).get("contact_extra") ?? "");
+
+    sending.current = true;
     setLoading(true);
+    setStatus("idle");
     trackEvent("form_submit", { location: "contact_form", action: values.objective });
 
-    if (siteConfig.features.leadForm === "mock") {
-      // MOCK: simula latência. Não enviar estes dados para lugar nenhum.
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      setLoading(false);
-      setStatus("success");
-      trackEvent("form_success", { location: "contact_form", action: values.objective });
-      return;
-    }
+    try {
+      const result = await submitLead({
+        ...values,
+        extra,
+        startedAt: startedAt.current,
+      });
 
-    setLoading(false);
-    setStatus("error");
+      if (result.ok) {
+        setStatus("success");
+        trackEvent("form_success", { location: "contact_form", action: values.objective });
+        return;
+      }
+
+      if (result.reason === "invalid") {
+        setErrors(result.errors);
+        focusFirstError(result.errors);
+        return;
+      }
+
+      setStatus("error");
+    } catch {
+      setStatus("error");
+    } finally {
+      sending.current = false;
+      setLoading(false);
+    }
   }
 
   if (status === "success") {
     return (
       <div className="rounded-lg border border-border bg-surface p-6 text-foreground sm:p-8" role="status">
         <h3 ref={successRef} id={statusTitleId} tabIndex={-1} className="text-2xl font-medium tracking-tight">
-          Simulação concluída
+          Recebi seu contato. Em breve conversamos.
         </h3>
-        <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
-          Nenhuma informação foi enviada. Este é o estado de sucesso do MVP, para validar a experiência antes de
-          conectar um envio real.
-        </p>
-        <button
-          type="button"
-          className={buttonClass("secondary", "mt-6")}
-          onClick={() => {
-            setStatus("idle");
-            setValues({ ...EMPTY_VALUES, objective: selectedService?.objectiveId ?? "" });
-            setErrors({});
-            started.current = false;
-          }}
-        >
-          Simular outro envio
-        </button>
       </div>
     );
   }
@@ -179,6 +169,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
             name="name"
             type="text"
             autoComplete="name"
+            maxLength={80}
             value={values.name}
             aria-invalid={errors.name ? true : undefined}
             aria-describedby={errors.name ? "name-erro" : undefined}
@@ -202,6 +193,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
             name="company"
             type="text"
             autoComplete="organization"
+            maxLength={120}
             value={values.company}
             aria-invalid={errors.company ? true : undefined}
             aria-describedby={errors.company ? "company-erro" : undefined}
@@ -226,6 +218,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
             type="tel"
             inputMode="tel"
             autoComplete="tel"
+            maxLength={32}
             value={values.whatsapp}
             aria-invalid={errors.whatsapp ? true : undefined}
             aria-describedby={errors.whatsapp ? "whatsapp-erro" : undefined}
@@ -269,21 +262,35 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
         </div>
       </div>
 
+      <div hidden aria-hidden="true">
+        <label htmlFor="contact-extra">Não preencha este campo</label>
+        <input id="contact-extra" name="contact_extra" type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
+      </div>
+
       {status === "error" ? (
         <p className="mt-5 text-sm text-danger" role="alert">
-          O formulário ainda não está conectado a um envio real.
+          Não foi possível enviar agora. Tente novamente ou{" "}
+          {whatsappHref ? (
+            <a href={whatsappHref} className="underline underline-offset-4" target="_blank" rel="noopener noreferrer">
+              fale comigo pelo WhatsApp
+            </a>
+          ) : (
+            "fale comigo pelo WhatsApp"
+          )}
+          .
         </p>
       ) : null}
 
       <button type="submit" className={buttonClass("primary", "mt-6 w-full")} disabled={loading}>
-        {loading ? "Enviando simulação..." : siteConfig.ctas.final}
+        {loading ? "Enviando..." : siteConfig.ctas.final}
       </button>
 
-      {siteConfig.features.leadForm === "mock" ? (
-        <p className="mt-3 text-center text-xs leading-relaxed text-muted">
-          Simulação local: os dados ficam apenas nesta tela e não são enviados.
-        </p>
-      ) : null}
+      <p className="mt-3 text-center text-xs leading-relaxed text-muted">
+        Seus dados serão usados apenas para responder ao seu contato.{" "}
+        <Link href="/privacidade" className="underline underline-offset-4">
+          Privacidade
+        </Link>
+      </p>
     </form>
   );
 }
