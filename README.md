@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Site profissional — MVP
 
-## Getting Started
+Landing page para validar posicionamento, oferta e conversão de um profissional que cria sites e estrutura tráfego pago. O objetivo do trabalho é gerar oportunidades de negócio, não vender “marketing digital” genérico.
 
-First, run the development server:
+Neste ciclo existe apenas o front-end. Não há backend, banco, envio real de formulário nem integrações.
+
+## Stack
+
+- Next.js (App Router) + TypeScript
+- Tailwind CSS
+- Lucide Icons
+- ESLint
+
+## Como executar
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Outros comandos:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm start
+```
 
-## Learn More
+## Estrutura
 
-To learn more about Next.js, take a look at the following resources:
+```text
+src/
+  app/                  rotas, metadata, robots, sitemap, ícone e Open Graph
+  components/layout/    header, menu mobile e footer
+  components/sections/  seções da landing
+  components/ui/        container, links e heading
+  data/                 conteúdo e configuração
+  lib/                  analytics, WhatsApp e estilos de botão
+  types/                tipos do conteúdo
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Onde alterar
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| O que mudar | Arquivo |
+| --- | --- |
+| Nome, WhatsApp, e-mail, Instagram, domínio, CTAs | `src/data/site-config.ts` |
+| Cores e tokens | `src/app/globals.css` |
+| Serviços | `src/data/services.ts` |
+| Cases | `src/data/cases.ts` |
+| FAQ | `src/data/faq.ts` |
+| Processo | `src/data/process.ts` |
+| Textos das seções, métricas ilustrativas | `src/data/home.ts` |
+| Objetivos do formulário | `src/data/lead-objectives.ts` |
+| Menu | `src/data/navigation.ts` |
 
-## Deploy on Vercel
+Enquanto `contact.whatsapp` for um placeholder (`{{WHATSAPP}}`), os botões não abrem um telefone. Eles levam ao formulário. Com um número real, os CTAs gerais passam a abrir o WhatsApp com a mensagem definida em `contact.whatsappMessage`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Itens mockados
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- E-mail, Instagram e WhatsApp (`{{...}}`)
+- Domínio (`https://seudominio.com.br`)
+- Métricas do hero
+- Cases (existem no código, mas não são exibidos enquanto `isMock` for verdadeiro)
+- Envio do formulário (`features.leadForm: "mock"`)
+- Foto profissional (espaço vazio)
+
+Não publique esses mocks como se fossem informações reais. O detalhe está em `MVP_STATUS.md`.
+
+## Próximos passos
+
+1. Trocar WhatsApp, e-mail, Instagram e domínio em `src/data/site-config.ts`.
+2. Conectar o formulário a um envio real e mudar `features.leadForm` para `"live"`.
+3. Publicar cases reais, adicionar a foto e incluir política de privacidade, analytics e pixels.

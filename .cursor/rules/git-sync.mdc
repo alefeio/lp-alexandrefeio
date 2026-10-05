@@ -1,0 +1,18 @@
+---
+description: Commit e push no GitHub após cada alteração deste projeto
+alwaysApply: true
+---
+
+# Sincronizar com o GitHub
+
+Repositório: https://github.com/alefeio/lp-alexandrefeio.git
+Branch: `main`
+Remote: `origin`
+
+Depois de cada alteração concluída neste projeto:
+
+1. Conferir `git status` e o diff. Não incluir `.env`, credenciais ou segredos.
+2. Criar um commit com mensagem curta que explique o porquê.
+3. Enviar com `git push` para `origin main`.
+
+Não alterar a configuração do Git. Não usar force push, reset destrutivo nem `--no-verify`, salvo pedido explícito.
