@@ -17,7 +17,7 @@ export default function PrivacyPage() {
       <Container>
         <div className="max-w-2xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Privacidade</p>
-          <h1 className="mt-3 text-3xl font-medium tracking-tight sm:text-4xl">Como o contato é usado</h1>
+          <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">Como o contato é usado</h1>
           <div className="mt-8 space-y-6 text-base leading-relaxed text-muted">
             <p>
               O formulário de {host} envia nome, empresa, WhatsApp e o interesse escolhido. Esses dados servem apenas

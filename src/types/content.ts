@@ -51,13 +51,9 @@ export interface Differential {
 
 export interface FlowStep {
   number: string;
+  role: string;
   title: string;
   description: string;
-}
-
-export interface IllustrativeMetric {
-  label: string;
-  value: string;
 }
 
 export interface LeadObjective {

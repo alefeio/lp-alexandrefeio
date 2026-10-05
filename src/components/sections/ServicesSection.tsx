@@ -15,7 +15,7 @@ export function ServicesSection({ selectedServiceId }: { selectedServiceId?: str
           titleId="servicos-titulo"
         />
 
-        <ul className="mt-14 grid gap-4 lg:grid-cols-3">
+        <ul className="mt-10 grid gap-4 lg:grid-cols-3 lg:gap-5">
           {services.map((service) => (
             <li key={service.id}>
               <ServiceCard service={service} selected={service.id === selectedServiceId} />

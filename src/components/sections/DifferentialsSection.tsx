@@ -13,20 +13,24 @@ export function DifferentialsSection() {
           titleId="diferenca-titulo"
         />
 
-        <ul className="mt-12 divide-y divide-border border-y border-border">
+        <ul className="mt-10 border-t border-border">
           {differentials.map((item) => (
-            <li key={item.after} className="grid gap-6 py-8 md:grid-cols-2 md:gap-16">
+            <li
+              key={item.after}
+              className="grid gap-4 border-b border-border py-7 md:grid-cols-[minmax(0,0.85fr)_2.5rem_minmax(0,1.15fr)] md:items-center md:gap-6 md:py-8"
+            >
               <p>
                 <span className="mb-2 block text-xs font-medium uppercase tracking-[0.14em] text-subtle">
                   {item.beforeLabel}
                 </span>
                 <span className="text-lg text-muted">{item.before}</span>
               </p>
-              <p>
+              <span aria-hidden="true" className="hidden h-px w-full bg-border md:block" />
+              <p className="border-l-2 border-cta pl-4 md:pl-5">
                 <span className="mb-2 block text-xs font-medium uppercase tracking-[0.14em] text-cta">
                   {item.afterLabel}
                 </span>
-                <span className="text-lg font-medium tracking-tight sm:text-xl">{item.after}</span>
+                <span className="text-xl font-semibold tracking-tight sm:text-[1.35rem]">{item.after}</span>
               </p>
             </li>
           ))}

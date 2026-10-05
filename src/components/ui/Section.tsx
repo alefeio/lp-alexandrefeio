@@ -16,7 +16,7 @@ export function Section({
     <section
       id={id}
       aria-labelledby={titleId ?? `${id}-titulo`}
-      className={cn("scroll-mt-36 border-t border-border py-20 sm:py-28", className)}
+      className={cn("scroll-mt-36 border-t border-border py-16 sm:py-20 lg:py-24", className)}
     >
       {children}
     </section>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { footerNavigation } from "@/data/navigation";
 import { siteConfig } from "@/data/site-config";
 import { Container } from "@/components/ui/Container";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { buildWhatsAppUrl, emailHref, instagramHref } from "@/lib/contact";
 
 function ContactLine({
@@ -22,7 +23,7 @@ function ContactLine({
         <a
           href={href}
           aria-label={`${label}: ${value}`}
-          className="underline-offset-4 hover:underline"
+          className="text-foreground underline-offset-4 transition-colors duration-200 hover:text-cta hover:underline"
           {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
         >
           {value}
@@ -41,12 +42,12 @@ export function Footer() {
   const instagram = instagramHref();
 
   return (
-    <footer className="border-t border-border py-14">
-      <Container className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
+    <footer className="border-t border-border py-10">
+      <Container className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,1fr)]">
         <div>
-          <p className="font-medium tracking-tight">{siteConfig.name}</p>
+          <Wordmark className="text-base" />
           <p className="mt-2 text-sm text-muted">{siteConfig.location.short}</p>
-          <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted">
+          <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
             Sites e tráfego pago para gerar oportunidades de negócio.
           </p>
         </div>
@@ -55,7 +56,7 @@ export function Footer() {
           <ul className="flex flex-col gap-2">
             {footerNavigation.map((item) => (
               <li key={item.href}>
-                <a href={item.href} className="text-sm text-foreground hover:text-cta">
+                <a href={item.href} className="text-sm text-foreground transition-colors duration-200 hover:text-cta">
                   {item.label}
                 </a>
               </li>
@@ -63,8 +64,8 @@ export function Footer() {
           </ul>
         </nav>
 
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium">Contato</p>
+        <div>
+          <p className="text-sm font-semibold">Contato</p>
           <div className="mt-2 flex flex-col gap-1">
             {whatsappHref ? (
               <ContactLine label="WhatsApp" value={siteConfig.contact.whatsapp} href={whatsappHref} />
@@ -73,23 +74,23 @@ export function Footer() {
             {instagram ? (
               <ContactLine label="Instagram" value={siteConfig.contact.instagram} href={instagram} />
             ) : null}
-            <a href="#contato" className="text-sm text-foreground hover:text-cta">
+            <a href="#contato" className="mt-1 text-sm text-foreground transition-colors duration-200 hover:text-cta">
               {siteConfig.ctas.final}
             </a>
           </div>
         </div>
       </Container>
 
-      <Container className="mt-12">
-        <p className="text-xs text-subtle">
+      <Container className="mt-8 border-t border-border pt-5">
+        <p className="text-sm text-subtle">
           © {year} {siteConfig.name}. {siteConfig.location.short}.{" "}
-          <Link href="/privacidade" className="underline-offset-4 hover:underline">
+          <Link href="/privacidade" className="text-foreground underline-offset-4 hover:underline">
             Privacidade
           </Link>
         </p>
         {process.env.NODE_ENV === "development" ? (
           <p className="mt-3 max-w-xl text-xs leading-relaxed text-subtle">
-            Métricas do hero são fictícias. Cases mockados não são exibidos como prova.
+            Cases mockados não são exibidos como prova.
           </p>
         ) : null}
       </Container>

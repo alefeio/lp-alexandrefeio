@@ -25,7 +25,7 @@ export function SectionHeading({
       <h2
         id={titleId}
         className={cn(
-          "text-3xl font-medium tracking-tight sm:text-4xl",
+          "text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl",
           eyebrow ? "mt-3" : "",
           onDark ? "text-on-ink" : "text-foreground",
         )}

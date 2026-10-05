@@ -16,21 +16,21 @@ export default function OpenGraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#f4f2ec",
-          color: "#161615",
+          background: "#F8FAFC",
+          color: "#0F172A",
           padding: "72px",
         }}
       >
         <div style={{ display: "flex", fontSize: 28 }}>{siteConfig.name}</div>
         <div style={{ display: "flex", flexDirection: "column", maxWidth: 900 }}>
-          <div style={{ display: "flex", fontSize: 22, letterSpacing: 3, color: "#0e6b4f" }}>
+          <div style={{ display: "flex", fontSize: 22, letterSpacing: 3, color: "#1E5EFF" }}>
             {heroContent.eyebrow.toUpperCase()}
           </div>
           <div style={{ display: "flex", fontSize: 60, lineHeight: 1.12, marginTop: 20 }}>
             {heroContent.title}
           </div>
         </div>
-        <div style={{ display: "flex", fontSize: 28, color: "#4e4d48" }}>{siteConfig.location.short}</div>
+        <div style={{ display: "flex", fontSize: 28, color: "#5B6472" }}>{siteConfig.location.short}</div>
       </div>
     ),
     { ...size },

@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f4f2ec",
+  themeColor: "#f8fafc",
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,
@@ -56,7 +56,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <a href="#conteudo" className="skip-link">
           Ir para o conteúdo
         </a>
-        <div className="h-1 bg-cta" aria-hidden="true" />
         <Header />
         <main id="conteudo">{children}</main>
         <Footer />

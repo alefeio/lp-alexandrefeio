@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import { navigation } from "@/data/navigation";
 import { siteConfig } from "@/data/site-config";
 import { ContactLink } from "@/components/ui/ContactLink";
+import { Wordmark } from "@/components/ui/Wordmark";
 
 export function MobileNav() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -45,8 +46,8 @@ export function MobileNav() {
       >
         <div className="flex h-full flex-col px-5 py-4">
           <div className="flex items-center justify-between gap-4">
-            <p id={titleId} className="text-sm font-medium tracking-tight">
-              {siteConfig.name}
+            <p id={titleId} className="min-w-0 text-base text-foreground">
+              <Wordmark />
             </p>
             <button
               type="button"
@@ -64,7 +65,7 @@ export function MobileNav() {
                 <li key={item.href} className="border-b border-border">
                   <a
                     href={item.href}
-                    className="flex min-h-14 items-center text-2xl font-medium tracking-tight"
+                    className="flex min-h-14 items-center text-2xl font-semibold tracking-tight"
                     onClick={closeMenu}
                   >
                     {item.label}

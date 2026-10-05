@@ -155,7 +155,7 @@ export function buildLeadEmail(lead: PreparedLead): LeadEmail {
   const htmlRows = rows
     .map(
       ([label, value]) =>
-        `<p style="margin:0 0 16px"><span style="color:#4e4d48">${escapeHtml(label)}</span><br><strong>${escapeHtml(value)}</strong></p>`,
+        `<p style="margin:0 0 16px"><span style="color:#5b6472">${escapeHtml(label)}</span><br><strong>${escapeHtml(value)}</strong></p>`,
     )
     .join("");
 
@@ -163,7 +163,7 @@ export function buildLeadEmail(lead: PreparedLead): LeadEmail {
     ? `<p style="margin:24px 0 0"><a href="${escapeHtml(whatsappHref)}">Conversar no WhatsApp</a></p>`
     : "";
 
-  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f4f2ec;color:#161615;font-family:Georgia,serif;line-height:1.5"><div style="max-width:560px;margin:0 auto;background:#ffffff;padding:32px"><p style="margin:0 0 24px;font-family:sans-serif;font-size:12px;letter-spacing:0.08em">NOVO CONTATO PELO SITE</p>${htmlRows}${whatsappHtml}</div></body></html>`;
+  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8fafc;color:#0f172a;font-family:Georgia,serif;line-height:1.5"><div style="max-width:560px;margin:0 auto;background:#ffffff;padding:32px"><p style="margin:0 0 24px;font-family:sans-serif;font-size:12px;letter-spacing:0.08em">NOVO CONTATO PELO SITE</p>${htmlRows}${whatsappHtml}</div></body></html>`;
 
   return {
     subject: `Novo contato pelo site — ${subjectName}`.slice(0, 180),

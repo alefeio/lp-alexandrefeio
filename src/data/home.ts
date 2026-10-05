@@ -1,9 +1,4 @@
-import type {
-  Differential,
-  FlowStep,
-  IllustrativeMetric,
-  ValuePillar,
-} from "@/types/content";
+import type { Differential, FlowStep, ValuePillar } from "@/types/content";
 
 export const heroContent = {
   eyebrow: "Sites + Tráfego Pago",
@@ -13,20 +8,11 @@ export const heroContent = {
 };
 
 export const heroFlow: readonly FlowStep[] = [
-  { number: "01", title: "Tráfego", description: "Quem tem interesse chega" },
-  { number: "02", title: "Landing page", description: "A página recebe a visita" },
-  { number: "03", title: "Lead", description: "Vira contato" },
-  { number: "04", title: "Oportunidade", description: "Vira conversa" },
+  { number: "01", role: "Entrada", title: "Tráfego", description: "Quem tem interesse chega" },
+  { number: "02", role: "Processamento", title: "Landing page", description: "A página recebe a visita" },
+  { number: "03", role: "Ação", title: "Contato", description: "Vira contato" },
+  { number: "04", role: "Resultado", title: "Oportunidade", description: "Vira conversa" },
 ];
-
-export const heroMetrics: readonly IllustrativeMetric[] = [
-  { label: "Visitantes", value: "1.240" },
-  { label: "Conversões", value: "86" },
-  { label: "Leads", value: "64" },
-  { label: "Custo por lead", value: "R$ 18" },
-];
-
-export const heroMetricsNote = "Números fictícios. Não são resultados reais.";
 
 export const problemContent = {
   title: "Ter um site não significa gerar negócios.",
@@ -93,9 +79,9 @@ export const midCtaContent = {
 
 export const aboutContent = {
   eyebrow: "Sobre",
-  title: "A página e a campanha nascem juntas.",
+  title: "Tecnologia e marketing fazem parte da mesma trajetória.",
   description:
-    "Eu desenvolvo o site e conduzo o tráfego pago. O anúncio não aponta para uma página feita sem pensar na campanha.",
+    "Sou Alexandre Feio. Uno Sistemas de Informação e Marketing para construir páginas e campanhas com o mesmo objetivo: gerar oportunidades.",
   photoLabel: "Espaço reservado para foto profissional",
 };
 

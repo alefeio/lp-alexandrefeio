@@ -5,16 +5,17 @@ import { Container } from "@/components/ui/Container";
 
 export function FinalCTA({ selectedService }: { selectedService?: Service }) {
   return (
-    <section id="contato" aria-labelledby="contato-titulo" className="scroll-mt-36 bg-ink text-on-ink">
-      <Container className="grid gap-10 py-20 sm:py-28 lg:grid-cols-2 lg:items-start lg:gap-16">
+    <section id="contato" aria-labelledby="contato-titulo" className="final-stage scroll-mt-36 text-on-ink">
+      <Container className="grid gap-8 py-16 sm:py-20 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-center lg:gap-12">
         <div>
-          <h2 id="contato-titulo" className="text-3xl font-medium tracking-tight text-on-ink sm:text-4xl">
+          <h2 id="contato-titulo" className="text-[1.85rem] font-semibold leading-[1.15] tracking-tight text-on-ink sm:text-4xl">
             {finalCtaContent.title}
           </h2>
           <p className="mt-4 max-w-md text-base leading-relaxed text-on-ink-muted sm:text-lg">
             {finalCtaContent.description}
           </p>
-          <p className="mt-6 text-sm text-on-ink-muted">{finalCtaContent.microcopy}</p>
+          <p className="mt-6 text-sm text-on-ink-muted sm:text-base">{finalCtaContent.microcopy}</p>
+          <div aria-hidden="true" className="mt-8 hidden h-px w-24 bg-gradient-to-r from-cta to-transparent lg:block" />
         </div>
         <LeadForm key={selectedService?.id ?? "contato"} selectedService={selectedService} />
       </Container>

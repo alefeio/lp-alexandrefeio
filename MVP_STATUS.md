@@ -17,7 +17,6 @@ Este arquivo existe para impedir que conteúdo fictício seja publicado como inf
 
 ## MOCKADO
 
-- Métricas do hero (visitantes, conversões, leads, custo por lead)
 - Cases em `src/data/cases.ts` (`isMock: true`)
 - Foto profissional (espaço reservado, sem imagem)
 - Preços (não há valor publicado)

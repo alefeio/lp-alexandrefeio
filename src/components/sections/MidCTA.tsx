@@ -5,15 +5,15 @@ import { Container } from "@/components/ui/Container";
 
 export function MidCTA() {
   return (
-    <section id="conversa" aria-labelledby="conversa-titulo" className="scroll-mt-36 border-t border-border">
-      <Container className="grid items-center gap-8 py-16 sm:py-20 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
+    <section id="conversa" aria-labelledby="conversa-titulo" className="scroll-mt-36 border-y border-border bg-surface">
+      <Container className="flex flex-col items-start gap-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:py-7">
         <div className="max-w-2xl">
-          <h2 id="conversa-titulo" className="text-3xl font-medium tracking-tight sm:text-4xl">
+          <h2 id="conversa-titulo" className="text-xl font-semibold tracking-tight sm:text-2xl">
             {midCtaContent.title}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">{midCtaContent.description}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted sm:text-base">{midCtaContent.description}</p>
         </div>
-        <ContactLink location="mid_cta" channel="whatsapp" className="w-full sm:w-auto">
+        <ContactLink location="mid_cta" channel="whatsapp" className="w-full shrink-0 sm:w-auto">
           {siteConfig.ctas.talk}
         </ContactLink>
       </Container>

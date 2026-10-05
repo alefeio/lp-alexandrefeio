@@ -30,7 +30,7 @@ const EMPTY_VALUES: FormValues = {
 
 function fieldClass(invalid: boolean): string {
   return cn(
-    "min-h-12 w-full rounded-lg border bg-background px-3 text-base text-foreground",
+    "min-h-12 w-full rounded-lg border bg-background px-3 text-base text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:border-cta disabled:cursor-not-allowed disabled:opacity-60",
     invalid ? "border-danger" : "border-border",
   );
 }
@@ -136,8 +136,17 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
 
   if (status === "success") {
     return (
-      <div className="rounded-lg border border-border bg-surface p-6 text-foreground sm:p-8" role="status">
-        <h3 ref={successRef} id={statusTitleId} tabIndex={-1} className="text-2xl font-medium tracking-tight">
+      <div
+        className="rounded-2xl border border-border bg-surface p-6 text-foreground shadow-[0_24px_60px_-36px_rgba(11,18,32,0.75)] sm:p-8"
+        role="status"
+      >
+        <h3
+          ref={successRef}
+          id={statusTitleId}
+          tabIndex={-1}
+          className="flex items-start gap-3 text-2xl font-semibold tracking-tight"
+        >
+          <span aria-hidden="true" className="mt-2 size-2 shrink-0 rounded-full bg-cta" />
           Recebi seu contato. Em breve conversamos.
         </h3>
       </div>
@@ -146,7 +155,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
 
   return (
     <form
-      className="rounded-lg border border-border bg-surface p-6 text-foreground sm:p-8"
+      className="rounded-2xl border border-border bg-surface p-6 text-foreground shadow-[0_24px_60px_-36px_rgba(11,18,32,0.75)] sm:p-8"
       noValidate
       aria-labelledby="contato-titulo"
       aria-busy={loading}
@@ -244,7 +253,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
             aria-invalid={errors.objective ? true : undefined}
             aria-describedby={errors.objective ? "objective-erro" : undefined}
             aria-required="true"
-            className={cn(fieldClass(Boolean(errors.objective)), "mt-2")}
+            className={cn(fieldClass(Boolean(errors.objective)), "mt-2 cursor-pointer")}
             onChange={(event) => updateField("objective", event.target.value)}
           >
             <option value="">Selecione</option>
@@ -271,7 +280,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
         <p className="mt-5 text-sm text-danger" role="alert">
           Não foi possível enviar agora. Tente novamente ou{" "}
           {whatsappHref ? (
-            <a href={whatsappHref} className="underline underline-offset-4" target="_blank" rel="noopener noreferrer">
+            <a href={whatsappHref} className="font-medium underline underline-offset-4" target="_blank" rel="noopener noreferrer">
               fale comigo pelo WhatsApp
             </a>
           ) : (
@@ -285,7 +294,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
         {loading ? "Enviando..." : siteConfig.ctas.final}
       </button>
 
-      <p className="mt-3 text-center text-xs leading-relaxed text-muted">
+      <p className="mt-3 text-center text-sm leading-relaxed text-muted">
         Seus dados serão usados apenas para responder ao seu contato.{" "}
         <Link href="/privacidade" className="underline underline-offset-4">
           Privacidade
