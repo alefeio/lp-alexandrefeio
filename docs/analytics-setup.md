@@ -18,16 +18,30 @@ Sem essa variável, o site funciona normalmente e nenhum script do GTM é carreg
 
 ## 3. Consent Mode
 
-A aplicação envia sinais padrão negados antes do GTM carregar:
+Antes do GTM carregar tags, o default é:
 
 - `analytics_storage: denied`
 - `ad_storage: denied`
 - `ad_user_data: denied`
 - `ad_personalization: denied`
 
-Quando o visitante aceita cookies, a aplicação envia `consent_update` no `dataLayer` com os novos valores.
+Quando o visitante escolhe no banner, a aplicação chama `gtag('consent', 'update', …)`:
 
-No GTM, configure tags de analytics e marketing para respeitar Consent Mode.
+| Escolha | analytics_storage | ad_storage | ad_user_data | ad_personalization |
+| --- | --- | --- | --- | --- |
+| Recusar não essenciais | denied | denied | denied | denied |
+| Analytics apenas | granted | denied | denied | denied |
+| Marketing apenas | denied | granted | granted | granted |
+| Aceitar todos | granted | granted | granted | granted |
+
+Os eventos de negócio (`generate_lead`, etc.) são empurrados no `dataLayer` quando a ação real acontece. Eles **não** dependem do consentimento de analytics.
+
+No GTM:
+
+- tags de GA4 devem exigir `analytics_storage = granted`;
+- tags de Google Ads e Meta devem exigir `ad_storage` / marketing = granted.
+
+Assim, com `analytics = denied` e `marketing = granted`, `generate_lead` existe no `dataLayer` e Ads/Meta podem consumi-lo; o GA4 não.
 
 ## 4. Eventos disponíveis no dataLayer
 
@@ -38,7 +52,7 @@ No GTM, configure tags de analytics e marketing para respeitar Consent Mode.
 | `service_interest` | Interesse em uma oferta |
 | `form_start` | Primeira interação no formulário, uma vez por sessão |
 | `form_submit` | Tentativa válida de envio |
-| `generate_lead` | E-mail administrativo aceito pelo Resend |
+| `generate_lead` | E-mail administrativo aceito pelo Resend (evento de negócio; consumo por plataforma depende do Consent Mode) |
 
 Parâmetros comuns:
 

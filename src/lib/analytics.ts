@@ -12,52 +12,51 @@ export type AnalyticsParams = Record<string, string | number | boolean | null | 
 
 declare global {
   interface Window {
-    dataLayer?: Array<Record<string, unknown>>;
+    dataLayer?: Array<Record<string, unknown> | IArguments>;
+    gtag?: (...args: unknown[]) => void;
   }
 }
 
-let activeConsent: ConsentState | null = null;
-
-function getDataLayer(): Array<Record<string, unknown>> | null {
+function getDataLayer(): Array<Record<string, unknown> | IArguments> | null {
   if (typeof window === "undefined") return null;
   window.dataLayer = window.dataLayer ?? [];
   return window.dataLayer;
 }
 
-export function setAnalyticsConsent(consent: ConsentState | null): void {
-  activeConsent = consent;
+function ensureGtag(): ((...args: unknown[]) => void) | null {
+  if (typeof window === "undefined") return null;
+  const dataLayer = getDataLayer();
+  if (!dataLayer) return null;
+
+  if (typeof window.gtag !== "function") {
+    window.gtag = function gtag() {
+      // Consent Mode expects the Arguments object, not a rest array.
+      // eslint-disable-next-line prefer-rest-params
+      dataLayer.push(arguments);
+    };
+  }
+
+  return window.gtag;
 }
 
 export function pushConsentDefaults(): void {
-  const dataLayer = getDataLayer();
-  if (!dataLayer) return;
+  const gtag = ensureGtag();
+  if (!gtag) return;
 
-  dataLayer.push({
-    event: "consent_default",
-    ...consentToGoogleSignals({
-      necessary: true,
-      analytics: false,
-      marketing: false,
-      updatedAt: 0,
-    }),
+  gtag("consent", "default", {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "denied",
+    wait_for_update: 500,
   });
 }
 
 export function pushConsentUpdate(consent: ConsentState): void {
-  const dataLayer = getDataLayer();
-  if (!dataLayer) return;
+  const gtag = ensureGtag();
+  if (!gtag) return;
 
-  activeConsent = consent;
-  dataLayer.push({
-    event: "consent_update",
-    ...consentToGoogleSignals(consent),
-  });
-}
-
-function canTrackAnalytics(): boolean {
-  if (typeof window === "undefined") return false;
-  if (!activeConsent) return false;
-  return activeConsent.analytics;
+  gtag("consent", "update", consentToGoogleSignals(consent));
 }
 
 function sanitizeParams(params: AnalyticsParams): Record<string, string | number | boolean> {
@@ -71,14 +70,12 @@ function sanitizeParams(params: AnalyticsParams): Record<string, string | number
   return clean;
 }
 
+/**
+ * Empurra eventos de negócio no dataLayer.
+ * A existência do evento não depende de consentimento.
+ * GA4 / Ads / Meta só devem consumir via tags no GTM com Consent Mode.
+ */
 export function trackEvent(event: AnalyticsEventName, params: AnalyticsParams = {}): void {
-  if (!canTrackAnalytics()) {
-    if (process.env.NODE_ENV === "development") {
-      console.info("[analytics blocked]", event, params);
-    }
-    return;
-  }
-
   const dataLayer = getDataLayer();
   if (!dataLayer) return;
 
@@ -94,10 +91,7 @@ export function trackEvent(event: AnalyticsEventName, params: AnalyticsParams = 
   }
 }
 
-export function trackGenerateLeadOnce(
-  submissionId: string,
-  params: AnalyticsParams,
-): boolean {
+export function trackGenerateLeadOnce(submissionId: string, params: AnalyticsParams): boolean {
   if (typeof window === "undefined") return false;
 
   const storageKey = `af_generate_lead_${submissionId}`;

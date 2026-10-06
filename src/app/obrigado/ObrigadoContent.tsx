@@ -31,7 +31,7 @@ function subscribeThankYouState(onStoreChange: () => void) {
 
 export function ObrigadoContent() {
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const state = useSyncExternalStore(subscribeThankYouState, readThankYouState, () => ({}));
+  const state = useSyncExternalStore(subscribeThankYouState, readThankYouState, (): ThankYouState => ({}));
   const whatsappHref = buildWhatsAppUrl();
 
   const greeting = state.firstName

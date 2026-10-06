@@ -9,7 +9,7 @@ import {
   type ConsentChoice,
   type ConsentState,
 } from "@/lib/consent";
-import { pushConsentDefaults, pushConsentUpdate, setAnalyticsConsent } from "@/lib/analytics";
+import { pushConsentDefaults, pushConsentUpdate } from "@/lib/analytics";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 
 interface ConsentContextValue {
@@ -48,7 +48,6 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     setShowBanner(false);
     setShowCustomize(false);
     localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(next));
-    setAnalyticsConsent(next);
     pushConsentUpdate(next);
   }, []);
 
@@ -56,7 +55,6 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     pushConsentDefaults();
     const stored = readStoredConsent();
     if (stored) {
-      setAnalyticsConsent(stored);
       pushConsentUpdate(stored);
     }
   }, []);

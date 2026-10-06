@@ -5,7 +5,7 @@ import {
   readStoredAttribution,
   sanitizeAttributionInput,
 } from "../src/lib/attribution";
-import { parseConsent, serializeConsent } from "../src/lib/consent";
+import { consentToGoogleSignals, parseConsent, serializeConsent } from "../src/lib/consent";
 import { objectiveToServiceName, toServiceAnalyticsName } from "../src/lib/service-analytics";
 
 assert.equal(toServiceAnalyticsName("site-trafego"), "site_trafego");
@@ -48,6 +48,31 @@ assert.equal(consent.analytics, true);
 assert.equal(consent.marketing, false);
 assert.equal(parseConsent(JSON.stringify(consent))?.analytics, true);
 assert.equal(parseConsent("invalid"), null);
+
+assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: false, marketing: false })), {
+  analytics_storage: "denied",
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  ad_personalization: "denied",
+});
+assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: true, marketing: false })), {
+  analytics_storage: "granted",
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  ad_personalization: "denied",
+});
+assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: false, marketing: true })), {
+  analytics_storage: "denied",
+  ad_storage: "granted",
+  ad_user_data: "granted",
+  ad_personalization: "granted",
+});
+assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: true, marketing: true })), {
+  analytics_storage: "granted",
+  ad_storage: "granted",
+  ad_user_data: "granted",
+  ad_personalization: "granted",
+});
 
 assert.equal(ATTRIBUTION_STORAGE_KEY, "af_attribution");
 
