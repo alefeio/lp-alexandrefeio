@@ -18,7 +18,15 @@ export async function submitLead(input: LeadInput): Promise<SubmitLeadResult> {
   const replyTo = process.env.CONTACT_REPLY_TO_EMAIL;
 
   if (!apiKey || !to || !from || !replyTo) {
-    console.error("contact form: missing email configuration");
+    const missing = [
+      ["RESEND_API_KEY", apiKey],
+      ["CONTACT_TO_EMAIL", to],
+      ["CONTACT_FROM_EMAIL", from],
+      ["CONTACT_REPLY_TO_EMAIL", replyTo],
+    ]
+      .filter((entry): entry is [string, undefined] => !entry[1])
+      .map(([name]) => name);
+    console.error("contact form: missing email configuration", { missing });
     return { ok: false, reason: "rejected" };
   }
 

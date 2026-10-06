@@ -4,6 +4,7 @@ import {
   buildLeadEmail,
   deliverLeadEmail,
   dispatchLeadEmails,
+  formatWhatsApp,
   prepareLead,
   validateLead,
   type OutboundEmail,
@@ -24,6 +25,9 @@ const prepared = prepareLead(valid);
 if (!prepared.ok) throw new Error("valid lead was rejected");
 const lead = prepared.lead;
 assert.equal(lead.email, "ana.souza+site@example.com");
+assert.equal(lead.whatsapp, "(91) 98888-7777");
+assert.equal(formatWhatsApp("9198887777"), "(91) 9888-7777");
+assert.equal(formatWhatsApp("+55 91 98888-7777"), "+55 (91) 98888-7777");
 
 const email = buildLeadEmail(lead);
 assert.match(email.subject, /^Novo contato pelo site — Ana Souza$/);

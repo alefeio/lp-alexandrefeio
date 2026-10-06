@@ -8,7 +8,7 @@ import { siteConfig } from "@/data/site-config";
 import { trackEvent } from "@/lib/analytics";
 import { buttonClass } from "@/lib/button-styles";
 import { buildWhatsAppUrl } from "@/lib/contact";
-import { validateLead, type LeadErrors, type LeadField } from "@/lib/lead";
+import { formatWhatsApp, validateLead, type LeadErrors, type LeadField } from "@/lib/lead";
 import { cn } from "@/lib/cn";
 import type { Service } from "@/types/content";
 
@@ -233,13 +233,14 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
             type="tel"
             inputMode="tel"
             autoComplete="tel"
+            placeholder="(91) 99999-9999"
             maxLength={32}
             value={values.whatsapp}
             aria-invalid={errors.whatsapp ? true : undefined}
             aria-describedby={errors.whatsapp ? "whatsapp-erro" : undefined}
             aria-required="true"
             className={cn(fieldClass(Boolean(errors.whatsapp)), "mt-2")}
-            onChange={(event) => updateField("whatsapp", event.target.value)}
+            onChange={(event) => updateField("whatsapp", formatWhatsApp(event.target.value))}
           />
           {errors.whatsapp ? (
             <p id="whatsapp-erro" className="mt-2 text-sm text-danger">

@@ -71,6 +71,27 @@ export async function deliverLeadEmail(
   }
 }
 
+export function formatWhatsApp(value: string): string {
+  let digits = value.replace(/\D/g, "");
+  const hasCountry = digits.startsWith("55") && digits.length > 11;
+  digits = digits.slice(0, hasCountry ? 13 : 11);
+
+  const national = hasCountry ? digits.slice(2) : digits;
+  const country = hasCountry ? "+55 " : "";
+  if (national.length === 0) return "";
+  if (national.length <= 2) return `${country}(${national}`;
+
+  const ddd = national.slice(0, 2);
+  const subscriber = national.slice(2);
+  if (subscriber.length === 0) return `${country}(${ddd})`;
+  if (subscriber.length <= 4) return `${country}(${ddd}) ${subscriber}`;
+
+  const mobile = subscriber.length > 8;
+  const head = subscriber.slice(0, mobile ? 5 : 4);
+  const tail = subscriber.slice(mobile ? 5 : 4);
+  return tail ? `${country}(${ddd}) ${head}-${tail}` : `${country}(${ddd}) ${head}`;
+}
+
 export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -143,7 +164,7 @@ export function prepareLead(input: LeadInput, now = Date.now()): PrepareResult {
     lead: {
       name: singleLine(input.name),
       company: singleLine(input.company),
-      whatsapp: singleLine(input.whatsapp),
+      whatsapp: formatWhatsApp(singleLine(input.whatsapp)),
       digits: input.whatsapp.replace(/\D/g, ""),
       email: normalizeEmail(input.email),
       interest,
