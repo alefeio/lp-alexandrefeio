@@ -12,6 +12,7 @@ import { buttonClass } from "@/lib/button-styles";
 import { buildWhatsAppUrl } from "@/lib/contact";
 import { formatWhatsApp, validateLead, type LeadErrors, type LeadField } from "@/lib/lead";
 import { objectiveToServiceName, toServiceAnalyticsName } from "@/lib/service-analytics";
+import { THANK_YOU_STORAGE_KEY } from "@/lib/thank-you";
 import { cn } from "@/lib/cn";
 import type { Service } from "@/types/content";
 
@@ -34,7 +35,6 @@ const EMPTY_VALUES: FormValues = {
 };
 
 const FORM_START_KEY = "af_form_started";
-export const THANK_YOU_STORAGE_KEY = "af_thank_you";
 
 function fieldClass(invalid: boolean): string {
   return cn(
