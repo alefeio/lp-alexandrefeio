@@ -18,12 +18,20 @@ Sem essa variável, o site funciona normalmente e nenhum script do GTM é carreg
 
 ## 3. Consent Mode
 
-Antes do GTM carregar tags, o default é:
+Ordem de inicialização:
+
+1. Consent Mode `default` = denied (uma vez, antes das tags)
+2. GTM carrega (se `NEXT_PUBLIC_GTM_ID` existir)
+3. Preferência em `localStorage` é lida no cliente
+4. Se existir preferência, `gtag('consent', 'update', …)`
+
+Antes de tags de analytics/publicidade, o default é:
 
 - `analytics_storage: denied`
 - `ad_storage: denied`
 - `ad_user_data: denied`
 - `ad_personalization: denied`
+- `wait_for_update: 500`
 
 Quando o visitante escolhe no banner, a aplicação chama `gtag('consent', 'update', …)`:
 
@@ -71,9 +79,11 @@ Nunca incluem nome, e-mail, WhatsApp ou outros dados pessoais.
 
 ## 6. Google Ads
 
-1. Importe a conversão do GA4 ou crie uma tag de conversão baseada no evento `generate_lead`.
-2. Não configure conversion ID ou label no código da aplicação.
-3. Exija consentimento de marketing no GTM.
+1. Crie ou importe a conversão no GTM com trigger Custom Event `generate_lead`.
+2. A conversão nativa prevista é “Lead - Formulário do site”, com valor e moeda definidos no GTM (não no código).
+3. Exija consentimento de marketing (`ad_storage`, `ad_user_data`, `ad_personalization`) na tag.
+4. Não configure conversion ID ou label no código da aplicação.
+5. Enhanced Conversions permanece desativada.
 
 ## 7. Meta Pixel
 

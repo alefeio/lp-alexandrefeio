@@ -5,7 +5,12 @@ import {
   readStoredAttribution,
   sanitizeAttributionInput,
 } from "../src/lib/attribution";
-import { consentToGoogleSignals, parseConsent, serializeConsent } from "../src/lib/consent";
+import {
+  CONSENT_STORAGE_KEY,
+  consentToGoogleSignals,
+  parseConsent,
+  serializeConsent,
+} from "../src/lib/consent";
 import { objectiveToServiceName, toServiceAnalyticsName } from "../src/lib/service-analytics";
 
 assert.equal(toServiceAnalyticsName("site-trafego"), "site_trafego");
@@ -43,37 +48,92 @@ const stored = readStoredAttribution(
 assert.equal(stored.utm_source, "meta");
 assert.equal(stored.fbclid, "fb-1");
 
-const consent = serializeConsent({ analytics: true, marketing: false });
-assert.equal(consent.analytics, true);
-assert.equal(consent.marketing, false);
-assert.equal(parseConsent(JSON.stringify(consent))?.analytics, true);
-assert.equal(parseConsent("invalid"), null);
-
-assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: false, marketing: false })), {
-  analytics_storage: "denied",
-  ad_storage: "denied",
-  ad_user_data: "denied",
-  ad_personalization: "denied",
-});
-assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: true, marketing: false })), {
-  analytics_storage: "granted",
-  ad_storage: "denied",
-  ad_user_data: "denied",
-  ad_personalization: "denied",
-});
-assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: false, marketing: true })), {
-  analytics_storage: "denied",
-  ad_storage: "granted",
-  ad_user_data: "granted",
-  ad_personalization: "granted",
-});
-assert.deepEqual(consentToGoogleSignals(serializeConsent({ analytics: true, marketing: true })), {
-  analytics_storage: "granted",
-  ad_storage: "granted",
-  ad_user_data: "granted",
-  ad_personalization: "granted",
-});
-
+assert.equal(CONSENT_STORAGE_KEY, "af_consent_v1");
 assert.equal(ATTRIBUTION_STORAGE_KEY, "af_attribution");
+
+function assertSignals(
+  choice: { analytics: boolean; marketing: boolean },
+  expected: {
+    analytics_storage: "granted" | "denied";
+    ad_storage: "granted" | "denied";
+    ad_user_data: "granted" | "denied";
+    ad_personalization: "granted" | "denied";
+  },
+) {
+  assert.deepEqual(consentToGoogleSignals(serializeConsent(choice)), expected);
+}
+
+// Default / reject
+assertSignals(
+  { analytics: false, marketing: false },
+  {
+    analytics_storage: "denied",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+  },
+);
+
+// Accept all
+assertSignals(
+  { analytics: true, marketing: true },
+  {
+    analytics_storage: "granted",
+    ad_storage: "granted",
+    ad_user_data: "granted",
+    ad_personalization: "granted",
+  },
+);
+
+// Analytics only
+assertSignals(
+  { analytics: true, marketing: false },
+  {
+    analytics_storage: "granted",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+  },
+);
+
+// Marketing only
+assertSignals(
+  { analytics: false, marketing: true },
+  {
+    analytics_storage: "denied",
+    ad_storage: "granted",
+    ad_user_data: "granted",
+    ad_personalization: "granted",
+  },
+);
+
+// Persistência: salvar → serializar → restaurar
+const accepted = serializeConsent({ analytics: true, marketing: true });
+const restored = parseConsent(JSON.stringify(accepted));
+assert.equal(restored?.analytics, true);
+assert.equal(restored?.marketing, true);
+assert.equal(restored?.necessary, true);
+
+// Mudança granted → denied
+const revoked = serializeConsent({ analytics: true, marketing: false });
+assert.deepEqual(consentToGoogleSignals(revoked), {
+  analytics_storage: "granted",
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  ad_personalization: "denied",
+});
+
+// Mudança denied → granted
+const grantedAgain = serializeConsent({ analytics: false, marketing: true });
+assert.deepEqual(consentToGoogleSignals(grantedAgain), {
+  analytics_storage: "denied",
+  ad_storage: "granted",
+  ad_user_data: "granted",
+  ad_personalization: "granted",
+});
+
+assert.equal(parseConsent("invalid"), null);
+assert.equal(parseConsent('{"analytics":"yes"}'), null);
+assert.equal(parseConsent(null), null);
 
 console.log("analytics checks ok");

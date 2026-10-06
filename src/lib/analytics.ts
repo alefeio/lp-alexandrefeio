@@ -14,6 +14,7 @@ declare global {
   interface Window {
     dataLayer?: Array<Record<string, unknown> | IArguments>;
     gtag?: (...args: unknown[]) => void;
+    __afConsentDefaultApplied?: boolean;
   }
 }
 
@@ -39,10 +40,15 @@ function ensureGtag(): ((...args: unknown[]) => void) | null {
   return window.gtag;
 }
 
+/** Aplica o default denied uma única vez por página. */
 export function pushConsentDefaults(): void {
+  if (typeof window === "undefined") return;
+  if (window.__afConsentDefaultApplied) return;
+
   const gtag = ensureGtag();
   if (!gtag) return;
 
+  window.__afConsentDefaultApplied = true;
   gtag("consent", "default", {
     ad_storage: "denied",
     ad_user_data: "denied",

@@ -30,9 +30,10 @@ export default function PrivacyPage() {
             </p>
             <p>
               O site pode usar tecnologias de medição, analytics e publicidade conforme a escolha feita no banner de
-              cookies. Informações de campanha, como origem, mídia e parâmetros de anúncio presentes na URL, podem
-              acompanhar a solicitação para identificar de onde o contato veio. Esses dados administrativos não entram
-              nas ferramentas de analytics sem consentimento.
+              cookies. Essa escolha pode ser alterada depois em Preferências de cookies, no rodapé. Informações de
+              campanha, como origem, mídia e parâmetros de anúncio presentes na URL, podem acompanhar a solicitação
+              para identificar de onde o contato veio. Esses dados administrativos não entram nas ferramentas de
+              analytics sem consentimento.
             </p>
             <p>
               Dúvidas sobre este uso podem ser enviadas para{" "}

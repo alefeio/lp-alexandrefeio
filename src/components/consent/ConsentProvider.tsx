@@ -1,20 +1,24 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { DEFAULT_CONSENT, type ConsentChoice, type ConsentState } from "@/lib/consent";
 import {
-  CONSENT_STORAGE_KEY,
-  DEFAULT_CONSENT,
-  parseConsent,
-  serializeConsent,
-  type ConsentChoice,
-  type ConsentState,
-} from "@/lib/consent";
-import { pushConsentDefaults, pushConsentUpdate } from "@/lib/analytics";
+  acceptAllConsent,
+  bootstrapConsent,
+  closeConsentBanner,
+  getConsentUIState,
+  getServerConsentUIState,
+  openConsentPreferences,
+  rejectNonEssentialConsent,
+  saveConsentChoice,
+  subscribeConsentUI,
+} from "@/lib/consent-store";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 
 interface ConsentContextValue {
   consent: ConsentState;
   hasChoice: boolean;
+  ready: boolean;
   acceptAll: () => void;
   rejectNonEssential: () => void;
   saveChoice: (choice: ConsentChoice) => void;
@@ -22,11 +26,6 @@ interface ConsentContextValue {
 }
 
 const ConsentContext = createContext<ConsentContextValue | null>(null);
-
-function readStoredConsent(): ConsentState | null {
-  if (typeof window === "undefined") return null;
-  return parseConsent(localStorage.getItem(CONSENT_STORAGE_KEY));
-}
 
 export function useConsent() {
   const context = useContext(ConsentContext);
@@ -37,74 +36,40 @@ export function useConsent() {
 }
 
 export function ConsentProvider({ children }: { children: ReactNode }) {
-  const [consent, setConsent] = useState<ConsentState | null>(() => readStoredConsent());
-  const [hasChoice, setHasChoice] = useState(() => Boolean(readStoredConsent()));
-  const [showBanner, setShowBanner] = useState(() => !readStoredConsent());
-  const [showCustomize, setShowCustomize] = useState(false);
-
-  const applyConsent = useCallback((next: ConsentState) => {
-    setConsent(next);
-    setHasChoice(true);
-    setShowBanner(false);
-    setShowCustomize(false);
-    localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(next));
-    pushConsentUpdate(next);
-  }, []);
+  const ui = useSyncExternalStore(subscribeConsentUI, getConsentUIState, getServerConsentUIState);
 
   useEffect(() => {
-    pushConsentDefaults();
-    const stored = readStoredConsent();
-    if (stored) {
-      pushConsentUpdate(stored);
-    }
-  }, []);
-
-  const acceptAll = useCallback(() => {
-    applyConsent(serializeConsent({ analytics: true, marketing: true }));
-  }, [applyConsent]);
-
-  const rejectNonEssential = useCallback(() => {
-    applyConsent(serializeConsent({ analytics: false, marketing: false }));
-  }, [applyConsent]);
-
-  const saveChoice = useCallback(
-    (choice: ConsentChoice) => {
-      applyConsent(serializeConsent(choice));
-    },
-    [applyConsent],
-  );
-
-  const openPreferences = useCallback(() => {
-    setShowCustomize(true);
-    setShowBanner(true);
+    bootstrapConsent();
   }, []);
 
   const value = useMemo(
     () => ({
-      consent: consent ?? DEFAULT_CONSENT,
-      hasChoice,
-      acceptAll,
-      rejectNonEssential,
-      saveChoice,
-      openPreferences,
+      consent: ui.consent ?? DEFAULT_CONSENT,
+      hasChoice: ui.hasChoice,
+      ready: ui.ready,
+      acceptAll: acceptAllConsent,
+      rejectNonEssential: rejectNonEssentialConsent,
+      saveChoice: saveConsentChoice,
+      openPreferences: openConsentPreferences,
     }),
-    [acceptAll, consent, hasChoice, openPreferences, rejectNonEssential, saveChoice],
+    [ui.consent, ui.hasChoice, ui.ready],
   );
 
   return (
     <ConsentContext.Provider value={value}>
       {children}
-      {showBanner ? (
+      {ui.ready && ui.showBanner ? (
         <ConsentBanner
+          key={ui.panelKey}
           initialChoice={{
-            analytics: consent?.analytics ?? false,
-            marketing: consent?.marketing ?? false,
+            analytics: ui.consent?.analytics ?? false,
+            marketing: ui.consent?.marketing ?? false,
           }}
-          showCustomize={showCustomize || hasChoice}
-          onAcceptAll={acceptAll}
-          onReject={rejectNonEssential}
-          onSave={saveChoice}
-          onClose={() => setShowBanner(false)}
+          showCustomize={ui.showCustomize || ui.hasChoice}
+          onAcceptAll={acceptAllConsent}
+          onReject={rejectNonEssentialConsent}
+          onSave={saveConsentChoice}
+          onClose={closeConsentBanner}
         />
       ) : null}
     </ConsentContext.Provider>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { buttonClass } from "@/lib/button-styles";
 import { cn } from "@/lib/cn";
@@ -22,13 +22,34 @@ export function ConsentBanner({
   onClose: () => void;
 }) {
   const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   const [customize, setCustomize] = useState(showCustomize);
   const [analytics, setAnalytics] = useState(initialChoice.analytics);
   const [marketing, setMarketing] = useState(initialChoice.marketing);
 
+  useEffect(() => {
+    const previous = document.activeElement;
+    const primaryAction = panelRef.current?.querySelector<HTMLElement>('button[type="button"]');
+    primaryAction?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && showCustomize) {
+        event.preventDefault();
+        onClose();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (previous instanceof HTMLElement) previous.focus();
+    };
+  }, [onClose, showCustomize]);
+
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 p-4 shadow-[0_-18px_40px_-24px_rgba(11,18,32,0.45)] backdrop-blur-sm sm:p-5"
+      ref={panelRef}
+      className="fixed inset-x-0 bottom-0 z-50 max-h-[min(92vh,40rem)] overflow-y-auto border-t border-border bg-surface/95 p-4 shadow-[0_-18px_40px_-24px_rgba(11,18,32,0.45)] backdrop-blur-sm sm:p-5"
       role="dialog"
       aria-labelledby={titleId}
       aria-modal="true"
@@ -51,10 +72,18 @@ export function ConsentBanner({
         {customize ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-4">
-              <input type="checkbox" checked disabled className="mt-1 size-4 accent-cta" />
+              <input
+                type="checkbox"
+                checked
+                disabled
+                className="mt-1 size-4 accent-cta"
+                aria-describedby="consent-necessary-desc"
+              />
               <span>
                 <span className="block text-sm font-medium text-foreground">Necessários</span>
-                <span className="mt-1 block text-sm text-muted">Sempre ativos para o site e o formulário.</span>
+                <span id="consent-necessary-desc" className="mt-1 block text-sm text-muted">
+                  Sempre ativos para o site e o formulário.
+                </span>
               </span>
             </label>
             <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-4">
@@ -63,10 +92,13 @@ export function ConsentBanner({
                 checked={analytics}
                 onChange={(event) => setAnalytics(event.target.checked)}
                 className="mt-1 size-4 accent-cta"
+                aria-describedby="consent-analytics-desc"
               />
               <span>
                 <span className="block text-sm font-medium text-foreground">Analytics</span>
-                <span className="mt-1 block text-sm text-muted">Medição de visitas, CTAs e envios do formulário.</span>
+                <span id="consent-analytics-desc" className="mt-1 block text-sm text-muted">
+                  Medição de visitas, CTAs e envios do formulário.
+                </span>
               </span>
             </label>
             <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-4 sm:col-span-2">
@@ -75,10 +107,11 @@ export function ConsentBanner({
                 checked={marketing}
                 onChange={(event) => setMarketing(event.target.checked)}
                 className="mt-1 size-4 accent-cta"
+                aria-describedby="consent-marketing-desc"
               />
               <span>
                 <span className="block text-sm font-medium text-foreground">Marketing</span>
-                <span className="mt-1 block text-sm text-muted">
+                <span id="consent-marketing-desc" className="mt-1 block text-sm text-muted">
                   Permite tags de publicidade configuradas no Google Tag Manager.
                 </span>
               </span>
