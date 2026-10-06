@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { submitLead } from "@/app/actions/submit-lead";
 import { leadObjectives } from "@/data/lead-objectives";
 import { siteConfig } from "@/data/site-config";
-import { trackEvent } from "@/lib/analytics";
+import { ATTRIBUTION_STORAGE_KEY, readStoredAttribution } from "@/lib/attribution";
+import { trackEvent, trackGenerateLeadOnce } from "@/lib/analytics";
 import { buttonClass } from "@/lib/button-styles";
 import { buildWhatsAppUrl } from "@/lib/contact";
 import { formatWhatsApp, validateLead, type LeadErrors, type LeadField } from "@/lib/lead";
+import { objectiveToServiceName, toServiceAnalyticsName } from "@/lib/service-analytics";
 import { cn } from "@/lib/cn";
 import type { Service } from "@/types/content";
 
@@ -20,7 +23,7 @@ interface FormValues {
   objective: string;
 }
 
-type FormStatus = "idle" | "success" | "error";
+type FormStatus = "idle" | "error";
 
 const EMPTY_VALUES: FormValues = {
   name: "",
@@ -30,6 +33,9 @@ const EMPTY_VALUES: FormValues = {
   objective: "",
 };
 
+const FORM_START_KEY = "af_form_started";
+export const THANK_YOU_STORAGE_KEY = "af_thank_you";
+
 function fieldClass(invalid: boolean): string {
   return cn(
     "min-h-12 w-full rounded-lg border bg-background px-3 text-base text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:border-cta disabled:cursor-not-allowed disabled:opacity-60",
@@ -37,12 +43,15 @@ function fieldClass(invalid: boolean): string {
   );
 }
 
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? "";
+}
+
 export function LeadForm({ selectedService }: { selectedService?: Service }) {
-  const statusTitleId = useId();
+  const router = useRouter();
   const started = useRef(false);
   const sending = useRef(false);
   const startedAt = useRef(0);
-  const successRef = useRef<HTMLHeadingElement>(null);
   const [values, setValues] = useState<FormValues>({
     ...EMPTY_VALUES,
     objective: selectedService?.objectiveId ?? "",
@@ -50,7 +59,6 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
   const [errors, setErrors] = useState<LeadErrors>({});
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<FormStatus>("idle");
-  const [confirmationSent, setConfirmationSent] = useState(false);
   const whatsappHref = buildWhatsAppUrl();
 
   const selectedId = selectedService?.id;
@@ -68,16 +76,11 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
     });
   }, [selectedId]);
 
-  useEffect(() => {
-    if (status === "success") {
-      successRef.current?.focus();
-    }
-  }, [status]);
-
   function handleStart() {
-    if (started.current) return;
+    if (started.current || sessionStorage.getItem(FORM_START_KEY)) return;
     started.current = true;
-    trackEvent("form_start", { location: "contact_form" });
+    sessionStorage.setItem(FORM_START_KEY, "1");
+    trackEvent("form_start", { form_location: "contact_form" });
   }
 
   function updateField(field: keyof FormValues, value: string) {
@@ -103,23 +106,48 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
     }
 
     const extra = String(new FormData(event.currentTarget).get("contact_extra") ?? "");
+    const submissionId = crypto.randomUUID();
+    const attribution = readStoredAttribution(sessionStorage.getItem(ATTRIBUTION_STORAGE_KEY));
+    const serviceName =
+      toServiceAnalyticsName(selectedService?.id) ?? objectiveToServiceName(values.objective) ?? undefined;
 
     sending.current = true;
     setLoading(true);
     setStatus("idle");
-    trackEvent("form_submit", { location: "contact_form", action: values.objective });
+    trackEvent("form_submit", {
+      form_location: "contact_form",
+      ...(serviceName ? { service_name: serviceName } : {}),
+    });
 
     try {
       const result = await submitLead({
         ...values,
         extra,
         startedAt: startedAt.current,
+        attribution,
       });
 
       if (result.ok) {
-        setConfirmationSent(result.confirmation === "sent");
-        setStatus("success");
-        trackEvent("form_success", { location: "contact_form", action: values.objective });
+        trackGenerateLeadOnce(submissionId, {
+          ...(serviceName ? { service_name: serviceName } : {}),
+          ...(attribution.utm_source || attribution.lead_source
+            ? { lead_source: attribution.utm_source ?? attribution.lead_source }
+            : {}),
+          ...(attribution.utm_medium || attribution.lead_medium
+            ? { lead_medium: attribution.utm_medium ?? attribution.lead_medium }
+            : {}),
+          ...(attribution.utm_campaign ? { lead_campaign: attribution.utm_campaign } : {}),
+        });
+
+        sessionStorage.setItem(
+          THANK_YOU_STORAGE_KEY,
+          JSON.stringify({
+            firstName: firstName(values.name),
+            confirmationSent: result.confirmation === "sent",
+          }),
+        );
+
+        router.push("/obrigado");
         return;
       }
 
@@ -136,27 +164,6 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
       sending.current = false;
       setLoading(false);
     }
-  }
-
-  if (status === "success") {
-    return (
-      <div
-        className="rounded-2xl border border-border bg-surface p-6 text-foreground shadow-[0_24px_60px_-36px_rgba(11,18,32,0.75)] sm:p-8"
-        role="status"
-      >
-        <h3
-          ref={successRef}
-          id={statusTitleId}
-          tabIndex={-1}
-          className="flex items-start gap-3 text-2xl font-semibold tracking-tight"
-        >
-          <span aria-hidden="true" className="mt-2 size-2 shrink-0 rounded-full bg-cta" />
-          {confirmationSent
-            ? "Recebi seu contato. Enviei uma confirmação para o seu e-mail."
-            : "Recebi seu contato. Em breve conversamos."}
-        </h3>
-      </div>
-    );
   }
 
   return (

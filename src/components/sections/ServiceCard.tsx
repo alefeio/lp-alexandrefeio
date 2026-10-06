@@ -60,6 +60,7 @@ export function ServiceCard({ service, selected }: { service: Service; selected:
 
       <ContactLink
         location="services"
+        ctaName="service_cta"
         serviceId={service.id}
         variant={featured ? "inverted" : "primary"}
         className="mt-8 w-full"

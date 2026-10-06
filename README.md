@@ -33,6 +33,7 @@ npm run dev
 Abra [http://localhost:3000](http://localhost:3000).
 
 8. Para testar o formulário, preencha nome, empresa, WhatsApp, e-mail e objetivo na seção de contato. O envio só conclui quando as variáveis estão corretas e o Resend aceita o remetente. Alexandre recebe o contato. O lead recebe a confirmação em seguida.
+9. Opcional: preencha `NEXT_PUBLIC_GTM_ID` para carregar o Google Tag Manager.
 
 Outros comandos:
 
@@ -69,6 +70,24 @@ src/
 | Objetivos do formulário | `src/data/lead-objectives.ts` |
 
 CTAs gerais abrem o formulário. "Quero conversar" abre o WhatsApp.
+
+## Mensuração
+
+1. Configure `NEXT_PUBLIC_GTM_ID` no `.env.local`.
+2. Crie o container no Google Tag Manager.
+3. Configure GA4, triggers e conversões no GTM — não no código.
+4. Use o evento `generate_lead` como conversão principal.
+5. Configure Google Ads e Meta Pixel no GTM, respeitando consentimento de marketing.
+6. Teste no Preview do GTM e no DebugView do GA4.
+
+Guia detalhado: `docs/analytics-setup.md`.
+
+Scripts de verificação:
+
+```bash
+npx --yes tsx scripts/check-analytics.ts
+npx --yes tsx scripts/check-lead.ts
+```
 
 ## Ainda demonstrativo
 

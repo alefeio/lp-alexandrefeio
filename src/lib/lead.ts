@@ -1,5 +1,6 @@
 import { leadObjectives } from "../data/lead-objectives";
 import { siteConfig } from "../data/site-config";
+import { type AttributionInput, attributionRows, sanitizeAttributionInput, type LeadAttribution } from "./attribution";
 import { visitorWhatsAppUrl } from "./contact";
 
 const NAME_MAX = 80;
@@ -21,6 +22,7 @@ export interface LeadInput {
   objective: string;
   extra: string;
   startedAt: number;
+  attribution?: AttributionInput;
 }
 
 export interface PreparedLead {
@@ -30,6 +32,7 @@ export interface PreparedLead {
   digits: string;
   email: string;
   interest: string;
+  attribution: LeadAttribution;
 }
 
 export type PrepareResult =
@@ -158,6 +161,7 @@ export function prepareLead(input: LeadInput, now = Date.now()): PrepareResult {
   }
 
   const interest = leadObjectives.find((objective) => objective.value === input.objective)?.label ?? "";
+  const attribution = sanitizeAttributionInput(input.attribution);
 
   return {
     ok: true,
@@ -168,6 +172,7 @@ export function prepareLead(input: LeadInput, now = Date.now()): PrepareResult {
       digits: input.whatsapp.replace(/\D/g, ""),
       email: normalizeEmail(input.email),
       interest,
+      attribution,
     },
   };
 }
@@ -195,18 +200,22 @@ export function buildLeadEmail(lead: PreparedLead): LeadEmail {
     ["WhatsApp", lead.whatsapp],
     ["E-mail", lead.email],
     ["Interesse", lead.interest],
-    ["Origem", origin],
+    ["Site", origin],
   ];
+  const attribution = attributionRows(lead.attribution);
 
   const text = [
     "NOVO CONTATO PELO SITE",
     "",
     ...rows.map(([label, value]) => `${label}:\n${value}`),
+    attribution.length > 0 ? "" : null,
+    attribution.length > 0 ? "ORIGEM DO LEAD" : null,
+    ...attribution.map(([label, value]) => `${label}:\n${value}`),
     "",
     whatsappHref ? `Conversar no WhatsApp:\n${whatsappHref}` : "",
     `Responder por e-mail:\nmailto:${lead.email}`,
   ]
-    .filter((line) => line !== "")
+    .filter((line) => line !== null && line !== "")
     .join("\n");
 
   const htmlRows = rows
@@ -215,13 +224,21 @@ export function buildLeadEmail(lead: PreparedLead): LeadEmail {
         `<p style="margin:0 0 16px"><span style="color:#5b6472">${escapeHtml(label)}</span><br><strong>${escapeHtml(value)}</strong></p>`,
     )
     .join("");
+  const attributionHtml = attribution.length
+    ? `<div style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0"><p style="margin:0 0 16px;font-size:12px;letter-spacing:0.08em;color:#5b6472">ORIGEM DO LEAD</p>${attribution
+        .map(
+          ([label, value]) =>
+            `<p style="margin:0 0 12px"><span style="color:#5b6472">${escapeHtml(label)}</span><br><strong>${escapeHtml(value)}</strong></p>`,
+        )
+        .join("")}</div>`
+    : "";
 
   const whatsappHtml = whatsappHref
     ? `<p style="margin:24px 0 0"><a href="${escapeHtml(whatsappHref)}" style="color:#1e5eff">Conversar no WhatsApp</a></p>`
     : "";
   const mailtoHtml = `<p style="margin:12px 0 0"><a href="mailto:${escapeHtml(lead.email)}" style="color:#1e5eff">Responder por e-mail</a></p>`;
 
-  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,Helvetica,sans-serif;line-height:1.5"><div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;padding:32px"><p style="margin:0 0 24px;font-size:12px;letter-spacing:0.08em">NOVO CONTATO PELO SITE</p>${htmlRows}${whatsappHtml}${mailtoHtml}</div></body></html>`;
+  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,Helvetica,sans-serif;line-height:1.5"><div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;padding:32px"><p style="margin:0 0 24px;font-size:12px;letter-spacing:0.08em">NOVO CONTATO PELO SITE</p>${htmlRows}${attributionHtml}${whatsappHtml}${mailtoHtml}</div></body></html>`;
 
   return {
     subject: `Novo contato pelo site — ${subjectName}`.slice(0, 180),

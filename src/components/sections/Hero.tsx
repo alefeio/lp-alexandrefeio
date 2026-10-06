@@ -21,13 +21,13 @@ export function Hero() {
           <p className="mt-5 max-w-xl text-base leading-relaxed text-on-ink-muted sm:text-lg">{heroContent.description}</p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <ContactLink location="hero" className="w-full sm:w-auto">
+            <ContactLink location="hero" ctaName="hero_primary" className="w-full sm:w-auto">
               {siteConfig.ctas.primary}
             </ContactLink>
             <TrackedLink
               href="#servicos"
               event="cta_click"
-              params={{ location: "hero", action: "services" }}
+              params={{ cta_name: "hero_secondary", cta_location: "hero", destination_type: "anchor" }}
               className={buttonClass("secondary", "w-full sm:w-auto")}
             >
               {siteConfig.ctas.secondary}

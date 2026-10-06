@@ -13,7 +13,8 @@ Este arquivo existe para impedir que conteúdo fictício seja publicado como inf
 - Página `/privacidade`
 - Seleção de oferta levando ao formulário (`?servico=`)
 - CTAs gerais abrem o formulário; "Quero conversar" abre o WhatsApp
-- Abstração `trackEvent`, incluindo `form_success`
+- Camada de mensuração com `dataLayer`, consentimento, atribuição de campanha e evento `generate_lead`
+- Página `/obrigado` com `noindex`
 - Cases mockados permanecem no código e ficam fora da página enquanto `isMock` for verdadeiro
 - Fotografia profissional em `public/alexandre.jpg`
 
@@ -26,9 +27,9 @@ Este arquivo existe para impedir que conteúdo fictício seja publicado como inf
 
 - Cases reais
 - Preços, se forem publicados
-- Analytics
-- Conversão do Google Ads
-- Meta Pixel
+- Container GTM publicado com `NEXT_PUBLIC_GTM_ID` em produção
+- GA4 conectado no GTM e conversão `generate_lead` validada
+- Google Ads e Meta Pixel configurados no GTM com consentimento
 - Ajustes finais da política de privacidade, se o uso dos dados mudar
 - Publicação e DNS de `alexandrefeio.com.br` (a URL no código não significa que o domínio já aponta para este site)
 - Teste real do envio: nesta máquina não há `.env.local`, então o Resend não foi chamado
