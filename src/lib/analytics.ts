@@ -63,6 +63,15 @@ export function pushConsentUpdate(consent: ConsentState): void {
   if (!gtag) return;
 
   gtag("consent", "update", consentToGoogleSignals(consent));
+
+  const dataLayer = getDataLayer();
+  if (!dataLayer) return;
+
+  dataLayer.push({
+    event: "consent_update",
+    consent_analytics: consent.analytics === true,
+    consent_marketing: consent.marketing === true,
+  });
 }
 
 function sanitizeParams(params: AnalyticsParams): Record<string, string | number | boolean> {

@@ -136,4 +136,34 @@ assert.equal(parseConsent("invalid"), null);
 assert.equal(parseConsent('{"analytics":"yes"}'), null);
 assert.equal(parseConsent(null), null);
 
+// Evento consent_update (payload não identificável; espelha a preferência)
+function consentUpdateEvent(choice: { analytics: boolean; marketing: boolean }) {
+  return {
+    event: "consent_update",
+    consent_analytics: choice.analytics === true,
+    consent_marketing: choice.marketing === true,
+  };
+}
+
+assert.deepEqual(consentUpdateEvent({ analytics: false, marketing: false }), {
+  event: "consent_update",
+  consent_analytics: false,
+  consent_marketing: false,
+});
+assert.deepEqual(consentUpdateEvent({ analytics: true, marketing: false }), {
+  event: "consent_update",
+  consent_analytics: true,
+  consent_marketing: false,
+});
+assert.deepEqual(consentUpdateEvent({ analytics: false, marketing: true }), {
+  event: "consent_update",
+  consent_analytics: false,
+  consent_marketing: true,
+});
+assert.deepEqual(consentUpdateEvent({ analytics: true, marketing: true }), {
+  event: "consent_update",
+  consent_analytics: true,
+  consent_marketing: true,
+});
+
 console.log("analytics checks ok");

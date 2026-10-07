@@ -23,7 +23,7 @@ Ordem de inicialização:
 1. Consent Mode `default` = denied (uma vez, antes das tags)
 2. GTM carrega (se `NEXT_PUBLIC_GTM_ID` existir)
 3. Preferência em `localStorage` é lida no cliente
-4. Se existir preferência, `gtag('consent', 'update', …)`
+4. Se existir preferência, `gtag('consent', 'update', …)` e evento `consent_update` no `dataLayer`
 
 Antes de tags de analytics/publicidade, o default é:
 
@@ -33,7 +33,15 @@ Antes de tags de analytics/publicidade, o default é:
 - `ad_personalization: denied`
 - `wait_for_update: 500`
 
-Quando o visitante escolhe no banner, a aplicação chama `gtag('consent', 'update', …)`:
+Quando o visitante escolhe no banner (ou uma preferência salva é restaurada), a aplicação chama `gtag('consent', 'update', …)` e em seguida envia ao `dataLayer`:
+
+```text
+event: consent_update
+consent_analytics: boolean
+consent_marketing: boolean
+```
+
+Sem PII. Esse evento não é conversão; serve para o GTM reagir à decisão.
 
 | Escolha | analytics_storage | ad_storage | ad_user_data | ad_personalization |
 | --- | --- | --- | --- | --- |
@@ -55,6 +63,7 @@ Assim, com `analytics = denied` e `marketing = granted`, `generate_lead` existe 
 
 | Evento | Quando dispara |
 | --- | --- |
+| `consent_update` | Preferência salva ou restaurada no bootstrap (`consent_analytics`, `consent_marketing`) |
 | `cta_click` | CTA relevante acionado |
 | `whatsapp_click` | Link de WhatsApp acionado |
 | `service_interest` | Interesse em uma oferta |
