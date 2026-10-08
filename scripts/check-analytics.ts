@@ -14,6 +14,7 @@ import {
 import { objectiveToServiceName, toServiceAnalyticsName } from "../src/lib/service-analytics";
 
 assert.equal(toServiceAnalyticsName("site-trafego"), "site_trafego");
+assert.equal(toServiceAnalyticsName("trafego-pago"), "trafego_pago");
 assert.equal(objectiveToServiceName("site-trafego"), "site_trafego");
 assert.equal(objectiveToServiceName("google-ads"), "gestao_trafego");
 

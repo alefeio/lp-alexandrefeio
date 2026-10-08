@@ -12,6 +12,7 @@
 | Rota | Indexável | Sitemap | Observação |
 | --- | --- | --- | --- |
 | `/` | Sim | Sim | Página principal |
+| `/trafego-pago` | Sim | Sim | Landing de gestão de tráfego pago |
 | `/privacidade` | Sim | Sim | Transparência; sem otimização de keyword |
 | `/obrigado` | Não (`noindex, nofollow`) | Não | Confirmação pós-lead; não é conversão por pageview |
 
@@ -42,7 +43,7 @@ Sem reviews, rating, endereço comercial, preço ou número de clientes.
 
 `https://alexandrefeio.com.br/sitemap.xml`
 
-Inclui apenas `/` e `/privacidade`.
+Inclui `/`, `/trafego-pago` e `/privacidade`.
 
 ## Tracking
 

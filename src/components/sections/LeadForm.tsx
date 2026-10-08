@@ -47,7 +47,13 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] ?? "";
 }
 
-export function LeadForm({ selectedService }: { selectedService?: Service }) {
+export function LeadForm({
+  selectedService,
+  submitLabel = siteConfig.ctas.final,
+}: {
+  selectedService?: Service;
+  submitLabel?: string;
+}) {
   const router = useRouter();
   const started = useRef(false);
   const sending = useRef(false);
@@ -330,7 +336,7 @@ export function LeadForm({ selectedService }: { selectedService?: Service }) {
       ) : null}
 
       <button type="submit" className={buttonClass("primary", "mt-6 w-full")} disabled={loading}>
-        {loading ? "Enviando..." : siteConfig.ctas.final}
+        {loading ? "Enviando..." : submitLabel}
       </button>
 
       <p className="mt-3 text-center text-sm leading-relaxed text-muted">

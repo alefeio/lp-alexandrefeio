@@ -1,8 +1,15 @@
 import { heroFlow } from "@/data/home";
+import type { FlowStep } from "@/types/content";
 
-export function AcquisitionFlow() {
+export function AcquisitionFlow({
+  steps = heroFlow,
+  label = "Fluxo de aquisição, do tráfego à oportunidade.",
+}: {
+  steps?: readonly FlowStep[];
+  label?: string;
+}) {
   return (
-    <aside className="system-panel" aria-label="Fluxo de aquisição, do tráfego à oportunidade.">
+    <aside className="system-panel" aria-label={label}>
       <div className="system-panel-bar" aria-hidden="true">
         <span className="system-live" />
         <span className="h-px flex-1 bg-border" />
@@ -14,7 +21,7 @@ export function AcquisitionFlow() {
           <span className="system-rail-pulse" />
         </span>
         <ol>
-        {heroFlow.map((step, index) => (
+        {steps.map((step, index) => (
           <li key={step.number} className="system-node" data-tone={index === 2 ? "warm" : undefined}>
             <span className="system-node-mark" aria-hidden="true">
               <span className="system-node-dot" />

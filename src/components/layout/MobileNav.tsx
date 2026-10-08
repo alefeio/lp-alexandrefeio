@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { navigation } from "@/data/navigation";
 import { siteConfig } from "@/data/site-config";
@@ -63,13 +64,13 @@ export function MobileNav() {
             <ul className="flex flex-col">
               {navigation.map((item) => (
                 <li key={item.href} className="border-b border-border">
-                  <a
+                  <Link
                     href={item.href}
                     className="flex min-h-14 items-center text-2xl font-semibold tracking-tight"
                     onClick={closeMenu}
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

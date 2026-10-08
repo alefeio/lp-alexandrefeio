@@ -2,6 +2,7 @@ const SERVICE_ANALYTICS_NAMES: Record<string, string> = {
   "site-essencial": "site_essencial",
   "site-trafego": "site_trafego",
   "gestao-trafego": "gestao_trafego",
+  "trafego-pago": "trafego_pago",
 };
 
 export function toServiceAnalyticsName(serviceId: string | undefined): string | undefined {

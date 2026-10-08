@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { navigation } from "@/data/navigation";
 import { siteConfig } from "@/data/site-config";
 import { ContactLink } from "@/components/ui/ContactLink";
@@ -10,19 +11,19 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/80 backdrop-blur-md">
       <Container>
         <div className="flex h-16 items-center justify-between gap-4">
-          <a href="#topo" className="min-w-0 text-[1.05rem] text-foreground">
+          <Link href="/" className="min-w-0 text-[1.05rem] text-foreground">
             <Wordmark />
-          </a>
+          </Link>
 
           <nav className="hidden items-center gap-6 lg:flex" aria-label="Principal">
             {navigation.map((item) => (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 className="text-sm text-muted transition-colors duration-200 hover:text-foreground"
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
