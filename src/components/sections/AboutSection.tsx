@@ -11,7 +11,7 @@ export function AboutSection() {
         <div className="relative mx-auto aspect-[4/5] w-full max-w-[17.5rem] overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_24px_50px_-36px_rgba(15,23,42,0.55)]">
           <Image
             src="/alexandre.jpg"
-            alt={siteConfig.name}
+            alt={`Retrato de ${siteConfig.name}`}
             fill
             sizes="280px"
             className="object-cover"

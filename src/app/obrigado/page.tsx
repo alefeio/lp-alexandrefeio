@@ -9,6 +9,14 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
   },
+  alternates: {
+    canonical: "/obrigado",
+  },
+  openGraph: {
+    url: "/obrigado",
+    title: "Contato recebido",
+    description: "Confirmação de envio do formulário de contato.",
+  },
 };
 
 export default function ThankYouPage() {

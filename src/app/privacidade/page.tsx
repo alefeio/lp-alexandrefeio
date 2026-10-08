@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   title: "Privacidade",
   description: "Como o formulário de contato de Alexandre Feio usa os dados enviados.",
   alternates: { canonical: "/privacidade" },
+  openGraph: {
+    url: "/privacidade",
+    title: "Privacidade",
+    description: "Como o formulário de contato de Alexandre Feio usa os dados enviados.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function PrivacyPage() {

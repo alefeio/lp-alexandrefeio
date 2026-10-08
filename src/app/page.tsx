@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AboutSection } from "@/components/sections/AboutSection";
 import { CasesSection } from "@/components/sections/CasesSection";
 import { DifferentialsSection } from "@/components/sections/DifferentialsSection";
@@ -10,6 +11,16 @@ import { ProcessSection } from "@/components/sections/ProcessSection";
 import { ServicesSection } from "@/components/sections/ServicesSection";
 import { ValueProposition } from "@/components/sections/ValueProposition";
 import { findService } from "@/data/services";
+
+/** Canonical da home sem query strings (UTM/GCLID/FBCLID/servico). */
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    url: "/",
+  },
+};
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   const params = await searchParams;

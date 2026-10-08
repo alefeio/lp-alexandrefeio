@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { heroContent } from "@/data/home";
 import { siteConfig } from "@/data/site-config";
 
-export const alt = siteConfig.seo.description;
+export const alt = `${siteConfig.name} — Sites e tráfego pago`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

@@ -5,6 +5,7 @@ import { GoogleTagManager } from "@/components/analytics/GoogleTagManager";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { siteConfig } from "@/data/site-config";
 import "./globals.css";
 
@@ -30,14 +31,18 @@ export const metadata: Metadata = {
   },
   description: siteConfig.seo.description,
   applicationName: siteConfig.name,
-  alternates: {
-    canonical: "/",
-  },
+  authors: [{ name: siteConfig.name, url: siteConfig.url }],
+  creator: siteConfig.name,
+  publisher: siteConfig.name,
   openGraph: {
     type: "website",
     locale: siteConfig.seo.locale,
-    url: "/",
     siteName: siteConfig.name,
+    title: siteConfig.seo.title,
+    description: siteConfig.seo.description,
+  },
+  twitter: {
+    card: "summary_large_image",
     title: siteConfig.seo.title,
     description: siteConfig.seo.description,
   },
@@ -61,6 +66,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-background font-sans text-foreground">
+        <JsonLd />
         {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
         <ConsentProvider>
           <AttributionCapture />

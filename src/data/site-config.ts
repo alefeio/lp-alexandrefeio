@@ -28,7 +28,7 @@ export const siteConfig = {
   seo: {
     title: "Alexandre Feio | Sites e Tráfego Pago em Belém",
     description:
-      "Criação de sites, landing pages e gestão de tráfego pago para empresas que querem gerar mais oportunidades. Atendimento em Belém e projetos para todo o Brasil.",
+      "Sites, landing pages e tráfego pago para transformar visitas em oportunidades. Atendimento em Belém/PA e projetos para todo o Brasil.",
     locale: "pt_BR",
   },
 };
