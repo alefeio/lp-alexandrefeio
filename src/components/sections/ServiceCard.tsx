@@ -1,6 +1,9 @@
 import { cn } from "@/lib/cn";
 import type { Service } from "@/types/content";
 import { ContactLink } from "@/components/ui/ContactLink";
+import { TrackedLink } from "@/components/ui/TrackedLink";
+import { buttonClass } from "@/lib/button-styles";
+import { toServiceAnalyticsName } from "@/lib/service-analytics";
 
 export function ServiceCard({ service, selected }: { service: Service; selected: boolean }) {
   const featured = Boolean(service.featured);
@@ -58,16 +61,27 @@ export function ServiceCard({ service, selected }: { service: Service; selected:
         ))}
       </ul>
 
-      <ContactLink
-        location="services"
-        ctaName="service_cta"
-        serviceId={service.id}
-        variant={featured ? "inverted" : "primary"}
-        className="mt-8 w-full"
-        label={`${service.cta}: ${service.name}`}
-      >
-        {service.cta}
-      </ContactLink>
+      {service.href ? (
+        <TrackedLink
+          href={service.href}
+          event="service_interest"
+          params={{ service_name: toServiceAnalyticsName(service.id) }}
+          className={buttonClass(featured ? "inverted" : "primary", "mt-8 w-full")}
+        >
+          {service.cta}
+        </TrackedLink>
+      ) : (
+        <ContactLink
+          location="services"
+          ctaName="service_cta"
+          serviceId={service.id}
+          variant={featured ? "inverted" : "primary"}
+          className="mt-8 w-full"
+          label={`${service.cta}: ${service.name}`}
+        >
+          {service.cta}
+        </ContactLink>
+      )}
     </article>
   );
 }

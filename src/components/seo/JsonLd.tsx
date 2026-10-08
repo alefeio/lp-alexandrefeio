@@ -24,11 +24,11 @@ export function JsonLd() {
         alternateName: siteConfig.fullName,
         url: siteConfig.url,
         image: `${siteConfig.url}/alexandre.jpg`,
-        jobTitle: "Criação de sites e tráfego pago",
+        jobTitle: "Gestão de tráfego pago e estrutura de conversão",
         description: siteConfig.seo.description,
         email: siteConfig.contact.email,
         sameAs: [siteConfig.contact.instagramUrl],
-        knowsAbout: ["Criação de sites", "Landing pages", "Tráfego pago"],
+        knowsAbout: ["Tráfego pago", "Google Ads", "Landing pages", "Mensuração", "Desenvolvimento de sites"],
         areaServed: [
           {
             "@type": "City",

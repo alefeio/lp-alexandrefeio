@@ -50,7 +50,7 @@ export function Footer() {
           <Wordmark className="text-base" />
           <p className="mt-2 text-sm text-muted">{siteConfig.location.short}</p>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
-            Sites e tráfego pago para gerar oportunidades de negócio.
+            Tráfego pago e estrutura de conversão.
           </p>
         </div>
 

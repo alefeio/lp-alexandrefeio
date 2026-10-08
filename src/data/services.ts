@@ -8,37 +8,35 @@ export const servicesIntro = {
 
 export const services: readonly Service[] = [
   {
-    id: "site-essencial",
-    name: "Site Essencial",
-    description: "Para colocar ou melhorar a presença profissional.",
-    items: ["Landing page ou site institucional", "Leitura boa no celular", "Caminho para o WhatsApp"],
-    cta: "Quero este serviço",
-    objectiveId: "criar-site",
+    id: "trafego-pago",
+    name: "Gestão de Tráfego Pago",
+    description: "Para anunciar com estratégia e saber quais contatos a campanha gerou.",
+    items: ["Campanhas no Google, no Meta ou nos dois", "Ajustes ao longo do período", "Leitura das oportunidades"],
+    cta: "Conhecer a gestão de tráfego",
+    href: "/trafego-pago",
+    featured: true,
+    tag: "Principal",
   },
   {
     id: "site-trafego",
-    name: "Site + Tráfego",
-    description: "Para quem quer a página e a campanha no mesmo projeto.",
-    items: [
-      "Página feita para o anúncio",
-      "Campanha no Google, no Meta ou nos dois",
-      "Acompanhamento inicial",
-    ],
+    name: "Tráfego + Página",
+    description: "Quando a campanha e a página precisam nascer no mesmo projeto.",
+    items: ["Landing page feita para o anúncio", "Gestão das campanhas", "Acompanhamento inicial"],
     cta: "Quero este serviço",
     objectiveId: "site-trafego",
-    featured: true,
-    tag: "Mais completo",
   },
   {
-    id: "gestao-trafego",
-    name: "Gestão de Tráfego",
-    description: "Para quem já tem site e quer conduzir os anúncios.",
-    items: ["Planejamento das campanhas", "Ajustes ao longo do período", "Leitura dos contatos gerados"],
+    id: "site-essencial",
+    name: "Site e landing page",
+    description: "Para receber o tráfego com uma página clara, quando a atual não converte.",
+    items: ["Landing page ou site profissional", "Leitura boa no celular", "Caminho até o contato"],
     cta: "Quero este serviço",
+    objectiveId: "criar-site",
   },
 ];
 
 export function findService(id: string | undefined): Service | undefined {
   if (!id) return undefined;
-  return services.find((service) => service.id === id);
+  const normalized = id === "gestao-trafego" ? "trafego-pago" : id;
+  return services.find((service) => service.id === normalized);
 }

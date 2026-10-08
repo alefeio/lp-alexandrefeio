@@ -10,7 +10,7 @@ export const siteConfig = {
     city: "Belém",
     state: "Pará",
     short: "Belém, Pará",
-    serviceArea: "Atendimento em Belém/PA e projetos para todo o Brasil.",
+    serviceArea: "Atendimento para empresas em todo o Brasil.",
   },
   contact: {
     whatsapp: "+55 91 98577-6798",
@@ -26,9 +26,9 @@ export const siteConfig = {
     final: "Falar sobre meu projeto",
   },
   seo: {
-    title: "Alexandre Feio | Sites e Tráfego Pago em Belém",
+    title: "Alexandre Feio | Tráfego Pago, Sites e Conversão",
     description:
-      "Sites, landing pages e tráfego pago para transformar visitas em oportunidades. Atendimento em Belém/PA e projetos para todo o Brasil.",
+      "Gestão de tráfego pago, landing pages e tecnologia para empresas que querem transformar visitas em oportunidades.",
     locale: "pt_BR",
   },
 };

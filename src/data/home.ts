@@ -1,10 +1,10 @@
 import type { Differential, FlowStep, ValuePillar } from "@/types/content";
 
 export const heroContent = {
-  eyebrow: "Sites + Tráfego Pago",
-  title: "Transforme sua presença digital em oportunidades de negócio.",
+  eyebrow: "Tráfego pago + Conversão",
+  title: "Transforme investimento em tráfego em oportunidades de negócio.",
   description:
-    "Crio sites e campanhas de tráfego pago para levar as pessoas certas até sua empresa e transformar a visita em contato.",
+    "Gestão de tráfego pago, landing pages e tecnologia trabalhando juntas para aumentar as chances de conversão.",
 };
 
 export const heroFlow: readonly FlowStep[] = [
@@ -25,24 +25,24 @@ export const problemContent = {
 };
 
 export const valueContent = {
-  title: "Site, tráfego e conversão.",
+  title: "Tráfego, página e conversão.",
 };
 
 export const valuePillars: readonly ValuePillar[] = [
   {
     number: "01",
-    title: "Site",
-    description: "Página rápida e preparada para converter.",
+    title: "Tráfego",
+    description: "Campanhas para levar as pessoas certas até a empresa.",
   },
   {
     number: "02",
-    title: "Tráfego",
-    description: "Pessoas com maior potencial chegando até a empresa.",
+    title: "Página",
+    description: "Landing page ou site preparados para receber o anúncio.",
   },
   {
     number: "03",
     title: "Conversão",
-    description: "Um caminho claro da visita até o contato.",
+    description: "Mensuração do contato, não só do clique.",
   },
 ];
 
@@ -54,15 +54,15 @@ export const differentialsContent = {
 export const differentials: readonly Differential[] = [
   {
     beforeLabel: "Não é apenas",
-    before: "Fazer um site.",
+    before: "Gerar cliques.",
     afterLabel: "É",
-    after: "Construir uma página preparada para transformar tráfego em oportunidade.",
+    after: "Fazer anúncio, página e mensuração trabalharem juntos.",
   },
   {
     beforeLabel: "Não é apenas",
-    before: "Subir anúncios.",
+    before: "Fazer um site.",
     afterLabel: "É",
-    after: "Entender o que acontece antes e depois do clique.",
+    after: "Preparar a página que recebe o tráfego.",
   },
   {
     beforeLabel: "Não é apenas",
@@ -81,7 +81,7 @@ export const aboutContent = {
   eyebrow: "Sobre",
   title: "Tecnologia e marketing fazem parte da mesma trajetória.",
   description:
-    "Sou Alexandre Feio. Uno Sistemas de Informação e Marketing para construir páginas e campanhas com o mesmo objetivo: gerar oportunidades.",
+    "Sou Alexandre Feio. Uno desenvolvimento, marketing e produto para conectar anúncio, página e conversão. Você fala direto comigo.",
 };
 
 export const finalCtaContent = {

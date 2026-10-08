@@ -12,6 +12,8 @@ export interface Service {
   objectiveId?: string;
   featured?: boolean;
   tag?: string;
+  /** Quando definido, o CTA da oferta abre esta rota em vez do formulário. */
+  href?: string;
 }
 
 export interface CaseStudy {

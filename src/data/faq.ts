@@ -21,7 +21,7 @@ export const faqItems: readonly FaqItem[] = [
   {
     id: "anuncios",
     question: "Você também faz os anúncios?",
-    answer: "Sim, quando faz parte do projeto. Dá para começar só pelo site, só pelos anúncios ou pelos dois.",
+    answer: "Sim. A gestão de tráfego é o ponto de partida. A página entra quando ela está no caminho do resultado.",
   },
   {
     id: "site-existente",
@@ -31,7 +31,7 @@ export const faqItems: readonly FaqItem[] = [
   {
     id: "regiao",
     question: "Você atende somente Belém?",
-    answer: "O foco é Belém e região. Também faço projetos remotos.",
+    answer: "Não. Atendo empresas em todo o Brasil. Estou em Belém e o trabalho acontece à distância.",
   },
   {
     id: "verba",

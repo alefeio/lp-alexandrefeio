@@ -14,12 +14,12 @@ export const processSteps: readonly ProcessStep[] = [
   {
     number: "02",
     title: "Construo a estrutura",
-    description: "Página e caminho até o contato.",
+    description: "Anúncio, página e forma de medir.",
   },
   {
     number: "03",
     title: "Colocamos no ar",
-    description: "Site e, se fizer parte, campanhas.",
+    description: "Campanhas e, quando fizer falta, a página.",
   },
   {
     number: "04",

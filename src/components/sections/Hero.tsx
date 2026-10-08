@@ -22,15 +22,15 @@ export function Hero() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <ContactLink location="hero" ctaName="hero_primary" className="w-full sm:w-auto">
-              {siteConfig.ctas.primary}
+              {siteConfig.ctas.final}
             </ContactLink>
             <TrackedLink
-              href="#servicos"
+              href="/trafego-pago"
               event="cta_click"
-              params={{ cta_name: "hero_secondary", cta_location: "hero", destination_type: "anchor" }}
+              params={{ cta_name: "hero_trafego", cta_location: "hero", destination_type: "page" }}
               className={buttonClass("secondary", "w-full sm:w-auto")}
             >
-              {siteConfig.ctas.secondary}
+              Conhecer a gestão de tráfego
             </TrackedLink>
           </div>
 

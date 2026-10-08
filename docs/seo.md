@@ -20,8 +20,8 @@ Query strings (`utm_*`, `gclid`, `fbclid`, `servico`) não alteram a canonical d
 
 ## Metadata
 
-- **Title:** `Alexandre Feio | Sites e Tráfego Pago em Belém`
-- **Description:** sites, landing pages e tráfego pago; Belém/PA e projetos no Brasil; sem promessas de resultado.
+- **Title:** `Alexandre Feio | Tráfego Pago, Sites e Conversão`
+- **Description:** gestão de tráfego pago, landing pages e tecnologia; atuação nacional; sem promessas de resultado. Belém permanece como localização real no Sobre, no rodapé e no JSON-LD.
 - Canonical definida por página (não herdada globalmente na home a partir de rotas internas).
 
 ## Structured data
