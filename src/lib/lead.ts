@@ -259,11 +259,11 @@ export function buildConfirmationEmail(lead: PreparedLead): LeadEmail {
     `Você me procurou para falar sobre ${lead.interest}. Vou analisar e retorno pelo WhatsApp ou pelo e-mail informado.`,
     "",
     siteConfig.name,
-    "Sites + Tráfego Pago",
+    "Tráfego Pago + Estrutura de Conversão",
     origin,
   ].join("\n");
 
-  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,Helvetica,sans-serif;line-height:1.6"><div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;padding:32px"><p style="margin:0 0 24px;width:40px;height:3px;background:#1e5eff"></p><p style="margin:0 0 16px">Olá, ${name}.</p><p style="margin:0 0 16px">Recebi seu contato pelo site.</p><p style="margin:0 0 24px">Você me procurou para falar sobre ${interest}. Vou analisar e retorno pelo WhatsApp ou pelo e-mail informado.</p><p style="margin:0;color:#5b6472">${escapeHtml(siteConfig.name)}<br>Sites + Tráfego Pago<br>${escapeHtml(origin)}</p></div></body></html>`;
+  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,Helvetica,sans-serif;line-height:1.6"><div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;padding:32px"><p style="margin:0 0 24px;width:40px;height:3px;background:#1e5eff"></p><p style="margin:0 0 16px">Olá, ${name}.</p><p style="margin:0 0 16px">Recebi seu contato pelo site.</p><p style="margin:0 0 24px">Você me procurou para falar sobre ${interest}. Vou analisar e retorno pelo WhatsApp ou pelo e-mail informado.</p><p style="margin:0;color:#5b6472">${escapeHtml(siteConfig.name)}<br>Tráfego Pago + Estrutura de Conversão<br>${escapeHtml(origin)}</p></div></body></html>`;
 
   return {
     subject: "Recebi seu contato — Alexandre Feio",

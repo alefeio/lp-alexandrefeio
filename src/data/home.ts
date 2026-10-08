@@ -15,12 +15,12 @@ export const heroFlow: readonly FlowStep[] = [
 ];
 
 export const problemContent = {
-  title: "Ter um site não significa gerar negócios.",
-  description: "A visita não vira conversa, ou a conversa acontece sem saber o que a provocou.",
+  title: "Gerar cliques não significa gerar oportunidades.",
+  description: "Anúncio, mensagem, página, mensuração e conversão precisam seguir o mesmo caminho.",
   items: [
-    "Página que não conduz o visitante até o contato",
-    "Anúncio levando para uma página que não converte",
-    "Investimento sem saber quais ações geram contatos",
+    "Anúncio e mensagem sem o mesmo caminho até o contato",
+    "Página que não acompanha a campanha",
+    "Clique sem leitura do que virou oportunidade",
   ],
 };
 
