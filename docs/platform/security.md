@@ -1,5 +1,11 @@
 # Segurança — revisão inicial
 
+Atualização da Sprint 1: conta usa Better Auth. Segredo e banco ficam no servidor. Sessão em cookie httpOnly. `/app` e `/admin` não confiam só no proxy: o layout relê a sessão. `/admin` exige `role = ADMIN`. Login, cadastro e recuperação passam pelo rate limit do Better Auth (10 por minuto, por instância). Não foi contratado serviço externo.
+
+Headers nas respostas: `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` e `Permissions-Policy`. CSP completa não foi aplicada, para não interferir no GTM.
+
+O formulário comercial continua com honeypot e tempo mínimo. Os logs de e-mail de auth registram nome e status do erro, não senha, token nem corpo.
+
 Nenhum valor de ambiente foi copiado para a documentação.
 
 ## O que já está bem

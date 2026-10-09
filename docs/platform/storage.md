@@ -13,6 +13,8 @@ APIMG devolve URL pública e serve `GET /i/{public_id}` sem autenticação. O re
 
 ## Imagens públicas
 
+`APIMG_API_KEY` e `APIMG_UPLOAD_URL` ainda não estão no ambiente deste projeto. A Sprint 1 não implementou upload. Quando a imagem editorial entrar, as duas variáveis serão lidas só no servidor.
+
 Contrato observado no serviço Apimages, não exercitado com chave neste projeto:
 
 - `POST` na URL de upload, multipart, campo `file`.

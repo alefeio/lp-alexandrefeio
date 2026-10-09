@@ -19,6 +19,9 @@ assert.deepEqual(urls, [
   "https://alexandrefeio.com.br/trafego-pago",
   "https://alexandrefeio.com.br/privacidade",
 ]);
+assert.ok(!urls.some((url) => url.includes("/app")));
+assert.ok(!urls.some((url) => url.includes("/admin")));
+assert.ok(!urls.some((url) => url.includes("/entrar")));
 assert.ok(!urls.some((url) => url.includes("obrigado")));
 assert.ok(!urls.some((url) => url.includes("www.")));
 assert.ok(!urls.some((url) => url.includes("?")));

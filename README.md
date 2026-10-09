@@ -2,7 +2,7 @@
 
 Landing page de Alexandre Feio: sites e tráfego pago para empresas que querem gerar oportunidades.
 
-O formulário envia o contato por e-mail. Não há banco de dados.
+O formulário envia o contato por e-mail e não grava o lead no banco. Conta de aluno usa Postgres e Better Auth. O detalhe da fundação está em `docs/platform/sprint-1-foundation.md`.
 
 ## Stack
 

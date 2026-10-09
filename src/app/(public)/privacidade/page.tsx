@@ -5,12 +5,12 @@ import { Container } from "@/components/ui/Container";
 
 export const metadata: Metadata = {
   title: "Privacidade",
-  description: "Como o formulário de contato de Alexandre Feio usa os dados enviados.",
+  description: "Como Alexandre Feio usa dados de contato e de conta.",
   alternates: { canonical: "/privacidade" },
   openGraph: {
     url: "/privacidade",
     title: "Privacidade",
-    description: "Como o formulário de contato de Alexandre Feio usa os dados enviados.",
+    description: "Como Alexandre Feio usa dados de contato e de conta.",
   },
   robots: {
     index: true,
@@ -26,16 +26,19 @@ export default function PrivacyPage() {
       <Container>
         <div className="max-w-2xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Privacidade</p>
-          <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">Como o contato é usado</h1>
+          <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">Como os dados são usados</h1>
           <div className="mt-8 space-y-6 text-base leading-relaxed text-muted">
             <p>
               O formulário de {host} envia nome, empresa, WhatsApp, e-mail e o interesse escolhido. Esses dados servem
-              para responder ao contato e para enviar a confirmação desta solicitação. Eles não são vendidos.
+              para responder ao contato e para enviar a confirmação desta solicitação. Eles não são vendidos. O
+              formulário não grava essa mensagem em banco de dados: ela passa por um provedor de e-mail e chega na
+              caixa de {siteConfig.fullName}.
             </p>
             <p>
-              Nesta versão o site não guarda os contatos em um banco de dados. A mensagem passa por um provedor de
-              e-mail e chega na caixa de {siteConfig.fullName}. A confirmação segue para o e-mail informado no
-              formulário.
+              Quem cria uma conta informa nome, e-mail e senha. A senha fica armazenada apenas como hash. O e-mail é
+              usado para confirmar a conta e para enviar o link de recuperação de senha. A sessão fica em um cookie
+              httpOnly, para manter o acesso à área autenticada. Esses dados de conta ficam no banco da plataforma e
+              servem só para autenticação.
             </p>
             <p>
               O site pode usar tecnologias de medição, analytics e publicidade conforme a escolha feita no banner de

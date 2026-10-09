@@ -8,6 +8,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
+      disallow: ["/app", "/admin", "/entrar", "/cadastro", "/esqueci-senha", "/redefinir-senha", "/verificar-email"],
     },
     sitemap: `${origin}/sitemap.xml`,
     host: new URL(origin).host,

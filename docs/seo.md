@@ -38,6 +38,7 @@ Sem reviews, rating, endereço comercial, preço ou número de clientes.
 - `Allow: /`
 - `Sitemap: https://alexandrefeio.com.br/sitemap.xml`
 - `/obrigado` não depende de `Disallow`; usa `noindex` na página.
+- `/app`, `/admin` e as rotas de conta (`/entrar`, `/cadastro`, `/esqueci-senha`, `/redefinir-senha`, `/verificar-email`) usam `noindex` e `Disallow`. Não entram no sitemap.
 
 ## Sitemap
 

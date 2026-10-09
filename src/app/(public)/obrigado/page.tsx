@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ObrigadoContent } from "@/app/obrigado/ObrigadoContent";
+import { ObrigadoContent } from "./ObrigadoContent";
 import { Container } from "@/components/ui/Container";
 
 export const metadata: Metadata = {

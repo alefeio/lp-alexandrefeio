@@ -1,26 +1,32 @@
 # ADR 001 — Prisma e Postgres
 
-Status: PROPOSED
+Status: ACCEPTED
 
 ## Contexto
 
-O site não tem Prisma. O ambiente local tem URLs de Prisma Postgres, diretas e pooled, que o código não lê. O evolUSG já separa runtime pooled e migration direta com Prisma 7 e `PrismaPg`.
+O site não usava banco. As quatro URLs locais são do Postgres de desenvolvimento criado para Alexandre Feio, não do evolUSG. Não há dados de aluno, curso ou pagamento. O site público de marketing não depende desse banco.
 
-## Decisão proposta
+## Decisão
 
-Quando o banco deste produto for confirmado:
+- Runtime: somente `RUNTIME_DATABASE_URL` (pooled, `pooled.db.prisma.io`).
+- Migrations e CLI: somente `POSTGRES_URL` (direta, `db.prisma.io`).
+- `DATABASE_URL` permanece no ambiente, igual à conexão direta, e o código não a lê.
+- `PRISMA_DATABASE_URL` fica fora de runtime e de migration.
+- Prisma 7 com `PrismaPg`. Em desenvolvimento o client fica em `globalThis`.
+- Migrations versionadas. Sem `db push`.
+- `DATABASE_ENV=development` neste banco. O script de migration recusa `production` e recusa ambiente sem rótulo `development`, `preview` ou `test`.
 
-- Runtime: `RUNTIME_DATABASE_URL` ou `DATABASE_URL`.
-- Migration: `DIRECT_URL` ou `POSTGRES_URL` ou `DATABASE_URL`.
-- Não usar `PRISMA_DATABASE_URL` até o esquema dela ser explicado. No `.env.local` atual ela é `postgres://` no host direto, não Accelerate.
-- Client único em desenvolvimento via `globalThis`.
-- Migrations versionadas. Sem `db push` como prática.
-- `DATABASE_ENV` obrigatório antes de `migrate deploy`. Produção fora desse fluxo até uma sprint explícita.
+## Produção
 
-## Pendência
+Antes de publicar a área autenticada em produção é obrigatório:
 
-Não está confirmado se essas URLs são deste produto nem se o host é desenvolvimento ou produção. Sem isso, a decisão não deve ser aplicada.
+1. provisionar um banco separado de production;
+2. configurar as variáveis por ambiente na Vercel;
+3. aplicar as migrations versionadas nesse banco, de forma controlada;
+4. não reutilizar o banco de desenvolvimento em production.
+
+O build da Vercel pode gerar o client sem essas variáveis. Uma rota autenticada em production sem `RUNTIME_DATABASE_URL` falha ao ser usada. A home não importa o client.
 
 ## Consequência
 
-Nenhuma tabela nesta sprint.
+A migration `20261009190000_auth_foundation` foi aplicada neste banco de desenvolvimento.

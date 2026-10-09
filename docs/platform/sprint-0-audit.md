@@ -1,5 +1,7 @@
 # Sprint 0 — auditoria e arquitetura
 
+Nota da Sprint 1: o Gate 0 foi confirmado. As URLs são do Postgres de desenvolvimento do Alexandre Feio. A fundação de autenticação está em [sprint-1-foundation.md](./sprint-1-foundation.md). O texto abaixo permanece como registro da auditoria.
+
 Data da auditoria: 9 de outubro de 2026. Nenhuma feature de produto, schema, migration ou integração de pagamento foi criada.
 
 ## 1. Estado atual

@@ -1,56 +1,24 @@
 # Banco de dados
 
-Status: o aplicativo não usa banco. Esta nota não altera schema.
+Status: a aplicação usa Postgres de desenvolvimento. A migration `20261009190000_auth_foundation` já foi aplicada nesse banco. Production ainda não tem banco próprio.
 
-## Estado neste repositório
+## Estado
 
-Não existem:
+Prisma 7, client em `src/generated/prisma`, gerado no `postinstall`. O schema tem só `User`, `Session`, `Account` e `Verification`.
 
-- `prisma/schema.prisma`
-- `prisma/migrations`
-- seed
-- `@prisma/client` ou `prisma` no `package.json`
-- `PrismaClient`
-- leitura de `DATABASE_URL` em `src/`
-
-`README.md` diz que não há banco. Isso continua verdadeiro para o código.
-
-## Variáveis locais
-
-Nomes presentes só no `.env.local`, não versionados e não lidos pelo app:
-
-- `DATABASE_URL` — host direto `db.prisma.io`
-- `RUNTIME_DATABASE_URL` — host `pooled.db.prisma.io`
-- `POSTGRES_URL` — host direto `db.prisma.io`
-- `PRISMA_DATABASE_URL` — host direto `db.prisma.io`, esquema `postgres://`
-
-Não há `DIRECT_URL` nem `DATABASE_ENV`. Não remover nada até a fundação ser implementada.
-
-`PRISMA_DATABASE_URL`, neste arquivo, não é uma URL `prisma+postgres://`. Não deve ser tratada como Accelerate sem uma confirmação nova.
-
-## Como o evolUSG separa as conexões
-
-Padrão a copiar só depois que o banco deste produto estiver identificado:
-
-| Função | Ordem |
+| Variável | Papel |
 | --- | --- |
-| Runtime do client, inclusive serverless | `RUNTIME_DATABASE_URL`, senão `DATABASE_URL` |
-| CLI e migrations | `DIRECT_URL`, senão `POSTGRES_URL`, senão `DATABASE_URL` |
-| Fora dos dois caminhos | `PRISMA_DATABASE_URL` |
+| `RUNTIME_DATABASE_URL` | Runtime, pooled. Única URL lida pelo client |
+| `POSTGRES_URL` | Migrations e CLI, direta |
+| `DATABASE_URL` | Mesma conexão direta. O código não lê |
+| `PRISMA_DATABASE_URL` | Fora de runtime e de migration |
+| `DATABASE_ENV` | `development` neste banco |
 
-O client usa `@prisma/adapter-pg` (`PrismaPg`). Fora de `NODE_ENV=production`, a instância fica em `globalThis` para o hot reload não abrir conexões novas. Em produção cada isolate cria o seu client, que é o comportamento esperado em serverless, desde que a URL seja a pooled.
+Não há `db push`. `npm run db:deploy` recusa production.
 
-Migrations versionadas com `prisma migrate`. Sem `db push` como fluxo permanente. `migrate deploy` só com rótulo `development`, `preview` ou `test`, ou com confirmação explícita de produção numa sprint própria.
+Antes de autenticar em production: banco separado, variáveis por ambiente na Vercel e migration versionada só nesse banco. O banco de desenvolvimento não deve ser reutilizado em production.
 
-## Ambientes
-
-| Ambiente | Intenção |
-| --- | --- |
-| Local | URL direta para migration; pooled se o runtime local for testado como serverless. Rótulo `development` |
-| Preview | Banco próprio, não o de produção. Rótulo `preview` |
-| Production | Runtime pooled. Migration direta, só quando a sprint de fundação autorizar |
-
-Pendência: as quatro URLs locais podem ser de outro projeto Prisma Postgres ou de um banco já compartilhado. Não conectar nem migrar até isso ser confirmado. Não foi feita leitura do banco nesta sprint.
+O restante deste arquivo, a partir de “Modelo conceitual”, continua sendo desenho futuro. Essas tabelas não foram criadas.
 
 ## Modelo conceitual
 
@@ -58,7 +26,7 @@ Sem schema definitivo. Agregados:
 
 | Agregado | Entidades | Responsabilidade |
 | --- | --- | --- |
-| Identidade | `User` | Conta, papel (`student` ou `admin`). Sessão fica no mecanismo de auth, não neste agregado de negócio |
+| Identidade | `User`, `Session`, `Account`, `Verification` | Implementado na Sprint 1. Papel `USER` ou `ADMIN`. O restante deste desenho ainda não virou tabela |
 | Aprendizado | `Course`, `Module`, `Lesson`, `LessonBlock` | Catálogo e conteúdo publicado |
 | Estado do aluno | `LessonProgress`, `LessonNote`, `LessonResult` | Leitura, nota e resultado. Não guarda pedido |
 | Comercial | `Order`, `OrderItem`, `Payment` | Intenção de compra e transação |

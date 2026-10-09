@@ -1,6 +1,17 @@
 # Arquitetura proposta
 
-Status: proposta. Nada disso está implementado.
+A Sprint 1 separou os layouts em route groups sem mudar as URLs públicas.
+
+| Grupo | URLs |
+| --- | --- |
+| `(public)` | `/`, `/trafego-pago`, `/privacidade`, `/obrigado` |
+| `(auth)` | `/entrar`, `/cadastro`, `/esqueci-senha`, `/redefinir-senha`, `/verificar-email` |
+| `(app)` | `/app` |
+| `(admin)` | `/admin` |
+
+O layout raiz guarda fonte, GTM e consentimento. O header comercial fica só no grupo público. `/app` e `/admin` são `noindex` e estão fora do sitemap.
+
+O desenho abaixo continua valendo para curso, aula e pagamento, que ainda não existem.
 
 ## Premissa que o código corrige
 
