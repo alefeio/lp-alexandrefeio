@@ -94,3 +94,7 @@ npx --yes tsx scripts/check-lead.ts
 - Cases, enquanto `isMock` for verdadeiro
 
 O detalhe está em `MVP_STATUS.md`.
+
+## Plataforma
+
+A auditoria e a arquitetura da V1 estão em `docs/platform/`. O site publicado continua sem banco, sem conta de aluno e sem área de curso.
