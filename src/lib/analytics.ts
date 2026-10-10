@@ -9,7 +9,9 @@ export type AnalyticsEventName =
   | "generate_lead"
   | "lesson_started"
   | "lesson_progress"
-  | "lesson_completed";
+  | "lesson_completed"
+  | "diagnostic_started"
+  | "diagnostic_completed";
 
 export type AnalyticsParams = Record<string, string | number | boolean | null | undefined>;
 

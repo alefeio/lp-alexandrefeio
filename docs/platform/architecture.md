@@ -7,7 +7,7 @@ A Sprint 1 separou os layouts em route groups sem mudar as URLs públicas.
 | `(public)` | `/`, `/trafego-pago`, `/privacidade`, `/obrigado`, `/cursos`, `/cursos/[slug]` |
 | `(learn)` | `/aulas/[slug]` |
 | `(auth)` | `/entrar`, `/cadastro`, `/esqueci-senha`, `/redefinir-senha`, `/verificar-email` |
-| `(app)` | `/app`, `/app/aprendizado` |
+| `(app)` | `/app`, `/app/aprendizado`, `/app/projetos` |
 | `(admin)` | `/admin` |
 
 O layout raiz guarda fonte, GTM e consentimento. O header comercial fica só no grupo público. `/app` e `/admin` são `noindex` e estão fora do sitemap.
@@ -36,10 +36,9 @@ A V1 não nasce de um CMS nem de um banco já ligado ao site. Nasce da landing a
 | Aluno | Sessão | Sem o header comercial da home |
 | Admin | Sessão com papel admin | Ferramenta, não landing |
 
-Rotas já criadas: `/cursos`, `/cursos/[slug]`, `/aulas/[slug]` e `/app/aprendizado`. Ainda não existem:
+Rotas já criadas: `/cursos`, `/cursos/[slug]`, `/aulas/[slug]`, `/app/aprendizado` e `/app/projetos`. A home do aluno mantém “Continuar de onde você parou” e acrescenta o próximo passo do projeto. Ainda não existem:
 
-- `/app`: projetos e tarefas.
-- `/app/projetos/[id]`: projeto do aluno.
+- Plano Vivo, tarefas e alertas.
 - `/app/analisar`: upload privado e análise, quando existirem.
 - `/admin`: conteúdo, preços, publicação, alunos, pedidos.
 

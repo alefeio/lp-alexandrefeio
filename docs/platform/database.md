@@ -4,7 +4,7 @@ Status: a aplicação usa Postgres de desenvolvimento. A migration `202610091900
 
 ## Estado
 
-Prisma 7, client em `src/generated/prisma`, gerado no `postinstall`. Além de `User`, `Session`, `Account` e `Verification`, a migration `20261010030000_education_foundation` criou curso, módulo, aula, bloco e o estado do aluno. Production continua sem banco próprio.
+Prisma 7, client em `src/generated/prisma`, gerado no `postinstall`. Além de `User`, `Session`, `Account` e `Verification`, a migration `20261010030000_education_foundation` criou curso, módulo, aula, bloco e o estado do aluno. A migration `20261010210000_project_diagnostic` criou `Project`, `Diagnostic` e `Recommendation`, e tornou `LessonResult.projectId` opcional com índices parciais. Production continua sem banco próprio.
 
 | Variável | Papel |
 | --- | --- |
@@ -18,7 +18,7 @@ Não há `db push`. `npm run db:deploy` recusa production.
 
 Antes de autenticar em production: banco separado, variáveis por ambiente na Vercel e migration versionada só nesse banco. O banco de desenvolvimento não deve ser reutilizado em production.
 
-Pedido, pagamento, entitlement, projeto e diagnóstico continuam só no desenho abaixo. Não viraram tabela.
+Pedido, pagamento e entitlement continuam só no desenho abaixo. Projeto e diagnóstico já são tabelas.
 
 ## Modelo conceitual
 

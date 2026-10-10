@@ -26,6 +26,8 @@ model User {
   lessonNotes          LessonNote[]
   lessonBookmarks      LessonBookmark[]
   lessonResults        LessonResult[]
+  projects             Project[]
+  diagnostics          Diagnostic[]
 
   @@unique([email])
   @@map("user")
@@ -163,6 +165,7 @@ model Lesson {
   notes             LessonNote[]
   bookmarks         LessonBookmark[]
   results           LessonResult[]
+  recommendations   Recommendation[]
 
   @@index([moduleId])
   @@index([status])
@@ -271,18 +274,136 @@ model LessonBookmark {
   @@map("lesson_bookmark")
 }
 
-/// Um resultado principal por usuário e aula.
+/// Resultado prático da aula. Sem `projectId`, é o resultado pessoal daquela aula.
+/// Com `projectId`, a mesma aula pode ter um resultado por negócio.
+/// A unicidade parcial fica na migration: um pessoal e um por projeto.
 model LessonResult {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lessonId  String
   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   payload   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, lessonId])
-  @@index([userId])
+  @@index([userId, lessonId])
+  @@index([projectId])
   @@map("lesson_result")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ProjectObjective {
+  LEADS
+  SALES
+  WHATSAPP
+  STORE_VISITS
+  AWARENESS
+  UNDEFINED
+}
+
+enum DestinationType {
+  LANDING_PAGE
+  WEBSITE
+  WHATSAPP
+  INSTAGRAM
+  MARKETPLACE
+  OTHER
+  UNDEFINED
+}
+
+enum DiagnosticStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum RecommendationType {
+  LEARN
+  EXECUTE
+  ANALYZE
+  WAIT
+}
+
+enum RecommendationPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model Project {
+  id                      String            @id @default(cuid())
+  userId                  String
+  user                    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                    String
+  segment                 String?
+  primaryOffer            String?
+  objective               ProjectObjective?
+  usesGoogleAds           Boolean?
+  usesMetaAds             Boolean?
+  destinationType         DestinationType?
+  monthlyMediaBudgetCents Int?
+  averageTicketCents      Int?
+  websiteUrl              String?
+  serviceArea             String?
+  status                  ProjectStatus     @default(ACTIVE)
+  archivedAt              DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  diagnostics             Diagnostic[]
+  recommendations         Recommendation[]
+  lessonResults           LessonResult[]
+
+  @@index([userId, updatedAt])
+  @@map("project")
+}
+
+model Diagnostic {
+  id                String            @id @default(cuid())
+  projectId         String
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version           String
+  status            DiagnosticStatus  @default(IN_PROGRESS)
+  answers           Json
+  dimensionScores   Json?
+  overallScore      Int?
+  primaryBottleneck String?
+  resultSnapshot    Json?
+  currentStep       Int               @default(0)
+  startedAt         DateTime          @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  recommendations   Recommendation[]
+
+  @@index([projectId, createdAt])
+  @@index([userId])
+  @@map("diagnostic")
+}
+
+model Recommendation {
+  id           String                 @id @default(cuid())
+  projectId    String
+  project      Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  diagnosticId String?
+  diagnostic   Diagnostic?            @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  type         RecommendationType
+  priority     RecommendationPriority
+  title        String
+  description  String
+  rationale    String?
+  lessonId     String?
+  lesson       Lesson?                @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  createdAt    DateTime               @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([diagnosticId])
+  @@map("recommendation")
 }

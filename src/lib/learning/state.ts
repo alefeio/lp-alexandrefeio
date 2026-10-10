@@ -42,7 +42,7 @@ export async function loadSnapshot(userId: string, lessonId: string, rules: Prog
     prisma.lessonResponse.findMany({ where: scope }),
     prisma.lessonNote.findMany({ where: scope }),
     prisma.lessonBookmark.findMany({ where: scope }),
-    prisma.lessonResult.findUnique({ where: { userId_lessonId: scope } }),
+    prisma.lessonResult.findFirst({ where: { ...scope, projectId: null } }),
   ]);
 
   const answers = answersFromRows(rules, blockProgress, responses, Boolean(result));
@@ -72,7 +72,7 @@ export async function recomputeProgress(
   const [blockProgress, responses, result] = await Promise.all([
     prisma.lessonBlockProgress.findMany({ where: scope }),
     prisma.lessonResponse.findMany({ where: scope }),
-    prisma.lessonResult.findUnique({ where: { userId_lessonId: scope } }),
+    prisma.lessonResult.findFirst({ where: { ...scope, projectId: null } }),
   ]);
   const saved = Boolean(result);
   const answers = answersFromRows(rules, blockProgress, responses, saved);

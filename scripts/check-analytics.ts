@@ -11,6 +11,7 @@ import {
   parseConsent,
   serializeConsent,
 } from "../src/lib/consent";
+import { diagnosticAnalyticsPayload, diagnosticPayloadIsPublic } from "../src/lib/diagnostic/analytics";
 import { lessonAnalyticsEntries, lessonAnalyticsPayload, lessonEventDedupeKey } from "../src/lib/learning/analytics-events";
 import { crossedProgressBuckets, lessonProgressEvents } from "../src/lib/learning/progress";
 import { objectiveToServiceName, toServiceAnalyticsName } from "../src/lib/service-analytics";
@@ -187,5 +188,14 @@ assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_starte
 assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_started").includes("user"), false);
 assert.equal("email" in lessonPayload, false);
 assert.equal("userId" in lessonPayload, false);
+
+const diagnosticPayload = diagnosticAnalyticsPayload({ band: "base" });
+assert.equal(diagnosticPayloadIsPublic(diagnosticPayload), true);
+assert.deepEqual(Object.keys(diagnosticPayload).sort(), ["diagnostic_type", "diagnostic_version", "result_band"]);
+assert.equal(diagnosticPayload.diagnostic_version, "traffic-readiness-v1");
+assert.equal("overallScore" in diagnosticPayload, false);
+assert.equal("projectId" in diagnosticPayload, false);
+assert.equal("answers" in diagnosticPayload, false);
+assert.equal(diagnosticPayload.result_band, "base");
 
 console.log("analytics checks ok");

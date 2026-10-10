@@ -47,6 +47,12 @@ export default function PrivacyPage() {
               do login, o progresso da aula gratuita fica só neste aparelho e não inclui nome nem e-mail.
             </p>
             <p>
+              Quem cria um projeto pode informar dados do negócio, como nome, segmento, oferta, objetivo, orçamento,
+              site e área de atendimento. O diagnóstico de prontidão guarda as respostas, a nota, o gargalo principal e
+              o histórico. Cada novo diagnóstico vira um registro novo; o anterior permanece. Esses dados servem para
+              orientar o próximo passo dentro da conta. Eles não entram nas ferramentas de medição.
+            </p>
+            <p>
               O site pode usar tecnologias de medição, analytics e publicidade conforme a escolha feita no banner de
               cookies. Essa escolha pode ser alterada depois em Preferências de cookies, no rodapé. Informações de
               campanha, como origem, mídia e parâmetros de anúncio presentes na URL, podem acompanhar a solicitação

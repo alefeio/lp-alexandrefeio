@@ -16,15 +16,15 @@ A implementação atual está em `docs/analytics-setup.md`. Esta nota não muda 
 
 ## Convenção futura
 
-`lesson_started`, `lesson_progress` e `lesson_completed` já entram no `dataLayer`, só depois do consentimento de analytics. O mesmo evento não repete no mesmo navegador para a mesma aula e o mesmo marco. O mesmo `trackEvent` e o mesmo GTM valem para o restante:
+`lesson_started`, `lesson_progress` e `lesson_completed` já entram no `dataLayer`, só depois do consentimento de analytics. O mesmo evento não repete no mesmo navegador para a mesma aula e o mesmo marco. `diagnostic_started` e `diagnostic_completed` seguem a mesma regra de consentimento e não repetem para o mesmo diagnóstico neste navegador. O mesmo `trackEvent` e o mesmo GTM valem para o restante:
 
 | Evento | Parâmetros permitidos |
 | --- | --- |
 | `lesson_started` | id público da aula, id do curso |
 | `lesson_progress` | id da aula e o marco 25, 50 ou 75, sem texto |
 | `lesson_completed` | id da aula, no marco 100 |
-| `diagnostic_started` | id do diagnóstico |
-| `diagnostic_completed` | id do diagnóstico, código de resultado se for categoria estável, sem respostas |
+| `diagnostic_started` | `diagnostic_type` e `diagnostic_version`. Sem id, sem respostas e sem nota |
+| `diagnostic_completed` | os mesmos campos e `result_band` (`ready`, `base`, `incomplete`, `foundations`). Sem nota exata, gargalo, projeto ou orçamento |
 | `checkout_started` | tipo do produto (`lesson`, `module`, `course`) e id público |
 | `purchase_completed` | id do pedido interno, valor e moeda, sem e-mail |
 | `analysis_started` | id da análise |

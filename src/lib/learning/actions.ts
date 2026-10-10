@@ -11,6 +11,7 @@ import {
 } from "@/lib/learning/blocks";
 import { mergeLessonProgress, type LocalLessonProgress } from "@/lib/learning/local-progress";
 import { isViewCompletedType } from "@/lib/learning/progress";
+import { upsertPersonalLessonResult } from "@/lib/learning/lesson-result";
 import { ownedByUser, ownedLesson } from "@/lib/learning/ownership";
 import { loadRuleBlocks, loadSnapshot, recomputeProgress, type LessonSnapshot } from "@/lib/learning/state";
 import { getSession } from "@/lib/auth/session";
@@ -198,11 +199,7 @@ export async function saveLessonResult(slug: string, values: Record<string, stri
   }
 
   const now = new Date();
-  await getPrisma().lessonResult.upsert({
-    where: { userId_lessonId: ownedLesson(auth.userId, auth.lessonId) },
-    create: { userId: auth.userId, lessonId: auth.lessonId, payload },
-    update: { payload },
-  });
+  await upsertPersonalLessonResult(auth.userId, auth.lessonId, payload);
   await getPrisma().lessonBlockProgress.upsert({
     where: { userId_lessonId_blockKey: { userId: auth.userId, lessonId: auth.lessonId, blockKey: resultBlock.blockKey } },
     create: {
@@ -336,10 +333,10 @@ async function applyImported(
     }
   }
 
-  if (progress.result && ! (await prisma.lessonResult.findUnique({ where: { userId_lessonId: { userId, lessonId } } }))) {
+  if (progress.result && !(await prisma.lessonResult.findFirst({ where: { userId, lessonId, projectId: null } }))) {
     const parsed = resultResponseSchema.safeParse(progress.result);
     if (parsed.success) {
-      await prisma.lessonResult.create({ data: { userId, lessonId, payload: parsed.data } });
+      await prisma.lessonResult.create({ data: { userId, lessonId, projectId: null, payload: parsed.data } });
     }
   }
 }

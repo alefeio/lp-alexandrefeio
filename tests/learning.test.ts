@@ -269,7 +269,7 @@ test("usuário A não lê registro do usuário B no banco de desenvolvimento", a
     await assert.rejects(
       prisma.lessonResult.create({ data: { userId: userA, lessonId, payload: { "oferta-clara": "nao" } } }),
     );
-    const resultB = await prisma.lessonResult.findUnique({ where: { userId_lessonId: ownedLesson(userB, lessonId) } });
+    const resultB = await prisma.lessonResult.findFirst({ where: { ...ownedLesson(userB, lessonId), projectId: null } });
     assert.equal(resultB, null);
   } finally {
     await prisma.course.delete({ where: { id: courseId } });

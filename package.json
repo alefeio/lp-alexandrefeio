@@ -12,7 +12,7 @@
     "db:migrate": "tsx scripts/run-prisma.ts migrate dev",
     "db:deploy": "tsx scripts/run-prisma.ts migrate deploy",
     "db:seed": "tsx scripts/seed-learning.ts",
-    "test": "tsx --test tests/learning.test.ts"
+    "test": "tsx --test tests/learning.test.ts tests/project-diagnostic.test.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.4",

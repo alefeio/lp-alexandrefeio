@@ -21,7 +21,7 @@ O corpo do bloco é JSON validado por tipo. Isso evita um CMS de nós arbitrári
 | Resposta | mesma chave de progresso, ou filha | Só para `CHECKPOINT`, `ACTIVITY`, `CHECKLIST` |
 | Nota | `userId + lessonId`, com `blockKey` opcional | Texto do aluno, privado |
 | Marcador | `userId + lessonId + blockKey` | `LessonBookmark`. Não é o mesmo que concluir o bloco |
-| Resultado da aula | `userId + lessonId` | Síntese ao concluir, separada do progresso parcial |
+| Resultado da aula | `userId + lessonId`, com `projectId` opcional | Sem projeto, é o resultado pessoal. Com projeto, a mesma aula pode ter um resultado por negócio. Ver ADR 006 |
 
 Scroll em pixels não é fonte de progresso. Pode existir como detalhe de interface, sem ser persistido como verdade.
 

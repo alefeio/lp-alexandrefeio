@@ -1,5 +1,7 @@
 # Segurança — revisão inicial
 
+Atualização da Sprint 3: projeto, diagnóstico e recomendação saem da sessão. A action não aceita `userId` do cliente. Projeto ou diagnóstico de outra conta responde 404. Dinheiro fica em centavos inteiros. URL do site só passa se for `http` ou `https`. Resposta de diagnóstico, nome do negócio, orçamento e nota por dimensão não vão ao `dataLayer`.
+
 Atualização da Sprint 2: progresso, resposta, nota, marcador e resultado saem da sessão. A action não aceita `userId` do cliente. Aula paga não carrega blocos. Nota e resposta não vão ao `dataLayer`.
 
 Atualização da Sprint 1: conta usa Better Auth. Segredo e banco ficam no servidor. Sessão em cookie httpOnly. `/app` e `/admin` não confiam só no proxy: o layout relê a sessão. `/admin` exige `role = ADMIN`. Login, cadastro e recuperação passam pelo rate limit do Better Auth (10 por minuto, por instância). Não foi contratado serviço externo.
