@@ -4,12 +4,15 @@ import test from "node:test";
 import { canIndexLesson, canReadLessonBody, isPublicLesson, visibleBlocks } from "../src/lib/learning/access";
 import { parseBlockData } from "../src/lib/learning/blocks";
 import { firstCourseSeed, DEMO_LESSON_SLUG } from "../src/lib/learning/first-course";
-import { mergeLessonProgress } from "../src/lib/learning/local-progress";
+import { mergeLessonProgress, furthestBlockKey } from "../src/lib/learning/local-progress";
 import { belongsToUser, ownedLesson, ownedRecord } from "../src/lib/learning/ownership";
 import {
   isBlockComplete,
   isLessonComplete,
+  lessonProgressEvents,
   progressPercent,
+  remainingMinutes,
+  savedCheckpointFeedback,
   type ProgressRuleBlock,
 } from "../src/lib/learning/progress";
 import { needsSession } from "../src/proxy";
@@ -84,6 +87,11 @@ test("percentual ignora bloco que não conta e exige checkpoint certo", () => {
   };
   assert.equal(progressPercent(blocks, done, false), 100);
   assert.equal(isLessonComplete(blocks, done, false), true);
+  assert.equal(isLessonComplete(blocks, { "text-caminho": { viewed: true } }, false), false);
+  const feedback = savedCheckpointFeedback(blocks, { "checkpoint-quando-anunciar": { optionId: "sem-oferta" } });
+  assert.equal(feedback["checkpoint-quando-anunciar"]?.correct, false);
+  assert.equal(feedback["checkpoint-quando-anunciar"]?.explanation, "Porque existe destino.");
+  assert.equal(savedCheckpointFeedback(blocks, {})["checkpoint-quando-anunciar"], undefined);
 });
 
 test("último bloco é a chave, não a posição", () => {
@@ -118,6 +126,30 @@ test("merge não deixa progresso local antigo apagar o servidor", () => {
   assert.equal(merged.write, true);
   assert.deepEqual(merged.progress?.viewedBlockKeys.sort(), ["example-padaria", "text-caminho"]);
   assert.equal((merged.progress?.responses["activity-oferta"] as { text: string }).text, "servidor");
+
+  const order = ["text-caminho", "example-padaria", "activity-oferta"];
+  const reread = mergeLessonProgress(
+    { ...server, lastBlockKey: "activity-oferta" },
+    { ...newer, lastBlockKey: "text-caminho" },
+    order,
+  );
+  assert.equal(reread.write, true);
+  assert.equal(reread.progress?.lastBlockKey, "activity-oferta");
+  assert.equal(furthestBlockKey(order, ["text-caminho", "activity-oferta"]), "activity-oferta");
+
+  const serverNewer = mergeLessonProgress(
+    { ...server, updatedAt: "2026-10-10T18:00:00.000Z", lastBlockKey: "activity-oferta" },
+    { ...older, lastBlockKey: "example-padaria" },
+    order,
+  );
+  assert.equal(serverNewer.write, false);
+  assert.equal(serverNewer.progress?.lastBlockKey, "activity-oferta");
+  assert.equal(remainingMinutes(12, 50, false), 6);
+  assert.equal(remainingMinutes(12, 0, false), null);
+  assert.equal(remainingMinutes(12, 40, true), null);
+  assert.deepEqual(lessonProgressEvents(0, 50).map((item) => item.bucket), [25, 50]);
+  assert.equal(lessonProgressEvents(0, 50).every((item) => item.event === "lesson_progress"), true);
+  assert.deepEqual(lessonProgressEvents(80, 100), [{ event: "lesson_completed", bucket: 100 }]);
 });
 
 test("nota, bookmark e resultado ficam presos ao usuário", () => {

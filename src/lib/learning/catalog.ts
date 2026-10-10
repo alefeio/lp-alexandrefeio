@@ -2,6 +2,7 @@ import { canIndexLesson, canReadLessonBody, isPublicLesson } from "@/lib/learnin
 import { parseBlockData, toPublicBlockData, type LessonBlockData } from "@/lib/learning/blocks";
 import { getPrisma } from "@/lib/db/prisma";
 import type { SitemapCourse, SitemapLesson } from "@/lib/seo/public-sitemap";
+import { savedCheckpointFeedback, type CheckpointFeedback } from "@/lib/learning/progress";
 import { loadSnapshot, type LessonSnapshot } from "@/lib/learning/state";
 
 export type PublicBlock = {
@@ -120,10 +121,14 @@ export async function getPublicLesson(slug: string): Promise<{
   return { lesson, blocks, hasBody: blocks.length > 0 };
 }
 
-export async function getReaderSnapshot(userId: string, lessonId: string): Promise<LessonSnapshot> {
+export async function getReaderSnapshot(
+  userId: string,
+  lessonId: string,
+): Promise<{ snapshot: LessonSnapshot; checkpointFeedback: CheckpointFeedback }> {
   const { loadRuleBlocks } = await import("@/lib/learning/state");
   const rules = await loadRuleBlocks(lessonId);
-  return loadSnapshot(userId, lessonId, rules);
+  const snapshot = await loadSnapshot(userId, lessonId, rules);
+  return { snapshot, checkpointFeedback: savedCheckpointFeedback(rules, snapshot.responses) };
 }
 
 export async function sitemapLearningEntries(): Promise<{ courses: SitemapCourse[]; lessons: SitemapLesson[] }> {
@@ -163,7 +168,7 @@ export async function continueStudying(userId: string) {
   return getPrisma().lessonProgress.findFirst({
     where: ownedContinue(userId),
     orderBy: { lastActiveAt: "desc" },
-    include: { lesson: { select: { slug: true, title: true, status: true, accessType: true } } },
+    include: { lesson: { select: { slug: true, title: true, status: true, accessType: true, estimatedMinutes: true } } },
   });
 }
 
@@ -198,4 +203,36 @@ export async function learningLists(userId: string) {
     }),
   ]);
   return { inProgress, completed, notes, bookmarks };
+}
+
+export async function sectionTitlesFor(items: { lessonId: string; blockKey: string | null }[]): Promise<Record<string, string>> {
+  const lessonIds = [...new Set(items.map((item) => item.lessonId))];
+  if (lessonIds.length === 0) return {};
+  const rows = await getPrisma().lessonBlock.findMany({
+    where: { lessonId: { in: lessonIds }, retiredAt: null },
+    orderBy: { position: "asc" },
+    select: { lessonId: true, blockKey: true, position: true, payload: true },
+  });
+  const byLesson = new Map<string, { blockKey: string; position: number; title: string | null }[]>();
+  for (const row of rows) {
+    const data = parseBlockData(row.payload);
+    const list = byLesson.get(row.lessonId) ?? [];
+    list.push({
+      blockKey: row.blockKey,
+      position: row.position,
+      title: data?.type === "HEADING" ? data.text : null,
+    });
+    byLesson.set(row.lessonId, list);
+  }
+
+  const labels: Record<string, string> = {};
+  for (const item of items) {
+    if (!item.blockKey) continue;
+    const blocks = byLesson.get(item.lessonId) ?? [];
+    const current = blocks.find((block) => block.blockKey === item.blockKey);
+    if (!current) continue;
+    const heading = [...blocks].reverse().find((block) => block.title && block.position <= current.position);
+    if (heading?.title) labels[`${item.lessonId}:${item.blockKey}`] = heading.title;
+  }
+  return labels;
 }

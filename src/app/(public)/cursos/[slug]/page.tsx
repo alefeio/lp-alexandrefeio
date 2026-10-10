@@ -38,7 +38,7 @@ export default async function CoursePage({ params }: PageProps) {
       <p className="mt-4 text-base leading-relaxed text-muted">{course.description}</p>
       <p className="mt-4 text-sm text-muted">
         {minutes > 0 ? `${minutes} min no total, somando as estimativas. ` : ""}
-        Nenhuma aula exige a anterior.
+        Nenhuma aula exige a anterior. A ordem é uma sequência sugerida.
         {course.bundlePriceCents != null ? ` Curso completo: ${formatPriceCents(course.bundlePriceCents)}. Disponível em breve.` : ""}
       </p>
       <div className="mt-12 space-y-12">

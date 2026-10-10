@@ -18,7 +18,7 @@ O corpo do bloco é JSON validado por tipo. Isso evita um CMS de nós arbitrári
 | --- | --- | --- |
 | Último bloco | `userId + lessonId` | Guarda `blockKey`, não índice nem pixel |
 | Progresso | `userId + lessonId + blockKey` | Bloco visto ou concluído |
-| Resposta | mesma chave de progresso, ou filha | Só para `QUESTION`, `ACTIVITY`, `CHECKLIST` |
+| Resposta | mesma chave de progresso, ou filha | Só para `CHECKPOINT`, `ACTIVITY`, `CHECKLIST` |
 | Nota | `userId + lessonId`, com `blockKey` opcional | Texto do aluno, privado |
 | Marcador | `userId + lessonId + blockKey` | `LessonBookmark`. Não é o mesmo que concluir o bloco |
 | Resultado da aula | `userId + lessonId` | Síntese ao concluir, separada do progresso parcial |

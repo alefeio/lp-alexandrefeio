@@ -287,7 +287,8 @@ export async function importLocalProgress(slug: string, local: LocalLessonProgre
       }
     : null;
 
-  const merged = mergeLessonProgress(server, local);
+  const order = rules.filter((rule) => !rule.retiredAt).map((rule) => rule.blockKey);
+  const merged = mergeLessonProgress(server, local, order);
   if (!merged.write || !merged.progress) {
     return { ok: true, snapshot: current };
   }

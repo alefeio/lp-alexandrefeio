@@ -26,6 +26,11 @@ export function lessonAnalyticsPayload(input: {
   return payload;
 }
 
+export function lessonEventDedupeKey(slug: string, event: LessonAnalyticsEvent, bucket?: ProgressBucket): string {
+  if (event === "lesson_started") return `af_lesson_started_${slug}`;
+  return `af_lesson_${event}_${slug}_${bucket ?? "x"}`;
+}
+
 export function lessonAnalyticsEntries(payload: LessonAnalyticsPayload): Record<string, string | number> {
   const entries: Record<string, string | number> = {};
   for (const key of ALLOWED_KEYS) {

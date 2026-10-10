@@ -103,3 +103,36 @@ export type ProgressBucket = (typeof PROGRESS_BUCKETS)[number];
 export function crossedProgressBuckets(previous: number, next: number): ProgressBucket[] {
   return PROGRESS_BUCKETS.filter((bucket) => previous < bucket && next >= bucket);
 }
+
+export function lessonProgressEvents(previous: number, next: number): Array<{
+  event: "lesson_progress" | "lesson_completed";
+  bucket: ProgressBucket;
+}> {
+  return crossedProgressBuckets(previous, next).map((bucket) =>
+    bucket === 100 ? { event: "lesson_completed", bucket } : { event: "lesson_progress", bucket },
+  );
+}
+
+export function remainingMinutes(estimatedMinutes: number | null, percent: number, completed: boolean): number | null {
+  if (completed || estimatedMinutes == null || estimatedMinutes < 1 || percent <= 0 || percent >= 100) return null;
+  return Math.max(1, Math.round((estimatedMinutes * (100 - percent)) / 100));
+}
+
+export type CheckpointFeedback = Record<string, { correct: boolean; explanation?: string }>;
+
+export function savedCheckpointFeedback(
+  blocks: ProgressRuleBlock[],
+  responses: Record<string, unknown>,
+): CheckpointFeedback {
+  const feedback: CheckpointFeedback = {};
+  for (const block of blocks) {
+    if (block.retiredAt || block.data.type !== "CHECKPOINT") continue;
+    const parsed = checkpointResponseSchema.safeParse(responses[block.blockKey]);
+    if (!parsed.success) continue;
+    feedback[block.blockKey] = {
+      correct: isBlockComplete(block, { viewed: true, response: parsed.data }, false),
+      ...(block.data.explanation ? { explanation: block.data.explanation } : {}),
+    };
+  }
+  return feedback;
+}

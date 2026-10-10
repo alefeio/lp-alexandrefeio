@@ -11,8 +11,8 @@ import {
   parseConsent,
   serializeConsent,
 } from "../src/lib/consent";
-import { lessonAnalyticsEntries, lessonAnalyticsPayload } from "../src/lib/learning/analytics-events";
-import { crossedProgressBuckets } from "../src/lib/learning/progress";
+import { lessonAnalyticsEntries, lessonAnalyticsPayload, lessonEventDedupeKey } from "../src/lib/learning/analytics-events";
+import { crossedProgressBuckets, lessonProgressEvents } from "../src/lib/learning/progress";
 import { objectiveToServiceName, toServiceAnalyticsName } from "../src/lib/service-analytics";
 
 assert.equal(toServiceAnalyticsName("site-trafego"), "site_trafego");
@@ -180,6 +180,11 @@ const lessonPayload = lessonAnalyticsEntries(
 assert.deepEqual(Object.keys(lessonPayload).sort(), ["access_type", "course_slug", "lesson_slug", "progress_bucket"]);
 assert.equal(lessonPayload.progress_bucket, 50);
 assert.deepEqual(crossedProgressBuckets(0, 50), [25, 50]);
+assert.equal(lessonProgressEvents(90, 100)[0]?.event, "lesson_completed");
+assert.equal(lessonProgressEvents(0, 75).some((item) => item.bucket === 100), false);
+assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_started"), "af_lesson_started_como-funciona-o-trafego-pago");
+assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_started").includes("@"), false);
+assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_started").includes("user"), false);
 assert.equal("email" in lessonPayload, false);
 assert.equal("userId" in lessonPayload, false);
 

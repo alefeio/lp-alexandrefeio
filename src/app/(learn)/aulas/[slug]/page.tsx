@@ -40,9 +40,8 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
   }
 
   const session = await getSession();
-  const initial: LessonSnapshot = session
-    ? await getReaderSnapshot(session.user.id, page.lesson.id)
-    : emptySnapshot();
+  const reader = session ? await getReaderSnapshot(session.user.id, page.lesson.id) : null;
+  const initial: LessonSnapshot = reader?.snapshot ?? emptySnapshot();
 
   return (
     <LessonReader
@@ -58,6 +57,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
       }}
       blocks={page.blocks}
       initial={initial}
+      initialFeedback={reader?.checkpointFeedback ?? {}}
       authenticated={Boolean(session)}
       resume={query.continuar === "1"}
     />
@@ -72,6 +72,7 @@ function LessonGate({
     title: string;
     summary: string;
     publicPreview: string | null;
+    estimatedMinutes: number | null;
     accessType: "FREE" | "PAID";
     priceCents: number | null;
     courseSlug: string;
@@ -81,17 +82,24 @@ function LessonGate({
   hasBody: boolean;
 }) {
   const paid = lesson.accessType === "PAID";
+  const preview = lesson.publicPreview && !/checkout/i.test(lesson.publicPreview) ? lesson.publicPreview : null;
   return (
     <Container className="max-w-2xl py-16">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">{lesson.moduleTitle}</p>
       <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">{lesson.title}</h1>
-      <p className="mt-4 text-base leading-relaxed text-muted">{lesson.summary}</p>
-      {lesson.publicPreview ? <p className="mt-4 text-base leading-relaxed">{lesson.publicPreview}</p> : null}
+      <h2 className="mt-8 text-xl font-semibold tracking-tight">O problema que esta aula trata</h2>
+      <p className="mt-3 text-base leading-[1.7] text-foreground">{lesson.summary}</p>
+      <h2 className="mt-8 text-xl font-semibold tracking-tight">Resultado esperado</h2>
+      <p className="mt-3 text-base leading-[1.7] text-foreground">
+        {preview ?? "Aplicar o tema desta aula ao anúncio, quando o texto estiver disponível."}
+      </p>
+      <p className="mt-6 text-sm leading-relaxed text-muted">
+        {lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min estimados. ` : ""}
+        {paid && lesson.priceCents != null ? `${formatPriceCents(lesson.priceCents)}. ` : ""}
+        {paid ? "Disponível em breve." : null}
+      </p>
       {paid ? (
-        <p className="mt-6 text-sm text-muted">
-          {lesson.priceCents != null ? `${formatPriceCents(lesson.priceCents)}. ` : ""}
-          Disponível em breve.
-        </p>
+        <p className="mt-3 text-sm leading-relaxed text-muted">A compra não está aberta. O texto da aula não aparece nesta página.</p>
       ) : null}
       {!paid && !hasBody ? <p className="mt-6 text-sm text-muted">O texto completo desta aula ainda está em preparação.</p> : null}
       <p className="mt-8 text-sm">

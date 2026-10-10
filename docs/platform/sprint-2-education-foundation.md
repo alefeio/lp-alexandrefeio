@@ -34,7 +34,7 @@ Entram no percentual só blocos ativos com `countsForProgress`. Título de seç�
 
 Aula `FREE` publicada abre sem login. O progresso anônimo fica em `localStorage` (`af_lesson_progress_v1`), sem nome, e-mail ou id de usuário.
 
-Depois do login, se não houver progresso no servidor, o estado local é importado. Se o servidor for mais recente, ele permanece. Se o local for mais recente, os blocos vistos se unem e a resposta já gravada no servidor prevalece.
+Depois do login, se não houver progresso no servidor, o estado local é importado. Se o servidor for mais recente, ele permanece. Se o local for mais recente, os blocos vistos se unem e a resposta já gravada no servidor prevalece. A retomada não volta para um bloco anterior: o detalhe está em [sprint-2-1-learning-ux.md](./sprint-2-1-learning-ux.md).
 
 ## FREE e PAID
 

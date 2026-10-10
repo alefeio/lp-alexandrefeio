@@ -59,15 +59,32 @@ export function parseLocalLesson(value: unknown): LocalLessonProgress | null {
   };
 }
 
+export function furthestBlockKey(order: readonly string[], candidates: Array<string | null | undefined>): string | null {
+  let best: string | null = null;
+  let bestIndex = -1;
+  for (const key of candidates) {
+    if (!key) continue;
+    const index = order.indexOf(key);
+    if (index > bestIndex) {
+      best = key;
+      bestIndex = index;
+    }
+  }
+  if (best) return best;
+  return candidates.find((key): key is string => Boolean(key)) ?? null;
+}
+
 /**
  * Não sobrescreve progresso do servidor com estado local mais antigo.
  * Se o local for mais novo e ainda não houver servidor, importa.
  * Se os dois existirem e o local for mais novo, une blocos vistos.
+ * A retomada fica no bloco mais adiante da aula, para o login não voltar o aluno.
  * Resposta e resultado já gravados no servidor prevalecem.
  */
 export function mergeLessonProgress(
   server: LocalLessonProgress | null,
   local: LocalLessonProgress | null,
+  blockOrder: readonly string[] = [],
 ): { progress: LocalLessonProgress | null; write: boolean } {
   if (!local) return { progress: server, write: false };
   if (!server) return { progress: local, write: true };
@@ -78,11 +95,16 @@ export function mergeLessonProgress(
     return { progress: server, write: false };
   }
 
+  const lastBlockKey =
+    blockOrder.length > 0
+      ? furthestBlockKey(blockOrder, [server.lastBlockKey, local.lastBlockKey])
+      : (local.lastBlockKey ?? server.lastBlockKey);
+
   return {
     write: true,
     progress: {
       updatedAt: local.updatedAt,
-      lastBlockKey: local.lastBlockKey ?? server.lastBlockKey,
+      lastBlockKey,
       viewedBlockKeys: [...new Set([...server.viewedBlockKeys, ...local.viewedBlockKeys])],
       responses: { ...local.responses, ...server.responses },
       result: server.result ?? local.result,

@@ -26,11 +26,12 @@ export default async function StudentHomePage() {
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Conta</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Área do aluno</h1>
       {resume && current ? (
-        <p className="mt-6">
+        <div className="mt-6">
           <Link className={buttonClass("primary")} href={resume}>
-            Continuar estudando: {current.lesson.title}
+            Continuar de onde você parou
           </Link>
-        </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted">{current.lesson.title}</p>
+        </div>
       ) : (
         <p className="mt-4 text-base leading-relaxed text-muted">
           Quando você começar uma aula gratuita, ela aparece aqui.{" "}
