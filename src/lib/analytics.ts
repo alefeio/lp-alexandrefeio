@@ -6,7 +6,10 @@ export type AnalyticsEventName =
   | "service_interest"
   | "form_start"
   | "form_submit"
-  | "generate_lead";
+  | "generate_lead"
+  | "lesson_started"
+  | "lesson_progress"
+  | "lesson_completed";
 
 export type AnalyticsParams = Record<string, string | number | boolean | null | undefined>;
 

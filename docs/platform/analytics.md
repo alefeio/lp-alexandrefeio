@@ -16,7 +16,7 @@ A implementação atual está em `docs/analytics-setup.md`. Esta nota não muda 
 
 ## Convenção futura
 
-Não emitir estes eventos agora. Quando a plataforma existir, o mesmo `trackEvent` e o mesmo GTM:
+`lesson_started`, `lesson_progress` e `lesson_completed` já entram no `dataLayer`, só depois do consentimento de analytics. O mesmo `trackEvent` e o mesmo GTM valem para o restante:
 
 | Evento | Parâmetros permitidos |
 | --- | --- |

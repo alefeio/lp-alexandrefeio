@@ -11,6 +11,8 @@ import {
   parseConsent,
   serializeConsent,
 } from "../src/lib/consent";
+import { lessonAnalyticsEntries, lessonAnalyticsPayload } from "../src/lib/learning/analytics-events";
+import { crossedProgressBuckets } from "../src/lib/learning/progress";
 import { objectiveToServiceName, toServiceAnalyticsName } from "../src/lib/service-analytics";
 
 assert.equal(toServiceAnalyticsName("site-trafego"), "site_trafego");
@@ -166,5 +168,19 @@ assert.deepEqual(consentUpdateEvent({ analytics: true, marketing: true }), {
   consent_analytics: true,
   consent_marketing: true,
 });
+
+const lessonPayload = lessonAnalyticsEntries(
+  lessonAnalyticsPayload({
+    lessonSlug: "como-funciona-o-trafego-pago",
+    courseSlug: "trafego-pago-na-pratica",
+    accessType: "FREE",
+    progressBucket: 50,
+  }),
+);
+assert.deepEqual(Object.keys(lessonPayload).sort(), ["access_type", "course_slug", "lesson_slug", "progress_bucket"]);
+assert.equal(lessonPayload.progress_bucket, 50);
+assert.deepEqual(crossedProgressBuckets(0, 50), [25, 50]);
+assert.equal("email" in lessonPayload, false);
+assert.equal("userId" in lessonPayload, false);
 
 console.log("analytics checks ok");

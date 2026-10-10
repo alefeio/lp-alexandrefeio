@@ -15,6 +15,8 @@
 | `/trafego-pago` | Sim | Sim | Landing de gestão de tráfego pago |
 | `/privacidade` | Sim | Sim | Transparência; sem otimização de keyword |
 | `/obrigado` | Não (`noindex, nofollow`) | Não | Confirmação pós-lead; não é conversão por pageview |
+| `/cursos` e `/cursos/[slug]` | Sim, se publicados | Sim | Vitrine do curso. Sem preço de checkout |
+| `/aulas/[slug]` | Gratuita com corpo, ou preview pago | Só se indexável | Corpo pago não entra no HTML |
 
 Query strings (`utm_*`, `gclid`, `fbclid`, `servico`) não alteram a canonical da home (`/`).
 
@@ -44,7 +46,7 @@ Sem reviews, rating, endereço comercial, preço ou número de clientes.
 
 `https://alexandrefeio.com.br/sitemap.xml`
 
-Inclui `/`, `/trafego-pago` e `/privacidade`.
+Inclui `/`, `/trafego-pago`, `/privacidade` e, quando publicados, `/cursos`, a página do curso e aulas indexáveis. Rascunho fica de fora.
 
 ## Tracking
 

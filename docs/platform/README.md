@@ -1,6 +1,6 @@
 # Plataforma — planejamento
 
-Esta pasta descreve a arquitetura da plataforma. A Sprint 1 ligou Postgres de desenvolvimento e autenticação. Não há curso, pagamento, upload nem área de aluno além da página mínima `/app`.
+Esta pasta descreve a arquitetura da plataforma. A Sprint 1 ligou Postgres de desenvolvimento e autenticação. A Sprint 2 adicionou o primeiro curso textual. Não há pagamento nem upload.
 
 O marketing continua em `/`, com formulário via Resend e mensuração via GTM.
 
@@ -10,6 +10,7 @@ O marketing continua em `/`, com formulário via Resend e mensuração via GTM.
 | --- | --- |
 | [sprint-0-audit.md](./sprint-0-audit.md) | Auditoria anterior ao banco |
 | [sprint-1-foundation.md](./sprint-1-foundation.md) | Fundação de banco e autenticação |
+| [sprint-2-education-foundation.md](./sprint-2-education-foundation.md) | Curso, blocos, progresso e leitor |
 | [architecture.md](./architecture.md) | Arquitetura proposta e rotas futuras |
 | [database.md](./database.md) | Banco, variáveis e modelo conceitual |
 | [auth.md](./auth.md) | Autenticação |

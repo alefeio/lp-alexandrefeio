@@ -5,12 +5,12 @@ import { Container } from "@/components/ui/Container";
 
 export const metadata: Metadata = {
   title: "Privacidade",
-  description: "Como Alexandre Feio usa dados de contato e de conta.",
+  description: "Como Alexandre Feio usa dados de contato, de conta e de estudo.",
   alternates: { canonical: "/privacidade" },
   openGraph: {
     url: "/privacidade",
     title: "Privacidade",
-    description: "Como Alexandre Feio usa dados de contato e de conta.",
+    description: "Como Alexandre Feio usa dados de contato, de conta e de estudo.",
   },
   robots: {
     index: true,
@@ -39,6 +39,12 @@ export default function PrivacyPage() {
               usado para confirmar a conta e para enviar o link de recuperação de senha. A sessão fica em um cookie
               httpOnly, para manter o acesso à área autenticada. Esses dados de conta ficam no banco da plataforma e
               servem só para autenticação.
+            </p>
+            <p>
+              Quem estuda uma aula pode ter o progresso, as respostas das atividades, as notas e os marcadores salvos
+              na conta. O progresso serve para retomar a aula. As notas são privadas e não aparecem para outras
+              pessoas. As respostas ficam guardadas para a própria aula, sem análise automática. No navegador, antes
+              do login, o progresso da aula gratuita fica só neste aparelho e não inclui nome nem e-mail.
             </p>
             <p>
               O site pode usar tecnologias de medição, analytics e publicidade conforme a escolha feita no banner de

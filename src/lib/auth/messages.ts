@@ -32,7 +32,16 @@ export function mapAuthError(error: { message?: string | null; status?: number |
 
 export function safeNextPath(value: string | null | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return "/app";
-  if (value === "/app" || value.startsWith("/app/") || value === "/admin" || value.startsWith("/admin/")) {
+  if (value.includes("?") || value.includes("\\") || value.includes("://")) return "/app";
+  if (
+    value === "/app" ||
+    value.startsWith("/app/") ||
+    value === "/admin" ||
+    value.startsWith("/admin/") ||
+    value === "/cursos" ||
+    value.startsWith("/cursos/") ||
+    value.startsWith("/aulas/")
+  ) {
     return value;
   }
   return "/app";

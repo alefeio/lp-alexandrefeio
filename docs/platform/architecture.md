@@ -4,14 +4,15 @@ A Sprint 1 separou os layouts em route groups sem mudar as URLs públicas.
 
 | Grupo | URLs |
 | --- | --- |
-| `(public)` | `/`, `/trafego-pago`, `/privacidade`, `/obrigado` |
+| `(public)` | `/`, `/trafego-pago`, `/privacidade`, `/obrigado`, `/cursos`, `/cursos/[slug]` |
+| `(learn)` | `/aulas/[slug]` |
 | `(auth)` | `/entrar`, `/cadastro`, `/esqueci-senha`, `/redefinir-senha`, `/verificar-email` |
-| `(app)` | `/app` |
+| `(app)` | `/app`, `/app/aprendizado` |
 | `(admin)` | `/admin` |
 
 O layout raiz guarda fonte, GTM e consentimento. O header comercial fica só no grupo público. `/app` e `/admin` são `noindex` e estão fora do sitemap.
 
-O desenho abaixo continua valendo para curso, aula e pagamento, que ainda não existem.
+Curso e aula textual existem. Pagamento ainda não.
 
 ## Premissa que o código corrige
 
@@ -35,11 +36,9 @@ A V1 não nasce de um CMS nem de um banco já ligado ao site. Nasce da landing a
 | Aluno | Sessão | Sem o header comercial da home |
 | Admin | Sessão com papel admin | Ferramenta, não landing |
 
-Rotas futuras, não criadas agora:
+Rotas já criadas: `/cursos`, `/cursos/[slug]`, `/aulas/[slug]` e `/app/aprendizado`. Ainda não existem:
 
-- `/cursos` e página do curso: vitrine indexável.
-- `/aulas/[slug]`: aula. Trecho público pode ser indexável; corpo comprado não.
-- `/app`: projetos, progresso, tarefas.
+- `/app`: projetos e tarefas.
 - `/app/projetos/[id]`: projeto do aluno.
 - `/app/analisar`: upload privado e análise, quando existirem.
 - `/admin`: conteúdo, preços, publicação, alunos, pedidos.

@@ -4,7 +4,7 @@ Status: a aplicação usa Postgres de desenvolvimento. A migration `202610091900
 
 ## Estado
 
-Prisma 7, client em `src/generated/prisma`, gerado no `postinstall`. O schema tem só `User`, `Session`, `Account` e `Verification`.
+Prisma 7, client em `src/generated/prisma`, gerado no `postinstall`. Além de `User`, `Session`, `Account` e `Verification`, a migration `20261010030000_education_foundation` criou curso, módulo, aula, bloco e o estado do aluno. Production continua sem banco próprio.
 
 | Variável | Papel |
 | --- | --- |
@@ -18,7 +18,7 @@ Não há `db push`. `npm run db:deploy` recusa production.
 
 Antes de autenticar em production: banco separado, variáveis por ambiente na Vercel e migration versionada só nesse banco. O banco de desenvolvimento não deve ser reutilizado em production.
 
-O restante deste arquivo, a partir de “Modelo conceitual”, continua sendo desenho futuro. Essas tabelas não foram criadas.
+Pedido, pagamento, entitlement, projeto e diagnóstico continuam só no desenho abaixo. Não viraram tabela.
 
 ## Modelo conceitual
 
@@ -27,8 +27,8 @@ Sem schema definitivo. Agregados:
 | Agregado | Entidades | Responsabilidade |
 | --- | --- | --- |
 | Identidade | `User`, `Session`, `Account`, `Verification` | Implementado na Sprint 1. Papel `USER` ou `ADMIN`. O restante deste desenho ainda não virou tabela |
-| Aprendizado | `Course`, `Module`, `Lesson`, `LessonBlock` | Catálogo e conteúdo publicado |
-| Estado do aluno | `LessonProgress`, `LessonNote`, `LessonResult` | Leitura, nota e resultado. Não guarda pedido |
+| Aprendizado | `Course`, `Module`, `Lesson`, `LessonBlock` | Catálogo publicado na Sprint 2 |
+| Estado do aluno | `LessonProgress`, `LessonBlockProgress`, `LessonResponse`, `LessonNote`, `LessonBookmark`, `LessonResult` | Leitura, resposta, nota, marcador e resultado. Não guarda pedido |
 | Comercial | `Order`, `OrderItem`, `Payment` | Intenção de compra e transação |
 | Acesso | `Entitlement` | Direito de abrir aula. Pode nascer de compra, crédito ou concessão |
 | Crédito | lançamento ligado ao usuário | Valor já pago que pode abater upgrade. Não é entitlement |

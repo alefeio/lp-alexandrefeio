@@ -17,7 +17,12 @@ export default async function StudentLayout({ children }: { children: ReactNode 
           <Link href="/app" className="text-foreground">
             <Wordmark />
           </Link>
-          <SignOutButton />
+          <nav aria-label="Área do aluno" className="flex items-center gap-4 text-sm">
+            <Link href="/app/aprendizado" className="underline underline-offset-4">
+              Aprendizado
+            </Link>
+            <SignOutButton />
+          </nav>
         </Container>
       </header>
       <main id="conteudo" className="flex-1 py-16">
