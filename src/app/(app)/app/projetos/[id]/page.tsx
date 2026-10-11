@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth/session";
 import { buttonClass } from "@/lib/button-styles";
 import { dimensionLabel, knownDimension } from "@/lib/diagnostic/score";
 import { formatPriceCents } from "@/lib/learning/money";
+import { coverageDays, coverageLabel } from "@/lib/plan/budget";
 import { getProjectForUser } from "@/lib/project/service";
 
 export const metadata = { title: "Projeto" };
@@ -41,16 +42,26 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <Context label="Orçamento de mídia" value={project.monthlyMediaBudgetCents == null ? null : formatPriceCents(project.monthlyMediaBudgetCents)} />
         <Context label="Site" value={project.websiteUrl} />
       </dl>
-      {project.status === "ACTIVE" ? (
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/editar`}>
-            Completar contexto
-          </Link>
-          <Link className={buttonClass("primary")} href={`/app/projetos/${project.id}/diagnostico`}>
-            {inProgress ? "Continuar diagnóstico" : latest ? "Fazer novo diagnóstico" : "Fazer diagnóstico"}
-          </Link>
-        </div>
-      ) : null}
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <Link className={buttonClass("primary")} href={`/app/projetos/${project.id}/plano`}>Ver plano vivo</Link>
+        {project.status === "ACTIVE" ? (
+          <>
+            <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/plano#acao`}>Adicionar ação</Link>
+            <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/plano#recarga`}>Planejar recarga</Link>
+            <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/editar`}>Completar contexto</Link>
+            <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/diagnostico`}>
+              {inProgress ? "Continuar diagnóstico" : latest ? "Fazer novo diagnóstico" : "Fazer diagnóstico"}
+            </Link>
+          </>
+        ) : null}
+      </div>
+      <p className="mt-4 text-sm text-muted">
+        {project.tasks.length === 0 ? "Nenhuma ação aberta." : `${project.tasks.length} ação aberta${project.tasks.length === 1 ? "" : "s"}.`}
+        {project.reminders[0] ? ` Próximo lembrete em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(project.reminders[0].remindAt)}.` : ""}
+        {project.budgetPlan && coverageDays(project.budgetPlan.currentBalanceCents, project.budgetPlan.plannedDailyBudgetCents) !== null
+          ? ` Recarga estimada: ${coverageLabel(coverageDays(project.budgetPlan.currentBalanceCents, project.budgetPlan.plannedDailyBudgetCents) ?? 0)}.`
+          : ""}
+      </p>
       {latest ? (
         <section className="mt-10 rounded-lg border border-border bg-surface p-4">
           <h2 className="text-lg font-semibold">Último diagnóstico</h2>

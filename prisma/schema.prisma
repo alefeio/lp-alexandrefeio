@@ -288,6 +288,7 @@ model LessonResult {
   payload   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  tasks     Task[]
 
   @@index([userId, lessonId])
   @@index([projectId])
@@ -358,6 +359,9 @@ model Project {
   diagnostics             Diagnostic[]
   recommendations         Recommendation[]
   lessonResults           LessonResult[]
+  tasks                   Task[]
+  reminders               Reminder[]
+  budgetPlan              ProjectBudgetPlan?
 
   @@index([userId, updatedAt])
   @@map("project")
@@ -402,8 +406,102 @@ model Recommendation {
   lessonId     String?
   lesson       Lesson?                @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   createdAt    DateTime               @default(now())
+  tasks        Task[]
 
   @@index([projectId, createdAt])
   @@index([diagnosticId])
   @@map("recommendation")
+}
+
+enum TaskSourceType {
+  USER
+  DIAGNOSTIC
+  LESSON
+  PLANNING
+  SYSTEM
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ReminderType {
+  DEADLINE
+  REVIEW
+  BUDGET
+  PLANNING
+}
+
+model Task {
+  id               String         @id @default(cuid())
+  projectId        String
+  project          Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  recommendationId String?
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
+  lessonResultId   String?
+  lessonResult     LessonResult?  @relation(fields: [lessonResultId], references: [id], onDelete: SetNull)
+  title            String
+  description      String?
+  sourceType       TaskSourceType
+  priority         TaskPriority
+  status           TaskStatus     @default(TODO)
+  dueAt            DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  reminders        Reminder[]
+
+  @@index([projectId, status])
+  @@index([recommendationId])
+  @@index([lessonResultId])
+  @@map("task")
+}
+
+model Reminder {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  type         ReminderType
+  title        String
+  message      String?
+  remindAt     DateTime
+  emailEnabled Boolean      @default(false)
+  emailSentAt  DateTime?
+  readAt       DateTime?
+  dismissedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([projectId, remindAt])
+  @@index([taskId])
+  @@map("reminder")
+}
+
+/// Um planejamento de saldo por projeto. Não é extrato nem saldo da plataforma de anúncios.
+model ProjectBudgetPlan {
+  id                      String   @id @default(cuid())
+  projectId               String   @unique
+  project                 Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  currentBalanceCents     Int
+  plannedDailyBudgetCents Int
+  balanceAsOf             DateTime
+  reminderLeadDays        Int
+  emailReminderEnabled    Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("project_budget_plan")
 }

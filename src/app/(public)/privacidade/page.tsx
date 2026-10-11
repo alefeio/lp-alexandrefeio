@@ -53,6 +53,13 @@ export default function PrivacyPage() {
               orientar o próximo passo dentro da conta. Eles não entram nas ferramentas de medição.
             </p>
             <p>
+              O plano do projeto guarda tarefas, prazos e lembretes criados por quem usa a conta. O planejamento de
+              recarga estima por quantos dias um saldo informado cobriria um valor diário também informado. Essa
+              estimativa não vem do Google nem da Meta. Se o lembrete por e-mail estiver ligado, a mensagem leva o
+              título do lembrete e o nome do projeto, com um link para o plano. Ela não leva respostas de diagnóstico,
+              notas nem valores de orçamento.
+            </p>
+            <p>
               O site pode usar tecnologias de medição, analytics e publicidade conforme a escolha feita no banner de
               cookies. Essa escolha pode ser alterada depois em Preferências de cookies, no rodapé. Informações de
               campanha, como origem, mídia e parâmetros de anúncio presentes na URL, podem acompanhar a solicitação

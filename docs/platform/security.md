@@ -1,5 +1,7 @@
 # Segurança — revisão inicial
 
+Atualização da Sprint 4: tarefa, lembrete e planejamento de saldo só existem depois de conferir `Project.userId` com a sessão. Projeto arquivado não recebe ação nova. O endpoint de lembrete exige `CRON_SECRET` e não está agendado. O e-mail do lembrete não leva resposta de diagnóstico nem valor de orçamento.
+
 Atualização da Sprint 3: projeto, diagnóstico e recomendação saem da sessão. A action não aceita `userId` do cliente. Projeto ou diagnóstico de outra conta responde 404. Dinheiro fica em centavos inteiros. URL do site só passa se for `http` ou `https`. Resposta de diagnóstico, nome do negócio, orçamento e nota por dimensão não vão ao `dataLayer`.
 
 Atualização da Sprint 2: progresso, resposta, nota, marcador e resultado saem da sessão. A action não aceita `userId` do cliente. Aula paga não carrega blocos. Nota e resposta não vão ao `dataLayer`.

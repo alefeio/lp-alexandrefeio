@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/auth/session";
 import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from "@/lib/diagnostic/definition";
 import { dimensionLabel, resultSnapshotSchema } from "@/lib/diagnostic/score";
 import { getDiagnosticForUser } from "@/lib/diagnostic/service";
+import { RecommendationPlanButton } from "@/components/plan/PlanForms";
 import { buttonClass } from "@/lib/button-styles";
 
 export const metadata = { title: "Resultado do diagnóstico" };
@@ -82,6 +83,7 @@ export default async function DiagnosticResultPage({
             <li key={item.id} className="rounded-lg border border-border bg-surface p-4">
               <p className="font-medium">{item.title}</p>
               <p className="mt-1 text-sm leading-relaxed text-muted">{item.description}</p>
+              <RecommendationPlanButton projectId={id} recommendationId={item.id} type={item.type} already={item.tasks.length > 0} />
               {item.lesson && item.lesson.status === "PUBLISHED" ? (
                 <p className="mt-3 text-sm">
                   <Link className="underline underline-offset-4" href={`/aulas/${item.lesson.slug}`}>

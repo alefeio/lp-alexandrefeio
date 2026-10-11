@@ -10,7 +10,10 @@ export async function getDiagnosticForUser(userId: string, projectId: string, di
     include: {
       recommendations: {
         orderBy: { createdAt: "asc" },
-        include: { lesson: { select: { slug: true, title: true, accessType: true, status: true } } },
+        include: {
+          lesson: { select: { slug: true, title: true, accessType: true, status: true } },
+          tasks: { where: { status: { in: ["TODO", "IN_PROGRESS"] } }, take: 1 },
+        },
       },
     },
   });

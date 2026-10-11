@@ -18,6 +18,9 @@ export async function getProjectForUser(userId: string, projectId: string) {
     include: {
       diagnostics: { orderBy: { createdAt: "desc" } },
       recommendations: { orderBy: { createdAt: "desc" }, include: { lesson: { select: { slug: true, title: true, accessType: true, status: true } } } },
+      tasks: { where: { status: { in: ["TODO", "IN_PROGRESS"] } } },
+      reminders: { where: { dismissedAt: null }, orderBy: { remindAt: "asc" }, take: 1 },
+      budgetPlan: true,
     },
   });
 }
@@ -74,9 +77,16 @@ export async function archiveProjectForUser(userId: string, projectId: string) {
   const existing = await getPrisma().project.findFirst({ where: ownedProject(userId, projectId) });
   if (!existing) return { ok: false as const, message: "Projeto não encontrado." };
   if (existing.status === "ARCHIVED") return { ok: true as const, project: existing };
-  const project = await getPrisma().project.update({
-    where: { id: existing.id },
-    data: { status: "ARCHIVED", archivedAt: new Date() },
-  });
+  const now = new Date();
+  const [project] = await getPrisma().$transaction([
+    getPrisma().project.update({
+      where: { id: existing.id },
+      data: { status: "ARCHIVED", archivedAt: now },
+    }),
+    getPrisma().reminder.updateMany({
+      where: { projectId, dismissedAt: null, remindAt: { gt: now } },
+      data: { dismissedAt: now },
+    }),
+  ]);
   return { ok: true as const, project };
 }

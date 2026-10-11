@@ -4,7 +4,7 @@ Status: a aplicação usa Postgres de desenvolvimento. A migration `202610091900
 
 ## Estado
 
-Prisma 7, client em `src/generated/prisma`, gerado no `postinstall`. Além de `User`, `Session`, `Account` e `Verification`, a migration `20261010030000_education_foundation` criou curso, módulo, aula, bloco e o estado do aluno. A migration `20261010210000_project_diagnostic` criou `Project`, `Diagnostic` e `Recommendation`, e tornou `LessonResult.projectId` opcional com índices parciais. Production continua sem banco próprio.
+Prisma 7, client em `src/generated/prisma`, gerado no `postinstall`. Além de `User`, `Session`, `Account` e `Verification`, a migration `20261010030000_education_foundation` criou curso, módulo, aula, bloco e o estado do aluno. A migration `20261010210000_project_diagnostic` criou `Project`, `Diagnostic` e `Recommendation`, e tornou `LessonResult.projectId` opcional com índices parciais. A migration `20261010220000_live_plan` criou `Task`, `Reminder` e `ProjectBudgetPlan`. Production continua sem banco próprio.
 
 | Variável | Papel |
 | --- | --- |
