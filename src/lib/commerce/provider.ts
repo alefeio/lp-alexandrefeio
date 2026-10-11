@@ -3,6 +3,9 @@ import { reaisFromCents } from "@/lib/commerce/analytics";
 import type { ProviderPaymentView } from "@/lib/commerce/reconcile";
 
 const CARD_METHODS = new Set(["visa", "master", "amex", "elo", "hipercard", "cabal", "naranja", "maestro"]);
+const ORDERS_URL = "https://api.mercadopago.com/v1/orders";
+/** E-mail exigido pela documentação de teste do Checkout Transparente. Não é o e-mail da conta. */
+const TEST_PAYER_EMAIL = "test@testuser.com";
 
 export type ChargeInput = {
   orderId: string;
@@ -38,33 +41,38 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
   if (!Number.isInteger(installments) || installments < 1 || installments > 3) {
     return { ok: false, message: "O parcelamento máximo neste checkout é de 3 vezes.", view: null };
   }
-  const transactionAmount = reaisFromCents(input.amountCents);
-  if (Math.round(transactionAmount * 100) !== input.amountCents) {
+  const amount = reaisFromCents(input.amountCents).toFixed(2);
+  if (Math.round(Number(amount) * 100) !== input.amountCents) {
     return { ok: false, message: "Não foi possível cobrar este valor.", view: null };
   }
 
-  const body: Record<string, unknown> = {
-    transaction_amount: transactionAmount,
-    description: input.description.slice(0, 180),
-    payment_method_id: input.paymentMethodId === "credit_card" ? undefined : input.paymentMethodId,
-    installments,
+  const paymentMethod =
+    method === "PIX"
+      ? { id: "pix", type: "bank_transfer" }
+      : {
+          id: input.paymentMethodId,
+          type: "credit_card",
+          token: input.token,
+          installments,
+        };
+  const body = {
+    type: "online",
+    processing_mode: "automatic",
+    total_amount: amount,
     external_reference: input.orderId,
+    description: input.description.slice(0, 180),
     payer: {
-      email: input.payerEmail,
+      email: TEST_PAYER_EMAIL,
       ...(input.identificationType && input.identificationNumber
         ? { identification: { type: input.identificationType, number: input.identificationNumber } }
         : {}),
     },
+    transactions: { payments: [{ amount, payment_method: paymentMethod }] },
   };
-  if (method === "CREDIT_CARD") {
-    body.token = input.token;
-    if (input.issuerId) body.issuer_id = input.issuerId;
-  }
-  if (!body.payment_method_id) return { ok: false, message: "Esta forma de pagamento não está disponível.", view: null };
 
   let response: Response;
   try {
-    response = await fetch("https://api.mercadopago.com/v1/payments", {
+    response = await fetch(ORDERS_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.accessToken}`,
@@ -80,8 +88,12 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
 
   const payload = await response.json().catch(() => null);
   const view = readProviderPayment(payload);
-  if (!response.ok || !view) {
-    console.error("mercado pago charge rejected", { status: response.status, providerStatus: view?.status ?? "unknown" });
+  if (!view) {
+    console.error("mercado pago charge rejected", { status: response.status, providerStatus: safeErrorCode(payload) });
+    return { ok: false, message: "O pagamento não foi aceito.", view: null };
+  }
+  if (!response.ok) {
+    console.error("mercado pago charge rejected", { status: response.status, providerStatus: view.status });
     return { ok: false, message: "O pagamento não foi aceito.", view };
   }
   return { ok: true, view, pix: method === "PIX" ? readPix(payload) : null };
@@ -90,7 +102,7 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
 export async function fetchProviderPayment(providerPaymentId: string): Promise<ProviderPaymentView | null> {
   const config = mercadoPagoTestConfig();
   if (!config) return null;
-  const response = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(providerPaymentId)}`, {
+  const response = await fetch(`${ORDERS_URL}/${encodeURIComponent(providerPaymentId)}`, {
     headers: { Authorization: `Bearer ${config.accessToken}` },
   });
   if (!response.ok) {
@@ -103,7 +115,7 @@ export async function fetchProviderPayment(providerPaymentId: string): Promise<P
 export async function fetchPixPresentation(providerPaymentId: string): Promise<{ copy: string; image: string } | null> {
   const config = mercadoPagoTestConfig();
   if (!config) return null;
-  const response = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(providerPaymentId)}`, {
+  const response = await fetch(`${ORDERS_URL}/${encodeURIComponent(providerPaymentId)}`, {
     headers: { Authorization: `Bearer ${config.accessToken}` },
   });
   if (!response.ok) return null;
@@ -111,33 +123,99 @@ export async function fetchPixPresentation(providerPaymentId: string): Promise<{
 }
 
 export function readProviderPayment(payload: unknown): ProviderPaymentView | null {
-  if (!payload || typeof payload !== "object") return null;
-  const row = payload as Record<string, unknown>;
-  const id = typeof row.id === "number" || typeof row.id === "string" ? String(row.id) : "";
-  const status = typeof row.status === "string" ? row.status : "";
-  const amount = typeof row.transaction_amount === "number" ? Math.round(row.transaction_amount * 100) : null;
-  const currency = row.currency_id === "BRL" ? "BRL" : "";
+  const row = unwrapOrder(payload);
+  if (!row) return null;
+  const id = typeof row.id === "string" ? row.id : "";
   const externalReference = typeof row.external_reference === "string" ? row.external_reference : "";
-  if (!id || !status || amount == null || !currency || !externalReference) return null;
-  const refundedRaw = typeof row.transaction_amount_refunded === "number" ? Math.round(row.transaction_amount_refunded * 100) : 0;
+  const payment = firstPayment(row);
+  const amountCents = centsFrom(payment?.amount ?? row.total_amount);
+  const totalCents = centsFrom(row.total_amount);
+  if (!id || !externalReference || amountCents == null || (totalCents != null && totalCents !== amountCents)) return null;
+  const currency = row.currency_id === "BRL" || row.currency === "BRL" || row.country_code === "BRA" ? "BRL" : "";
+  if (!currency) return null;
+  const rawStatus = typeof payment?.status === "string" ? payment.status : typeof row.status === "string" ? row.status : "";
+  const rawDetail = typeof payment?.status_detail === "string" ? payment.status_detail : typeof row.status_detail === "string" ? row.status_detail : null;
+  const method = payment?.payment_method;
   return {
     id,
-    status,
-    statusDetail: typeof row.status_detail === "string" ? row.status_detail.slice(0, 80) : null,
-    amountCents: amount,
+    status: legacyStatus(rawStatus, rawDetail),
+    statusDetail: rawDetail ? rawDetail.slice(0, 80) : null,
+    amountCents,
     currency,
     externalReference,
-    paymentTypeId: typeof row.payment_type_id === "string" ? row.payment_type_id : "",
-    installments: typeof row.installments === "number" ? row.installments : null,
-    refundedCents: refundedRaw,
+    paymentTypeId: typeof method?.type === "string" ? method.type : "",
+    installments: typeof method?.installments === "number" ? method.installments : null,
+    refundedCents: rawStatus === "refunded" ? amountCents : 0,
   };
 }
 
-function readPix(payload: unknown): { copy: string; image: string } | null {
-  if (!payload || typeof payload !== "object") return null;
-  const point = (payload as { point_of_interaction?: { transaction_data?: { qr_code?: unknown; qr_code_base64?: unknown } } }).point_of_interaction;
-  const copy = point?.transaction_data?.qr_code;
-  const image = point?.transaction_data?.qr_code_base64;
-  if (typeof copy !== "string" || typeof image !== "string") return null;
+export function readPix(payload: unknown): { copy: string; image: string } | null {
+  const row = unwrapOrder(payload);
+  if (!row) return null;
+  const method = firstPayment(row)?.payment_method;
+  const copy = method?.qr_code;
+  const image = method?.qr_code_base64;
+  if (typeof copy !== "string" || typeof image !== "string" || !copy || !image) return null;
   return { copy, image };
+}
+
+function firstPayment(row: Record<string, unknown>): {
+  amount?: unknown;
+  status?: unknown;
+  status_detail?: unknown;
+  payment_method?: { type?: unknown; installments?: unknown; qr_code?: unknown; qr_code_base64?: unknown };
+} | null {
+  const transactions = row.transactions;
+  if (!transactions || typeof transactions !== "object" || !("payments" in transactions)) return null;
+  const payments = (transactions as { payments?: unknown }).payments;
+  const payment = Array.isArray(payments) ? payments[0] : null;
+  if (!payment || typeof payment !== "object") return null;
+  return payment as {
+    amount?: unknown;
+    status?: unknown;
+    status_detail?: unknown;
+    payment_method?: { type?: unknown; installments?: unknown; qr_code?: unknown; qr_code_base64?: unknown };
+  };
+}
+
+/** A Orders API devolve a order em `data` quando a transação falha com HTTP 402. */
+function unwrapOrder(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== "object") return null;
+  const row = payload as Record<string, unknown>;
+  const data = row.data;
+  if (data && typeof data === "object" && !Array.isArray(data) && typeof (data as Record<string, unknown>).id === "string") {
+    return data as Record<string, unknown>;
+  }
+  return row;
+}
+
+function centsFrom(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const cents = Math.round(value * 100);
+    return Math.abs(value * 100 - cents) < 0.001 ? cents : null;
+  }
+  if (typeof value === "string" && /^\d+\.\d{2}$/.test(value)) return Math.round(Number(value) * 100);
+  return null;
+}
+
+/** Traduz o status da Orders API para a regra única de reconciliação. */
+function legacyStatus(status: string, detail: string | null): string {
+  if (status === "processed" && detail === "accredited") return "approved";
+  if (status === "processed" && detail === "partially_refunded") return "partially_refunded";
+  if (status === "failed") return "rejected";
+  if (status === "canceled" || status === "expired") return "cancelled";
+  if (status === "refunded") return "refunded";
+  if (status === "charged_back" && detail === "settled") return "charged_back";
+  if (status === "charged_back") return "in_mediation";
+  if (status === "action_required" || status === "created") return "pending";
+  if (status === "processing" || status === "in_review") return "in_process";
+  return status;
+}
+
+function safeErrorCode(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "unknown";
+  const row = payload as { message?: unknown; error?: unknown; errors?: { code?: unknown }[] };
+  const nested = row.errors?.[0]?.code;
+  const code = typeof nested === "string" ? nested : typeof row.error === "string" ? row.error : typeof row.message === "string" ? row.message : "unknown";
+  return code.length > 80 ? "long_error" : code;
 }

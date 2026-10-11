@@ -1,6 +1,6 @@
 # Segurança — revisão inicial
 
-Atualização da Sprint 5: preço, crédito e total saem da sessão e do catálogo, nunca do client. Pedido de outra conta não é devolvido. Corpo de aula paga só carrega depois do entitlement. Access token e segredo do webhook ficam no servidor. Webhook sem assinatura válida responde 401. Log de pagamento não leva token, PAN, CVV nem payload do provider. Comércio permanece desligado em production.
+Atualização da Sprint 5: preço, crédito e total saem da sessão e do catálogo, nunca do client. O ambiente do Mercado Pago é `MERCADO_PAGO_ENV`, não o prefixo da chave. Pedido de outra conta não é devolvido. Corpo de aula paga só carrega depois do entitlement. Access token e segredo do webhook ficam no servidor. Webhook sem assinatura válida responde 401. Log de pagamento não leva token, PAN, CVV nem payload do provider. Comércio permanece desligado em production.
 
 Atualização da Sprint 4: tarefa, lembrete e planejamento de saldo só existem depois de conferir `Project.userId` com a sessão. Projeto arquivado não recebe ação nova. O endpoint de lembrete exige `CRON_SECRET` e não está agendado. O e-mail do lembrete não leva resposta de diagnóstico nem valor de orçamento.
 

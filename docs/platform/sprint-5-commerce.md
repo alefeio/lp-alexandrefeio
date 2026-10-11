@@ -2,11 +2,11 @@
 
 Base: `13c4efa`. Migration `20261011120000_commerce`, só no Postgres de development.
 
-O comércio nasce fechado. `COMMERCE_ENABLED` precisa ser `true` e o ambiente não pode ser production. `VERCEL_ENV=production` ou `DATABASE_ENV=production` desliga a compra mesmo com a flag verdadeira.
+O comércio nasce fechado. Nesta sprint ele só abre quando, ao mesmo tempo, `COMMERCE_ENABLED=true`, `MERCADO_PAGO_ENV=test`, `DATABASE_ENV=development`, a chave pública, o access token e o segredo do webhook estão presentes, e `VERCEL_ENV` não é production.
 
 ## Gate 5.0
 
-Credenciais de teste do Mercado Pago não estavam no ambiente desta sprint. A integração existe e só aceita `MERCADO_PAGO_ENV=test`, public key e access token com prefixo `TEST-`, e um segredo de webhook. Sem isso, o Brick não cobra e o webhook responde 503. Nenhuma credencial de production foi usada.
+`MERCADO_PAGO_ENV=test` declara que as chaves deste ambiente saíram da seção Credenciais de teste da aplicação no painel do Mercado Pago. No Checkout Transparente via Orders, o access token de teste também pode começar com `APP_USR`. O prefixo não é checagem de segurança e não decide o ambiente. Sem as variáveis acima, o Brick não cobra e o webhook responde 503. A aba Credenciais de produção não entra nesta sprint.
 
 ## Catálogo
 
@@ -61,11 +61,13 @@ Duas compras podem cobrir a mesma aula. Reembolsar uma revoga só os entitlement
 
 Payment Brick (`@mercadopago/sdk-react`) no checkout, com cartão de crédito e Pix (`bankTransfer`). O tipo do SDK lista um meio por vez; o objeto enviado habilita os dois, com no máximo 3 parcelas. Não há boleto, débito, carteira Mercado Pago nem promessa de parcelamento sem juros. O teto de 3 vale para qualquer valor. As condições de juros são as do provider.
 
-O cartão fica no Brick. O servidor recebe método, token, emissor, parcelas, e-mail e identificação só para criar a cobrança, e não grava esses campos. O QR do Pix é lido de novo no provider na página do pedido. Não fica no banco.
+A cobrança é `POST /v1/orders` do Checkout Transparente, com `processing_mode: automatic`. O id guardado é o da order (`ORD…`). A consulta e o webhook usam `GET /v1/orders/{id}`. Status `processed` / `accredited` vira aprovado. Pix nasce `action_required` / `waiting_transfer` e não libera acesso. `failed` é recusa. Contestação `charged_back` / `settled` revoga. Em teste, o e-mail enviado ao provider é `test@testuser.com`, o único aceito na documentação de compra de teste. O e-mail da conta não vai nessa chamada.
+
+O cartão fica no Brick. O servidor recebe método, token, parcelas e identificação só para criar a order, e não grava esses campos. O QR do Pix é lido de novo na order. Não fica no banco.
 
 Cada tentativa nova tem `idempotencyKey` própria, enviada em `X-Idempotency-Key`. A mesma tentativa em aberto reutiliza a chave. Um clique repetido em menos de 20 segundos não abre outra cobrança. `external_reference` é o id do pedido, nunca o usuário.
 
-`POST /api/webhooks/mercado-pago` confere `x-signature`, `x-request-id` e `data.id` com HMAC do manifesto `id;request-id;ts`. Assinatura inválida responde 401. O corpo não libera acesso. A função `reconcileMercadoPagoPayment` consulta o pagamento no provider. O botão “Atualizar status” e um intervalo de 15 segundos, no máximo 8 vezes, usam a mesma função.
+`POST /api/webhooks/mercado-pago` confere `x-signature`, `x-request-id` e `data.id` com HMAC do manifesto `id;request-id;ts`. O `data.id` alfanumérico entra em minúsculas. Assinatura inválida responde 401. Só o tópico `order` segue para a consulta. Notificação com `live_mode: true` recebe 200 e não libera acesso. O corpo não libera acesso. A função `reconcileMercadoPagoPayment` consulta a order no provider. O botão “Atualizar status” e um intervalo de 15 segundos, no máximo 8 vezes, usam a mesma função.
 
 Aprovação, na primeira vez, marca o pagamento, marca o pedido `PAID` e cria os entitlements na mesma transação. Webhook repetido não duplica. Pedido já pago não abre cobrança nova. Outro pagamento externo aprovado no mesmo pedido vai para `NEEDS_REVIEW` sem novo acesso.
 

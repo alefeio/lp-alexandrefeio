@@ -7,6 +7,7 @@ import { commerceAnalyticsPayload, purchaseDedupeKey } from "../src/lib/commerce
 import { isCommerceEnabled } from "../src/lib/commerce/config";
 import { amountDueCents, eligibleCreditCents, quoteCart, type CreditSource, type SaleCourse, type SaleLesson, type SaleModule } from "../src/lib/commerce/quote";
 import { reconcileDecision, type ProviderPaymentView } from "../src/lib/commerce/reconcile";
+import { readProviderPayment } from "../src/lib/commerce/provider";
 import { verifyMercadoPagoSignature } from "../src/lib/commerce/signature";
 import { purchaseEmail } from "../src/lib/email/purchase-mail";
 import { needsSession } from "../src/proxy";
@@ -258,6 +259,52 @@ test("reconciliação não libera pendente e não duplica aprovado", () => {
   });
   assert.equal(chargeback.paymentStatus, "CHARGED_BACK");
   assert.equal(chargeback.revoke, true);
+
+  const order = readProviderPayment({
+    id: "ORD01EXAMPLE",
+    type: "online",
+    status: "processed",
+    status_detail: "accredited",
+    total_amount: "39.90",
+    country_code: "BRA",
+    external_reference: "order-1",
+    transactions: {
+      payments: [{ amount: "39.90", status: "processed", status_detail: "accredited", payment_method: { id: "master", type: "credit_card", installments: 1 } }],
+    },
+  });
+  assert.equal(order?.status, "approved");
+  assert.equal(order?.amountCents, 3990);
+  assert.equal(order?.currency, "BRL");
+  assert.equal(order?.paymentTypeId, "credit_card");
+  const pix = readProviderPayment({
+    id: "ORD01PIX",
+    status: "action_required",
+    status_detail: "waiting_transfer",
+    total_amount: "10.00",
+    country_code: "BRA",
+    external_reference: "order-2",
+    transactions: { payments: [{ amount: "10.00", status: "action_required", status_detail: "waiting_transfer", payment_method: { id: "pix", type: "bank_transfer", qr_code: "000201", qr_code_base64: "aW1n" } }] },
+  });
+  assert.equal(pix?.status, "pending");
+  assert.equal(pix?.paymentTypeId, "bank_transfer");
+  const wrapped = readProviderPayment({
+    errors: [{ code: "failed", message: "The following transactions failed" }],
+    data: {
+      id: "ORD01FAIL",
+      status: "failed",
+      status_detail: "failed",
+      total_amount: "10.00",
+      currency: "BRL",
+      country_code: "BRA",
+      external_reference: "order-3",
+      transactions: {
+        payments: [{ amount: "10.00", status: "failed", status_detail: "rejected_by_issuer", payment_method: { id: "master", type: "credit_card", installments: 1 } }],
+      },
+    },
+  });
+  assert.equal(wrapped?.id, "ORD01FAIL");
+  assert.equal(wrapped?.status, "rejected");
+  assert.equal(wrapped?.statusDetail, "rejected_by_issuer");
 });
 
 test("aula gratuita abre e aula paga só abre com direito", () => {
@@ -321,8 +368,40 @@ test("pedido, acesso e webhook usam o banco de desenvolvimento", async () => {
     key: process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY,
     token: process.env.MERCADO_PAGO_ACCESS_TOKEN,
     secret: process.env.MERCADO_PAGO_WEBHOOK_SECRET,
+    database: process.env.DATABASE_ENV,
+    vercel: process.env.VERCEL_ENV,
   };
+  const { isCommerceEnabled, mercadoPagoTestConfig } = await import("../src/lib/commerce/config");
+  process.env.DATABASE_ENV = "development";
+  delete process.env.VERCEL_ENV;
+  process.env.MERCADO_PAGO_ENV = "test";
   process.env.COMMERCE_ENABLED = "true";
+  process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY = "APP_USR-example-public";
+  process.env.MERCADO_PAGO_ACCESS_TOKEN = "APP_USR-example-token";
+  process.env.MERCADO_PAGO_WEBHOOK_SECRET = "example-webhook-secret";
+  assert.equal(isCommerceEnabled(), true);
+  assert.equal(mercadoPagoTestConfig()?.env, "test");
+  process.env.COMMERCE_ENABLED = "false";
+  assert.equal(mercadoPagoTestConfig(), null);
+  process.env.COMMERCE_ENABLED = "true";
+  delete process.env.MERCADO_PAGO_ACCESS_TOKEN;
+  assert.equal(mercadoPagoTestConfig(), null);
+  process.env.MERCADO_PAGO_ACCESS_TOKEN = "APP_USR-example-token";
+  delete process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY;
+  assert.equal(mercadoPagoTestConfig(), null);
+  process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY = "APP_USR-example-public";
+  process.env.MERCADO_PAGO_WEBHOOK_SECRET = "curto";
+  assert.equal(mercadoPagoTestConfig(), null);
+  process.env.MERCADO_PAGO_WEBHOOK_SECRET = "example-webhook-secret";
+  process.env.MERCADO_PAGO_ENV = "production";
+  assert.equal(isCommerceEnabled(), false);
+  process.env.MERCADO_PAGO_ENV = "test";
+  process.env.DATABASE_ENV = "production";
+  assert.equal(isCommerceEnabled(), false);
+  process.env.DATABASE_ENV = "development";
+  process.env.VERCEL_ENV = "production";
+  assert.equal(isCommerceEnabled(), false);
+  delete process.env.VERCEL_ENV;
   delete process.env.RESEND_API_KEY;
   const { getPrisma } = await import("../src/lib/db/prisma");
   const { createOrderForUser, getOrderForUser, preparePaymentAttempt, sendPurchaseConfirmationIfNeeded } = await import("../src/lib/commerce/orders");
@@ -502,6 +581,8 @@ test("pedido, acesso e webhook usam o banco de desenvolvimento", async () => {
       NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY: previousMp.key,
       MERCADO_PAGO_ACCESS_TOKEN: previousMp.token,
       MERCADO_PAGO_WEBHOOK_SECRET: previousMp.secret,
+      DATABASE_ENV: previousMp.database,
+      VERCEL_ENV: previousMp.vercel,
     })) {
       if (value == null) delete process.env[key];
       else process.env[key] = value;

@@ -16,7 +16,8 @@ export async function POST(request: Request) {
   });
   if (!valid) return new Response("Assinatura inválida.", { status: 401 });
   const type = body && typeof body === "object" && "type" in body ? String((body as { type?: unknown }).type ?? "") : url.searchParams.get("type") ?? "";
-  if (type && type !== "payment") return new Response("ok");
+  const liveMode = body && typeof body === "object" && "live_mode" in body ? (body as { live_mode?: unknown }).live_mode : null;
+  if (type !== "order" || liveMode === true) return new Response("ok");
   if (!dataId) return new Response("ok");
   await reconcileMercadoPagoPayment(dataId);
   return new Response("ok");
