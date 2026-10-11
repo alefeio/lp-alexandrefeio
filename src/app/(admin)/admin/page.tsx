@@ -13,7 +13,10 @@ export default async function AdminHomePage() {
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Admin</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Área administrativa</h1>
       <p className="mt-4 text-base leading-relaxed text-muted">A autorização está ativa.</p>
-      <Link className="mt-6 inline-block text-sm underline underline-offset-4" href="/admin/compras">Ver compras</Link>
+      <p className="mt-6 flex gap-4 text-sm">
+        <Link className="underline underline-offset-4" href="/admin/cursos">Cursos</Link>
+        <Link className="underline underline-offset-4" href="/admin/compras">Compras</Link>
+      </p>
     </Container>
   );
 }

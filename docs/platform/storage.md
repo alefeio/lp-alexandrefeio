@@ -1,6 +1,6 @@
 # Storage
 
-Status: proposta. Nenhum upload foi ligado ao site.
+Status: imagem editorial ligada na Sprint 6. Arquivo privado continua pendente.
 
 ## Duas classes de arquivo
 
@@ -13,7 +13,7 @@ APIMG devolve URL pública e serve `GET /i/{public_id}` sem autenticação. O re
 
 ## Imagens públicas
 
-`APIMG_API_KEY` e `APIMG_UPLOAD_URL` ainda não estão no ambiente deste projeto. A Sprint 1 não implementou upload. Quando a imagem editorial entrar, as duas variáveis serão lidas só no servidor.
+`APIMG_API_KEY` e `APIMG_UPLOAD_URL` são lidas só no servidor, em `src/lib/storage/apimg.ts`. O browser envia o arquivo para uma Server Action de ADMIN.
 
 Contrato observado no serviço Apimages, não exercitado com chave neste projeto:
 
@@ -21,16 +21,10 @@ Contrato observado no serviço Apimages, não exercitado com chave neste projeto
 - Header `X-API-Key` ou `Authorization: Bearer`.
 - Resposta JSON: `url`, `public_id`, `width`, `height`, `format`, `bytes`.
 - Erros observados no código da API: 401 chave ausente ou inválida, 503 se o servidor da API não tem chave, 404 na leitura de id inexistente.
-- Limite padrão documentado: 10 MB. Imagem grande pode ser reduzida no servidor (lado máximo 2560 px, salvo configuração contrária).
+- Limite padrão documentado no serviço: 10 MB. Este site recusa arquivo acima de 5 MB antes de chamar o serviço, para ficar dentro desse teto.
+- Formatos aceitos aqui: JPEG, PNG e WebP, conferidos pelos bytes. SVG não entra.
 
-Neste site as variáveis `APIMG_API_KEY` e `APIMG_UPLOAD_URL` ainda não existem. Quando existirem:
-
-- só em código de servidor;
-- nunca `NEXT_PUBLIC_`;
-- o browser pede uma Server Action; a Action chama a API;
-- o banco guarda `url` e `public_id`, não a chave.
-
-O evolUSG não tem helper de APIMG. Não há implementação pronta para copiar. O padrão a seguir é o contrato acima, num módulo `src/lib/storage` futuro.
+O banco guarda `MediaAsset` com `url`, `publicId`, largura, altura, formato, tamanho, alt e se a imagem é decorativa. A chave da API não é gravada.
 
 Imagens atuais do marketing são arquivos em `public/` (`alexandre.jpg`, logo, favicon), via `next/image`. Continuam assim.
 

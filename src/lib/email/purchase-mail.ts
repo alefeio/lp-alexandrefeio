@@ -23,6 +23,20 @@ function escapeHtml(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
+type PurchaseSender = (input: { to: string; items: string[]; totalLabel: string; learnUrl: string }) => Promise<void>;
+
+let purchaseSenderOverride: PurchaseSender | null = null;
+
+/** Só os testes substituem o envio. Produção continua no Resend. */
+export function setPurchaseEmailSenderForTests(sender: PurchaseSender | null) {
+  purchaseSenderOverride = sender;
+}
+
+export async function deliverPurchaseEmail(input: { to: string; items: string[]; totalLabel: string; learnUrl: string }) {
+  if (purchaseSenderOverride) return purchaseSenderOverride(input);
+  return sendPurchaseEmail(input);
+}
+
 export async function sendPurchaseEmail(input: { to: string; items: string[]; totalLabel: string; learnUrl: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.CONTACT_FROM_EMAIL;

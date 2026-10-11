@@ -15,6 +15,8 @@ test("Checkout Transparente via Orders em credencial de teste", { skip: !enabled
   process.env.DATABASE_ENV = "development";
   delete process.env.VERCEL_ENV;
   delete process.env.RESEND_API_KEY;
+  const { setPurchaseEmailSenderForTests } = await import("../src/lib/email/purchase-mail");
+  setPurchaseEmailSenderForTests(async () => {});
   const { assertMigrationTargetAllowed } = await import("../src/lib/db/urls");
   assertMigrationTargetAllowed();
   const { mercadoPagoTestConfig } = await import("../src/lib/commerce/config");
@@ -175,6 +177,8 @@ test("Checkout Transparente via Orders em credencial de teste", { skip: !enabled
     else process.env.COMMERCE_ENABLED = previousCommerce;
     if (previousResend == null) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = previousResend;
+    const { setPurchaseEmailSenderForTests } = await import("../src/lib/email/purchase-mail");
+    setPurchaseEmailSenderForTests(null);
   }
 });
 

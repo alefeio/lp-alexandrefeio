@@ -4,7 +4,7 @@ import { isCommerceEnabled } from "@/lib/commerce/config";
 import { loadCreditSources, loadOwnedLessonIds, loadSaleCatalog } from "@/lib/commerce/catalog";
 import { quoteCart, type CartLine } from "@/lib/commerce/quote";
 import { formatPriceCents } from "@/lib/learning/money";
-import { sendPurchaseEmail } from "@/lib/email/purchase-mail";
+import { deliverPurchaseEmail } from "@/lib/email/purchase-mail";
 import type { Prisma } from "@/generated/prisma/client";
 
 function origin() {
@@ -147,7 +147,7 @@ export async function sendPurchaseConfirmationIfNeeded(orderId: string) {
   });
   if (claim.count !== 1) return { sent: false };
   try {
-    await sendPurchaseEmail({
+    await deliverPurchaseEmail({
       to: order.user.email,
       items: order.items.map((item) => item.titleSnapshot),
       totalLabel: formatPriceCents(order.totalCents),

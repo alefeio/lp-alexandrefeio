@@ -119,6 +119,7 @@ model Course {
   coverImageUrl      String?
   coverImagePublicId String?
   publishedAt        DateTime?
+  updatedById        String?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   modules            Module[]
@@ -138,6 +139,9 @@ model Module {
   sortOrder        Int           @default(0)
   bundlePriceCents Int?
   commerceStatus   CommerceStatus @default(NOT_FOR_SALE)
+  coverImageUrl      String?
+  coverImagePublicId String?
+  updatedById        String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   lessons          Lesson[]
@@ -162,7 +166,10 @@ model Lesson {
   accessType        AccessType
   commerceStatus    CommerceStatus @default(NOT_FOR_SALE)
   priceCents        Int?
+  coverImageUrl     String?
+  coverImagePublicId String?
   publishedAt       DateTime?
+  updatedById       String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   blocks            LessonBlock[]
@@ -199,6 +206,23 @@ model LessonBlock {
   @@unique([lessonId, blockKey])
   @@index([lessonId, position])
   @@map("lesson_block")
+}
+
+/// Imagem editorial pública. Não guarda arquivo de aluno.
+model MediaAsset {
+  id          String   @id @default(cuid())
+  url         String
+  publicId    String   @unique
+  width       Int?
+  height      Int?
+  format      String
+  sizeBytes   Int?
+  alt         String   @default("")
+  decorative  Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@map("media_asset")
 }
 
 model LessonProgress {

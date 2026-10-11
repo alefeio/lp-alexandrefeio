@@ -7,7 +7,7 @@ import { Container } from "@/components/ui/Container";
 import { getSession } from "@/lib/auth/session";
 import { hasActiveEntitlement } from "@/lib/commerce/access";
 import { isCommerceEnabled } from "@/lib/commerce/config";
-import { canIndexLesson, canReadLessonBody } from "@/lib/learning/access";
+import { canIndexLesson, canReadLessonBody, lessonGateKind } from "@/lib/learning/access";
 import { getPublicLesson, getReaderSnapshot, loadLessonBlocks } from "@/lib/learning/catalog";
 import { formatPriceCents } from "@/lib/learning/money";
 import type { LessonSnapshot } from "@/lib/learning/reader-types";
@@ -93,6 +93,7 @@ function LessonGate({
 }) {
   const paid = lesson.accessType === "PAID";
   const forSale = isCommerceEnabled() && paid && lesson.commerceStatus === "AVAILABLE" && lesson.priceCents != null && lesson.priceCents > 0;
+  const gate = lessonGateKind({ accessType: lesson.accessType, entitled, forSale, hasBody });
   const preview = lesson.publicPreview && !/checkout/i.test(lesson.publicPreview) ? lesson.publicPreview : null;
   return (
     <Container className="max-w-2xl py-16">
@@ -107,13 +108,16 @@ function LessonGate({
       <p className="mt-6 text-sm leading-relaxed text-muted">
         {lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min estimados. ` : ""}
         {forSale && lesson.priceCents != null ? `${formatPriceCents(lesson.priceCents)}. ` : ""}
-        {paid && !forSale && !entitled ? "Disponível em breve." : null}
+        {gate === "soon" ? "Disponível em breve." : null}
       </p>
-      {forSale ? <AddToCartButton id={lesson.id} type="LESSON" label="Comprar esta aula" /> : null}
-      {paid && !forSale && !entitled ? (
+      {gate === "buy" ? <AddToCartButton id={lesson.id} type="LESSON" label="Comprar esta aula" /> : null}
+      {gate === "soon" ? (
         <p className="mt-3 text-sm leading-relaxed text-muted">A compra não está aberta. O texto da aula não aparece nesta página.</p>
       ) : null}
-      {entitled || (!paid && !hasBody) ? <p className="mt-6 text-sm text-muted">O texto completo desta aula ainda está em preparação.</p> : null}
+      {gate === "owned-unavailable" ? (
+        <p className="mt-6 text-sm text-muted">Conteúdo temporariamente indisponível.</p>
+      ) : null}
+      {gate === "preparing" ? <p className="mt-6 text-sm text-muted">O texto completo desta aula ainda está em preparação.</p> : null}
       <p className="mt-8 text-sm">
         <Link className="underline underline-offset-4" href={`/cursos/${lesson.courseSlug}`}>
           Voltar para {lesson.courseTitle}

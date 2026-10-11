@@ -84,22 +84,29 @@ const conclusionBlock = z.object({ type: z.literal("CONCLUSION"), body: text });
 const imageBlock = z.object({
   type: z.literal("IMAGE"),
   url: z.string().url().refine((value) => value.startsWith("https://"), "https"),
-  alt: z.string().trim().min(1).max(180),
+  alt: z.string().trim().max(180).optional(),
+  decorative: z.boolean().optional(),
   publicId: z.string().trim().min(1).max(120).optional(),
 });
 
-export const lessonBlockDataSchema = z.discriminatedUnion("type", [
-  textBlock,
-  headingBlock,
-  calloutBlock,
-  exampleBlock,
-  checkpointBlock,
-  activityBlock,
-  checklistBlock,
-  resultBlock,
-  conclusionBlock,
-  imageBlock,
-]);
+export const lessonBlockDataSchema = z
+  .discriminatedUnion("type", [
+    textBlock,
+    headingBlock,
+    calloutBlock,
+    exampleBlock,
+    checkpointBlock,
+    activityBlock,
+    checklistBlock,
+    resultBlock,
+    conclusionBlock,
+    imageBlock,
+  ])
+  .superRefine((data, ctx) => {
+    if (data.type === "IMAGE" && data.decorative !== true && !data.alt?.trim()) {
+      ctx.addIssue({ code: "custom", message: "Informe o texto alternativo ou marque a imagem como decorativa.", path: ["alt"] });
+    }
+  });
 
 export type LessonBlockData = z.infer<typeof lessonBlockDataSchema>;
 

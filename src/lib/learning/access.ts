@@ -25,6 +25,23 @@ export function canIndexLesson(lesson: LessonAccess, hasBody: boolean): boolean 
   return Boolean(lesson.publicPreview?.trim());
 }
 
+export type LessonGateKind = "buy" | "owned-unavailable" | "soon" | "preparing";
+
+/** Quem já tem a aula não vê convite de compra, mesmo sem corpo. */
+export function lessonGateKind(input: {
+  accessType: "FREE" | "PAID";
+  entitled: boolean;
+  forSale: boolean;
+  hasBody: boolean;
+}): LessonGateKind | null {
+  if (input.entitled && !input.hasBody) return "owned-unavailable";
+  if (input.entitled) return null;
+  if (input.forSale) return "buy";
+  if (input.accessType === "PAID") return "soon";
+  if (!input.hasBody) return "preparing";
+  return null;
+}
+
 export function visibleBlocks<T>(
   lesson: Pick<LessonAccess, "status" | "accessType">,
   blocks: T[],

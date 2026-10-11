@@ -9,7 +9,7 @@ import { amountDueCents, eligibleCreditCents, quoteCart, type CreditSource, type
 import { reconcileDecision, type ProviderPaymentView } from "../src/lib/commerce/reconcile";
 import { readProviderPayment } from "../src/lib/commerce/provider";
 import { verifyMercadoPagoSignature } from "../src/lib/commerce/signature";
-import { purchaseEmail } from "../src/lib/email/purchase-mail";
+import { purchaseEmail, setPurchaseEmailSenderForTests } from "../src/lib/email/purchase-mail";
 import { needsSession } from "../src/proxy";
 
 loadEnv({ path: ".env.local" });
@@ -551,6 +551,10 @@ test("pedido, acesso e webhook usam o banco de desenvolvimento", async () => {
     const failedMail = await sendPurchaseConfirmationIfNeeded(created.orderId);
     assert.equal(failedMail.sent, false);
     assert.equal((await prisma.order.findUnique({ where: { id: created.orderId } }))?.confirmationEmailSentAt, null);
+    setPurchaseEmailSenderForTests(async () => {});
+    const mockedMail = await sendPurchaseConfirmationIfNeeded(created.orderId);
+    assert.equal(mockedMail.sent, true);
+    setPurchaseEmailSenderForTests(null);
     await prisma.order.update({ where: { id: created.orderId }, data: { confirmationEmailSentAt: new Date() } });
     const repeatMail = await sendPurchaseConfirmationIfNeeded(created.orderId);
     assert.equal(repeatMail.sent, false);
@@ -576,6 +580,7 @@ test("pedido, acesso e webhook usam o banco de desenvolvimento", async () => {
     else process.env.COMMERCE_ENABLED = previousCommerce;
     if (previousResend == null) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = previousResend;
+    setPurchaseEmailSenderForTests(null);
     for (const [key, value] of Object.entries({
       MERCADO_PAGO_ENV: previousMp.env,
       NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY: previousMp.key,

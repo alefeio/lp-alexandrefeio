@@ -39,6 +39,14 @@ A aula não exige a anterior para existir, ser comprada ou ser lida. Pré-requis
 
 `accessType = PAID` diz que a aula exigirá compra. `commerceStatus = AVAILABLE` é o que permite cobrar. Os dois não se implicam. O corpo pago não vai na resposta pública: a página só busca os blocos depois de resolver aula gratuita ou entitlement ativo.
 
-## Admin mínimo
+## Admin editorial
 
-Criar aula, ordenar blocos, editar JSON do tipo, publicar. Sem versionamento completo de CMS na V1. A chave publicada é o contrato com o progresso.
+O editor está em `/admin/cursos`, `/admin/modulos/[id]` e `/admin/aulas/[id]`. Cada tipo de bloco tem formulário do schema Zod. Não há HTML livre.
+
+`DRAFT` é rascunho. `PUBLISHED` é a aula no catálogo. “Pronta para publicação” é uma checagem, não um terceiro status. `AVAILABLE` continua sendo venda e não é ligada pela checagem nem pela publicação.
+
+`blockKey` pode ser revista antes da primeira gravação. Depois da publicação, mudar a chave exige confirmação e aposenta a chave antiga. Reordenar muda `position`, não a chave. Bloco de aula publicada, ou bloco que já tem progresso, recebe `retiredAt` em vez de exclusão física.
+
+A pré-visualização usa o leitor real, só para ADMIN, sem gravar progresso. O corpo pago não ganha bypass público.
+
+Imagem editorial vai para o APIMG e fica em `MediaAsset`. Arquivo de aluno não usa esse caminho. Detalhe em [sprint-6-editorial.md](./sprint-6-editorial.md).

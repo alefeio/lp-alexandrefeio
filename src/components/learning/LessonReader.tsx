@@ -30,9 +30,10 @@ type Props = {
   initialFeedback?: CheckpointFeedback;
   authenticated: boolean;
   resume: boolean;
+  preview?: boolean;
 };
 
-export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume }: Props) {
+export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false }: Props) {
   const [snapshot, setSnapshot] = useState(initial);
   const [explanations, setExplanations] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -60,6 +61,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }, [blocks, currentKey, headings]);
 
   useEffect(() => {
+    if (preview) return;
     if (authenticated) {
       const local = readLocalProgress(lesson.slug);
       if (!local) return;
@@ -89,7 +91,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
       });
     }
     return () => window.clearTimeout(timer);
-  }, [authenticated, blocks, lesson.slug]);
+  }, [authenticated, blocks, lesson.slug, preview]);
 
   useEffect(() => {
     if (!resume || resumed.current || !initial.lastBlockKey) return;
@@ -98,16 +100,19 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }, [resume, initial.lastBlockKey]);
 
   useEffect(() => {
+    if (preview) return;
     trackLesson(lesson, "lesson_started");
-  }, [lesson]);
+  }, [lesson, preview]);
 
   useEffect(() => {
+    if (preview) return;
     const events = lessonProgressEvents(percentRef.current, snapshot.percent);
     percentRef.current = snapshot.percent;
     for (const item of events) trackLesson(lesson, item.event, item.bucket);
-  }, [lesson, snapshot.percent]);
+  }, [lesson, preview, snapshot.percent]);
 
   useEffect(() => {
+    if (preview) return;
     const pendingKeys = new Set<string>();
     const nodes = [...document.querySelectorAll<HTMLElement>("[data-block-key]")];
     if (nodes.length === 0) return;
@@ -151,9 +156,19 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
       observer.disconnect();
       window.clearInterval(timer);
     };
-  }, [authenticated, blocks, lesson.slug]);
+  }, [authenticated, blocks, lesson.slug, preview]);
 
   function onCheckpoint(blockKey: string, optionId: string) {
+    if (preview) {
+      const block = blocks.find((item) => item.blockKey === blockKey);
+      const correct = block?.data.type === "CHECKPOINT" && block.data.correctOptionId === optionId;
+      setGrades((current) => ({ ...current, [blockKey]: correct }));
+      if (block?.data.type === "CHECKPOINT" && block.data.explanation) {
+        setExplanations((current) => ({ ...current, [blockKey]: block.data.type === "CHECKPOINT" ? (block.data.explanation ?? "") : "" }));
+      }
+      setMessage("Conferido só nesta pré-visualização. Nada foi salvo.");
+      return;
+    }
     setMessage(null);
     startTransition(async () => {
       if (authenticated) {
@@ -189,6 +204,10 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }
 
   function onActivity(blockKey: string, text: string) {
+    if (preview) {
+      setMessage("Pré-visualização. Nada é salvo.");
+      return;
+    }
     setMessage(null);
     if (!authenticated) {
       setSnapshot((current) => {
@@ -214,6 +233,10 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }
 
   function onChecklist(blockKey: string, checkedIds: string[], complete: boolean) {
+    if (preview) {
+      setMessage("Pré-visualização. Nada é salvo.");
+      return;
+    }
     setMessage(null);
     if (!authenticated) {
       setSnapshot((current) => {
@@ -236,6 +259,10 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }
 
   function onResult(values: Record<string, string>, blockKey: string) {
+    if (preview) {
+      setMessage("Pré-visualização. Nada é salvo.");
+      return;
+    }
     setMessage(null);
     if (!authenticated) {
       setSnapshot((current) => {
@@ -257,6 +284,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }
 
   function onNote(blockKey: string, body: string) {
+    if (preview) return;
     if (!authenticated) return;
     startTransition(async () => {
       const result = body.trim() ? await saveNote(lesson.slug, blockKey, body) : await deleteNote(lesson.slug, blockKey);
@@ -266,6 +294,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }
 
   function onBookmark(blockKey: string) {
+    if (preview) return;
     if (!authenticated) return;
     startTransition(async () => {
       const result = await toggleBookmark(lesson.slug, blockKey);
@@ -496,7 +525,7 @@ function BlockBody(props: {
     return (
       // O endereço vem do bloco validado (https). O otimizador do Next fica para quando a imagem passar pelo APIMG.
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={data.url} alt={data.alt} className="h-auto w-full rounded-lg" />
+      <img src={data.url} alt={data.decorative ? "" : (data.alt ?? "")} className="h-auto w-full rounded-lg" />
     );
   }
   if (data.type === "CHECKPOINT") {

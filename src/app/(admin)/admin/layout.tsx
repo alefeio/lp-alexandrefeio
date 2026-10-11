@@ -39,7 +39,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <Link href="/admin" className="text-foreground">
             <Wordmark />
           </Link>
-          <SignOutButton />
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/admin/cursos">Cursos</Link>
+            <Link href="/admin/compras">Compras</Link>
+            <SignOutButton />
+          </nav>
         </Container>
       </header>
       <main id="conteudo" className="flex-1 py-16">
