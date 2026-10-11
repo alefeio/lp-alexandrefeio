@@ -37,6 +37,8 @@ Scroll em pixels não é fonte de progresso. Pode existir como detalhe de interf
 
 A aula não exige a anterior para existir, ser comprada ou ser lida. Pré-requisito, se um dia existir, é regra de produto explícita, não uma consequência da ordem do módulo.
 
+`accessType = PAID` diz que a aula exigirá compra. `commerceStatus = AVAILABLE` é o que permite cobrar. Os dois não se implicam. O corpo pago não vai na resposta pública: a página só busca os blocos depois de resolver aula gratuita ou entitlement ativo.
+
 ## Admin mínimo
 
 Criar aula, ordenar blocos, editar JSON do tipo, publicar. Sem versionamento completo de CMS na V1. A chave publicada é o contrato com o progresso.

@@ -26,8 +26,8 @@ A implementação atual está em `docs/analytics-setup.md`. Esta nota não muda 
 | `diagnostic_started` | `diagnostic_type` e `diagnostic_version`. Sem id, sem respostas e sem nota |
 | `diagnostic_completed` | os mesmos campos e `result_band` (`ready`, `base`, `incomplete`, `foundations`). Sem nota exata, gargalo, projeto ou orçamento |
 | `task_created`, `task_completed`, `reminder_created` | ainda não entram no `dataLayer`. Se entrarem, só `source_type` ou `reminder_type`, sem título, data, projeto, orçamento ou usuário |
-| `checkout_started` | tipo do produto (`lesson`, `module`, `course`) e id público |
-| `purchase_completed` | id do pedido interno, valor e moeda, sem e-mail |
+| `checkout_started` | `currency`, `value`, `transaction_id` do pedido, `item_type`. Só quando o checkout real abre um pedido ainda não pago |
+| `purchase_completed` | os mesmos campos e `item_slug` público. Só com pedido `PAID`, uma vez por pedido neste navegador. Não dispara ao criar Pix nem em pagamento pendente |
 | `analysis_started` | id da análise |
 | `analysis_completed` | id da análise, status |
 

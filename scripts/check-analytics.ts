@@ -11,6 +11,7 @@ import {
   parseConsent,
   serializeConsent,
 } from "../src/lib/consent";
+import { commerceAnalyticsPayload, purchaseDedupeKey } from "../src/lib/commerce/analytics";
 import { diagnosticAnalyticsPayload, diagnosticPayloadIsPublic } from "../src/lib/diagnostic/analytics";
 import { lessonAnalyticsEntries, lessonAnalyticsPayload, lessonEventDedupeKey } from "../src/lib/learning/analytics-events";
 import { crossedProgressBuckets, lessonProgressEvents } from "../src/lib/learning/progress";
@@ -197,5 +198,12 @@ assert.equal("overallScore" in diagnosticPayload, false);
 assert.equal("projectId" in diagnosticPayload, false);
 assert.equal("answers" in diagnosticPayload, false);
 assert.equal(diagnosticPayload.result_band, "base");
+
+const purchase = commerceAnalyticsPayload({ totalCents: 24990, orderId: "order-1", itemType: "COURSE", itemSlug: "trafego-pago-na-pratica" });
+assert.deepEqual(Object.keys(purchase).sort(), ["currency", "item_slug", "item_type", "transaction_id", "value"]);
+assert.equal(purchase.value, 249.9);
+assert.equal(purchase.transaction_id, "order-1");
+assert.equal("email" in purchase, false);
+assert.equal(purchaseDedupeKey("order-1"), "af_purchase_order-1");
 
 console.log("analytics checks ok");

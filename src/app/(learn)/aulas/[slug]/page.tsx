@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AddToCartButton } from "@/components/commerce/AddToCartButton";
 import { LessonReader } from "@/components/learning/LessonReader";
 import { Container } from "@/components/ui/Container";
 import { getSession } from "@/lib/auth/session";
+import { hasActiveEntitlement } from "@/lib/commerce/access";
+import { isCommerceEnabled } from "@/lib/commerce/config";
 import { canIndexLesson, canReadLessonBody } from "@/lib/learning/access";
-import { getPublicLesson, getReaderSnapshot } from "@/lib/learning/catalog";
+import { getPublicLesson, getReaderSnapshot, loadLessonBlocks } from "@/lib/learning/catalog";
 import { formatPriceCents } from "@/lib/learning/money";
 import type { LessonSnapshot } from "@/lib/learning/reader-types";
 
@@ -35,11 +38,14 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
   const page = await getPublicLesson(slug);
   if (!page) notFound();
 
-  if (!canReadLessonBody(page.lesson) || !page.hasBody) {
-    return <LessonGate lesson={page.lesson} hasBody={page.hasBody} />;
+  const session = await getSession();
+  const entitled = Boolean(session && page.lesson.accessType === "PAID" && (await hasActiveEntitlement(session.user.id, page.lesson.id)));
+  const allowed = canReadLessonBody(page.lesson, { entitled });
+  const blocks = allowed ? (page.blocks.length > 0 ? page.blocks : await loadLessonBlocks(page.lesson.id)) : [];
+  if (!allowed || blocks.length === 0) {
+    return <LessonGate lesson={page.lesson} hasBody={page.hasBody || blocks.length > 0} entitled={entitled} />;
   }
 
-  const session = await getSession();
   const reader = session ? await getReaderSnapshot(session.user.id, page.lesson.id) : null;
   const initial: LessonSnapshot = reader?.snapshot ?? emptySnapshot();
 
@@ -55,7 +61,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
         courseTitle: page.lesson.courseTitle,
         moduleTitle: page.lesson.moduleTitle,
       }}
-      blocks={page.blocks}
+      blocks={blocks}
       initial={initial}
       initialFeedback={reader?.checkpointFeedback ?? {}}
       authenticated={Boolean(session)}
@@ -67,21 +73,26 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
 function LessonGate({
   lesson,
   hasBody,
+  entitled,
 }: {
   lesson: {
+    id: string;
     title: string;
     summary: string;
     publicPreview: string | null;
     estimatedMinutes: number | null;
     accessType: "FREE" | "PAID";
+    commerceStatus: "NOT_FOR_SALE" | "AVAILABLE";
     priceCents: number | null;
     courseSlug: string;
     courseTitle: string;
     moduleTitle: string;
   };
   hasBody: boolean;
+  entitled: boolean;
 }) {
   const paid = lesson.accessType === "PAID";
+  const forSale = isCommerceEnabled() && paid && lesson.commerceStatus === "AVAILABLE" && lesson.priceCents != null && lesson.priceCents > 0;
   const preview = lesson.publicPreview && !/checkout/i.test(lesson.publicPreview) ? lesson.publicPreview : null;
   return (
     <Container className="max-w-2xl py-16">
@@ -95,13 +106,14 @@ function LessonGate({
       </p>
       <p className="mt-6 text-sm leading-relaxed text-muted">
         {lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min estimados. ` : ""}
-        {paid && lesson.priceCents != null ? `${formatPriceCents(lesson.priceCents)}. ` : ""}
-        {paid ? "Disponível em breve." : null}
+        {forSale && lesson.priceCents != null ? `${formatPriceCents(lesson.priceCents)}. ` : ""}
+        {paid && !forSale && !entitled ? "Disponível em breve." : null}
       </p>
-      {paid ? (
+      {forSale ? <AddToCartButton id={lesson.id} type="LESSON" label="Comprar esta aula" /> : null}
+      {paid && !forSale && !entitled ? (
         <p className="mt-3 text-sm leading-relaxed text-muted">A compra não está aberta. O texto da aula não aparece nesta página.</p>
       ) : null}
-      {!paid && !hasBody ? <p className="mt-6 text-sm text-muted">O texto completo desta aula ainda está em preparação.</p> : null}
+      {entitled || (!paid && !hasBody) ? <p className="mt-6 text-sm text-muted">O texto completo desta aula ainda está em preparação.</p> : null}
       <p className="mt-8 text-sm">
         <Link className="underline underline-offset-4" href={`/cursos/${lesson.courseSlug}`}>
           Voltar para {lesson.courseTitle}

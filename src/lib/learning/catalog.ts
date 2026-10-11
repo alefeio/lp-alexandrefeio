@@ -21,6 +21,7 @@ export type PublicLesson = {
   publicPreview: string | null;
   estimatedMinutes: number | null;
   accessType: "FREE" | "PAID";
+  commerceStatus: "NOT_FOR_SALE" | "AVAILABLE";
   priceCents: number | null;
   status: "DRAFT" | "PUBLISHED";
   courseSlug: string;
@@ -90,6 +91,7 @@ export async function getPublicLesson(slug: string): Promise<{
     publicPreview: row.publicPreview,
     estimatedMinutes: row.estimatedMinutes,
     accessType: row.accessType,
+    commerceStatus: row.commerceStatus,
     priceCents: row.priceCents,
     status: row.status,
     courseSlug: row.module.course.slug,
@@ -119,6 +121,26 @@ export async function getPublicLesson(slug: string): Promise<{
   }
 
   return { lesson, blocks, hasBody: blocks.length > 0 };
+}
+
+export async function loadLessonBlocks(lessonId: string): Promise<PublicBlock[]> {
+  const blockRows = await getPrisma().lessonBlock.findMany({
+    where: { lessonId, retiredAt: null },
+    orderBy: { position: "asc" },
+  });
+  const blocks: PublicBlock[] = [];
+  for (const block of blockRows) {
+    const data = parseBlockData(block.payload);
+    if (!data) continue;
+    blocks.push({
+      blockKey: block.blockKey,
+      position: block.position,
+      countsForProgress: block.countsForProgress,
+      required: block.required,
+      data: toPublicBlockData(data),
+    });
+  }
+  return blocks;
 }
 
 export async function getReaderSnapshot(
@@ -173,7 +195,14 @@ export async function continueStudying(userId: string) {
 }
 
 function ownedContinue(userId: string) {
-  return { userId, completedAt: null, lesson: { status: "PUBLISHED" as const, accessType: "FREE" as const } };
+  return {
+    userId,
+    completedAt: null,
+    lesson: {
+      status: "PUBLISHED" as const,
+      OR: [{ accessType: "FREE" as const }, { entitlements: { some: { userId, status: "ACTIVE" as const } } }],
+    },
+  };
 }
 
 export async function learningLists(userId: string) {

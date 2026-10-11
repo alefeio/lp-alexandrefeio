@@ -1,29 +1,19 @@
 # Pagamentos
 
-Status: preparação. Mercado Pago não será integrado nesta fase.
+Status: fundação da Sprint 5 no banco de development. Comércio desligado por padrão. Mercado Pago só entra com credencial de teste.
 
-## Gateway previsto
+## Separação
 
-Mercado Pago, primeiro com Pix e cartão. A aplicação não fala com o gateway no browser com segredo. Preferência e webhook ficam no servidor.
+`Order` é a compra. `Payment` é a tentativa no provider. `Entitlement` é o direito de abrir uma aula. Crédito de upgrade não é saldo: é a soma do valor efetivamente pago em itens `PAID` cujo snapshot de aulas cabe no pacote maior.
 
-## Peças
+Detalhe de quote, Pix, cartão, webhook, reembolso e gate de production: [sprint-5-commerce.md](./sprint-5-commerce.md). A decisão de acesso está no [ADR 003](./adr/003-order-entitlement.md).
 
-| Peça | Papel |
-| --- | --- |
-| `Order` | Intenção de compra do usuário. Uma ordem, um ou mais itens |
-| `OrderItem` | Aula, módulo ou curso, com tipo, id do produto e preço cobrado na hora |
-| `Payment` | Tentativa financeira. Status `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED`, `REFUNDED` |
-| `Entitlement` | Direito de acesso. Nasce quando um pagamento fica `APPROVED`, ou por crédito aplicado, ou por concessão admin |
-| Crédito de upgrade | Saldo do que o aluno já pagou por aulas ou módulos que entram num pacote maior. Não é status de pagamento nem entitlement |
+## Regras que o código aplica
 
-Comprar um módulo cria entitlement do módulo; a checagem de acesso inclui as aulas daquele módulo. O mesmo vale para o curso. Comprar uma aula cria entitlement só daquela aula.
-
-## O que precisa ficar decidido antes do código do gateway
-
-1. O item do pedido guarda o preço da época. Mudar o preço do catálogo não reescreve a compra nem o crédito.
-2. Webhook identifica o pagamento externo. Processar de novo o mesmo aviso não cria outro entitlement. A chave de idempotência é o id do pagamento no Mercado Pago, guardado de forma única.
-3. Entitlement só depois de `APPROVED`. `PENDING` não abre aula.
-4. Reembolso muda o pagamento para `REFUNDED`. O que acontece com o acesso (revogar ou manter) fica `PENDING`.
-5. Crédito é um lançamento: origem (item já pago) e uso (abatimento em outra ordem). Não embutir o valor “de graça” dentro do entitlement.
-
-Nada disso cria tabela agora. O risco de adiar é misturar, na sprint de monetização, “pagou” com “pode ver a aula”.
+1. Preço, crédito e total nascem no servidor. O client manda só o tipo e o id do produto.
+2. `PAID` não significa vendável. `commerceStatus = AVAILABLE` é que libera a cobrança, e só com `COMMERCE_ENABLED` fora de production.
+3. Entitlement é por aula. Módulo e curso gravam o snapshot e concedem uma aula por linha. Há mais de uma fonte para o mesmo usuário e a mesma aula.
+4. Acesso pago exige pelo menos um entitlement `ACTIVE`. Aula gratuita publicada não precisa.
+5. Pagamento `PENDING` não libera. `APPROVED` libera uma vez. Reembolso total e chargeback revogam a fonte daquela compra. Reembolso parcial marca `NEEDS_REVIEW` e não escolhe aula para revogar.
+6. Upgrade de valor zero não chama o Mercado Pago.
+7. Access token e segredo do webhook não vão ao browser. Log de pagamento não leva token, PAN, CVV nem corpo do provider.

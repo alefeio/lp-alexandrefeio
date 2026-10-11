@@ -32,6 +32,9 @@ export default async function StudentLayout({ children }: { children: ReactNode 
             <Link href="/app/alertas" className="underline underline-offset-4">
               Alertas
             </Link>
+            <Link href="/app/compras" className="underline underline-offset-4">
+              Compras
+            </Link>
             <SignOutButton />
           </nav>
         </Container>

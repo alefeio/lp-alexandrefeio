@@ -4,9 +4,14 @@ export type LessonAccess = {
   publicPreview: string | null;
 };
 
-/** Corpo só existe para aula publicada e gratuita. Pago espera entitlement. */
-export function canReadLessonBody(lesson: Pick<LessonAccess, "status" | "accessType">): boolean {
-  return lesson.status === "PUBLISHED" && lesson.accessType === "FREE";
+/** Aula publicada e gratuita abre o corpo. Aula paga só abre com entitlement ativo. */
+export function canReadLessonBody(
+  lesson: Pick<LessonAccess, "status" | "accessType">,
+  options?: { entitled?: boolean },
+): boolean {
+  if (lesson.status !== "PUBLISHED") return false;
+  if (lesson.accessType === "FREE") return true;
+  return options?.entitled === true;
 }
 
 export function isPublicLesson(lesson: Pick<LessonAccess, "status">): boolean {
@@ -20,6 +25,10 @@ export function canIndexLesson(lesson: LessonAccess, hasBody: boolean): boolean 
   return Boolean(lesson.publicPreview?.trim());
 }
 
-export function visibleBlocks<T>(lesson: Pick<LessonAccess, "status" | "accessType">, blocks: T[]): T[] {
-  return canReadLessonBody(lesson) ? blocks : [];
+export function visibleBlocks<T>(
+  lesson: Pick<LessonAccess, "status" | "accessType">,
+  blocks: T[],
+  options?: { entitled?: boolean },
+): T[] {
+  return canReadLessonBody(lesson, options) ? blocks : [];
 }

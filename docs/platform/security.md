@@ -1,5 +1,7 @@
 # Segurança — revisão inicial
 
+Atualização da Sprint 5: preço, crédito e total saem da sessão e do catálogo, nunca do client. Pedido de outra conta não é devolvido. Corpo de aula paga só carrega depois do entitlement. Access token e segredo do webhook ficam no servidor. Webhook sem assinatura válida responde 401. Log de pagamento não leva token, PAN, CVV nem payload do provider. Comércio permanece desligado em production.
+
 Atualização da Sprint 4: tarefa, lembrete e planejamento de saldo só existem depois de conferir `Project.userId` com a sessão. Projeto arquivado não recebe ação nova. O endpoint de lembrete exige `CRON_SECRET` e não está agendado. O e-mail do lembrete não leva resposta de diagnóstico nem valor de orçamento.
 
 Atualização da Sprint 3: projeto, diagnóstico e recomendação saem da sessão. A action não aceita `userId` do cliente. Projeto ou diagnóstico de outra conta responde 404. Dinheiro fica em centavos inteiros. URL do site só passa se for `http` ou `https`. Resposta de diagnóstico, nome do negócio, orçamento e nota por dimensão não vão ao `dataLayer`.
@@ -34,7 +36,7 @@ Nenhum valor de ambiente foi copiado para a documentação.
 | Formulário público sem limite de taxa além do tempo mínimo e do honeypot | Spam ainda depende do Resend e da validação. Não é falha de sessão, porque não há sessão |
 | Layout único | Uma rota nova autenticada herdaria header público se for criada sem route group |
 | APIMG, no serviço separado | Leitura pública por id. Inadequado para arquivo de aluno |
-| Política de privacidade | Cobre o contato atual. Conta, pagamento e arquivo exigem texto novo antes desses fluxos |
+| Política de privacidade | Cobre contato, conta, projeto e compra. Arquivo de aluno ainda exige texto próprio |
 
 ## Quando a plataforma existir
 

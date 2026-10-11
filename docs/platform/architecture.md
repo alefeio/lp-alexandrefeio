@@ -7,12 +7,12 @@ A Sprint 1 separou os layouts em route groups sem mudar as URLs públicas.
 | `(public)` | `/`, `/trafego-pago`, `/privacidade`, `/obrigado`, `/cursos`, `/cursos/[slug]` |
 | `(learn)` | `/aulas/[slug]` |
 | `(auth)` | `/entrar`, `/cadastro`, `/esqueci-senha`, `/redefinir-senha`, `/verificar-email` |
-| `(app)` | `/app`, `/app/aprendizado`, `/app/projetos`, `/app/alertas` |
-| `(admin)` | `/admin` |
+| `(app)` | `/app`, `/app/aprendizado`, `/app/projetos`, `/app/alertas`, `/app/carrinho`, `/app/checkout`, `/app/compras` |
+| `(admin)` | `/admin`, `/admin/compras` |
 
 O layout raiz guarda fonte, GTM e consentimento. O header comercial fica só no grupo público. `/app` e `/admin` são `noindex` e estão fora do sitemap.
 
-Curso e aula textual existem. Pagamento ainda não.
+Curso e aula textual existem. A fundação de compra está no banco de development e permanece desligada. Ver [sprint-5-commerce.md](./sprint-5-commerce.md).
 
 ## Premissa que o código corrige
 
@@ -36,7 +36,7 @@ A V1 não nasce de um CMS nem de um banco já ligado ao site. Nasce da landing a
 | Aluno | Sessão | Sem o header comercial da home |
 | Admin | Sessão com papel admin | Ferramenta, não landing |
 
-Rotas já criadas: `/cursos`, `/cursos/[slug]`, `/aulas/[slug]`, `/app/aprendizado`, `/app/projetos`, `/app/projetos/[id]/plano` e `/app/alertas`. A home mantém “Continuar de onde você parou” e o próximo passo do plano. Ainda não existem:
+Rotas já criadas: `/cursos`, `/cursos/[slug]`, `/aulas/[slug]`, `/app/aprendizado`, `/app/projetos`, `/app/projetos/[id]/plano`, `/app/alertas`, `/app/carrinho`, `/app/checkout`, `/app/compras` e `/admin/compras`. A home mantém “Continuar de onde você parou” e o próximo passo do plano. Ainda não existem:
 - `/app/analisar`: upload privado e análise, quando existirem.
 - `/admin`: conteúdo, preços, publicação, alunos, pedidos.
 

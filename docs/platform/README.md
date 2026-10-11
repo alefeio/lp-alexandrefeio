@@ -1,6 +1,6 @@
 # Plataforma — planejamento
 
-Esta pasta descreve a arquitetura da plataforma. A Sprint 1 ligou Postgres de desenvolvimento e autenticação. A Sprint 2 adicionou o primeiro curso textual. Não há pagamento nem upload.
+Esta pasta descreve a arquitetura da plataforma. A Sprint 1 ligou Postgres de desenvolvimento e autenticação. A Sprint 2 adicionou o primeiro curso textual. A Sprint 5 adicionou a fundação de compra, ainda desligada. Não há upload.
 
 O marketing continua em `/`, com formulário via Resend e mensuração via GTM.
 
@@ -14,6 +14,7 @@ O marketing continua em `/`, com formulário via Resend e mensuração via GTM.
 | [sprint-2-1-learning-ux.md](./sprint-2-1-learning-ux.md) | Validação e refinamento da experiência de estudo |
 | [sprint-3-project-diagnostic.md](./sprint-3-project-diagnostic.md) | Projeto, diagnóstico de prontidão e recomendação |
 | [sprint-4-live-plan.md](./sprint-4-live-plan.md) | Plano vivo, tarefas, lembretes e recarga estimada |
+| [sprint-5-commerce.md](./sprint-5-commerce.md) | Pedido, pagamento, entitlement e upgrade |
 | [architecture.md](./architecture.md) | Arquitetura proposta e rotas futuras |
 | [database.md](./database.md) | Banco, variáveis e modelo conceitual |
 | [auth.md](./auth.md) | Autenticação |

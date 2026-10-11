@@ -28,6 +28,8 @@ model User {
   lessonResults        LessonResult[]
   projects             Project[]
   diagnostics          Diagnostic[]
+  orders               Order[]
+  entitlements         Entitlement[]
 
   @@unique([email])
   @@map("user")
@@ -113,12 +115,14 @@ model Course {
   status             ContentStatus @default(DRAFT)
   sortOrder          Int           @default(0)
   bundlePriceCents   Int?
+  commerceStatus     CommerceStatus @default(NOT_FOR_SALE)
   coverImageUrl      String?
   coverImagePublicId String?
   publishedAt        DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   modules            Module[]
+  orderItems         OrderItem[]
 
   @@map("course")
 }
@@ -133,9 +137,11 @@ model Module {
   status           ContentStatus @default(DRAFT)
   sortOrder        Int           @default(0)
   bundlePriceCents Int?
+  commerceStatus   CommerceStatus @default(NOT_FOR_SALE)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   lessons          Lesson[]
+  orderItems       OrderItem[]
 
   @@unique([courseId, slug])
   @@index([courseId])
@@ -154,6 +160,7 @@ model Lesson {
   sortOrder         Int           @default(0)
   status            ContentStatus @default(DRAFT)
   accessType        AccessType
+  commerceStatus    CommerceStatus @default(NOT_FOR_SALE)
   priceCents        Int?
   publishedAt       DateTime?
   createdAt         DateTime      @default(now())
@@ -166,6 +173,8 @@ model Lesson {
   bookmarks         LessonBookmark[]
   results           LessonResult[]
   recommendations   Recommendation[]
+  orderItems        OrderItem[]
+  entitlements      Entitlement[]
 
   @@index([moduleId])
   @@index([status])
@@ -504,4 +513,144 @@ model ProjectBudgetPlan {
   updatedAt               DateTime @updatedAt
 
   @@map("project_budget_plan")
+}
+
+/// PAID exige compra quando a venda existir. AVAILABLE é o que pode ser cobrado agora.
+enum CommerceStatus {
+  NOT_FOR_SALE
+  AVAILABLE
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+  REFUNDED
+  NEEDS_REVIEW
+}
+
+enum ProductType {
+  LESSON
+  MODULE
+  COURSE
+}
+
+enum PaymentProvider {
+  MERCADO_PAGO
+}
+
+enum PaymentStatus {
+  PENDING
+  IN_PROCESS
+  APPROVED
+  REJECTED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CHARGED_BACK
+}
+
+enum PaymentMethodType {
+  PIX
+  CREDIT_CARD
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  REVOKED
+}
+
+model Order {
+  id                      String      @id @default(cuid())
+  userId                  String
+  user                    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                  OrderStatus @default(PENDING_PAYMENT)
+  currency                String      @default("BRL")
+  subtotalCents           Int
+  creditCents             Int
+  totalCents              Int
+  checkoutKey             String?     @unique
+  zeroValueUpgrade        Boolean     @default(false)
+  confirmationEmailSentAt DateTime?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+  items                   OrderItem[]
+  payments                Payment[]
+
+  @@index([userId, createdAt])
+  @@map("order")
+}
+
+model OrderItem {
+  id                 String      @id @default(cuid())
+  orderId            String
+  order              Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productType        ProductType
+  lessonId           String?
+  lesson             Lesson?     @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  moduleId           String?
+  module             Module?     @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  courseId           String?
+  course             Course?     @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  titleSnapshot      String
+  listPriceCents     Int
+  creditAppliedCents Int
+  finalPriceCents    Int
+  createdAt          DateTime    @default(now())
+  lessons            OrderItemLesson[]
+  entitlements       Entitlement[]
+
+  @@index([orderId])
+  @@map("order_item")
+}
+
+/// Aulas incluídas no item no momento da compra. Aula nova do curso não entra sozinha.
+model OrderItemLesson {
+  id          String    @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  lessonId    String
+
+  @@unique([orderItemId, lessonId])
+  @@map("order_item_lesson")
+}
+
+model Payment {
+  id                   String             @id @default(cuid())
+  orderId              String
+  order                Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider             PaymentProvider
+  providerPaymentId    String?            @unique
+  idempotencyKey       String             @unique
+  status               PaymentStatus      @default(PENDING)
+  amountCents          Int
+  refundedAmountCents  Int                @default(0)
+  paymentMethodType    PaymentMethodType?
+  installments         Int?
+  providerStatus       String?
+  providerStatusDetail String?
+  approvedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([orderId])
+  @@map("payment")
+}
+
+model Entitlement {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson            @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  orderItemId String
+  orderItem   OrderItem         @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  status      EntitlementStatus @default(ACTIVE)
+  grantedAt   DateTime          @default(now())
+  revokedAt   DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@unique([orderItemId, lessonId])
+  @@index([userId, lessonId, status])
+  @@map("entitlement")
 }

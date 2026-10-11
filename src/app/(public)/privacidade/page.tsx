@@ -60,6 +60,12 @@ export default function PrivacyPage() {
               notas nem valores de orçamento.
             </p>
             <p>
+              Uma compra registra o pedido, os itens, o valor e o status do pagamento. O pagamento é processado pelo
+              Mercado Pago, por Pix ou cartão de crédito. Os dados do cartão são tratados pelo Mercado Pago e não ficam
+              guardados neste site. O acesso a uma aula paga só abre depois da confirmação do pagamento. O e-mail de
+              confirmação leva os itens, o total e um link para continuar estudando.
+            </p>
+            <p>
               O site pode usar tecnologias de medição, analytics e publicidade conforme a escolha feita no banner de
               cookies. Essa escolha pode ser alterada depois em Preferências de cookies, no rodapé. Informações de
               campanha, como origem, mídia e parâmetros de anúncio presentes na URL, podem acompanhar a solicitação

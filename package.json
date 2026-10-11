@@ -12,10 +12,11 @@
     "db:migrate": "tsx scripts/run-prisma.ts migrate dev",
     "db:deploy": "tsx scripts/run-prisma.ts migrate deploy",
     "db:seed": "tsx scripts/seed-learning.ts",
-    "test": "tsx --test tests/learning.test.ts tests/project-diagnostic.test.ts tests/plan.test.ts"
+    "test": "tsx --test tests/learning.test.ts tests/project-diagnostic.test.ts tests/plan.test.ts tests/commerce.test.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.4",
+    "@mercadopago/sdk-react": "^1.0.7",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "better-auth": "^1.7.4",

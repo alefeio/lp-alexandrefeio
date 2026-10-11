@@ -165,7 +165,7 @@ O layout raiz hoje impõe header e footer em toda rota. Antes de `/app`, as rota
 | --- | --- |
 | [001 Prisma/Postgres](./adr/001-prisma-postgres.md) | PROPOSED |
 | [002 Blocos de conteúdo](./adr/002-content-blocks.md) | PROPOSED |
-| [003 Order e Entitlement](./adr/003-order-entitlement.md) | PROPOSED |
+| [003 Order e Entitlement](./adr/003-order-entitlement.md) | ACCEPTED na Sprint 5 |
 | [004 Storage público e privado](./adr/004-storage.md) | PROPOSED / PENDING no vendor privado |
 | [005 Autenticação](./adr/005-auth.md) | PROPOSED / PENDING em magic link e Google |
 

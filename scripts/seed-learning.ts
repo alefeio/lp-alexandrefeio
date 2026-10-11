@@ -20,9 +20,10 @@ async function main() {
       status: "PUBLISHED",
       sortOrder: 0,
       bundlePriceCents: firstCourseSeed.bundlePriceCents,
+      commerceStatus: "NOT_FOR_SALE",
       publishedAt: now,
     },
-    update: {},
+    update: { commerceStatus: "NOT_FOR_SALE" },
   });
 
   for (const moduleSeed of firstCourseSeed.modules) {
@@ -36,8 +37,9 @@ async function main() {
         status: "PUBLISHED",
         sortOrder: moduleSeed.sortOrder,
         bundlePriceCents: moduleSeed.bundlePriceCents,
+        commerceStatus: "NOT_FOR_SALE",
       },
-      update: {},
+      update: { commerceStatus: "NOT_FOR_SALE" },
     });
 
     for (const lessonSeed of moduleSeed.lessons) {
@@ -54,9 +56,10 @@ async function main() {
           status: "PUBLISHED",
           accessType: lessonSeed.accessType,
           priceCents: lessonSeed.priceCents,
+          commerceStatus: "NOT_FOR_SALE",
           publishedAt: now,
         },
-        update: {},
+        update: { commerceStatus: "NOT_FOR_SALE" },
       });
 
       if (lessonSeed.blocks.length === 0) continue;

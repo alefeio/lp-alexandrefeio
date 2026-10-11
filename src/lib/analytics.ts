@@ -11,7 +11,9 @@ export type AnalyticsEventName =
   | "lesson_progress"
   | "lesson_completed"
   | "diagnostic_started"
-  | "diagnostic_completed";
+  | "diagnostic_completed"
+  | "checkout_started"
+  | "purchase_completed";
 
 export type AnalyticsParams = Record<string, string | number | boolean | null | undefined>;
 

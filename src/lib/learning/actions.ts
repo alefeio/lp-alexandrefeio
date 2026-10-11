@@ -1,6 +1,7 @@
 "use server";
 
 import { canReadLessonBody } from "@/lib/learning/access";
+import { hasActiveEntitlement } from "@/lib/commerce/access";
 import {
   activityResponseSchema,
   blockKeySchema,
@@ -28,7 +29,8 @@ async function authorizedLesson(slug: string) {
     where: { slug },
     select: { id: true, status: true, accessType: true, publicPreview: true },
   });
-  if (!lesson || !canReadLessonBody(lesson)) {
+  const entitled = lesson ? await hasActiveEntitlement(session.user.id, lesson.id) : false;
+  if (!lesson || !canReadLessonBody(lesson, { entitled })) {
     return { ok: false as const, message: "Esta aula não está aberta para salvar." };
   }
   return { ok: true as const, userId: session.user.id, lessonId: lesson.id };
@@ -78,11 +80,13 @@ export async function gradeCheckpoint(
   const parsedKey = blockKeySchema().safeParse(blockKey);
   const parsed = checkpointResponseSchema.safeParse({ optionId });
   if (!parsedKey.success || !parsed.success) return { ok: false, message: "Resposta inválida." };
+  const session = await getSession();
   const lesson = await getPrisma().lesson.findUnique({
     where: { slug },
     select: { id: true, status: true, accessType: true },
   });
-  if (!lesson || !canReadLessonBody(lesson)) return { ok: false, message: "Esta aula não está aberta." };
+  const entitled = session && lesson ? await hasActiveEntitlement(session.user.id, lesson.id) : false;
+  if (!lesson || !canReadLessonBody(lesson, { entitled })) return { ok: false, message: "Esta aula não está aberta." };
   const rules = await loadRuleBlocks(lesson.id);
   const rule = rules.find((item) => item.blockKey === parsedKey.data && !item.retiredAt && item.data.type === "CHECKPOINT");
   if (!rule || rule.data.type !== "CHECKPOINT") return { ok: false, message: "Checkpoint inválido." };

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
+import { AddToCartButton } from "@/components/commerce/AddToCartButton";
+import { isCommerceEnabled } from "@/lib/commerce/config";
 import { getPublishedCourse } from "@/lib/learning/catalog";
 import { formatPriceCents } from "@/lib/learning/money";
 
@@ -39,8 +41,13 @@ export default async function CoursePage({ params }: PageProps) {
       <p className="mt-4 text-sm text-muted">
         {minutes > 0 ? `${minutes} min no total, somando as estimativas. ` : ""}
         Nenhuma aula exige a anterior. A ordem é uma sequência sugerida.
-        {course.bundlePriceCents != null ? ` Curso completo: ${formatPriceCents(course.bundlePriceCents)}. Disponível em breve.` : ""}
+        {course.bundlePriceCents != null
+          ? ` Curso completo: ${formatPriceCents(course.bundlePriceCents)}. ${isCommerceEnabled() && course.commerceStatus === "AVAILABLE" ? "" : "Disponível em breve."}`
+          : ""}
       </p>
+      {isCommerceEnabled() && course.commerceStatus === "AVAILABLE" && course.bundlePriceCents ? (
+        <AddToCartButton id={course.id} type="COURSE" label="Comprar o curso" />
+      ) : null}
       <div className="mt-12 space-y-12">
         {course.modules.map((moduleRow, index) => (
           <section key={moduleRow.id}>
@@ -49,9 +56,7 @@ export default async function CoursePage({ params }: PageProps) {
             </h2>
             <p className="mt-3 text-base leading-relaxed text-muted">{moduleRow.description}</p>
             {moduleRow.bundlePriceCents != null ? (
-              <p className="mt-2 text-sm text-muted">
-                Módulo: {formatPriceCents(moduleRow.bundlePriceCents)}. Disponível em breve.
-              </p>
+              <ModuleOffer moduleRow={moduleRow} />
             ) : null}
             <ol className="mt-6 space-y-4">
               {moduleRow.lessons.map((lesson, lessonIndex) => (
@@ -67,7 +72,12 @@ export default async function CoursePage({ params }: PageProps) {
                     </Link>
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted">{lesson.summary}</p>
-                  {lesson.accessType === "PAID" ? <p className="mt-2 text-sm">Disponível em breve.</p> : null}
+                  {lesson.accessType === "PAID" && !(isCommerceEnabled() && lesson.commerceStatus === "AVAILABLE") ? (
+                    <p className="mt-2 text-sm">Disponível em breve.</p>
+                  ) : null}
+                  {isCommerceEnabled() && lesson.accessType === "PAID" && lesson.commerceStatus === "AVAILABLE" && lesson.priceCents ? (
+                    <AddToCartButton id={lesson.id} type="LESSON" label="Comprar esta aula" />
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -75,5 +85,32 @@ export default async function CoursePage({ params }: PageProps) {
         ))}
       </div>
     </Container>
+  );
+}
+
+function ModuleOffer({
+  moduleRow,
+}: {
+  moduleRow: {
+    id: string;
+    commerceStatus: "NOT_FOR_SALE" | "AVAILABLE";
+    bundlePriceCents: number | null;
+    lessons: { accessType: "FREE" | "PAID"; priceCents: number | null; commerceStatus: "NOT_FOR_SALE" | "AVAILABLE" }[];
+  };
+}) {
+  const price = moduleRow.bundlePriceCents;
+  if (price == null) return null;
+  const open = isCommerceEnabled() && moduleRow.commerceStatus === "AVAILABLE";
+  const individual = moduleRow.lessons.reduce((sum, lesson) => sum + (lesson.accessType === "PAID" ? lesson.priceCents ?? 0 : 0), 0);
+  if (!open) {
+    return <p className="mt-2 text-sm text-muted">Módulo: {formatPriceCents(price)}. Disponível em breve.</p>;
+  }
+  return (
+    <div className="mt-2 text-sm">
+      <p>Módulo: {formatPriceCents(price)}. Soma das aulas: {formatPriceCents(individual)}.</p>
+      {individual > price ? <p>Economia de {formatPriceCents(individual - price)} em relação às aulas separadas.</p> : null}
+      <p className="text-muted">O crédito de aulas já compradas entra no checkout, calculado no servidor.</p>
+      <AddToCartButton id={moduleRow.id} type="MODULE" label="Comprar módulo" />
+    </div>
   );
 }
