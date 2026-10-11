@@ -15,14 +15,18 @@ APIMG devolve URL pública e serve `GET /i/{public_id}` sem autenticação. O re
 
 `APIMG_API_KEY` e `APIMG_UPLOAD_URL` são lidas só no servidor, em `src/lib/storage/apimg.ts`. O browser envia o arquivo para uma Server Action de ADMIN.
 
-Contrato observado no serviço Apimages, não exercitado com chave neste projeto:
+Contrato confirmado no código atual do serviço Apimages (`app/main.py`, `app/auth.py`, `app/config.py`):
 
-- `POST` na URL de upload, multipart, campo `file`.
-- Header `X-API-Key` ou `Authorization: Bearer`.
-- Resposta JSON: `url`, `public_id`, `width`, `height`, `format`, `bytes`.
-- Erros observados no código da API: 401 chave ausente ou inválida, 503 se o servidor da API não tem chave, 404 na leitura de id inexistente.
-- Limite padrão documentado no serviço: 10 MB. Este site recusa arquivo acima de 5 MB antes de chamar o serviço, para ficar dentro desse teto.
+- `POST /v1/upload`, multipart, um único campo obrigatório: `file`. Não há outro campo obrigatório.
+- `APIMG_UPLOAD_URL` é a URL completa desse endpoint. O site não acrescenta `/v1/upload`.
+- Autenticação: o serviço aceita `X-API-Key` ou `Authorization: Bearer`. Este projeto envia só `X-API-Key`. Não há segunda tentativa.
+- A chave autorizada é uma só: a variável `API_KEY` no `.env` do servidor Apimages, comparada por igualdade. Não há banco, allowlist nem cadastro por cliente. Chave ausente no servidor responde 503 (`API_KEY não configurada no servidor`). Chave diferente ou ausente na requisição responde 401 (`Chave de API inválida ou ausente`).
+- Resposta de sucesso: `url`, `public_id`, `width`, `height`, `format`, `bytes`.
+- Leitura: `GET /i/{public_id}` sem autenticação. Id inexistente responde 404.
+- Limite padrão do serviço: 10 MB (`MAX_UPLOAD_BYTES`). Este site recusa arquivo acima de 5 MB antes de chamar o serviço.
 - Formatos aceitos aqui: JPEG, PNG e WebP, conferidos pelos bytes. SVG não entra.
+
+Um POST direto de development, com a URL e a chave deste ambiente, chegou ao serviço e recebeu 401 com a mensagem acima. A URL estava completa, em HTTPS, no host do serviço, sem caminho duplicado. A chave local existe, tem 64 caracteres, sem espaço nem prefixo `Bearer`, e não é a chave de exemplo do repositório Apimages. O bloqueio é a chave deste site ser diferente da `API_KEY` do servidor. Para o upload passar, `APIMG_API_KEY` precisa ser exatamente essa `API_KEY`. Não há outro registro a criar.
 
 O banco guarda `MediaAsset` com `url`, `publicId`, largura, altura, formato, tamanho, alt e se a imagem é decorativa. A chave da API não é gravada.
 

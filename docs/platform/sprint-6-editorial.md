@@ -26,7 +26,9 @@ A ordem é `position`. Reordenar não apaga progresso. Em aula publicada, ou qua
 
 O browser envia o arquivo para a Server Action. A action exige ADMIN, confere JPEG, PNG ou WebP pelos bytes e recusa acima de 5 MB. O serviço documenta 10 MB; 5 MB fica dentro desse limite. SVG não entra.
 
-A action chama `POST` com `X-API-Key`. A resposta vira `MediaAsset`: `url`, `publicId`, largura, altura, formato, tamanho, alt e o marcador decorativo. Imagem de conteúdo precisa de alt ou ser marcada como decorativa. O alt não é gerado por IA.
+A action chama `POST` na URL completa de `APIMG_UPLOAD_URL`, com o header `X-API-Key` e o campo `file`. O serviço também aceitaria `Authorization: Bearer`, mas este projeto não envia os dois. A resposta vira `MediaAsset`: `url`, `publicId`, largura, altura, formato, tamanho, alt e o marcador decorativo. Imagem de conteúdo precisa de alt ou ser marcada como decorativa. O alt não é gerado por IA.
+
+A chamada real autenticada ainda responde 401, `Chave de API inválida ou ausente`. A rota, o header e o multipart estão de acordo com o serviço. A chave local não é a `API_KEY` configurada no servidor Apimages. Enquanto isso não for a mesma string, o editor não grava `MediaAsset`. Detalhe em [storage.md](./storage.md).
 
 APIMG é só asset editorial público. CSV, XLSX e PDF de aluno continuam fora. O ADR de storage privado segue pendente.
 
