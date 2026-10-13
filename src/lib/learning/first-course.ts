@@ -3,6 +3,7 @@ import { LESSON_01_SLUG, lesson01Blocks, lesson01Meta } from "@/lib/learning/les
 import { LESSON_02_SLUG, lesson02Blocks, lesson02Meta } from "@/lib/learning/lesson-02";
 import { LESSON_03_SLUG, lesson03Blocks, lesson03Meta } from "@/lib/learning/lesson-03";
 import { LESSON_04_SLUG, lesson04Blocks, lesson04Meta } from "@/lib/learning/lesson-04";
+import { LESSON_05_SLUG, lesson05Blocks, lesson05Meta } from "@/lib/learning/lesson-05";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -104,7 +105,17 @@ export const firstCourseSeed = {
           priceCents: lesson04Meta.priceCents,
           blocks: lesson04Blocks,
         },
-        paid("destino-e-mensuracao", "Prepare o destino e a mensuração", "A página ou o WhatsApp que recebe o clique, e como o contato será contado.", 3490, 1),
+        {
+          slug: LESSON_05_SLUG,
+          title: lesson05Meta.title,
+          summary: lesson05Meta.summary,
+          publicPreview: lesson05Meta.publicPreview,
+          estimatedMinutes: lesson05Meta.estimatedMinutes,
+          sortOrder: 1,
+          accessType: lesson05Meta.accessType,
+          priceCents: lesson05Meta.priceCents,
+          blocks: lesson05Blocks,
+        },
       ],
     },
     {

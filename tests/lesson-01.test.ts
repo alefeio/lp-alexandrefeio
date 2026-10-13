@@ -51,7 +51,7 @@ test("aula 1 definitiva tem 27 blocos válidos e passa na validação", () => {
   assert.equal(canReadLessonBody({ status: "PUBLISHED", accessType: "FREE" }), true);
   const lessons = firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons);
   assert.equal(lessons.filter((lesson) => lesson.slug === LESSON_01_SLUG).length, 1);
-  assert.equal(lessons.filter((lesson) => lesson.blocks.length > 0).length, 4);
+  assert.equal(lessons.filter((lesson) => lesson.blocks.length > 0).length, 5);
   assert.equal(lessons.find((lesson) => lesson.slug === "como-funciona-o-trafego-pago")?.blocks.length, 27);
   const ready = assessLesson(
     {
@@ -77,7 +77,7 @@ test("seed da aula 1 é idempotente e não reescreve as outras", async () => {
   const { seedLesson01Content } = await import("../src/lib/learning/seed-lesson-01");
   const prisma = getPrisma();
   const otherBefore = await prisma.lesson.findUnique({
-    where: { slug: "destino-e-mensuracao" },
+    where: { slug: "campanha-de-pesquisa" },
     select: { summary: true, priceCents: true, commerceStatus: true, accessType: true },
   });
   assert.ok(otherBefore);
@@ -106,7 +106,7 @@ test("seed da aula 1 é idempotente e não reescreve as outras", async () => {
   assert.equal(stored.priceCents, null);
   assert.equal(stored.estimatedMinutes, 25);
   const otherAfter = await prisma.lesson.findUnique({
-    where: { slug: "destino-e-mensuracao" },
+    where: { slug: "campanha-de-pesquisa" },
     select: { summary: true, priceCents: true, commerceStatus: true, accessType: true },
   });
   assert.deepEqual(otherAfter, otherBefore);

@@ -8,6 +8,7 @@ import {
 } from "@/lib/learning/blocks";
 
 const EMPTY_BRIEF_PROJECTS: ReadonlySet<string> = new Set();
+const EMPTY_PLAN_PROJECTS: ReadonlySet<string> = new Set();
 
 export type ProgressRuleBlock = {
   blockKey: string;
@@ -101,6 +102,7 @@ export function isBlockComplete(
   answer: BlockAnswer | undefined,
   lessonResultSaved: boolean,
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
+  planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): boolean {
   if (block.retiredAt) return false;
   const viewed = answer?.viewed === true;
@@ -123,9 +125,10 @@ export function isBlockComplete(
     case "RESULT":
       return lessonResultSaved;
     case "TOOL":
-      if (block.data.toolKey === "CAMPAIGN_BRIEF_V1") {
+      if (block.data.toolKey === "CAMPAIGN_BRIEF_V1" || block.data.toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") {
         const parsed = campaignBriefLinkSchema.safeParse(answer?.response);
-        return parsed.success && briefProjectIds.has(parsed.data.projectId);
+        const ids = block.data.toolKey === "CAMPAIGN_BRIEF_V1" ? briefProjectIds : planProjectIds;
+        return parsed.success && ids.has(parsed.data.projectId);
       }
       return toolResponseSchema.safeParse(answer?.response).success;
     default:
@@ -138,10 +141,11 @@ export function progressPercent(
   answers: Record<string, BlockAnswer | undefined>,
   lessonResultSaved: boolean,
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
+  planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): number {
   const counting = blocks.filter((block) => !block.retiredAt && block.countsForProgress);
   if (counting.length === 0) return 0;
-  const done = counting.filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds)).length;
+  const done = counting.filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds)).length;
   return Math.round((done / counting.length) * 100);
 }
 
@@ -150,14 +154,15 @@ export function isLessonComplete(
   answers: Record<string, BlockAnswer | undefined>,
   lessonResultSaved: boolean,
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
+  planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): boolean {
   const active = blocks.filter((block) => !block.retiredAt);
   const counting = active.filter((block) => block.countsForProgress);
   if (counting.length === 0) return false;
-  const countingDone = counting.every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds));
+  const countingDone = counting.every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds));
   const requiredDone = active
     .filter((block) => block.required)
-    .every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds));
+    .every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds));
   return countingDone && requiredDone;
 }
 
@@ -166,9 +171,10 @@ export function completedBlockKeys(
   answers: Record<string, BlockAnswer | undefined>,
   lessonResultSaved: boolean,
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
+  planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): string[] {
   return blocks
-    .filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds))
+    .filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds))
     .map((block) => block.blockKey);
 }
 

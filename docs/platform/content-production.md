@@ -59,3 +59,22 @@ O bloco `TOOL` aponta para a ferramenta. Ele não repete as 15 perguntas nem cop
 - Resultado: `CAMPAIGN_BRIEF_V1` em `LessonResult`, um por projeto
 
 O brief guarda oferta, objetivo, conversão, destino, orçamento mensal em centavos, referência diária, prazo da primeira revisão e o que falta validar. A referência diária é `floor((centavos mensais + 15) / 30)`, o arredondamento half-up de dividir por 30. R$ 600,00 viram R$ 20,00. É planejamento, não o gasto diário da plataforma. O projeto só é atualizado se o aluno confirmar. A aula continua `NOT_FOR_SALE`.
+
+## Aula 5
+
+- Título: Prepare o destino e a mensuração
+- Slug: `destino-e-mensuracao`
+- Status: conteúdo definitivo V1
+- Versão: 1
+- Origem: editorial aprovada
+- Seed: `seedLesson05Content`, chamado por `npm run db:seed` depois da Aula 4
+- Data: 2026-10-13
+- Acesso: paga, R$ 34,90, fora de venda
+- Blocos ativos: 32, nenhum de imagem e nenhum `RESULT` manual
+- Resultado: `DESTINATION_MEASUREMENT_PLAN_V1` em `LessonResult`, um por projeto
+
+O plano guarda destino, CTA, conversão principal, verificações declaradas pelo aluno, origem do tráfego, rastreamento na plataforma, análise do site, registro do resultado comercial e pendência livre. O estado `READY_TO_CONFIGURE` ou `NEEDS_PREPARATION` é calculado no servidor. Falta de destino, de verificação do caminho, de registro comercial ou uma pendência escrita deixa o plano em preparação. Analytics e tag da plataforma não são obrigatórios. Um plano com pendência continua concluindo a ferramenta. O projeto só recebe `destinationType` e, quando o destino é site ou landing page com HTTPS, `websiteUrl`, depois de confirmação. A indicação de canal continua no diagnóstico, não é copiada para o resultado.
+
+## Módulo 1
+
+O módulo `planeje-antes-de-anunciar` tem o conteúdo editorial completo com as Aulas 4 e 5. O bundle continua R$ 57,90 e `NOT_FOR_SALE`. Nenhuma aula desse módulo está `AVAILABLE`.

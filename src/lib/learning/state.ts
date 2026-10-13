@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { briefProjectIdsFrom } from "@/lib/learning/campaign-brief";
+import { planProjectIdsFrom } from "@/lib/learning/destination-plan";
 import { parseBlockData } from "@/lib/learning/blocks";
 import { getPrisma } from "@/lib/db/prisma";
 import {
@@ -53,13 +54,14 @@ export async function loadSnapshot(userId: string, lessonId: string, rules: Prog
   const answers = answersFromRows(rules, blockProgress, responses, Boolean(result));
   const resultPayload = result ? asStringRecord(result.payload) : null;
   const briefIds = briefProjectIdsFrom(projectResults);
+  const planIds = planProjectIdsFrom(projectResults);
 
   return {
-    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload), briefIds),
+    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload), briefIds, planIds),
     completed: Boolean(progress?.completedAt),
     lastBlockKey: progress?.lastBlockKey ?? null,
     viewedBlockKeys: blockProgress.filter((row) => row.viewedAt).map((row) => row.blockKey),
-    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload), briefIds),
+    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload), briefIds, planIds),
     responses: Object.fromEntries(responses.map((row) => [row.blockKey, row.payload])),
     notes: Object.fromEntries(notes.map((row) => [row.blockKey, row.body])),
     bookmarks: bookmarks.map((row) => row.blockKey),
@@ -86,9 +88,10 @@ export async function recomputeProgress(
   ]);
   const saved = Boolean(result);
   const briefIds = briefProjectIdsFrom(projectResults);
+  const planIds = planProjectIdsFrom(projectResults);
   const answers = answersFromRows(rules, blockProgress, responses, saved);
-  const percent = progressPercent(rules, answers, saved, briefIds);
-  const completed = isLessonComplete(rules, answers, saved, briefIds);
+  const percent = progressPercent(rules, answers, saved, briefIds, planIds);
+  const completed = isLessonComplete(rules, answers, saved, briefIds, planIds);
   const existing = await prisma.lessonProgress.findUnique({ where: { userId_lessonId: scope } });
   const now = new Date();
 

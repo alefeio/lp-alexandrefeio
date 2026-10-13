@@ -19,10 +19,11 @@ import { loadRuleBlocks, loadSnapshot, recomputeProgress, type LessonSnapshot } 
 import { getSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db/prisma";
 import { addCampaignPreparationTask, loadCampaignBriefPanel, saveCampaignBriefForUser, syncCampaignBriefProject, type CampaignBriefPanel } from "@/lib/learning/brief";
+import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinationPlanForUser, syncDestinationPlanProject, type DestinationPlanPanel } from "@/lib/learning/measurement";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | null }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | null }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -345,6 +346,57 @@ export async function addCampaignBriefTask(slug: string, projectId: string): Pro
   const rules = await loadRuleBlocks(lesson.id);
   const snapshot = await loadSnapshot(session.user.id, lesson.id, rules);
   const panel = await loadCampaignBriefPanel({ userId: session.user.id, blocks: rules });
+  return { ok: true, snapshot, panel };
+}
+
+export async function saveDestinationPlan(
+  slug: string,
+  blockKey: string,
+  input: {
+    projectId: string;
+    destinationType: string;
+    destinationUrl: string;
+    primaryCta: string;
+    primaryConversion: string;
+    offerIsClear: boolean;
+    ctaIsVisible: boolean;
+    mobileChecked: boolean;
+    conversionPathTested: boolean;
+    trafficSourceMethod: string;
+    platformConversionStatus: string;
+    analyticsStatus: string;
+    businessOutcomeMethod: string;
+    preLaunchIssue: string;
+  },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveDestinationPlanForUser(session.user.id, slug, blockKey, input);
+  if (!saved.ok) return saved;
+  return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
+}
+
+export async function syncDestinationPlan(slug: string, projectId: string): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const synced = await syncDestinationPlanProject(session.user.id, slug, projectId);
+  if (!synced.ok) return synced;
+  const lesson = await getPrisma().lesson.findUnique({ where: { slug }, select: { id: true } });
+  if (!lesson) return { ok: false, message: "Aula não encontrada." };
+  const snapshot = await loadSnapshot(session.user.id, lesson.id, await loadRuleBlocks(lesson.id));
+  return { ok: true, snapshot, panel: synced.panel };
+}
+
+export async function addDestinationPlanTask(slug: string, projectId: string): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const added = await addDestinationPreparationTask(session.user.id, slug, projectId);
+  if (!added.ok) return added;
+  const lesson = await getPrisma().lesson.findUnique({ where: { slug }, select: { id: true } });
+  if (!lesson) return { ok: false, message: "Aula não encontrada." };
+  const rules = await loadRuleBlocks(lesson.id);
+  const snapshot = await loadSnapshot(session.user.id, lesson.id, rules);
+  const panel = await loadDestinationPlanPanel({ userId: session.user.id, blocks: rules });
   return { ok: true, snapshot, panel };
 }
 

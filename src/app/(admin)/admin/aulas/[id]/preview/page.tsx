@@ -9,6 +9,7 @@ import { parseBlockData } from "@/lib/learning/blocks";
 import { previewBlocksFor } from "@/lib/editorial/service";
 import type { ReaderBlock } from "@/lib/learning/reader-types";
 import { campaignBriefPreviewState } from "@/lib/learning/brief";
+import { destinationPlanPreviewState } from "@/lib/learning/measurement";
 import { trafficToolPreviewState } from "@/lib/learning/tool";
 
 export const dynamic = "force-dynamic";
@@ -79,12 +80,16 @@ export default async function LessonPreviewPage({ params, searchParams }: PagePr
         initial={{ percent: 0, completed: false, lastBlockKey: null, viewedBlockKeys: [], completedBlockKeys: [], responses: {}, notes: {}, bookmarks: [], result: null }}
         authenticated={false}
         resume={false}
-        toolPanel={
-          blocks.some((block) => block.data.type === "TOOL" && block.data.toolKey === "CAMPAIGN_BRIEF_V1")
-            ? campaignBriefPreviewState()
-            : trafficToolPreviewState()
-        }
+        toolPanel={previewToolPanel(blocks)}
       />
     </div>
   );
+}
+
+function previewToolPanel(blocks: ReaderBlock[]) {
+  const tool = blocks.find((block) => block.data.type === "TOOL");
+  const toolKey = tool?.data.type === "TOOL" ? tool.data.toolKey : null;
+  if (toolKey === "CAMPAIGN_BRIEF_V1") return campaignBriefPreviewState();
+  if (toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") return destinationPlanPreviewState();
+  return trafficToolPreviewState();
 }

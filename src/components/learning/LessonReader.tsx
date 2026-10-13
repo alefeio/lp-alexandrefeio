@@ -33,8 +33,10 @@ import {
 import type { LessonSnapshot, ReaderBlock, ReaderLesson } from "@/lib/learning/reader-types";
 import type { TrafficToolPanel } from "@/lib/learning/tool";
 import { CampaignBriefTool } from "@/components/learning/CampaignBriefTool";
+import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { TrafficReadinessTool } from "@/components/learning/TrafficReadinessTool";
 import type { CampaignBriefPanel } from "@/lib/learning/brief";
+import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import { buttonClass } from "@/lib/button-styles";
 
 type Props = {
@@ -45,7 +47,7 @@ type Props = {
   authenticated: boolean;
   resume: boolean;
   preview?: boolean;
-  toolPanel?: TrafficToolPanel | CampaignBriefPanel | null;
+  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | null;
 };
 
 export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
@@ -572,7 +574,7 @@ function BlockView(props: {
   onResult: (values: Record<string, string>, blockKey: string) => void;
   onNote: (blockKey: string, body: string) => void;
   onBookmark: (blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const { block, snapshot } = props;
@@ -621,7 +623,7 @@ function BlockBody(props: {
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const data = props.block.data;
@@ -684,6 +686,15 @@ function BlockBody(props: {
     return (
       <div className="rounded-lg border border-border bg-surface px-5 py-5">
         <ResultForm {...props} data={data} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "destination" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <DestinationPlanTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

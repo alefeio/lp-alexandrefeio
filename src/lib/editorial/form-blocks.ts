@@ -1,4 +1,4 @@
-import { blockKeySchema, lessonBlockDataSchema, type LessonBlockData } from "@/lib/learning/blocks";
+import { TOOL_KEYS, blockKeySchema, lessonBlockDataSchema, type LessonBlockData } from "@/lib/learning/blocks";
 import { slugify } from "@/lib/editorial/keys";
 
 export function blockFromForm(form: FormData): { ok: true; data: LessonBlockData; blockKey: string } | { ok: false; message: string } {
@@ -62,7 +62,7 @@ function payload(type: string, form: FormData): { ok: true; data: unknown } | { 
     return { ok: true, data: { type, title: text("title"), prompt: text("prompt"), fields } };
   }
   if (type === "TOOL") {
-    const toolKey = text("toolKey") === "CAMPAIGN_BRIEF_V1" ? "CAMPAIGN_BRIEF_V1" : "TRAFFIC_READINESS_V1";
+    const toolKey = TOOL_KEYS.find((key) => key === text("toolKey")) ?? "TRAFFIC_READINESS_V1";
     return {
       ok: true,
       data: { type, toolKey, title: text("title"), description: text("description") },
