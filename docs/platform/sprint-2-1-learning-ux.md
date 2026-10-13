@@ -32,7 +32,7 @@ A aula de demonstração foi relida. O texto já ensina um critério real e usa 
 
 Três coisas distintas:
 
-1. Conteúdo percorrido: percentual dos blocos ativos com `countsForProgress`. Texto, callout, exemplo, conclusão e imagem entram quando o bloco fica visível. Título de seção não entra.
+1. Conteúdo percorrido: percentual dos blocos ativos com `countsForProgress`. Texto, callout, exemplo, conclusão e imagem entram quando pelo menos 48px do bloco — ou o bloco inteiro, se for menor — cruzam o viewport durante a rolagem. Título de seção não entra. Um salto pelo índice não marca o que ficou para trás; ao pousar, só conta o que está na tela. Se o aluno está adiante de uma seção ainda não percorrida, o leitor avisa.
 2. Atividade para concluir: bloco `required` só conta quando a resposta vale. Checkpoint com opção correta, atividade com texto, checklist completo, resultado gravado.
 3. Aula concluída: todo bloco que conta está feito e todo bloco obrigatório está feito. Ver o texto não conclui a aula se ainda falta checkpoint, atividade ou checklist obrigatório.
 

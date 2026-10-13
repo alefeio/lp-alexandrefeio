@@ -12,6 +12,6 @@
 - Acesso: gratuita e fora de venda
 - Blocos ativos: 27, nenhum de imagem
 
-O resultado usa os cinco campos curtos do bloco `RESULT` já existente. A atividade continua um texto único. Não há cópia automática de uma para o outro. A frase para quando não existe bloqueio fica no enunciado do resultado. Cada valor salvo nesse bloco continua limitado a 40 caracteres pelo schema atual, que não foi alterado.
+O resultado usa os cinco campos curtos do bloco `RESULT` já existente. A atividade continua um texto único. Não há cópia automática de uma para o outro. A frase para quando não existe bloqueio fica no enunciado do resultado. Cada valor salvo nesse bloco aceita até 200 caracteres. O banco não impõe tamanho: o limite está no schema, no campo e na ação do servidor, que recusa o excesso em vez de cortar o texto.
 
 O checklist não tem título no schema; os seis itens estão no bloco. A conclusão também não tem título; “Você já deu o primeiro passo” abre o corpo.

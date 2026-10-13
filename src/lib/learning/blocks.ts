@@ -110,11 +110,21 @@ export const lessonBlockDataSchema = z
 
 export type LessonBlockData = z.infer<typeof lessonBlockDataSchema>;
 
+export const RESULT_FIELD_MAX = 200;
+
 export const checkpointResponseSchema = z.object({ optionId });
 export const activityResponseSchema = z.object({ text: z.string().trim().min(1).max(4000) });
 export const checklistResponseSchema = z.object({ checkedIds: z.array(optionId).max(12) });
-export const resultResponseSchema = z.record(optionId, z.string().trim().max(40));
+export const resultResponseSchema = z.record(optionId, z.string().trim().max(RESULT_FIELD_MAX));
 export const noteBodySchema = z.string().trim().min(1).max(2000);
+
+export function resultValuesError(values: Record<string, string>): string | null {
+  if (Object.values(values).some((value) => value.trim().length > RESULT_FIELD_MAX)) {
+    return `Cada campo do resultado aceita até ${RESULT_FIELD_MAX} caracteres.`;
+  }
+  if (!resultResponseSchema.safeParse(values).success) return "Resultado inválido.";
+  return null;
+}
 
 export function parseBlockData(value: unknown): LessonBlockData | null {
   const parsed = lessonBlockDataSchema.safeParse(value);

@@ -23,7 +23,7 @@ O corpo do bloco é JSON validado por tipo. Isso evita um CMS de nós arbitrári
 | Marcador | `userId + lessonId + blockKey` | `LessonBookmark`. Não é o mesmo que concluir o bloco |
 | Resultado da aula | `userId + lessonId`, com `projectId` opcional | Sem projeto, é o resultado pessoal. Com projeto, a mesma aula pode ter um resultado por negócio. Ver ADR 006 |
 
-Scroll em pixels não é fonte de progresso. Pode existir como detalhe de interface, sem ser persistido como verdade.
+O progresso guarda a chave do bloco, não a posição em pixels. A rolagem só decide se o bloco de leitura foi alcançado: uma faixa de 48px precisa cruzar o viewport, ou o bloco inteiro se ele for menor. Texto, callout, exemplo, conclusão e imagem seguem essa regra. Título de seção não entra no percentual. Checkpoint, atividade, checklist e resultado continuam valendo pela resposta salva. Saltar pelo índice até o fim não marca os blocos intermediários.
 
 ## Alterar a aula sem apagar o aluno
 

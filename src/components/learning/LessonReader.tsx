@@ -18,8 +18,18 @@ import {
 } from "@/lib/learning/actions";
 import { lessonAnalyticsEntries, lessonAnalyticsPayload } from "@/lib/learning/analytics-events";
 import { lessonEventDedupeKey } from "@/lib/learning/analytics-events";
+import { RESULT_FIELD_MAX, resultValuesError } from "@/lib/learning/blocks";
 import { furthestBlockKey, readLocalProgress, writeLocalProgress, type LocalLessonProgress } from "@/lib/learning/local-progress";
-import { isViewCompletedType, lessonProgressEvents, remainingMinutes, type CheckpointFeedback } from "@/lib/learning/progress";
+import {
+  countsAsReading,
+  hasUnreadEarlierReading,
+  isViewCompletedType,
+  lessonProgressEvents,
+  readingKeysFromUserScroll,
+  remainingMinutes,
+  type CheckpointFeedback,
+  type ReadingSpan,
+} from "@/lib/learning/progress";
 import type { LessonSnapshot, ReaderBlock, ReaderLesson } from "@/lib/learning/reader-types";
 import { buttonClass } from "@/lib/button-styles";
 
@@ -51,6 +61,9 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   const seen = useRef(new Set(initial.completedBlockKeys));
   const percentRef = useRef(initial.percent);
   const resumed = useRef(false);
+  const jumpLock = useRef(Boolean(resume && initial.lastBlockKey));
+  const lastScrollY = useRef(0);
+  const notifyJump = useRef<() => void>(() => {});
 
   const headings = useMemo(() => blocks.filter((block) => block.data.type === "HEADING"), [blocks]);
   const currentHeading = useMemo(() => {
@@ -96,7 +109,9 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   useEffect(() => {
     if (!resume || resumed.current || !initial.lastBlockKey) return;
     resumed.current = true;
+    jumpLock.current = true;
     scrollToBlock(initial.lastBlockKey);
+    notifyJump.current();
   }, [resume, initial.lastBlockKey]);
 
   useEffect(() => {
@@ -114,26 +129,32 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   useEffect(() => {
     if (preview) return;
     const pendingKeys = new Set<string>();
-    const nodes = [...document.querySelectorAll<HTMLElement>("[data-block-key]")];
-    if (nodes.length === 0) return;
+    let flushTimer = 0;
+    let jumpTimer = 0;
+    let frame = 0;
+    let settleY = window.scrollY;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const key = entry.target.getAttribute("data-block-key");
-          if (!key) continue;
-          setCurrentKey(key);
-          const block = blocks.find((item) => item.blockKey === key);
-          if (!block || !isViewCompletedType(block.data.type) || seen.current.has(key)) continue;
-          pendingKeys.add(key);
-        }
-      },
-      { threshold: 0.6 },
-    );
+    function spans(): ReadingSpan[] {
+      return [...document.querySelectorAll<HTMLElement>("[data-block-key]")].flatMap((node) => {
+        const blockKey = node.getAttribute("data-block-key");
+        const block = blockKey ? blocks.find((item) => item.blockKey === blockKey) : undefined;
+        if (!blockKey || !block) return [];
+        const rect = node.getBoundingClientRect();
+        const top = rect.top + window.scrollY;
+        return [{ blockKey, top, bottom: top + rect.height, countsAsReading: countsAsReading(block.data.type) }];
+      });
+    }
 
-    for (const node of nodes) observer.observe(node);
-    const timer = window.setInterval(() => {
+    function rememberCurrent(list: ReadingSpan[], scrollY: number) {
+      const line = scrollY + Math.min(160, window.innerHeight * 0.25);
+      let chosen: string | null = null;
+      for (const block of list) {
+        if (block.top <= line && block.bottom > scrollY) chosen = block.blockKey;
+      }
+      if (chosen) setCurrentKey(chosen);
+    }
+
+    function flush() {
       if (pendingKeys.size === 0) return;
       const keys = [...pendingKeys];
       pendingKeys.clear();
@@ -150,13 +171,92 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
           return next;
         });
       }
-    }, 1500);
+    }
 
+    function queue(keys: string[]) {
+      let added = false;
+      for (const key of keys) {
+        if (seen.current.has(key) || pendingKeys.has(key)) continue;
+        pendingKeys.add(key);
+        added = true;
+      }
+      if (!added) return;
+      window.clearTimeout(flushTimer);
+      flushTimer = window.setTimeout(flush, 400);
+    }
+
+    function collect(previousScrollY: number, currentScrollY: number) {
+      const list = spans();
+      rememberCurrent(list, currentScrollY);
+      queue(
+        readingKeysFromUserScroll({
+          blocks: list,
+          previousScrollY,
+          currentScrollY,
+          viewportHeight: window.innerHeight,
+          jumping: false,
+        }),
+      );
+    }
+
+    function finishJump() {
+      if (!jumpLock.current) return;
+      const y = window.scrollY;
+      if (Math.abs(y - settleY) > 1) {
+        settleY = y;
+        window.clearTimeout(jumpTimer);
+        jumpTimer = window.setTimeout(finishJump, 160);
+        return;
+      }
+      jumpLock.current = false;
+      lastScrollY.current = y;
+      collect(y, y);
+    }
+
+    function scheduleJumpRelease() {
+      if (!jumpLock.current) return;
+      window.clearTimeout(jumpTimer);
+      jumpTimer = window.setTimeout(finishJump, 160);
+    }
+
+    notifyJump.current = scheduleJumpRelease;
+
+    function onScroll() {
+      if (jumpLock.current) {
+        scheduleJumpRelease();
+        return;
+      }
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const y = window.scrollY;
+        collect(lastScrollY.current, y);
+        lastScrollY.current = y;
+      });
+    }
+
+    lastScrollY.current = window.scrollY;
+    if (jumpLock.current) scheduleJumpRelease();
+    else collect(window.scrollY, window.scrollY);
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scrollend", scheduleJumpRelease);
     return () => {
-      observer.disconnect();
-      window.clearInterval(timer);
+      notifyJump.current = () => {};
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scrollend", scheduleJumpRelease);
+      window.clearTimeout(flushTimer);
+      window.clearTimeout(jumpTimer);
+      if (frame) window.cancelAnimationFrame(frame);
     };
   }, [authenticated, blocks, lesson.slug, preview]);
+
+  function beginJump(key: string) {
+    jumpLock.current = true;
+    setCurrentKey(key);
+    scrollToBlock(key);
+    notifyJump.current();
+  }
 
   function onCheckpoint(blockKey: string, optionId: string) {
     if (preview) {
@@ -263,6 +363,11 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
       setMessage("Pré-visualização. Nada é salvo.");
       return;
     }
+    const invalid = resultValuesError(values);
+    if (invalid) {
+      setMessage(invalid);
+      return;
+    }
     setMessage(null);
     if (!authenticated) {
       setSnapshot((current) => {
@@ -305,11 +410,21 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
 
   const resumeSection = useMemo(() => sectionName(blocks, headings, snapshot.lastBlockKey), [blocks, headings, snapshot.lastBlockKey]);
   const requiredLeft = blocks.filter((block) => block.required && !snapshot.completedBlockKeys.includes(block.blockKey)).length;
+  const unreadEarlier = hasUnreadEarlierReading(
+    blocks.map((block) => ({
+      blockKey: block.blockKey,
+      position: block.position,
+      countsForProgress: block.countsForProgress,
+      type: block.data.type,
+    })),
+    snapshot.completedBlockKeys,
+    currentKey,
+  );
   const remaining = remainingMinutes(lesson.estimatedMinutes, snapshot.percent, snapshot.completed);
 
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:py-14">
-      <LessonIndex headings={headings} current={currentHeading} onJump={scrollToBlock} />
+      <LessonIndex headings={headings} current={currentHeading} onJump={beginJump} />
       <article className="min-w-0 max-w-[40rem]">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">{lesson.moduleTitle}</p>
         <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">{lesson.title}</h1>
@@ -322,6 +437,9 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
             : ""}
           {remaining != null ? ` · cerca de ${remaining} min restantes` : ""}
         </p>
+        {!snapshot.completed && unreadEarlier ? (
+          <p className="mt-3 text-sm leading-relaxed text-muted">Há uma seção anterior que ainda não foi percorrida.</p>
+        ) : null}
         <div
           className="mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-border"
           role="progressbar"
@@ -334,7 +452,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
         </div>
         {snapshot.lastBlockKey && !snapshot.completed ? (
           <div className="mt-6">
-            <button type="button" className={buttonClass("secondary")} onClick={() => scrollToBlock(snapshot.lastBlockKey as string)}>
+            <button type="button" className={buttonClass("secondary")} onClick={() => beginJump(snapshot.lastBlockKey as string)}>
               Continuar de onde você parou
             </button>
             {resumeSection ? <p className="mt-2 text-sm text-muted">{resumeSection}</p> : null}
@@ -735,6 +853,7 @@ function ResultForm({
     >
       <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{data.prompt}</p>
+      <p className="mt-3 text-sm text-muted">Cada resposta aceita até {RESULT_FIELD_MAX} caracteres.</p>
       <div className="mt-4 space-y-4">
         {data.fields.map((field) => (
           <div key={field.key}>
@@ -745,6 +864,7 @@ function ResultForm({
               id={`${block.blockKey}-${field.key}`}
               name={field.key}
               required
+              maxLength={RESULT_FIELD_MAX}
               defaultValue={snapshot.result?.[field.key] ?? ""}
               className="mt-2 w-full rounded-lg border border-border bg-white px-3 py-3 text-base"
             />

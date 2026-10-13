@@ -27,8 +27,69 @@ const VIEW_COMPLETE = new Set<LessonBlockData["type"]>([
   "IMAGE",
 ]);
 
+/** Faixa mínima que precisa cruzar o viewport. Blocos mais baixos contam inteiros. */
+export const READING_MIN_VISIBLE_PX = 48;
+
 export function isViewCompletedType(type: LessonBlockData["type"]): boolean {
   return VIEW_COMPLETE.has(type);
+}
+
+/** Leitura que entra no percentual. Título de seção não entra. */
+export function countsAsReading(type: LessonBlockData["type"]): boolean {
+  return isViewCompletedType(type) && type !== "HEADING";
+}
+
+export type ReadingSpan = {
+  blockKey: string;
+  top: number;
+  bottom: number;
+  countsAsReading: boolean;
+};
+
+/**
+ * Registra o bloco de leitura quando pelo menos uma faixa mínima dele
+ * cruza a região varrida pelo scroll. Um salto de índice passa `jumping`
+ * e não marca o que ficou para trás; ao pousar, a chamada usa o mesmo
+ * scroll nos dois extremos e só vê o viewport de destino.
+ */
+export function readingKeysFromUserScroll(input: {
+  blocks: ReadingSpan[];
+  previousScrollY: number;
+  currentScrollY: number;
+  viewportHeight: number;
+  jumping: boolean;
+}): string[] {
+  if (input.jumping || input.viewportHeight <= 0) return [];
+  const sweepTop = Math.min(input.previousScrollY, input.currentScrollY);
+  const sweepBottom = Math.max(input.previousScrollY, input.currentScrollY) + input.viewportHeight;
+  const keys: string[] = [];
+  for (const block of input.blocks) {
+    if (!block.countsAsReading) continue;
+    const height = block.bottom - block.top;
+    if (!(height > 0)) continue;
+    const overlap = Math.min(block.bottom, sweepBottom) - Math.max(block.top, sweepTop);
+    const minimum = Math.min(height, READING_MIN_VISIBLE_PX);
+    if (overlap + 0.5 >= minimum) keys.push(block.blockKey);
+  }
+  return keys;
+}
+
+export function hasUnreadEarlierReading(
+  blocks: { blockKey: string; position: number; countsForProgress: boolean; type: LessonBlockData["type"] }[],
+  completedKeys: readonly string[],
+  currentKey: string | null,
+): boolean {
+  if (!currentKey) return false;
+  const current = blocks.find((block) => block.blockKey === currentKey);
+  if (!current) return false;
+  const done = new Set(completedKeys);
+  return blocks.some(
+    (block) =>
+      block.position < current.position &&
+      block.countsForProgress &&
+      countsAsReading(block.type) &&
+      !done.has(block.blockKey),
+  );
 }
 
 export function isBlockComplete(

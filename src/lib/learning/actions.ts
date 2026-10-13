@@ -9,6 +9,7 @@ import {
   checkpointResponseSchema,
   noteBodySchema,
   resultResponseSchema,
+  resultValuesError,
 } from "@/lib/learning/blocks";
 import { mergeLessonProgress, type LocalLessonProgress } from "@/lib/learning/local-progress";
 import { isViewCompletedType } from "@/lib/learning/progress";
@@ -187,6 +188,8 @@ async function saveTypedResponse(
 export async function saveLessonResult(slug: string, values: Record<string, string>): Promise<LearningActionResult> {
   const auth = await authorizedLesson(slug);
   if (!auth.ok) return auth;
+  const invalid = resultValuesError(values);
+  if (invalid) return { ok: false, message: invalid };
   const parsed = resultResponseSchema.safeParse(values);
   if (!parsed.success) return { ok: false, message: "Resultado inválido." };
 

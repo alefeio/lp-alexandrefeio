@@ -2,18 +2,22 @@ import assert from "node:assert/strict";
 import { config as loadEnv } from "dotenv";
 import test from "node:test";
 import { canIndexLesson, canReadLessonBody, isPublicLesson, visibleBlocks } from "../src/lib/learning/access";
-import { parseBlockData } from "../src/lib/learning/blocks";
+import { parseBlockData, RESULT_FIELD_MAX, resultResponseSchema, resultValuesError } from "../src/lib/learning/blocks";
 import { firstCourseSeed, DEMO_LESSON_SLUG } from "../src/lib/learning/first-course";
-import { mergeLessonProgress, furthestBlockKey } from "../src/lib/learning/local-progress";
+import { lesson01Blocks } from "../src/lib/learning/lesson-01";
+import { mergeLessonProgress, furthestBlockKey, parseLocalStore } from "../src/lib/learning/local-progress";
 import { belongsToUser, ownedLesson, ownedRecord } from "../src/lib/learning/ownership";
 import {
+  hasUnreadEarlierReading,
   isBlockComplete,
   isLessonComplete,
   lessonProgressEvents,
   progressPercent,
+  readingKeysFromUserScroll,
   remainingMinutes,
   savedCheckpointFeedback,
   type ProgressRuleBlock,
+  type ReadingSpan,
 } from "../src/lib/learning/progress";
 import { needsSession } from "../src/proxy";
 import { buildPublicSitemap } from "../src/lib/seo/public-sitemap";
@@ -167,6 +171,180 @@ test("/app continua protegido e a aula pública não", () => {
   assert.equal(needsSession("/admin"), true);
   assert.equal(needsSession("/aulas/como-funciona-o-trafego-pago"), false);
   assert.equal(needsSession("/cursos"), false);
+});
+
+test("resultado aceita mais de 40 caracteres e recusa acima de 200", () => {
+  const offer = "Ultrassonografia obstétrica com preparo e horário de atendimento.";
+  assert.ok(offer.length > 40);
+  assert.ok(offer.length <= RESULT_FIELD_MAX);
+  assert.equal(resultResponseSchema.safeParse({ "oferta-inicial": offer }).success, true);
+  assert.equal(resultValuesError({ "oferta-inicial": offer }), null);
+  const tooLong = "x".repeat(RESULT_FIELD_MAX + 1);
+  assert.equal(resultResponseSchema.safeParse({ "oferta-inicial": tooLong }).success, false);
+  assert.equal(resultValuesError({ "oferta-inicial": tooLong }), "Cada campo do resultado aceita até 200 caracteres.");
+  assert.notEqual(tooLong.slice(0, RESULT_FIELD_MAX), tooLong);
+});
+
+test("leitura normal e scroll rápido registram o bloco; salto ao fim não", () => {
+  const spans: ReadingSpan[] = [
+    { blockKey: "abertura", top: 0, bottom: 420, countsAsReading: true },
+    { blockKey: "texto-longo", top: 420, bottom: 2400, countsAsReading: true },
+    { blockKey: "fecho", top: 2400, bottom: 2800, countsAsReading: true },
+    { blockKey: "titulo", top: 2800, bottom: 2880, countsAsReading: false },
+  ];
+  const viewportHeight = 800;
+  const seen = new Set<string>();
+  let y = 0;
+  while (y < 2800) {
+    const next = Math.min(2800, y + 160);
+    for (const key of readingKeysFromUserScroll({
+      blocks: spans,
+      previousScrollY: y,
+      currentScrollY: next,
+      viewportHeight,
+      jumping: false,
+    })) {
+      seen.add(key);
+    }
+    y = next;
+  }
+  assert.deepEqual([...seen].sort(), ["abertura", "fecho", "texto-longo"]);
+
+  const fast = readingKeysFromUserScroll({
+    blocks: spans,
+    previousScrollY: 0,
+    currentScrollY: 1900,
+    viewportHeight,
+    jumping: false,
+  });
+  assert.equal(fast.includes("texto-longo"), true);
+  assert.equal(fast.includes("abertura"), true);
+
+  assert.deepEqual(
+    readingKeysFromUserScroll({
+      blocks: spans,
+      previousScrollY: 0,
+      currentScrollY: 2400,
+      viewportHeight,
+      jumping: true,
+    }),
+    [],
+  );
+  const landed = readingKeysFromUserScroll({
+    blocks: spans,
+    previousScrollY: 2400,
+    currentScrollY: 2400,
+    viewportHeight,
+    jumping: false,
+  });
+  assert.deepEqual(landed, ["fecho"]);
+  assert.equal(landed.includes("texto-longo"), false);
+  assert.equal(lesson01Blocks.length, 27);
+});
+
+test("atalho não conclui e atividades obrigatórias continuam obrigatórias", () => {
+  const opening: ProgressRuleBlock = {
+    blockKey: "abertura",
+    countsForProgress: true,
+    required: false,
+    retiredAt: null,
+    data: { type: "TEXT", body: "Abertura." },
+  };
+  const middle: ProgressRuleBlock = {
+    blockKey: "texto-longo",
+    countsForProgress: true,
+    required: false,
+    retiredAt: null,
+    data: { type: "TEXT", body: "Meio." },
+  };
+  const activity: ProgressRuleBlock = {
+    blockKey: "atividade-primeiro-mapa",
+    countsForProgress: true,
+    required: true,
+    retiredAt: null,
+    data: { type: "ACTIVITY", prompt: "Mapa", inputType: "long_text" },
+  };
+  const result: ProgressRuleBlock = {
+    blockKey: "resultado-primeiro-mapa",
+    countsForProgress: true,
+    required: true,
+    retiredAt: null,
+    data: {
+      type: "RESULT",
+      title: "Mapa",
+      prompt: "Preencha",
+      fields: [{ key: "oferta-inicial", label: "Minha oferta" }],
+    },
+  };
+  const blocks = [opening, middle, activity, result];
+  const readAll = {
+    abertura: { viewed: true },
+    "texto-longo": { viewed: true },
+  };
+  assert.equal(isLessonComplete(blocks, readAll, false), false);
+  assert.equal(progressPercent(blocks, readAll, false) < 100, true);
+  const withActivity = {
+    ...readAll,
+    "atividade-primeiro-mapa": { viewed: true, response: { text: "Mapa inicial do negócio." } },
+  };
+  assert.equal(isLessonComplete(blocks, withActivity, false), false);
+  assert.equal(isLessonComplete(blocks, withActivity, true), true);
+
+  const skipped = {
+    fecho: { viewed: true },
+    "atividade-primeiro-mapa": { viewed: true, response: { text: "Mapa inicial do negócio." } },
+  };
+  const jumped = [opening, middle, { ...activity, blockKey: "atividade-primeiro-mapa" }, {
+    blockKey: "fecho",
+    countsForProgress: true,
+    required: false,
+    retiredAt: null,
+    data: { type: "CONCLUSION", body: "Fim." },
+  } satisfies ProgressRuleBlock];
+  assert.equal(isLessonComplete(jumped, skipped, false), false);
+  assert.equal(progressPercent(jumped, skipped, false) < 100, true);
+  assert.equal(
+    hasUnreadEarlierReading(
+      [
+        { blockKey: "abertura", position: 1, countsForProgress: true, type: "TEXT" },
+        { blockKey: "texto-longo", position: 2, countsForProgress: true, type: "TEXT" },
+        { blockKey: "fecho", position: 3, countsForProgress: true, type: "CONCLUSION" },
+      ],
+      ["fecho"],
+      "fecho",
+    ),
+    true,
+  );
+});
+
+test("recarregar preserva leitura e resultado acima de 40 caracteres", () => {
+  const offer = "Consulta de ultrassonografia com orientação antes do exame.";
+  assert.ok(offer.length > 40);
+  const raw = JSON.stringify({
+    [DEMO_LESSON_SLUG]: {
+      updatedAt: "2026-10-13T12:00:00.000Z",
+      lastBlockKey: "conclusao-aula-01",
+      viewedBlockKeys: ["trafego-pago-nao-e-so-anunciar", "conclusao-aula-01"],
+      responses: { "atividade-primeiro-mapa": { text: "Mapa da clínica." } },
+      result: { "oferta-inicial": offer },
+    },
+  });
+  const restored = parseLocalStore(raw)[DEMO_LESSON_SLUG];
+  assert.deepEqual(restored?.viewedBlockKeys, ["trafego-pago-nao-e-so-anunciar", "conclusao-aula-01"]);
+  assert.equal(restored?.result?.["oferta-inicial"], offer);
+  const rejected = parseLocalStore(
+    JSON.stringify({
+      [DEMO_LESSON_SLUG]: {
+        updatedAt: "2026-10-13T12:00:00.000Z",
+        lastBlockKey: "resultado-primeiro-mapa",
+        viewedBlockKeys: ["trafego-pago-nao-e-so-anunciar"],
+        responses: {},
+        result: { "oferta-inicial": "x".repeat(RESULT_FIELD_MAX + 1) },
+      },
+    }),
+  )[DEMO_LESSON_SLUG];
+  assert.equal(rejected?.result, null);
+  assert.deepEqual(rejected?.viewedBlockKeys, ["trafego-pago-nao-e-so-anunciar"]);
 });
 
 test("payload inválido não vira bloco e o curso de demonstração tem 12 aulas", () => {
