@@ -2,13 +2,22 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { DiagnosticWizard } from "@/components/diagnostic/DiagnosticWizard";
 import { requireSession } from "@/lib/auth/session";
+import { safeReturnPath } from "@/lib/auth/messages";
 import { publicAnswers } from "@/lib/diagnostic/service";
 import { resumeDiagnosticForUser } from "@/lib/diagnostic/service";
 
 export const metadata = { title: "Diagnóstico de prontidão" };
 
-export default async function DiagnosticPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DiagnosticPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string | string[] }>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
+  const returnTo = safeReturnPath(typeof query.returnTo === "string" ? query.returnTo : undefined);
   const session = await requireSession();
   const diagnostic = await resumeDiagnosticForUser(session.user.id, id);
   if (!diagnostic) notFound();
@@ -26,6 +35,7 @@ export default async function DiagnosticPage({ params }: { params: Promise<{ id:
           diagnosticId={diagnostic.id}
           initialAnswers={publicAnswers(diagnostic.answers)}
           initialStep={diagnostic.currentStep}
+          returnTo={returnTo}
         />
       </div>
     </Container>

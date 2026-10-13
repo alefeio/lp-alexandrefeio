@@ -11,6 +11,7 @@ import { canIndexLesson, canReadLessonBody, lessonGateKind } from "@/lib/learnin
 import { getPublicLesson, getReaderSnapshot, loadLessonBlocks } from "@/lib/learning/catalog";
 import { formatPriceCents } from "@/lib/learning/money";
 import type { LessonSnapshot } from "@/lib/learning/reader-types";
+import { loadTrafficToolPanel } from "@/lib/learning/tool";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
 
   const reader = session ? await getReaderSnapshot(session.user.id, page.lesson.id) : null;
   const initial: LessonSnapshot = reader?.snapshot ?? emptySnapshot();
+  const toolPanel = await loadTrafficToolPanel({ userId: session?.user.id ?? null, blocks });
 
   return (
     <LessonReader
@@ -66,6 +68,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
       initialFeedback={reader?.checkpointFeedback ?? {}}
       authenticated={Boolean(session)}
       resume={query.continuar === "1"}
+      toolPanel={toolPanel}
     />
   );
 }

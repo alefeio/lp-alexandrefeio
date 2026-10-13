@@ -73,7 +73,7 @@ test("aula 2 definitiva tem 28 blocos válidos e passa na validação", () => {
   const lessons = firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons);
   assert.equal(lessons.filter((lesson) => lesson.slug === LESSON_02_SLUG).length, 1);
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_01_SLUG)?.blocks.length, lesson01Blocks.length);
-  assert.equal(lessons.find((lesson) => lesson.slug === "negocio-pronto-para-anunciar")?.blocks.length, 0);
+  assert.equal(lessons.find((lesson) => lesson.slug === "objetivo-oferta-orcamento")?.blocks.length, 0);
   const ready = assessLesson(
     {
       title: lesson02Meta.title,
@@ -98,10 +98,11 @@ test("seed da aula 2 é idempotente e preserva as outras aulas", async () => {
   const { seedLesson02Content } = await import("../src/lib/learning/seed-lesson-02");
   const prisma = getPrisma();
   const untouched = ["negocio-pronto-para-anunciar", "objetivo-oferta-orcamento", "campanha-de-pesquisa", "criativos-que-comunicam", "leitura-do-resultado"];
-  const before = await prisma.lesson.findMany({
+  const select = { slug: true, title: true, summary: true, priceCents: true, commerceStatus: true, accessType: true, publicPreview: true } as const;
+  const before = (await prisma.lesson.findMany({
     where: { slug: { in: [LESSON_01_SLUG, ...untouched] } },
-    select: { slug: true, title: true, summary: true, priceCents: true, commerceStatus: true, accessType: true, publicPreview: true },
-  });
+    select,
+  })).sort((a, b) => a.slug.localeCompare(b.slug));
   const lesson01Keys = (
     await prisma.lessonBlock.findMany({
       where: { lesson: { slug: LESSON_01_SLUG }, retiredAt: null },
@@ -145,10 +146,10 @@ test("seed da aula 2 é idempotente e preserva as outras aulas", async () => {
   assert.equal(stored.priceCents, null);
   assert.equal(stored.estimatedMinutes, 25);
 
-  const after = await prisma.lesson.findMany({
+  const after = (await prisma.lesson.findMany({
     where: { slug: { in: [LESSON_01_SLUG, ...untouched] } },
-    select: { slug: true, title: true, summary: true, priceCents: true, commerceStatus: true, accessType: true, publicPreview: true },
-  });
+    select,
+  })).sort((a, b) => a.slug.localeCompare(b.slug));
   assert.deepEqual(after, before);
   const lesson01KeysAfter = (
     await prisma.lessonBlock.findMany({

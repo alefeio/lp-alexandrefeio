@@ -104,6 +104,7 @@ enum BlockType {
   RESULT
   CONCLUSION
   IMAGE
+  TOOL
 }
 
 model Course {

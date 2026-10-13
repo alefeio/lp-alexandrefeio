@@ -22,7 +22,10 @@ export default async function SignInPage({
       description="Acesse com o e-mail e a senha da sua conta."
       footer={
         <p>
-          Não tem conta? <AuthTextLink href="/cadastro">Criar conta</AuthTextLink>
+          Não tem conta?{" "}
+          <AuthTextLink href={typeof params.next === "string" ? `/cadastro?next=${encodeURIComponent(nextPath)}` : "/cadastro"}>
+            Criar conta
+          </AuthTextLink>
           <span className="mx-2">·</span>
           <AuthTextLink href="/esqueci-senha">Esqueci minha senha</AuthTextLink>
         </p>

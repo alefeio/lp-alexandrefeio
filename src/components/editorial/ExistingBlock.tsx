@@ -103,6 +103,15 @@ function Fields({ data }: { data: LessonBlockData }) {
     );
   }
   if (data.type === "CHECKLIST") return <Area name="items" label="Itens, um por linha" defaultValue={data.items.map((item) => item.label).join("\n")} />;
+  if (data.type === "TOOL") {
+    return (
+      <>
+        <input type="hidden" name="toolKey" value={data.toolKey} />
+        <Area name="title" label="Título" defaultValue={data.title} />
+        <Area name="description" label="Descrição" defaultValue={data.description} />
+      </>
+    );
+  }
   if (data.type === "RESULT") {
     return (
       <>

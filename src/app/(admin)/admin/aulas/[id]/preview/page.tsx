@@ -8,6 +8,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { parseBlockData } from "@/lib/learning/blocks";
 import { previewBlocksFor } from "@/lib/editorial/service";
 import type { ReaderBlock } from "@/lib/learning/reader-types";
+import { trafficToolPreviewState } from "@/lib/learning/tool";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,7 @@ export default async function LessonPreviewPage({ params, searchParams }: PagePr
         initial={{ percent: 0, completed: false, lastBlockKey: null, viewedBlockKeys: [], completedBlockKeys: [], responses: {}, notes: {}, bookmarks: [], result: null }}
         authenticated={false}
         resume={false}
+        toolPanel={trafficToolPreviewState()}
       />
     </div>
   );

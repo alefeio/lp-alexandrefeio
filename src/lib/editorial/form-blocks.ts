@@ -61,6 +61,12 @@ function payload(type: string, form: FormData): { ok: true; data: unknown } | { 
       .map((label, index) => ({ key: uniqueKey(slugify(label).slice(0, 30) || `campo-${index + 1}`, index), label }));
     return { ok: true, data: { type, title: text("title"), prompt: text("prompt"), fields } };
   }
+  if (type === "TOOL") {
+    return {
+      ok: true,
+      data: { type, toolKey: "TRAFFIC_READINESS_V1", title: text("title"), description: text("description") },
+    };
+  }
   if (type === "IMAGE") {
     return {
       ok: true,

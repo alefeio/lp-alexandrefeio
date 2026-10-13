@@ -29,3 +29,18 @@ O checklist não tem título no schema; os seis itens estão no bloco. A conclus
 - Blocos ativos: 28, nenhum de imagem
 
 O resultado reutiliza os cinco campos curtos de até 200 caracteres. O aluno registra a indicação de canal; nada é calculado a partir da atividade. O checklist reflexivo não conta progresso nem bloqueia a conclusão. “Observe o seu negócio” não cabe no schema do checklist. “Você já consegue escolher com mais critério” abre a conclusão, e “Como seu cliente chega até você?” abre o enunciado da atividade.
+
+## Aula 3
+
+- Título: Seu negócio está pronto para anunciar?
+- Slug: `negocio-pronto-para-anunciar`
+- Status: conteúdo definitivo V1
+- Versão: 1
+- Origem: editorial aprovada
+- Seed: `seedLesson03Content`, chamado por `npm run db:seed`
+- Data: 2026-10-13
+- Acesso: gratuita e fora de venda
+- Blocos ativos: 27, nenhum de imagem e nenhum `RESULT` manual
+- Resultado: diagnóstico `traffic-readiness-v1`, vinculado à aula por `LessonResponse` (`projectId` e `diagnosticId`)
+
+O bloco `TOOL` aponta para a ferramenta. Ele não repete as 15 perguntas nem copia nota, gargalo ou recomendação para `LessonResult`. O diagnóstico continua sendo a fonte desses dados.

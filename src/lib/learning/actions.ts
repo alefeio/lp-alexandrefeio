@@ -18,9 +18,10 @@ import { ownedByUser, ownedLesson } from "@/lib/learning/ownership";
 import { loadRuleBlocks, loadSnapshot, recomputeProgress, type LessonSnapshot } from "@/lib/learning/state";
 import { getSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db/prisma";
+import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | null }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -299,6 +300,19 @@ export async function importLocalProgress(slug: string, local: LocalLessonProgre
 
   await applyImported(auth.userId, auth.lessonId, rules, merged.progress);
   return { ok: true, snapshot: await recomputeProgress(auth.userId, auth.lessonId, merged.progress.lastBlockKey) };
+}
+
+export async function linkLessonTool(slug: string, blockKey: string, projectId: string, diagnosticId: string): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const linked = await linkTrafficReadiness({ userId: session.user.id, slug, blockKey, projectId, diagnosticId });
+  if (!linked.ok) return { ok: false, message: linked.message };
+  const lesson = await getPrisma().lesson.findUnique({ where: { slug }, select: { id: true } });
+  if (!lesson) return { ok: false, message: "Aula não encontrada." };
+  const rules = await loadRuleBlocks(lesson.id);
+  const snapshot = await loadSnapshot(session.user.id, lesson.id, rules);
+  const panel = await loadTrafficToolPanel({ userId: session.user.id, blocks: rules });
+  return { ok: true, snapshot, panel };
 }
 
 async function applyImported(

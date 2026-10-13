@@ -31,6 +31,8 @@ import {
   type ReadingSpan,
 } from "@/lib/learning/progress";
 import type { LessonSnapshot, ReaderBlock, ReaderLesson } from "@/lib/learning/reader-types";
+import type { TrafficToolPanel } from "@/lib/learning/tool";
+import { TrafficReadinessTool } from "@/components/learning/TrafficReadinessTool";
 import { buttonClass } from "@/lib/button-styles";
 
 type Props = {
@@ -41,9 +43,10 @@ type Props = {
   authenticated: boolean;
   resume: boolean;
   preview?: boolean;
+  toolPanel?: TrafficToolPanel | null;
 };
 
-export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false }: Props) {
+export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
   const [snapshot, setSnapshot] = useState(initial);
   const [explanations, setExplanations] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -487,6 +490,8 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
               onResult={onResult}
               onNote={onNote}
               onBookmark={onBookmark}
+              toolPanel={toolPanel}
+              onToolLinked={setSnapshot}
             />
           ))}
         </div>
@@ -563,6 +568,8 @@ function BlockView(props: {
   onResult: (values: Record<string, string>, blockKey: string) => void;
   onNote: (blockKey: string, body: string) => void;
   onBookmark: (blockKey: string) => void;
+  toolPanel: TrafficToolPanel | null;
+  onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const { block, snapshot } = props;
   const done = snapshot.completedBlockKeys.includes(block.blockKey);
@@ -610,6 +617,8 @@ function BlockBody(props: {
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
+  toolPanel: TrafficToolPanel | null;
+  onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const data = props.block.data;
   if (data.type === "HEADING") {
@@ -671,6 +680,18 @@ function BlockBody(props: {
     return (
       <div className="rounded-lg border border-border bg-surface px-5 py-5">
         <ResultForm {...props} data={data} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL") {
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <TrafficReadinessTool
+          panel={props.toolPanel}
+          description={data.description}
+          onLinked={(snapshot) => props.onToolLinked(snapshot)}
+        />
       </div>
     );
   }
@@ -1094,7 +1115,7 @@ function sectionName(blocks: ReaderBlock[], headings: ReaderBlock[], blockKey: s
 }
 
 function interactiveType(type: ReaderBlock["data"]["type"]) {
-  return type === "CHECKPOINT" || type === "ACTIVITY" || type === "CHECKLIST" || type === "RESULT";
+  return type === "CHECKPOINT" || type === "ACTIVITY" || type === "CHECKLIST" || type === "RESULT" || type === "TOOL";
 }
 
 function scrollToBlock(key: string) {

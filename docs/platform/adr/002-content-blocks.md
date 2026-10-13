@@ -13,3 +13,5 @@ A aula é uma lista de blocos tipados (`TEXT`, `HEADING`, `EXAMPLE`, `CALLOUT`, 
 ## Consequência
 
 O admin edita tipos conhecidos, não HTML livre. A Sprint 2 gravou os blocos no Postgres e valida o JSON com Zod. `QUESTION` não virou tipo: a pergunta fechada é `CHECKPOINT`. `IMAGE` existe no modelo, sem upload.
+
+`TOOL` entrou depois, como referência genérica a uma ferramenta já existente. O diagnóstico de prontidão não virou um tipo de bloco próprio: a aula guarda só o vínculo com o `Diagnostic`.

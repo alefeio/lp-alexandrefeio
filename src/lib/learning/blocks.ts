@@ -11,6 +11,7 @@ export const BLOCK_TYPES = [
   "RESULT",
   "CONCLUSION",
   "IMAGE",
+  "TOOL",
 ] as const;
 
 export type BlockType = (typeof BLOCK_TYPES)[number];
@@ -80,6 +81,12 @@ const resultBlock = z.object({
     .min(1)
     .max(8),
 });
+const toolBlock = z.object({
+  type: z.literal("TOOL"),
+  toolKey: z.literal("TRAFFIC_READINESS_V1"),
+  title: z.string().trim().min(1).max(160),
+  description: z.string().trim().min(1).max(2000),
+});
 const conclusionBlock = z.object({ type: z.literal("CONCLUSION"), body: text });
 const imageBlock = z.object({
   type: z.literal("IMAGE"),
@@ -101,6 +108,7 @@ export const lessonBlockDataSchema = z
     resultBlock,
     conclusionBlock,
     imageBlock,
+    toolBlock,
   ])
   .superRefine((data, ctx) => {
     if (data.type === "IMAGE" && data.decorative !== true && !data.alt?.trim()) {
@@ -116,6 +124,12 @@ export const checkpointResponseSchema = z.object({ optionId });
 export const activityResponseSchema = z.object({ text: z.string().trim().min(1).max(4000) });
 export const checklistResponseSchema = z.object({ checkedIds: z.array(optionId).max(12) });
 export const resultResponseSchema = z.record(optionId, z.string().trim().max(RESULT_FIELD_MAX));
+export const toolResponseSchema = z
+  .object({
+    projectId: z.string().trim().min(1).max(80),
+    diagnosticId: z.string().trim().min(1).max(80),
+  })
+  .strict();
 export const noteBodySchema = z.string().trim().min(1).max(2000);
 
 export function resultValuesError(values: Record<string, string>): string | null {

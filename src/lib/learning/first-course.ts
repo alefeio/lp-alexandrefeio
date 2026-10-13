@@ -1,6 +1,7 @@
 ﻿import type { LessonBlockData } from "@/lib/learning/blocks";
 import { LESSON_01_SLUG, lesson01Blocks, lesson01Meta } from "@/lib/learning/lesson-01";
 import { LESSON_02_SLUG, lesson02Blocks, lesson02Meta } from "@/lib/learning/lesson-02";
+import { LESSON_03_SLUG, lesson03Blocks, lesson03Meta } from "@/lib/learning/lesson-03";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -72,15 +73,15 @@ export const firstCourseSeed = {
           blocks: lesson02Blocks,
         },
         {
-          slug: "negocio-pronto-para-anunciar",
-          title: "Seu negócio está pronto para anunciar?",
-          summary: "Oferta, destino e mensuração precisam existir antes da primeira campanha.",
-          publicPreview: "O texto completo desta aula ainda está em preparação.",
-          estimatedMinutes: 10,
+          slug: LESSON_03_SLUG,
+          title: lesson03Meta.title,
+          summary: lesson03Meta.summary,
+          publicPreview: lesson03Meta.publicPreview,
+          estimatedMinutes: lesson03Meta.estimatedMinutes,
           sortOrder: 2,
-          accessType: "FREE" as const,
-          priceCents: null,
-          blocks: [],
+          accessType: lesson03Meta.accessType,
+          priceCents: lesson03Meta.priceCents,
+          blocks: lesson03Blocks,
         },
       ],
     },

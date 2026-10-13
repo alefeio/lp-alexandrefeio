@@ -28,7 +28,7 @@ export default async function SignUpPage({
         </p>
       }
     >
-      <SignUpForm />
+      <SignUpForm nextPath={rawNext ? nextPath : undefined} />
     </AuthShell>
   );
 }

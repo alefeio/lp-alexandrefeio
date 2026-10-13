@@ -30,19 +30,44 @@ export function mapAuthError(error: { message?: string | null; status?: number |
   return AUTH_MESSAGES.generic;
 }
 
-export function safeNextPath(value: string | null | undefined): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/app";
-  if (value.includes("?") || value.includes("\\") || value.includes("://")) return "/app";
+const RETURN_HASH = /^[A-Za-z0-9_-]+$/;
+
+/** Caminho interno para voltar à aula ou à área logada. Recusa URL externa. */
+export function safeReturnPath(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed !== value || !trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
+  const lower = trimmed.toLowerCase();
   if (
-    value === "/app" ||
-    value.startsWith("/app/") ||
-    value === "/admin" ||
-    value.startsWith("/admin/") ||
-    value === "/cursos" ||
-    value.startsWith("/cursos/") ||
-    value.startsWith("/aulas/")
+    lower.includes("javascript:") ||
+    lower.includes("data:") ||
+    lower.includes("://") ||
+    trimmed.includes("\\") ||
+    trimmed.includes("?") ||
+    trimmed.includes("%") ||
+    /[\u0000-\u001f\u007f]/.test(trimmed)
   ) {
-    return value;
+    return null;
   }
-  return "/app";
+  const hashAt = trimmed.indexOf("#");
+  const path = hashAt === -1 ? trimmed : trimmed.slice(0, hashAt);
+  const hash = hashAt === -1 ? "" : trimmed.slice(hashAt + 1);
+  if (hashAt !== -1 && (!RETURN_HASH.test(hash) || trimmed.includes("#", hashAt + 1))) return null;
+  const allowed =
+    path === "/app" ||
+    path.startsWith("/app/") ||
+    path === "/admin" ||
+    path.startsWith("/admin/") ||
+    path === "/cursos" ||
+    path.startsWith("/cursos/") ||
+    path.startsWith("/aulas/");
+  return allowed ? trimmed : null;
+}
+
+export function safeNextPath(value: string | null | undefined): string {
+  return safeReturnPath(value) ?? "/app";
+}
+
+export function lessonToolReturnPath(slug: string): string {
+  return `/aulas/${slug}#diagnostico`;
 }

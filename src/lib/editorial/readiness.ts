@@ -108,6 +108,8 @@ function collectText(data: LessonBlockData): string[] {
       return [data.title, data.prompt, ...data.fields.map((field) => field.label)];
     case "IMAGE":
       return [data.alt ?? ""];
+    case "TOOL":
+      return [data.title, data.description];
     default:
       return [];
   }

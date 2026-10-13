@@ -2,6 +2,7 @@ import {
   activityResponseSchema,
   checklistResponseSchema,
   checkpointResponseSchema,
+  toolResponseSchema,
   type LessonBlockData,
 } from "@/lib/learning/blocks";
 
@@ -117,6 +118,8 @@ export function isBlockComplete(
     }
     case "RESULT":
       return lessonResultSaved;
+    case "TOOL":
+      return toolResponseSchema.safeParse(answer?.response).success;
     default:
       return viewed;
   }

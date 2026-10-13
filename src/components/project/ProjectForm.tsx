@@ -60,11 +60,13 @@ export function ProjectForm({
   projectId,
   defaults,
   showContext,
+  returnTo,
 }: {
   mode: "create" | "edit";
   projectId?: string;
   defaults: ProjectFormValues;
   showContext: boolean;
+  returnTo?: string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -79,6 +81,7 @@ export function ProjectForm({
 
   return (
     <form action={onSubmit} className="mt-8 space-y-5">
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <div>
         <label htmlFor="name" className="text-sm font-medium">
           Nome do projeto

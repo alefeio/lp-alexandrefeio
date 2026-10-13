@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUESTIONS } from "@/lib/diagnostic/definition";
 import { optionLabel, type DiagnosticAnswers } from "@/lib/diagnostic/score";
-import { completeDiagnosticAction, saveDiagnosticAction } from "@/lib/diagnostic/actions";
+import { completeDiagnosticAction, linkLessonToolFromReturn, saveDiagnosticAction } from "@/lib/diagnostic/actions";
 import { buttonClass } from "@/lib/button-styles";
 import { DiagnosticBeacon } from "@/components/diagnostic/DiagnosticBeacon";
 
@@ -16,11 +16,13 @@ export function DiagnosticWizard({
   diagnosticId,
   initialAnswers,
   initialStep,
+  returnTo,
 }: {
   projectId: string;
   diagnosticId: string;
   initialAnswers: DiagnosticAnswers;
   initialStep: number;
+  returnTo?: string | null;
 }) {
   const router = useRouter();
   const [answers, setAnswers] = useState<DiagnosticAnswers>(initialAnswers);
@@ -74,6 +76,17 @@ export function DiagnosticWizard({
       if (!result.ok) {
         setError(result.message);
         return;
+      }
+      if (returnTo) {
+        const linked = await linkLessonToolFromReturn(returnTo, projectId, result.diagnosticId);
+        if (linked.ok) {
+          router.push(linked.href);
+          return;
+        }
+        if (linked.reason !== "no-tool") {
+          setError(linked.message);
+          return;
+        }
       }
       router.push(`/app/projetos/${projectId}/diagnosticos/${result.diagnosticId}`);
     } catch {

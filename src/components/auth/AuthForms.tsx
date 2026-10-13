@@ -65,8 +65,9 @@ export function SignInForm({ nextPath }: { nextPath?: string }) {
   );
 }
 
-export function SignUpForm() {
+export function SignUpForm({ nextPath }: { nextPath?: string }) {
   const router = useRouter();
+  const destination = safeNextPath(nextPath);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -94,7 +95,7 @@ export function SignUpForm() {
       return;
     }
 
-    router.push("/verificar-email?enviado=1");
+    router.push(nextPath ? `/verificar-email?enviado=1&next=${encodeURIComponent(destination)}` : "/verificar-email?enviado=1");
   }
 
   return (
