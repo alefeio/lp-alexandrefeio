@@ -2,6 +2,7 @@ import { config as loadEnv } from "dotenv";
 import { assertMigrationTargetAllowed } from "../src/lib/db/urls";
 import { getPrisma } from "../src/lib/db/prisma";
 import { firstCourseSeed } from "../src/lib/learning/first-course";
+import { seedLesson01Content } from "../src/lib/learning/seed-lesson-01";
 
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
@@ -80,9 +81,10 @@ async function main() {
     }
   }
 
+  const lesson01 = await seedLesson01Content(prisma);
   const lessons = await prisma.lesson.count({ where: { module: { courseId: course.id } } });
   const blocks = await prisma.lessonBlock.count();
-  console.log(JSON.stringify({ course: course.slug, lessons, blocks }));
+  console.log(JSON.stringify({ course: course.slug, lessons, blocks, lesson01 }));
 }
 
 main().catch((error: unknown) => {

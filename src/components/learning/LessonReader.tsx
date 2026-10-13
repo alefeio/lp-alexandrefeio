@@ -636,7 +636,7 @@ function ActivityForm({
         onActivity(block.blockKey, String(form.get("resposta") ?? ""));
       }}
     >
-      <label className="text-[1.0625rem] font-medium leading-snug text-foreground" htmlFor={`activity-${block.blockKey}`}>
+      <label className="whitespace-pre-wrap text-[1.0625rem] font-medium leading-snug text-foreground" htmlFor={`activity-${block.blockKey}`}>
         {data.prompt}
       </label>
       <textarea
@@ -734,7 +734,7 @@ function ResultForm({
       }}
     >
       <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{data.prompt}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{data.prompt}</p>
       <div className="mt-4 space-y-4">
         {data.fields.map((field) => (
           <div key={field.key}>
@@ -842,7 +842,7 @@ function Prose({ body }: { body: string }) {
   return (
     <div className="space-y-5 text-[1.0625rem] leading-[1.75] text-foreground">
       {body.split(/\n\n+/).map((paragraph) => (
-        <p key={paragraph.slice(0, 24)} className="break-words">
+        <p key={paragraph.slice(0, 24)} className="break-words whitespace-pre-wrap">
           {paragraph}
         </p>
       ))}
