@@ -157,7 +157,7 @@ function LinkedSummary({ summary }: { summary: TrafficToolSummary }) {
       <p className="mt-3 text-base">Prontidão: {summary.overallScore}/100</p>
       <p className="mt-2 text-base">Principal gargalo: {summary.bottleneckLabel}</p>
       <p className="mt-2 text-base">Próximo passo: {summary.nextStepTitle}</p>
-      {summary.channelExplanation ? <p className="mt-2 text-base">Indicação inicial: {summary.channelExplanation}</p> : null}
+      {summary.channelExplanation ? <p className="mt-2 text-base">{summary.channelExplanation}</p> : null}
       <p className="mt-4 text-sm">
         <Link className="underline underline-offset-4" href={summary.resultHref}>
           Ver diagnóstico completo
