@@ -4,9 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { RecommendationPlanButton } from "@/components/plan/PlanForms";
 import { buttonClass } from "@/lib/button-styles";
-import { linkLessonTool } from "@/lib/learning/actions";
+import { linkLessonTool, type LearningActionResult } from "@/lib/learning/actions";
 import type { TrafficToolPanel, TrafficToolSummary } from "@/lib/learning/tool";
 import type { LessonSnapshot } from "@/lib/learning/reader-types";
+
+function isLiveTrafficPanel(
+  panel: Extract<LearningActionResult, { ok: true }>["panel"],
+): panel is Extract<TrafficToolPanel, { mode: "live" }> {
+  return Boolean(panel && panel.mode === "live" && !("kind" in panel));
+}
 
 export function TrafficReadinessTool({
   panel,
@@ -51,7 +57,7 @@ function LiveTool({
     setError(null);
     const result = await linkLessonTool(current.lessonSlug, current.blockKey, projectId, summary.id);
     setPending(false);
-    if (!result.ok || !result.panel || result.panel.mode !== "live") {
+    if (!result.ok || !isLiveTrafficPanel(result.panel)) {
       setError(result.ok ? "Não foi possível usar este diagnóstico." : result.message);
       return;
     }

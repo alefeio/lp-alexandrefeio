@@ -2,6 +2,7 @@
 import { LESSON_01_SLUG, lesson01Blocks, lesson01Meta } from "@/lib/learning/lesson-01";
 import { LESSON_02_SLUG, lesson02Blocks, lesson02Meta } from "@/lib/learning/lesson-02";
 import { LESSON_03_SLUG, lesson03Blocks, lesson03Meta } from "@/lib/learning/lesson-03";
+import { LESSON_04_SLUG, lesson04Blocks, lesson04Meta } from "@/lib/learning/lesson-04";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -92,7 +93,17 @@ export const firstCourseSeed = {
       sortOrder: 1,
       bundlePriceCents: 5790,
       lessons: [
-        paid("objetivo-oferta-orcamento", "Defina objetivo, oferta e orçamento", "O que a campanha precisa produzir e quanto cabe investir.", 2990, 0),
+        {
+          slug: LESSON_04_SLUG,
+          title: lesson04Meta.title,
+          summary: lesson04Meta.summary,
+          publicPreview: lesson04Meta.publicPreview,
+          estimatedMinutes: lesson04Meta.estimatedMinutes,
+          sortOrder: 0,
+          accessType: lesson04Meta.accessType,
+          priceCents: lesson04Meta.priceCents,
+          blocks: lesson04Blocks,
+        },
         paid("destino-e-mensuracao", "Prepare o destino e a mensuração", "A página ou o WhatsApp que recebe o clique, e como o contato será contado.", 3490, 1),
       ],
     },

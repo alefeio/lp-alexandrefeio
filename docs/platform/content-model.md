@@ -18,14 +18,14 @@ O corpo do bloco é JSON validado por tipo. Isso evita um CMS de nós arbitrári
 | --- | --- | --- |
 | Último bloco | `userId + lessonId` | Guarda `blockKey`, não índice nem pixel |
 | Progresso | `userId + lessonId + blockKey` | Bloco visto ou concluído |
-| Resposta | mesma chave de progresso, ou filha | `CHECKPOINT`, `ACTIVITY`, `CHECKLIST`. No `TOOL`, só o vínculo `projectId` + `diagnosticId` |
+| Resposta | mesma chave de progresso, ou filha | `CHECKPOINT`, `ACTIVITY`, `CHECKLIST`. No diagnóstico, o `TOOL` guarda `projectId` + `diagnosticId`. No brief, o `TOOL` guarda só o `projectId`; o plano fica no `LessonResult` daquele projeto |
 | Nota | `userId + lessonId`, com `blockKey` opcional | Texto do aluno, privado |
 | Marcador | `userId + lessonId + blockKey` | `LessonBookmark`. Não é o mesmo que concluir o bloco |
 | Resultado da aula | `userId + lessonId`, com `projectId` opcional | Sem projeto, é o resultado pessoal. Com projeto, a mesma aula pode ter um resultado por negócio. Ver ADR 006 |
 
 O progresso guarda a chave do bloco, não a posição em pixels. A rolagem só decide se o bloco de leitura foi alcançado: uma faixa de 48px precisa cruzar o viewport, ou o bloco inteiro se ele for menor. Texto, callout, exemplo, conclusão e imagem seguem essa regra. Título de seção não entra no percentual. Checkpoint, atividade, checklist, resultado e ferramenta continuam valendo pela resposta salva. O `TOOL` não marca os textos anteriores. Saltar pelo índice até o fim não marca os blocos intermediários.
 
-`TOOL` é uma referência a uma ferramenta da plataforma, identificada por `toolKey`. A primeira é `TRAFFIC_READINESS_V1`. A aula não guarda a nota nem as respostas do diagnóstico.
+`TOOL` é uma referência a uma ferramenta da plataforma, identificada por `toolKey`. `TRAFFIC_READINESS_V1` não guarda a nota nem as respostas do diagnóstico. `CAMPAIGN_BRIEF_V1` grava o Brief Inicial de Campanha em `LessonResult`, um por projeto. Só esse `toolKey` cumpre a entrega prática de uma aula paga. Os outros `TOOL` não substituem um `RESULT`.
 
 ## Alterar a aula sem apagar o aluno
 

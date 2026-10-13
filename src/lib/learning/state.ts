@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { briefProjectIdsFrom } from "@/lib/learning/campaign-brief";
 import { parseBlockData } from "@/lib/learning/blocks";
 import { getPrisma } from "@/lib/db/prisma";
 import {
@@ -36,24 +37,29 @@ export async function loadRuleBlocks(lessonId: string): Promise<ProgressRuleBloc
 export async function loadSnapshot(userId: string, lessonId: string, rules: ProgressRuleBlock[]): Promise<LessonSnapshot> {
   const prisma = getPrisma();
   const scope = ownedLesson(userId, lessonId);
-  const [progress, blockProgress, responses, notes, bookmarks, result] = await Promise.all([
+  const [progress, blockProgress, responses, notes, bookmarks, result, projectResults] = await Promise.all([
     prisma.lessonProgress.findUnique({ where: { userId_lessonId: scope } }),
     prisma.lessonBlockProgress.findMany({ where: scope }),
     prisma.lessonResponse.findMany({ where: scope }),
     prisma.lessonNote.findMany({ where: scope }),
     prisma.lessonBookmark.findMany({ where: scope }),
     prisma.lessonResult.findFirst({ where: { ...scope, projectId: null } }),
+    prisma.lessonResult.findMany({
+      where: { ...scope, projectId: { not: null } },
+      select: { projectId: true, payload: true },
+    }),
   ]);
 
   const answers = answersFromRows(rules, blockProgress, responses, Boolean(result));
   const resultPayload = result ? asStringRecord(result.payload) : null;
+  const briefIds = briefProjectIdsFrom(projectResults);
 
   return {
-    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload)),
+    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload), briefIds),
     completed: Boolean(progress?.completedAt),
     lastBlockKey: progress?.lastBlockKey ?? null,
     viewedBlockKeys: blockProgress.filter((row) => row.viewedAt).map((row) => row.blockKey),
-    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload)),
+    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload), briefIds),
     responses: Object.fromEntries(responses.map((row) => [row.blockKey, row.payload])),
     notes: Object.fromEntries(notes.map((row) => [row.blockKey, row.body])),
     bookmarks: bookmarks.map((row) => row.blockKey),
@@ -69,15 +75,20 @@ export async function recomputeProgress(
   const rules = await loadRuleBlocks(lessonId);
   const prisma = getPrisma();
   const scope = ownedLesson(userId, lessonId);
-  const [blockProgress, responses, result] = await Promise.all([
+  const [blockProgress, responses, result, projectResults] = await Promise.all([
     prisma.lessonBlockProgress.findMany({ where: scope }),
     prisma.lessonResponse.findMany({ where: scope }),
     prisma.lessonResult.findFirst({ where: { ...scope, projectId: null } }),
+    prisma.lessonResult.findMany({
+      where: { ...scope, projectId: { not: null } },
+      select: { projectId: true, payload: true },
+    }),
   ]);
   const saved = Boolean(result);
+  const briefIds = briefProjectIdsFrom(projectResults);
   const answers = answersFromRows(rules, blockProgress, responses, saved);
-  const percent = progressPercent(rules, answers, saved);
-  const completed = isLessonComplete(rules, answers, saved);
+  const percent = progressPercent(rules, answers, saved, briefIds);
+  const completed = isLessonComplete(rules, answers, saved, briefIds);
   const existing = await prisma.lessonProgress.findUnique({ where: { userId_lessonId: scope } });
   const now = new Date();
 

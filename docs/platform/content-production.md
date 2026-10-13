@@ -44,3 +44,18 @@ O resultado reutiliza os cinco campos curtos de até 200 caracteres. O aluno reg
 - Resultado: diagnóstico `traffic-readiness-v1`, vinculado à aula por `LessonResponse` (`projectId` e `diagnosticId`)
 
 O bloco `TOOL` aponta para a ferramenta. Ele não repete as 15 perguntas nem copia nota, gargalo ou recomendação para `LessonResult`. O diagnóstico continua sendo a fonte desses dados.
+
+## Aula 4
+
+- Título: Defina objetivo, oferta e orçamento
+- Slug: `objetivo-oferta-orcamento`
+- Status: conteúdo definitivo V1
+- Versão: 1
+- Origem: editorial aprovada
+- Seed: `seedLesson04Content`, chamado por `npm run db:seed`
+- Data: 2026-10-13
+- Acesso: paga, R$ 29,90, fora de venda
+- Blocos ativos: 30, nenhum de imagem e nenhum `RESULT` manual
+- Resultado: `CAMPAIGN_BRIEF_V1` em `LessonResult`, um por projeto
+
+O brief guarda oferta, objetivo, conversão, destino, orçamento mensal em centavos, referência diária, prazo da primeira revisão e o que falta validar. A referência diária é `floor((centavos mensais + 15) / 30)`, o arredondamento half-up de dividir por 30. R$ 600,00 viram R$ 20,00. É planejamento, não o gasto diário da plataforma. O projeto só é atualizado se o aluno confirmar. A aula continua `NOT_FOR_SALE`.

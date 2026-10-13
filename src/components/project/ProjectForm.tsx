@@ -2,30 +2,12 @@
 
 import { useState } from "react";
 import { createProjectAction, updateProjectAction } from "@/lib/project/actions";
+import { DESTINATION_LABEL, OBJECTIVE_LABEL } from "@/lib/project/labels";
 import { DESTINATION_TYPES, PROJECT_OBJECTIVES } from "@/lib/project/schema";
 import { buttonClass } from "@/lib/button-styles";
 
 const fieldClass =
   "min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground focus-visible:border-cta";
-
-const OBJECTIVE_LABEL: Record<(typeof PROJECT_OBJECTIVES)[number], string> = {
-  LEADS: "Receber contatos",
-  SALES: "Vender diretamente",
-  WHATSAPP: "Receber mensagens no WhatsApp",
-  STORE_VISITS: "Levar pessoas a uma loja",
-  AWARENESS: "Aumentar reconhecimento",
-  UNDEFINED: "Ainda não sei",
-};
-
-const DESTINATION_LABEL: Record<(typeof DESTINATION_TYPES)[number], string> = {
-  LANDING_PAGE: "Landing page",
-  WEBSITE: "Site",
-  WHATSAPP: "WhatsApp",
-  INSTAGRAM: "Instagram",
-  MARKETPLACE: "Marketplace",
-  OTHER: "Outro",
-  UNDEFINED: "Ainda não defini",
-};
 
 export type ProjectFormValues = {
   name: string;

@@ -5,8 +5,10 @@ import { firstCourseSeed } from "../src/lib/learning/first-course";
 import { seedLesson01Content } from "../src/lib/learning/seed-lesson-01";
 import { LESSON_02_SLUG } from "../src/lib/learning/lesson-02";
 import { LESSON_03_SLUG } from "../src/lib/learning/lesson-03";
+import { LESSON_04_SLUG } from "../src/lib/learning/lesson-04";
 import { seedLesson02Content } from "../src/lib/learning/seed-lesson-02";
 import { seedLesson03Content } from "../src/lib/learning/seed-lesson-03";
+import { seedLesson04Content } from "../src/lib/learning/seed-lesson-04";
 
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
@@ -67,7 +69,7 @@ async function main() {
         update: { commerceStatus: "NOT_FOR_SALE" },
       });
 
-      if (lessonSeed.blocks.length === 0 || lessonSeed.slug === LESSON_02_SLUG || lessonSeed.slug === LESSON_03_SLUG) continue;
+      if (lessonSeed.blocks.length === 0 || lessonSeed.slug === LESSON_02_SLUG || lessonSeed.slug === LESSON_03_SLUG || lessonSeed.slug === LESSON_04_SLUG) continue;
       const existingBlocks = await prisma.lessonBlock.count({ where: { lessonId: lesson.id } });
       if (existingBlocks > 0) continue;
 
@@ -88,9 +90,10 @@ async function main() {
   const lesson01 = await seedLesson01Content(prisma);
   const lesson02 = await seedLesson02Content(prisma);
   const lesson03 = await seedLesson03Content(prisma);
+  const lesson04 = await seedLesson04Content(prisma);
   const lessons = await prisma.lesson.count({ where: { module: { courseId: course.id } } });
   const blocks = await prisma.lessonBlock.count();
-  console.log(JSON.stringify({ course: course.slug, lessons, blocks, lesson01, lesson02, lesson03 }));
+  console.log(JSON.stringify({ course: course.slug, lessons, blocks, lesson01, lesson02, lesson03, lesson04 }));
 }
 
 main().catch((error: unknown) => {

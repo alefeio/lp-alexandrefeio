@@ -68,6 +68,6 @@ export function safeNextPath(value: string | null | undefined): string {
   return safeReturnPath(value) ?? "/app";
 }
 
-export function lessonToolReturnPath(slug: string): string {
-  return `/aulas/${slug}#diagnostico`;
+export function lessonToolReturnPath(slug: string, hash = "diagnostico"): string {
+  return `/aulas/${slug}#${hash}`;
 }

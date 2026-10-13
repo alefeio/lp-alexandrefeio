@@ -352,7 +352,7 @@ test("payload inválido não vira bloco e o curso de demonstração tem 12 aulas
   assert.equal(parseBlockData({ type: "HTML", body: "x" }), null);
   const lessons = firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons);
   assert.equal(lessons.length, 12);
-  assert.equal(lessons.filter((lesson) => lesson.blocks.length > 0).length, 3);
+  assert.equal(lessons.filter((lesson) => lesson.blocks.length > 0).length, 4);
   assert.equal(lessons.find((lesson) => lesson.slug === "como-funciona-o-trafego-pago")?.blocks.length, 27);
   assert.equal(lessons.find((lesson) => lesson.slug === DEMO_LESSON_SLUG)?.accessType, "FREE");
 });

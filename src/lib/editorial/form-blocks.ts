@@ -62,9 +62,10 @@ function payload(type: string, form: FormData): { ok: true; data: unknown } | { 
     return { ok: true, data: { type, title: text("title"), prompt: text("prompt"), fields } };
   }
   if (type === "TOOL") {
+    const toolKey = text("toolKey") === "CAMPAIGN_BRIEF_V1" ? "CAMPAIGN_BRIEF_V1" : "TRAFFIC_READINESS_V1";
     return {
       ok: true,
-      data: { type, toolKey: "TRAFFIC_READINESS_V1", title: text("title"), description: text("description") },
+      data: { type, toolKey, title: text("title"), description: text("description") },
     };
   }
   if (type === "IMAGE") {

@@ -32,7 +32,9 @@ import {
 } from "@/lib/learning/progress";
 import type { LessonSnapshot, ReaderBlock, ReaderLesson } from "@/lib/learning/reader-types";
 import type { TrafficToolPanel } from "@/lib/learning/tool";
+import { CampaignBriefTool } from "@/components/learning/CampaignBriefTool";
 import { TrafficReadinessTool } from "@/components/learning/TrafficReadinessTool";
+import type { CampaignBriefPanel } from "@/lib/learning/brief";
 import { buttonClass } from "@/lib/button-styles";
 
 type Props = {
@@ -43,7 +45,7 @@ type Props = {
   authenticated: boolean;
   resume: boolean;
   preview?: boolean;
-  toolPanel?: TrafficToolPanel | null;
+  toolPanel?: TrafficToolPanel | CampaignBriefPanel | null;
 };
 
 export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
@@ -136,6 +138,8 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     let jumpTimer = 0;
     let frame = 0;
     let settleY = window.scrollY;
+    const hash = window.location.hash.slice(1);
+    if (hash && document.getElementById(hash)) jumpLock.current = true;
 
     function spans(): ReadingSpan[] {
       return [...document.querySelectorAll<HTMLElement>("[data-block-key]")].flatMap((node) => {
@@ -568,7 +572,7 @@ function BlockView(props: {
   onResult: (values: Record<string, string>, blockKey: string) => void;
   onNote: (blockKey: string, body: string) => void;
   onBookmark: (blockKey: string) => void;
-  toolPanel: TrafficToolPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const { block, snapshot } = props;
@@ -617,7 +621,7 @@ function BlockBody(props: {
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
-  toolPanel: TrafficToolPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const data = props.block.data;
@@ -683,12 +687,22 @@ function BlockBody(props: {
       </div>
     );
   }
+  if (data.type === "TOOL" && data.toolKey === "CAMPAIGN_BRIEF_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "brief" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <CampaignBriefTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
+      </div>
+    );
+  }
   if (data.type === "TOOL") {
+    const panel = props.toolPanel && !("kind" in props.toolPanel) ? props.toolPanel : null;
     return (
       <div>
         <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
         <TrafficReadinessTool
-          panel={props.toolPanel}
+          panel={panel}
           description={data.description}
           onLinked={(snapshot) => props.onToolLinked(snapshot)}
         />

@@ -48,7 +48,10 @@ export function assessLesson(lesson: ReadyLesson, blocks: ReadyBlock[]): Assessm
     issues.push("Falta um bloco de conteúdo.");
   }
   if (!parsed.some((data) => data.type === "CONCLUSION")) issues.push("Falta a conclusão.");
-  if (lesson.accessType === "PAID" && !parsed.some((data) => data.type === "RESULT")) {
+  const hasPracticalResult = parsed.some(
+    (data) => data.type === "RESULT" || (data.type === "TOOL" && data.toolKey === "CAMPAIGN_BRIEF_V1"),
+  );
+  if (lesson.accessType === "PAID" && !hasPracticalResult) {
     issues.push("A aula paga precisa de um bloco de resultado.");
   }
   for (const data of parsed) {

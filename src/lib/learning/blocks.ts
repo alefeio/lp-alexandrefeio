@@ -81,9 +81,11 @@ const resultBlock = z.object({
     .min(1)
     .max(8),
 });
+export const TOOL_KEYS = ["TRAFFIC_READINESS_V1", "CAMPAIGN_BRIEF_V1"] as const;
+
 const toolBlock = z.object({
   type: z.literal("TOOL"),
-  toolKey: z.literal("TRAFFIC_READINESS_V1"),
+  toolKey: z.enum(TOOL_KEYS),
   title: z.string().trim().min(1).max(160),
   description: z.string().trim().min(1).max(2000),
 });
