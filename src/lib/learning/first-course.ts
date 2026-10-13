@@ -1,5 +1,6 @@
 ﻿import type { LessonBlockData } from "@/lib/learning/blocks";
 import { LESSON_01_SLUG, lesson01Blocks, lesson01Meta } from "@/lib/learning/lesson-01";
+import { LESSON_02_SLUG, lesson02Blocks, lesson02Meta } from "@/lib/learning/lesson-02";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -60,15 +61,15 @@ export const firstCourseSeed = {
           blocks: lesson01Blocks,
         },
         {
-          slug: "google-ads-ou-meta-ads",
-          title: "Google Ads ou Meta Ads: qual escolher?",
-          summary: "A escolha depende de quem já procura o serviço e de quem ainda precisa ser alcançado.",
-          publicPreview: "O texto completo desta aula ainda está em preparação.",
-          estimatedMinutes: 10,
+          slug: LESSON_02_SLUG,
+          title: lesson02Meta.title,
+          summary: lesson02Meta.summary,
+          publicPreview: lesson02Meta.publicPreview,
+          estimatedMinutes: lesson02Meta.estimatedMinutes,
           sortOrder: 1,
-          accessType: "FREE" as const,
-          priceCents: null,
-          blocks: [],
+          accessType: lesson02Meta.accessType,
+          priceCents: lesson02Meta.priceCents,
+          blocks: lesson02Blocks,
         },
         {
           slug: "negocio-pronto-para-anunciar",
