@@ -1,14 +1,14 @@
 import type { NavItem } from "@/types/content";
 
 export const navigation: readonly NavItem[] = [
-  { href: "/#servicos", label: "Serviços" },
+  { href: "/cursos/trafego-pago-na-pratica", label: "Curso" },
+  { href: "/cursos/trafego-pago-na-pratica#aulas-gratuitas", label: "Aulas gratuitas" },
   { href: "/#como-funciona", label: "Como funciona" },
-  { href: "/#diferenca", label: "Diferenciais" },
   { href: "/#sobre", label: "Sobre" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/trafego-pago", label: "Gestão" },
 ];
 
 export const footerNavigation: readonly NavItem[] = [
   ...navigation,
-  { href: "#contato", label: "Contato" },
+  { href: "/trafego-pago#contato", label: "Contato" },
 ];

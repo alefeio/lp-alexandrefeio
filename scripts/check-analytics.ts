@@ -13,6 +13,7 @@ import {
 } from "../src/lib/consent";
 import { commerceAnalyticsPayload, purchaseDedupeKey } from "../src/lib/commerce/analytics";
 import { diagnosticAnalyticsPayload, diagnosticPayloadIsPublic } from "../src/lib/diagnostic/analytics";
+import { acquisitionAnalyticsPayload, acquisitionDedupeKey } from "../src/lib/learning/acquisition-analytics";
 import { lessonAnalyticsEntries, lessonAnalyticsPayload, lessonEventDedupeKey } from "../src/lib/learning/analytics-events";
 import { crossedProgressBuckets, lessonProgressEvents } from "../src/lib/learning/progress";
 import { objectiveToServiceName, toServiceAnalyticsName } from "../src/lib/service-analytics";
@@ -187,6 +188,17 @@ assert.equal(lessonProgressEvents(0, 75).some((item) => item.bucket === 100), fa
 assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_started"), "af_lesson_started_como-funciona-o-trafego-pago");
 assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_started").includes("@"), false);
 assert.equal(lessonEventDedupeKey("como-funciona-o-trafego-pago", "lesson_started").includes("user"), false);
+const acquisition = acquisitionAnalyticsPayload({
+  course_slug: "trafego-pago-na-pratica",
+  lesson_slug: "objetivo-oferta-orcamento",
+  cta_name: "comecar_aula",
+});
+assert.deepEqual(Object.keys(acquisition).sort(), ["course_slug", "cta_name", "lesson_slug"]);
+assert.equal(acquisitionDedupeKey("lesson_paywall_view", "objetivo-oferta-orcamento").includes("@"), false);
+assert.equal("email" in acquisition, false);
+assert.equal("projectId" in acquisition, false);
+assert.equal("budget" in acquisition, false);
+
 assert.equal("email" in lessonPayload, false);
 assert.equal("userId" in lessonPayload, false);
 

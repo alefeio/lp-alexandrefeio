@@ -1,6 +1,7 @@
 import { EditorialForm } from "@/components/editorial/EditorialForm";
 import { fieldClass } from "@/components/editorial/fields";
 import { parseBlockData, type LessonBlockData } from "@/lib/learning/blocks";
+import { acceptsPublicPreview } from "@/lib/learning/public-preview";
 
 export function ExistingBlock({
   block,
@@ -9,7 +10,7 @@ export function ExistingBlock({
   save,
   remove,
 }: {
-  block: { id: string; blockKey: string; position: number; payload: unknown };
+  block: { id: string; blockKey: string; position: number; payload: unknown; isPublicPreview?: boolean };
   updatedAt: string;
   published: boolean;
   save: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
@@ -34,6 +35,14 @@ export function ExistingBlock({
           </label>
         ) : null}
         <Fields data={data} />
+        {acceptsPublicPreview(data.type) ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input name="publicPreview" type="checkbox" defaultChecked={block.isPublicPreview === true} />
+            Disponível no preview público
+          </label>
+        ) : (
+          <p className="text-sm text-muted">Checkpoint, atividade, resultado e ferramenta não entram na amostra pública.</p>
+        )}
       </EditorialForm>
       <EditorialForm action={remove} submit={published ? "Aposentar bloco" : "Retirar bloco"} />
     </article>

@@ -1,4 +1,5 @@
 import { canIndexLesson, canReadLessonBody, isPublicLesson } from "@/lib/learning/access";
+import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
 import { parseBlockData, toPublicBlockData, type LessonBlockData } from "@/lib/learning/blocks";
 import { getPrisma } from "@/lib/db/prisma";
 import type { SitemapCourse, SitemapLesson } from "@/lib/seo/public-sitemap";
@@ -26,7 +27,15 @@ export type PublicLesson = {
   status: "DRAFT" | "PUBLISHED";
   courseSlug: string;
   courseTitle: string;
+  courseId: string;
   moduleTitle: string;
+  moduleId: string;
+  publishedAt: Date | null;
+  updatedAt: Date;
+  modulePriceCents: number | null;
+  moduleCommerceStatus: "NOT_FOR_SALE" | "AVAILABLE";
+  coursePriceCents: number | null;
+  courseCommerceStatus: "NOT_FOR_SALE" | "AVAILABLE";
 };
 
 export async function listPublishedCourses() {
@@ -72,6 +81,7 @@ export async function getPublicLesson(slug: string): Promise<{
   lesson: PublicLesson;
   blocks: PublicBlock[];
   hasBody: boolean;
+  hasPublicPreview: boolean;
 } | null> {
   const row = await getPrisma().lesson.findUnique({
     where: { slug },
@@ -96,36 +106,32 @@ export async function getPublicLesson(slug: string): Promise<{
     status: row.status,
     courseSlug: row.module.course.slug,
     courseTitle: row.module.course.title,
+    courseId: row.module.course.id,
     moduleTitle: row.module.title,
+    moduleId: row.module.id,
+    publishedAt: row.publishedAt,
+    updatedAt: row.updatedAt,
+    modulePriceCents: row.module.bundlePriceCents,
+    moduleCommerceStatus: row.module.commerceStatus,
+    coursePriceCents: row.module.course.bundlePriceCents,
+    courseCommerceStatus: row.module.course.commerceStatus,
   };
 
-  if (!canReadLessonBody(lesson)) {
-    return { lesson, blocks: [], hasBody: false };
+  const bodyCount = await getPrisma().lessonBlock.count({ where: { lessonId: row.id, retiredAt: null } });
+  if (lesson.accessType === "FREE" && canReadLessonBody(lesson)) {
+    return { lesson, blocks: await loadLessonBlocks(row.id, "full"), hasBody: bodyCount > 0, hasPublicPreview: false };
   }
 
-  const blockRows = await getPrisma().lessonBlock.findMany({
-    where: { lessonId: row.id, retiredAt: null },
-    orderBy: { position: "asc" },
-  });
-  const blocks: PublicBlock[] = [];
-  for (const block of blockRows) {
-    const data = parseBlockData(block.payload);
-    if (!data) continue;
-    blocks.push({
-      blockKey: block.blockKey,
-      position: block.position,
-      countsForProgress: block.countsForProgress,
-      required: block.required,
-      data: toPublicBlockData(data),
-    });
-  }
-
-  return { lesson, blocks, hasBody: blocks.length > 0 };
+  const preview = await loadLessonBlocks(row.id, "preview");
+  return { lesson, blocks: preview, hasBody: bodyCount > 0, hasPublicPreview: preview.length > 0 };
 }
 
-export async function loadLessonBlocks(lessonId: string): Promise<PublicBlock[]> {
+export async function loadLessonBlocks(lessonId: string, scope: "full" | "preview" = "full"): Promise<PublicBlock[]> {
   const blockRows = await getPrisma().lessonBlock.findMany({
-    where: { lessonId, retiredAt: null },
+    where:
+      scope === "preview"
+        ? { lessonId, retiredAt: null, isPublicPreview: true, type: { in: [...PUBLIC_PREVIEW_TYPES] } }
+        : { lessonId, retiredAt: null },
     orderBy: { position: "asc" },
   });
   const blocks: PublicBlock[] = [];
@@ -175,15 +181,47 @@ export async function sitemapLearningEntries(): Promise<{ courses: SitemapCourse
           lesson.status === "PUBLISHED" && lesson.accessType === "FREE"
             ? await getPrisma().lessonBlock.count({ where: { lessonId: lesson.id, retiredAt: null } })
             : 0;
+        const previewCount =
+          lesson.status === "PUBLISHED" && lesson.accessType === "PAID"
+            ? await getPrisma().lessonBlock.count({
+                where: { lessonId: lesson.id, retiredAt: null, isPublicPreview: true, type: { in: [...PUBLIC_PREVIEW_TYPES] } },
+              })
+            : 0;
         lessons.push({
           slug: lesson.slug,
           updatedAt: lesson.updatedAt,
-          indexable: canIndexLesson(lesson, bodyCount > 0),
+          indexable: canIndexLesson(lesson, bodyCount > 0, previewCount > 0),
         });
       }
     }
   }
   return { courses: courseEntries, lessons };
+}
+
+export async function adjacentLessons(courseSlug: string, lessonSlug: string): Promise<{
+  previous: { slug: string; title: string } | null;
+  next: { slug: string; title: string } | null;
+}> {
+  const course = await getPublishedCourse(courseSlug);
+  if (!course) return { previous: null, next: null };
+  const trail = course.modules.flatMap((moduleRow) => moduleRow.lessons);
+  const index = trail.findIndex((lesson) => lesson.slug === lessonSlug);
+  return {
+    previous: await linkableNeighbor(trail[index - 1]),
+    next: await linkableNeighbor(trail[index + 1]),
+  };
+}
+
+async function linkableNeighbor(lesson: { id: string; slug: string; title: string; accessType: "FREE" | "PAID" } | undefined) {
+  if (!lesson) return null;
+  if (lesson.accessType === "FREE") {
+    const body = await getPrisma().lessonBlock.count({ where: { lessonId: lesson.id, retiredAt: null } });
+    return body > 0 ? { slug: lesson.slug, title: lesson.title } : null;
+  }
+  const preview = await getPrisma().lessonBlock.count({
+    where: { lessonId: lesson.id, retiredAt: null, isPublicPreview: true, type: { in: [...PUBLIC_PREVIEW_TYPES] } },
+  });
+  return preview > 0 ? { slug: lesson.slug, title: lesson.title } : null;
 }
 
 export async function continueStudying(userId: string) {

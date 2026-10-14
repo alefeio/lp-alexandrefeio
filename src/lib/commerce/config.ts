@@ -9,6 +9,15 @@ export function isCommerceEnabled(): boolean {
   return mercadoPagoTestConfig() != null;
 }
 
+/** Compra só aparece com comércio ligado e produto AVAILABLE. */
+export function isProductForSale(
+  status: "NOT_FOR_SALE" | "AVAILABLE",
+  priceCents: number | null,
+  enabled = isCommerceEnabled(),
+): boolean {
+  return enabled && status === "AVAILABLE" && priceCents != null && priceCents > 0;
+}
+
 export type MercadoPagoTestConfig = {
   publicKey: string;
   accessToken: string;

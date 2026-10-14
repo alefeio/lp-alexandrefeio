@@ -18,11 +18,15 @@ export function isPublicLesson(lesson: Pick<LessonAccess, "status">): boolean {
   return lesson.status === "PUBLISHED";
 }
 
-/** Aula gratuita sem corpo fica fora do índice. Rascunho nunca entra. */
-export function canIndexLesson(lesson: LessonAccess, hasBody: boolean): boolean {
+/**
+ * Gratuita publicada entra no índice quando tem corpo.
+ * Paga publicada só entra quando existe amostra pública de verdade.
+ * O texto de publicPreview, sozinho, não indexa aula incompleta.
+ */
+export function canIndexLesson(lesson: LessonAccess, hasBody: boolean, hasPublicPreview = false): boolean {
   if (lesson.status !== "PUBLISHED") return false;
   if (lesson.accessType === "FREE") return hasBody;
-  return Boolean(lesson.publicPreview?.trim());
+  return hasPublicPreview;
 }
 
 export type LessonGateKind = "buy" | "owned-unavailable" | "soon" | "preparing";

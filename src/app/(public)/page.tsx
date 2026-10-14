@@ -1,46 +1,39 @@
 import type { Metadata } from "next";
-import { AboutSection } from "@/components/sections/AboutSection";
-import { CasesSection } from "@/components/sections/CasesSection";
-import { DifferentialsSection } from "@/components/sections/DifferentialsSection";
-import { FAQSection } from "@/components/sections/FAQSection";
-import { FinalCTA } from "@/components/sections/FinalCTA";
-import { Hero } from "@/components/sections/Hero";
-import { MidCTA } from "@/components/sections/MidCTA";
-import { ProblemSection } from "@/components/sections/ProblemSection";
-import { ProcessSection } from "@/components/sections/ProcessSection";
-import { ServicesSection } from "@/components/sections/ServicesSection";
-import { ValueProposition } from "@/components/sections/ValueProposition";
-import { findService } from "@/data/services";
+import { CourseHome } from "@/components/home/CourseHome";
+import { getPublishedCourse } from "@/lib/learning/catalog";
+import { FIRST_COURSE_SLUG } from "@/lib/learning/first-course";
 
-/** Canonical da home sem query strings (UTM/GCLID/FBCLID/servico). */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
-  alternates: {
-    canonical: "/",
-  },
+  title: "Aprenda tráfego pago na prática",
+  description:
+    "Alexandre Feio ensina tráfego pago para aplicar no próprio negócio e também faz a gestão para quem prefere delegar.",
+  alternates: { canonical: "/" },
   openGraph: {
+    title: "Aprenda tráfego pago na prática",
+    description:
+      "Alexandre Feio ensina tráfego pago para aplicar no próprio negócio e também faz a gestão para quem prefere delegar.",
     url: "/",
   },
 };
 
-export default async function Home({ searchParams }: PageProps<"/">) {
-  const params = await searchParams;
-  const rawService = params.servico;
-  const serviceId = Array.isArray(rawService) ? rawService[0] : rawService;
-  const selectedService = findService(serviceId);
+export default async function Home() {
+  const course = await getPublishedCourse(FIRST_COURSE_SLUG);
+  const freeLessons =
+    course?.modules.flatMap((moduleRow) => moduleRow.lessons).filter((lesson) => lesson.accessType === "FREE") ?? [];
 
   return (
-    <>
-      <Hero />
-      <ProblemSection />
-      <ValueProposition />
-      <ServicesSection selectedServiceId={selectedService?.id} />
-      <DifferentialsSection />
-      <MidCTA />
-      <ProcessSection />
-      <CasesSection />
-      <AboutSection />
-      <FAQSection />
-      <FinalCTA selectedService={selectedService} />
-    </>
+    <CourseHome
+      courseTitle={course?.title ?? "Tráfego Pago na Prática para Pequenos Negócios"}
+      coursePriceCents={course?.bundlePriceCents ?? null}
+      freeLessons={freeLessons.map((lesson) => ({
+        slug: lesson.slug,
+        title: lesson.title,
+        summary: lesson.summary,
+        estimatedMinutes: lesson.estimatedMinutes,
+        accessType: lesson.accessType,
+      }))}
+    />
   );
 }

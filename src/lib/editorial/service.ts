@@ -6,6 +6,7 @@ import { slugify } from "@/lib/editorial/keys";
 import { assessLesson, bundleSaleReady, lessonSaleReady, type ReadyBlock, type ReadyLesson } from "@/lib/editorial/readiness";
 import { uploadToApimg } from "@/lib/storage/apimg";
 import { validateEditorialImage, type EditorialImageFormat } from "@/lib/storage/image-file";
+import { acceptsPublicPreview } from "@/lib/learning/public-preview";
 
 export type EditorialActor = { userId: string; role: string };
 
@@ -203,9 +204,22 @@ export async function openBundleSale(actor: EditorialActor, kind: "module" | "co
   return { ok: true, message: "Pacote marcado como disponível para venda." };
 }
 
-export async function createBlock(actor: EditorialActor, lessonId: string, input: { blockKey: string; data: LessonBlockData; updatedAt: string }): Promise<Result> {
+function previewChoice(type: string, requested: boolean): { ok: true; value: boolean } | { ok: false; message: string } {
+  if (requested && !acceptsPublicPreview(type)) {
+    return { ok: false, message: "Este tipo de bloco não entra no preview público." };
+  }
+  return { ok: true, value: requested && acceptsPublicPreview(type) };
+}
+
+export async function createBlock(
+  actor: EditorialActor,
+  lessonId: string,
+  input: { blockKey: string; data: LessonBlockData; updatedAt: string; publicPreview?: boolean },
+): Promise<Result> {
   const blocked = gate(actor);
   if (blocked) return blocked;
+  const preview = previewChoice(input.data.type, input.publicPreview === true);
+  if (!preview.ok) return preview;
   const prisma = getPrisma();
   const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
   if (!lesson) return { ok: false, message: "Aula não encontrada." };
@@ -219,6 +233,7 @@ export async function createBlock(actor: EditorialActor, lessonId: string, input
         type: input.data.type,
         position: (last._max.position ?? 0) + 1,
         payload: input.data,
+        isPublicPreview: preview.value,
       },
     });
   } catch {
@@ -231,10 +246,12 @@ export async function createBlock(actor: EditorialActor, lessonId: string, input
 export async function updateBlock(
   actor: EditorialActor,
   blockId: string,
-  input: { blockKey: string; data: LessonBlockData; updatedAt: string; confirmKeyChange: boolean },
+  input: { blockKey: string; data: LessonBlockData; updatedAt: string; confirmKeyChange: boolean; publicPreview?: boolean },
 ): Promise<Result> {
   const blocked = gate(actor);
   if (blocked) return blocked;
+  const preview = previewChoice(input.data.type, input.publicPreview === true);
+  if (!preview.ok) return preview;
   const prisma = getPrisma();
   const block = await prisma.lessonBlock.findUnique({ where: { id: blockId }, include: { lesson: true } });
   if (!block || block.retiredAt) return { ok: false, message: "Bloco não encontrado." };
@@ -250,7 +267,7 @@ export async function updateBlock(
     }
     if (block.lesson.status === "DRAFT" && !history) {
       try {
-        await prisma.lessonBlock.update({ where: { id: block.id }, data: { blockKey: input.blockKey, payload: input.data } });
+        await prisma.lessonBlock.update({ where: { id: block.id }, data: { blockKey: input.blockKey, payload: input.data, isPublicPreview: preview.value } });
       } catch {
         return { ok: false, message: "Já existe um bloco com esta chave." };
       }
@@ -259,7 +276,7 @@ export async function updateBlock(
     }
     try {
       await prisma.lessonBlock.create({
-        data: { lessonId: block.lessonId, blockKey: input.blockKey, type: input.data.type, position: block.position, payload: input.data },
+        data: { lessonId: block.lessonId, blockKey: input.blockKey, type: input.data.type, position: block.position, payload: input.data, isPublicPreview: preview.value },
       });
     } catch {
       return { ok: false, message: "Já existe um bloco com esta chave." };
@@ -268,7 +285,7 @@ export async function updateBlock(
     await touchLesson(block.lessonId, actor.userId);
     return { ok: true, message: "Bloco antigo aposentado. A chave nova não herda o progresso." };
   }
-  await prisma.lessonBlock.update({ where: { id: block.id }, data: { payload: input.data } });
+  await prisma.lessonBlock.update({ where: { id: block.id }, data: { payload: input.data, isPublicPreview: preview.value } });
   await touchLesson(block.lessonId, actor.userId);
   return { ok: true, message: "Bloco salvo." };
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { EditorialForm } from "@/components/editorial/EditorialForm";
 import { fieldClass } from "@/components/editorial/fields";
 import { suggestBlockKey } from "@/lib/editorial/keys";
+import { acceptsPublicPreview } from "@/lib/learning/public-preview";
 
 const TYPES = ["TEXT", "HEADING", "CALLOUT", "EXAMPLE", "CHECKPOINT", "ACTIVITY", "CHECKLIST", "RESULT", "CONCLUSION", "IMAGE"] as const;
 
@@ -37,6 +38,12 @@ export function BlockComposer({
       </label>
       <p className="text-sm text-muted">A chave pode ser revista antes da primeira gravação. Depois ela identifica o progresso.</p>
       <BlockFields type={type} onSource={setSource} />
+      {acceptsPublicPreview(type) ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input name="publicPreview" type="checkbox" />
+          Disponível no preview público
+        </label>
+      ) : null}
     </EditorialForm>
   );
 }

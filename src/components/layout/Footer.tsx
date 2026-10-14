@@ -86,9 +86,9 @@ export function Footer() {
             {instagram ? (
               <ContactLine label="Instagram" value={siteConfig.contact.instagram} href={instagram} />
             ) : null}
-            <a href="#contato" className="mt-1 text-sm text-foreground transition-colors duration-200 hover:text-cta">
+            <Link href="/trafego-pago#contato" className="mt-1 text-sm text-foreground transition-colors duration-200 hover:text-cta">
               {siteConfig.ctas.final}
-            </a>
+            </Link>
           </div>
         </div>
       </Container>

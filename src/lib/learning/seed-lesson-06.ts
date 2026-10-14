@@ -1,6 +1,7 @@
 import { parseBlockData } from "@/lib/learning/blocks";
 import { assessLesson } from "@/lib/editorial/readiness";
 import { LESSON_06_SLUG, lesson06Blocks, lesson06Meta } from "@/lib/learning/lesson-06";
+import { LESSON_06_PUBLIC_PREVIEW_KEYS } from "@/lib/learning/public-preview";
 import { getPrisma } from "@/lib/db/prisma";
 
 type Prisma = ReturnType<typeof getPrisma>;
@@ -44,6 +45,7 @@ export async function seedLesson06Content(prisma: Prisma = getPrisma()): Promise
     );
   }
   if (inUse && appliedAlready) {
+    await markPublicPreview(prisma, lesson.id, LESSON_06_PUBLIC_PREVIEW_KEYS);
     return report(lesson.status, existing.filter((block) => !block.retiredAt).length, usage, true, true, [], []);
   }
 
@@ -76,6 +78,7 @@ export async function seedLesson06Content(prisma: Prisma = getPrisma()): Promise
       payload: block.data,
       countsForProgress: block.countsForProgress,
       required: block.required,
+      isPublicPreview: (LESSON_06_PUBLIC_PREVIEW_KEYS as readonly string[]).includes(block.blockKey),
       retiredAt: null,
     };
     if (!current) {
@@ -186,6 +189,17 @@ function blocksMatch(
     }
     const parsed = parseBlockData(current.payload);
     return JSON.stringify(parsed) === JSON.stringify(parseBlockData(desired.data));
+  });
+}
+
+async function markPublicPreview(prisma: Prisma, lessonId: string, keys: readonly string[]) {
+  await prisma.lessonBlock.updateMany({
+    where: { lessonId, retiredAt: null, blockKey: { in: [...keys] } },
+    data: { isPublicPreview: true },
+  });
+  await prisma.lessonBlock.updateMany({
+    where: { lessonId, retiredAt: null, blockKey: { notIn: [...keys] } },
+    data: { isPublicPreview: false },
   });
 }
 

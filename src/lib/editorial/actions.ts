@@ -107,7 +107,12 @@ export async function createBlockAction(lessonId: string, form: FormData) {
   if (!current) return { ok: false as const, message: "Sem acesso." };
   const parsed = blockFromForm(form);
   if (!parsed.ok) return parsed;
-  return createBlock(current, lessonId, { blockKey: parsed.blockKey, data: parsed.data, updatedAt: String(form.get("updatedAt") ?? "") });
+  return createBlock(current, lessonId, {
+    blockKey: parsed.blockKey,
+    data: parsed.data,
+    updatedAt: String(form.get("updatedAt") ?? ""),
+    publicPreview: form.get("publicPreview") === "on",
+  });
 }
 
 export async function updateBlockAction(blockId: string, form: FormData) {
@@ -120,6 +125,7 @@ export async function updateBlockAction(blockId: string, form: FormData) {
     data: parsed.data,
     updatedAt: String(form.get("updatedAt") ?? ""),
     confirmKeyChange: form.get("confirmKeyChange") === "on",
+    publicPreview: form.get("publicPreview") === "on",
   });
 }
 

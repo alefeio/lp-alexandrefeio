@@ -1,7 +1,11 @@
 import { siteConfig } from "@/data/site-config";
 
 /** Structured data mínimo e verificável. Sem reviews, rating, endereço ou preços inventados. */
-export function JsonLd() {
+export function JsonLd({ data }: { data?: Record<string, unknown> }) {
+  if (data) {
+    return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+  }
+
   const personId = `${siteConfig.url}/#person`;
   const websiteId = `${siteConfig.url}/#website`;
 
@@ -47,7 +51,5 @@ export function JsonLd() {
     ],
   };
 
-  return (
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }} />
-  );
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }} />;
 }

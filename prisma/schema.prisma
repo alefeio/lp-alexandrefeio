@@ -200,6 +200,7 @@ model LessonBlock {
   payload            Json
   countsForProgress  Boolean   @default(true)
   required           Boolean   @default(false)
+  isPublicPreview    Boolean   @default(false)
   retiredAt          DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

@@ -60,7 +60,7 @@ export interface CtaTarget {
 export function resolveCta(serviceId?: string, channel: "form" | "whatsapp" = "form"): CtaTarget {
   if (serviceId) {
     return {
-      href: `/?servico=${encodeURIComponent(serviceId)}#contato`,
+      href: "/trafego-pago#contato",
       external: false,
       event: "service_interest",
     };
@@ -73,5 +73,5 @@ export function resolveCta(serviceId?: string, channel: "form" | "whatsapp" = "f
     }
   }
 
-  return { href: "#contato", external: false, event: "cta_click" };
+  return { href: "/trafego-pago#contato", external: false, event: "cta_click" };
 }

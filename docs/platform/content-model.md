@@ -39,7 +39,9 @@ O progresso guarda a chave do bloco, não a posição em pixels. A rolagem só d
 
 A aula não exige a anterior para existir, ser comprada ou ser lida. Pré-requisito, se um dia existir, é regra de produto explícita, não uma consequência da ordem do módulo.
 
-`accessType = PAID` diz que a aula exigirá compra. `commerceStatus = AVAILABLE` é o que permite cobrar. Os dois não se implicam. O corpo pago não vai na resposta pública: a página só busca os blocos depois de resolver aula gratuita ou entitlement ativo.
+`accessType = PAID` diz que a aula exigirá compra. `commerceStatus = AVAILABLE` é o que permite cobrar. Os dois não se implicam. Sem entitlement, a consulta da aula paga busca só blocos com `isPublicPreview` e tipo `HEADING`, `TEXT`, `CALLOUT` ou `EXAMPLE`. O restante do corpo não entra na resposta. Com entitlement, a consulta traz o corpo inteiro. Aula gratuita publicada continua pública por completo.
+
+`isPublicPreview` é decisão editorial por `blockKey`, não por posição. Checkpoint, atividade, checklist, resultado, conclusão, imagem e ferramenta não podem ser amostra pública. A prontidão editorial da aula não depende desse marcador. A indexação da aula paga depende de existir ao menos um bloco de amostra permitido.
 
 ## Admin editorial
 
