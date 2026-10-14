@@ -71,8 +71,10 @@ test("gates editoriais, readiness e arquivo de imagem", async () => {
   const tree = readFileSync("src/components/editorial/BlockComposer.tsx", "utf8") + readFileSync("src/app/(admin)/admin/aulas/[id]/page.tsx", "utf8");
   assert.equal(tree.includes("APIMG_API_KEY"), false);
   const seed = readFileSync("scripts/seed-learning.ts", "utf8");
-  assert.match(seed, /update: \{ commerceStatus: "NOT_FOR_SALE" \}/);
-  assert.equal(seed.includes("update: { title"), false);
+  const catalog = readFileSync("src/lib/learning/catalog-deploy.ts", "utf8");
+  assert.match(seed, /assertMigrationTargetAllowed/);
+  assert.match(catalog, /commerceStatus: "NOT_FOR_SALE"/);
+  assert.equal(/\.(lessonProgress|lessonResponse|project|diagnostic|order|payment|entitlement)\b/.test(catalog), false);
 });
 
 test("admin edita aula sem abrir venda e sem vazar corpo", async () => {

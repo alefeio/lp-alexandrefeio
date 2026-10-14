@@ -39,7 +39,7 @@ const chargeSchema = z.object({
 export async function payOrderAction(orderId: string, raw: unknown) {
   const session = await requireSession();
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
-  if (!mercadoPagoPublicKey()) return { ok: false as const, message: "O pagamento de teste não está configurado." };
+  if (!mercadoPagoPublicKey()) return { ok: false as const, message: "O pagamento não está configurado." };
   const parsed = chargeSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, message: "Revise os dados do pagamento." };
   if (!acceptedMethod(parsed.data.paymentMethodId, parsed.data.token)) {

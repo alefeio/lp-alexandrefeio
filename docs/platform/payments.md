@@ -11,7 +11,7 @@ Detalhe de quote, Pix, cartão, webhook, reembolso e gate de production: [sprint
 ## Regras que o código aplica
 
 1. Preço, crédito e total nascem no servidor. O client manda só o tipo e o id do produto.
-2. `PAID` não significa vendável. `commerceStatus = AVAILABLE` libera a cobrança só com `COMMERCE_ENABLED`, `MERCADO_PAGO_ENV=test` e `DATABASE_ENV=development`, fora de `VERCEL_ENV=production`. O prefixo da credencial não entra nessa decisão. Ficar pronta ou publicada não marca `AVAILABLE`; isso é uma ação explícita.
+2. `PAID` não significa vendável. `commerceStatus = AVAILABLE` libera a cobrança só com o modo de teste ou o modo de production descritos em [production-launch.md](./production-launch.md). Teste exige `COMMERCE_ENABLED`, `MERCADO_PAGO_ENV=test` e `DATABASE_ENV=development`, fora de `VERCEL_ENV=production`. Production exige também `COMMERCE_PRODUCTION_READY`, `MERCADO_PAGO_ENV=production`, `DATABASE_ENV=production` e `VERCEL_ENV=production`. O prefixo da credencial não entra nessa decisão. Ficar pronta ou publicada não marca `AVAILABLE`; isso é uma ação explícita.
 3. Entitlement é por aula. Módulo e curso gravam o snapshot e concedem uma aula por linha. Há mais de uma fonte para o mesmo usuário e a mesma aula.
 4. Acesso pago exige pelo menos um entitlement `ACTIVE`. Aula gratuita publicada não precisa.
 5. Pagamento `PENDING` não libera. `APPROVED` libera uma vez. Reembolso total e chargeback revogam a fonte daquela compra. Reembolso parcial marca `NEEDS_REVIEW` e não escolhe aula para revogar.

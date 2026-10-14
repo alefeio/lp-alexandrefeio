@@ -55,7 +55,7 @@ export function CheckoutScreen({ publicKey, payerEmail }: { publicKey: string | 
   if (!state) return <p className="mt-6 text-sm text-muted">Calculando o pedido.</p>;
   if ("message" in state) return <p className="mt-6 text-base" role="alert">{state.message}</p>;
   if (state.status === "PAID") return <p className="mt-6 text-base">Compra confirmada. Abrindo o histórico.</p>;
-  if (!publicKey) return <p className="mt-6 text-base">O pagamento de teste não está configurado. O pedido ficou em aberto, sem cobrança.</p>;
+  if (!publicKey) return <p className="mt-6 text-base">O pagamento não está configurado. O pedido ficou em aberto, sem cobrança.</p>;
 
   return (
     <div className="mt-8">

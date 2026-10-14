@@ -1,4 +1,4 @@
-import { mercadoPagoTestConfig } from "@/lib/commerce/config";
+import { mercadoPagoRuntimeConfig } from "@/lib/commerce/config";
 import { reaisFromCents } from "@/lib/commerce/analytics";
 import type { ProviderPaymentView } from "@/lib/commerce/reconcile";
 
@@ -32,8 +32,8 @@ export function acceptedMethod(paymentMethodId: string, token?: string): "PIX" |
 }
 
 export async function createProviderCharge(input: ChargeInput): Promise<ChargeResult> {
-  const config = mercadoPagoTestConfig();
-  if (!config) return { ok: false, message: "O pagamento de teste não está configurado.", view: null };
+  const config = mercadoPagoRuntimeConfig();
+  if (!config) return { ok: false, message: "O pagamento não está configurado.", view: null };
   const method = acceptedMethod(input.paymentMethodId, input.token);
   if (!method) return { ok: false, message: "Esta forma de pagamento não está disponível.", view: null };
   if (method === "CREDIT_CARD" && !input.token) return { ok: false, message: "Não foi possível usar este cartão.", view: null };
@@ -62,7 +62,7 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
     external_reference: input.orderId,
     description: input.description.slice(0, 180),
     payer: {
-      email: TEST_PAYER_EMAIL,
+      email: config.env === "test" ? TEST_PAYER_EMAIL : input.payerEmail,
       ...(input.identificationType && input.identificationNumber
         ? { identification: { type: input.identificationType, number: input.identificationNumber } }
         : {}),
@@ -100,7 +100,7 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
 }
 
 export async function fetchProviderPayment(providerPaymentId: string): Promise<ProviderPaymentView | null> {
-  const config = mercadoPagoTestConfig();
+  const config = mercadoPagoRuntimeConfig();
   if (!config) return null;
   const response = await fetch(`${ORDERS_URL}/${encodeURIComponent(providerPaymentId)}`, {
     headers: { Authorization: `Bearer ${config.accessToken}` },
@@ -113,7 +113,7 @@ export async function fetchProviderPayment(providerPaymentId: string): Promise<P
 }
 
 export async function fetchPixPresentation(providerPaymentId: string): Promise<{ copy: string; image: string } | null> {
-  const config = mercadoPagoTestConfig();
+  const config = mercadoPagoRuntimeConfig();
   if (!config) return null;
   const response = await fetch(`${ORDERS_URL}/${encodeURIComponent(providerPaymentId)}`, {
     headers: { Authorization: `Bearer ${config.accessToken}` },

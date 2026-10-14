@@ -18,6 +18,7 @@ import {
 } from "@/lib/learning/actions";
 import { lessonAnalyticsEntries, lessonAnalyticsPayload } from "@/lib/learning/analytics-events";
 import { lessonEventDedupeKey } from "@/lib/learning/analytics-events";
+import { saveProgressReturnPath, shouldOfferSaveProgress } from "@/lib/learning/save-progress";
 import { RESULT_FIELD_MAX, resultValuesError } from "@/lib/learning/blocks";
 import { furthestBlockKey, readLocalProgress, writeLocalProgress, type LocalLessonProgress } from "@/lib/learning/local-progress";
 import {
@@ -98,7 +99,23 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     if (!local) return;
     const completed = savedKeys(blocks, local);
     const timer = window.setTimeout(() => {
-      setSnapshot((current) => applyLocal(current, blocks, local, completed));
+      setSnapshot((current) => {
+        const applied = applyLocal(current, blocks, local, completed);
+        const completedBlockKeys = [...new Set([...current.completedBlockKeys, ...applied.completedBlockKeys])];
+        return {
+          ...applied,
+          completedBlockKeys,
+          viewedBlockKeys: [...new Set([...current.viewedBlockKeys, ...applied.viewedBlockKeys])],
+          lastBlockKey: furthestBlockKey(
+            blocks.map((block) => block.blockKey),
+            [current.lastBlockKey, applied.lastBlockKey],
+          ),
+          responses: { ...current.responses, ...applied.responses },
+          result: current.result ?? applied.result,
+          percent: percentFrom(blocks, completedBlockKeys),
+          completed: lessonLooksComplete(blocks, completedBlockKeys),
+        };
+      });
     }, 0);
     for (const [key, response] of Object.entries(local.responses)) {
       const optionId = response && typeof response === "object" && "optionId" in response ? String(response.optionId) : "";
@@ -520,23 +537,37 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
         ) : null}
         <div className="mt-12 space-y-12">
           {blocks.map((block) => (
-            <BlockView
-              key={block.blockKey}
-              block={block}
-              snapshot={snapshot}
-              explanation={explanations[block.blockKey]}
-              correct={grades[block.blockKey]}
-              authenticated={authenticated}
-              pending={pending}
-              onCheckpoint={onCheckpoint}
-              onActivity={onActivity}
-              onChecklist={onChecklist}
-              onResult={onResult}
-              onNote={onNote}
-              onBookmark={onBookmark}
-              toolPanel={toolPanel}
-              onToolLinked={setSnapshot}
-            />
+            <div key={block.blockKey}>
+              <BlockView
+                block={block}
+                snapshot={snapshot}
+                explanation={explanations[block.blockKey]}
+                correct={grades[block.blockKey]}
+                authenticated={authenticated}
+                pending={pending}
+                onCheckpoint={onCheckpoint}
+                onActivity={onActivity}
+                onChecklist={onChecklist}
+                onResult={onResult}
+                onNote={onNote}
+                onBookmark={onBookmark}
+                toolPanel={toolPanel}
+                onToolLinked={setSnapshot}
+              />
+              {!preview &&
+              shouldOfferSaveProgress({ slug: lesson.slug, authenticated, completedBlockKeys: snapshot.completedBlockKeys }) &&
+              (block.blockKey === "resultado-primeiro-mapa" || block.blockKey === "resultado-indicacao-canal") ? (
+                <aside className="mt-6 rounded-lg border border-border bg-surface px-5 py-4">
+                  <p className="font-medium">Salve seu progresso na sua conta</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">Continue de qualquer dispositivo e use seus resultados nas próximas aulas.</p>
+                  <p className="mt-3">
+                    <Link className="text-sm font-medium underline underline-offset-4" href={`/cadastro?next=${encodeURIComponent(saveProgressReturnPath(lesson.slug))}`}>
+                      Criar conta
+                    </Link>
+                  </p>
+                </aside>
+              ) : null}
+            </div>
           ))}
         </div>
       </article>

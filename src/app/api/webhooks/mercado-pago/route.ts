@@ -1,9 +1,9 @@
-import { mercadoPagoTestConfig } from "@/lib/commerce/config";
+import { mercadoPagoRuntimeConfig, webhookLiveModeAllowed } from "@/lib/commerce/config";
 import { reconcileMercadoPagoPayment } from "@/lib/commerce/apply";
 import { verifyMercadoPagoSignature } from "@/lib/commerce/signature";
 
 export async function POST(request: Request) {
-  const config = mercadoPagoTestConfig();
+  const config = mercadoPagoRuntimeConfig();
   if (!config) return new Response("Pagamento não configurado.", { status: 503 });
   const url = new URL(request.url);
   const body = await request.json().catch(() => null);
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!valid) return new Response("Assinatura inválida.", { status: 401 });
   const type = body && typeof body === "object" && "type" in body ? String((body as { type?: unknown }).type ?? "") : url.searchParams.get("type") ?? "";
   const liveMode = body && typeof body === "object" && "live_mode" in body ? (body as { live_mode?: unknown }).live_mode : null;
-  if (type !== "order" || liveMode === true) return new Response("ok");
+  if (type !== "order" || !webhookLiveModeAllowed(config.env, liveMode)) return new Response("ok");
   if (!dataId) return new Response("ok");
   await reconcileMercadoPagoPayment(dataId);
   return new Response("ok");
