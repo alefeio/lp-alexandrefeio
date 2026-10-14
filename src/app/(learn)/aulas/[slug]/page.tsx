@@ -5,6 +5,7 @@ import { ViewEvent } from "@/components/analytics/ViewEvent";
 import { AddToCartButton } from "@/components/commerce/AddToCartButton";
 import { LessonPaywall } from "@/components/learning/LessonPaywall";
 import { LessonReader } from "@/components/learning/LessonReader";
+import { LessonStepNav } from "@/components/learning/LessonStepNav";
 import { PublicLessonArticle } from "@/components/learning/PublicLessonArticle";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
@@ -269,28 +270,13 @@ function LessonNeighbors({
   next: { slug: string; title: string } | null;
 }) {
   return (
-    <nav aria-label="Aulas próximas" className="mt-12 space-y-3 text-sm">
+    <nav aria-label="Aulas próximas" className="mt-12 text-sm">
       <p>
         <Link className="underline underline-offset-4" href={`/cursos/${courseSlug}`}>
           Voltar para {courseTitle}
         </Link>
       </p>
-      {previous ? (
-        <p>
-          Anterior:{" "}
-          <Link className="underline underline-offset-4" href={`/aulas/${previous.slug}`}>
-            {previous.title}
-          </Link>
-        </p>
-      ) : null}
-      {next ? (
-        <p>
-          Próxima:{" "}
-          <Link className="underline underline-offset-4" href={`/aulas/${next.slug}`}>
-            {next.title}
-          </Link>
-        </p>
-      ) : null}
+      <LessonStepNav previous={previous} next={next} />
     </nav>
   );
 }
