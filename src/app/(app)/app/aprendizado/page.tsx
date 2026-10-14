@@ -42,6 +42,10 @@ export default async function LearningPage() {
             {remaining != null ? ` · cerca de ${remaining} min restantes` : ""}
           </p>
         </section>
+      ) : lists.completed.length > 0 ? (
+        <p className="mt-4 text-base leading-relaxed text-muted">
+          {lists.completed.length === 1 ? "Você concluiu sua primeira aula." : "Você já concluiu aulas."} Elas aparecem abaixo.
+        </p>
       ) : (
         <p className="mt-4 text-base leading-relaxed text-muted">
           Quando você começar uma aula gratuita, ela aparece aqui.{" "}
@@ -65,6 +69,10 @@ export default async function LearningPage() {
           <li key={item.id}>
             <Link className="underline underline-offset-4" href={`/aulas/${item.lesson.slug}`}>
               {item.lesson.title}
+            </Link>
+            <span className="ml-2 text-sm text-muted">✓ Concluída</span>
+            <Link className="ml-2 text-sm underline underline-offset-4" href={`/aulas/${item.lesson.slug}`}>
+              Revisar aula
             </Link>
           </li>
         ))}

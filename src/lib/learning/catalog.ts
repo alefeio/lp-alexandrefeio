@@ -4,6 +4,7 @@ import { parseBlockData, toPublicBlockData, type LessonBlockData } from "@/lib/l
 import { getPrisma } from "@/lib/db/prisma";
 import type { SitemapCourse, SitemapLesson } from "@/lib/seo/public-sitemap";
 import { savedCheckpointFeedback, type CheckpointFeedback } from "@/lib/learning/progress";
+import { studentAreaState, type StudyCard } from "@/lib/learning/student-home";
 import { loadSnapshot, type LessonSnapshot } from "@/lib/learning/state";
 
 export type PublicBlock = {
@@ -232,15 +233,49 @@ export async function continueStudying(userId: string) {
   });
 }
 
+function visibleLesson(userId: string) {
+  return {
+    status: "PUBLISHED" as const,
+    OR: [{ accessType: "FREE" as const }, { entitlements: { some: { userId, status: "ACTIVE" as const } } }],
+  };
+}
+
 function ownedContinue(userId: string) {
   return {
     userId,
     completedAt: null,
-    lesson: {
-      status: "PUBLISHED" as const,
-      OR: [{ accessType: "FREE" as const }, { entitlements: { some: { userId, status: "ACTIVE" as const } } }],
-    },
+    lesson: visibleLesson(userId),
   };
+}
+
+export async function studentLearningHome(userId: string) {
+  const prisma = getPrisma();
+  const lessonSelect = {
+    slug: true,
+    title: true,
+    module: { select: { course: { select: { slug: true } } } },
+  };
+  const [inProgress, completed] = await Promise.all([
+    prisma.lessonProgress.findMany({
+      where: ownedContinue(userId),
+      orderBy: { lastActiveAt: "desc" },
+      include: { lesson: { select: lessonSelect } },
+    }),
+    prisma.lessonProgress.findMany({
+      where: { userId, completedAt: { not: null }, lesson: visibleLesson(userId) },
+      orderBy: { completedAt: "desc" },
+      include: { lesson: { select: lessonSelect } },
+    }),
+  ]);
+  const cards = (rows: typeof inProgress): StudyCard[] =>
+    rows.map((row) => ({ slug: row.lesson.slug, title: row.lesson.title, percent: row.percent }));
+  const latest = completed[0];
+  const nextLesson = latest ? (await adjacentLessons(latest.lesson.module.course.slug, latest.lesson.slug)).next : null;
+  return studentAreaState({
+    inProgress: cards(inProgress),
+    completed: cards(completed),
+    nextLesson,
+  });
 }
 
 export async function learningLists(userId: string) {

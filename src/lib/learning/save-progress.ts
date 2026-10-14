@@ -22,3 +22,13 @@ export function saveProgressReturnPath(slug: string): string {
   const key = RESULT_KEYS[slug];
   return key ? `/aulas/${slug}#${key}` : `/aulas/${slug}`;
 }
+
+export function lessonAccountNext(slug: string, blockKey: string | null): string {
+  if (blockKey && /^[A-Za-z0-9_-]+$/.test(blockKey)) return `/aulas/${slug}#${blockKey}`;
+  return `/aulas/${slug}`;
+}
+
+/** Aviso discreto no topo da aula gratuita. Não trava leitura, checkpoint, atividade nem resultado local. */
+export function showAnonymousStudyCard(input: { authenticated: boolean; preview: boolean; accessType: "FREE" | "PAID" }): boolean {
+  return input.accessType === "FREE" && !input.authenticated && !input.preview;
+}

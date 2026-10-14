@@ -68,6 +68,25 @@ export function safeNextPath(value: string | null | undefined): string {
   return safeReturnPath(value) ?? "/app";
 }
 
+export function authNextHref(base: "/entrar" | "/cadastro", next: string | null | undefined): string {
+  const safe = safeReturnPath(next);
+  return safe ? `${base}?next=${encodeURIComponent(safe)}` : base;
+}
+
+/** Destino do clique no e-mail. O estado de sucesso não é a tela de “confira sua caixa”. */
+export function verificationCallbackPath(next: string | null | undefined): string {
+  const destination = safeReturnPath(next) ?? "/app";
+  return `/verificar-email?confirmado=1&next=${encodeURIComponent(destination)}`;
+}
+
+export type VerificationView = "pending" | "confirmed" | "invalid";
+
+export function verificationView(input: { confirmado?: string | null; error?: string | null }): VerificationView {
+  if (input.error?.trim()) return "invalid";
+  if (input.confirmado === "1") return "confirmed";
+  return "pending";
+}
+
 export function lessonToolReturnPath(slug: string, hash = "diagnostico"): string {
   return `/aulas/${slug}#${hash}`;
 }

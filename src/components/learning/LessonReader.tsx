@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { trackEvent } from "@/lib/analytics";
+import { authCtaParams, trackEvent } from "@/lib/analytics";
 import { CONSENT_STORAGE_KEY, parseConsent } from "@/lib/consent";
 import {
   deleteNote,
@@ -18,7 +18,7 @@ import {
 } from "@/lib/learning/actions";
 import { lessonAnalyticsEntries, lessonAnalyticsPayload } from "@/lib/learning/analytics-events";
 import { lessonEventDedupeKey } from "@/lib/learning/analytics-events";
-import { saveProgressReturnPath, shouldOfferSaveProgress } from "@/lib/learning/save-progress";
+import { lessonAccountNext, saveProgressReturnPath, shouldOfferSaveProgress, showAnonymousStudyCard } from "@/lib/learning/save-progress";
 import { RESULT_FIELD_MAX, resultValuesError } from "@/lib/learning/blocks";
 import { furthestBlockKey, readLocalProgress, writeLocalProgress, type LocalLessonProgress } from "@/lib/learning/local-progress";
 import {
@@ -40,6 +40,7 @@ import { TrafficReadinessTool } from "@/components/learning/TrafficReadinessTool
 import type { CampaignBriefPanel } from "@/lib/learning/brief";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { SearchBlueprintPanel } from "@/lib/learning/search-campaign";
+import { authNextHref } from "@/lib/auth/messages";
 import { buttonClass } from "@/lib/button-styles";
 
 type Props = {
@@ -522,13 +523,27 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
             {resumeSection ? <p className="mt-2 text-sm text-muted">{resumeSection}</p> : null}
           </div>
         ) : null}
-        {!authenticated ? (
-          <p className="mt-6 text-sm leading-relaxed text-muted">
-            Crie sua conta para salvar seu progresso e continuar em outros dispositivos.{" "}
-            <Link className="text-foreground underline underline-offset-4" href={`/cadastro?next=/aulas/${lesson.slug}`}>
-              Criar conta
-            </Link>
-          </p>
+        {showAnonymousStudyCard({ authenticated, preview, accessType: lesson.accessType }) ? (
+          <aside className="mt-6 rounded-lg border border-border bg-surface px-5 py-4">
+            <p className="font-medium">Você está estudando sem uma conta.</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Seu progresso fica salvo apenas neste navegador.</p>
+            <p className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              <Link
+                className="font-medium underline underline-offset-4"
+                href={authNextHref("/entrar", lessonAccountNext(lesson.slug, currentKey))}
+                onClick={() => trackEvent("auth_cta_click", authCtaParams("lesson_header", "login"))}
+              >
+                Entrar
+              </Link>
+              <Link
+                className="font-medium underline underline-offset-4"
+                href={authNextHref("/cadastro", lessonAccountNext(lesson.slug, currentKey))}
+                onClick={() => trackEvent("auth_cta_click", authCtaParams("lesson_header", "signup"))}
+              >
+                Criar conta e salvar progresso
+              </Link>
+            </p>
+          </aside>
         ) : null}
         {message ? (
           <p className="mt-4 text-sm text-danger" role="status">

@@ -19,7 +19,15 @@ export type AnalyticsEventName =
   | "diagnostic_started"
   | "diagnostic_completed"
   | "checkout_started"
-  | "purchase_completed";
+  | "purchase_completed"
+  | "auth_cta_click";
+
+export type AuthCtaSource = "lesson_header" | "public_header";
+export type AuthCtaAction = "login" | "signup";
+
+export function authCtaParams(source: AuthCtaSource, action: AuthCtaAction): { source: AuthCtaSource; action: AuthCtaAction } {
+  return { source, action };
+}
 
 export type AnalyticsParams = Record<string, string | number | boolean | null | undefined>;
 

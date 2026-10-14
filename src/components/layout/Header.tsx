@@ -4,9 +4,13 @@ import { siteConfig } from "@/data/site-config";
 import { ContactLink } from "@/components/ui/ContactLink";
 import { Container } from "@/components/ui/Container";
 import { Wordmark } from "@/components/ui/Wordmark";
+import { AccountNav } from "@/components/layout/AccountNav";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { getSession } from "@/lib/auth/session";
 
-export function Header() {
+export async function Header() {
+  const session = await getSession();
+  const signedIn = Boolean(session);
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/80 backdrop-blur-md">
       <Container>
@@ -27,11 +31,12 @@ export function Header() {
             ))}
           </nav>
 
-          <div className="hidden lg:block">
+          <div className="hidden items-center gap-3 lg:flex">
+            <AccountNav signedIn={signedIn} source="public_header" />
             <ContactLink location="header">{siteConfig.ctas.primary}</ContactLink>
           </div>
 
-          <MobileNav />
+          <MobileNav signedIn={signedIn} />
         </div>
 
         <div className="pb-3 lg:hidden">

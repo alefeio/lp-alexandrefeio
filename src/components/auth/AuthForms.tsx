@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
-import { AUTH_MESSAGES, mapAuthError, safeNextPath } from "@/lib/auth/messages";
+import { AUTH_MESSAGES, mapAuthError, safeNextPath, verificationCallbackPath } from "@/lib/auth/messages";
 import { buttonClass } from "@/lib/button-styles";
 
 const fieldClass =
@@ -86,7 +86,7 @@ export function SignUpForm({ nextPath }: { nextPath?: string }) {
       name,
       email,
       password,
-      callbackURL: "/verificar-email",
+      callbackURL: verificationCallbackPath(destination),
     });
     setPending(false);
 
@@ -221,6 +221,50 @@ export function SignOutButton() {
     >
       Sair
     </button>
+  );
+}
+
+export function ResendVerificationForm({ callbackURL }: { callbackURL: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  async function onSubmit(formData: FormData) {
+    setError(null);
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    if (!email.includes("@")) {
+      setError(AUTH_MESSAGES.generic);
+      return;
+    }
+
+    setPending(true);
+    const { error: authError } = await authClient.sendVerificationEmail({
+      email,
+      callbackURL,
+    });
+    setPending(false);
+
+    if (authError) {
+      setError(mapAuthError(authError));
+      return;
+    }
+
+    setDone(true);
+  }
+
+  if (done) return <p className="text-sm leading-relaxed text-muted">Se a conta existir, enviamos um novo link.</p>;
+
+  return (
+    <form action={onSubmit} className="space-y-4">
+      <ErrorNote message={error} />
+      <label className="block text-sm font-medium" htmlFor="email">
+        E-mail
+        <input id="email" name="email" type="email" autoComplete="email" required className={`${fieldClass} mt-2`} />
+      </label>
+      <button type="submit" disabled={pending} className={buttonClass("primary", "w-full")}>
+        {pending ? "Enviando..." : "Enviar novo link"}
+      </button>
+    </form>
   );
 }
 

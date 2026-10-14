@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
 import { dimensionLabel, knownDimension } from "@/lib/diagnostic/score";
-import { continueStudying } from "@/lib/learning/catalog";
+import { studentLearningHome } from "@/lib/learning/catalog";
 import { buttonClass } from "@/lib/button-styles";
 import { homeGuidance } from "@/lib/plan/service";
 
@@ -16,13 +16,9 @@ export const dynamic = "force-dynamic";
 
 export default async function StudentHomePage() {
   const session = await requireSession();
-  const current = await continueStudying(session.user.id);
+  const learning = await studentLearningHome(session.user.id);
   const guidance = await homeGuidance(session.user.id);
-  const resume = current?.lastBlockKey
-    ? `/aulas/${current.lesson.slug}?continuar=1`
-    : current
-      ? `/aulas/${current.lesson.slug}`
-      : null;
+  const resume = learning.continue.kind === "resume" ? learning.continue.lesson : null;
 
   return (
     <Container className="max-w-2xl">
@@ -30,12 +26,26 @@ export default async function StudentHomePage() {
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Área do aluno</h1>
       <section className="mt-6">
         <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Continuar estudando</h2>
-      {resume && current ? (
+      {learning.continue.kind === "resume" && resume ? (
         <div className="mt-4">
-          <Link className={buttonClass("primary")} href={resume}>
-            Continuar de onde você parou
+          <p className="text-base font-medium">{resume.title}</p>
+          <p className="mt-1 text-sm text-muted">{resume.percent}%</p>
+          <Link className={`${buttonClass("primary")} mt-4`} href={`/aulas/${resume.slug}?continuar=1`}>
+            Continuar
           </Link>
-          <p className="mt-3 text-sm leading-relaxed text-muted">{current.lesson.title}</p>
+        </div>
+      ) : learning.continue.kind === "completed" ? (
+        <div className="mt-4">
+          <p className="text-base leading-relaxed">{learning.continue.headline}</p>
+          {learning.continue.next ? (
+            <div className="mt-4">
+              <p className="text-sm text-muted">Próxima recomendação:</p>
+              <p className="mt-1 text-base font-medium">{learning.continue.next.title}</p>
+              <Link className={`${buttonClass("primary")} mt-4`} href={`/aulas/${learning.continue.next.slug}`}>
+                Continuar curso
+              </Link>
+            </div>
+          ) : null}
         </div>
       ) : (
         <p className="mt-4 text-base leading-relaxed text-muted">
@@ -46,6 +56,33 @@ export default async function StudentHomePage() {
         </p>
       )}
       </section>
+      {learning.learning.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Meu aprendizado</h2>
+          <ul className="mt-4 space-y-4">
+            {learning.learning.map((item) => (
+              <li key={`${item.status}-${item.slug}`}>
+                <p className="font-medium">{item.title}</p>
+                {item.status === "completed" ? (
+                  <p className="mt-1 text-sm text-muted">
+                    ✓ Concluída ·{" "}
+                    <Link className="underline underline-offset-4" href={`/aulas/${item.slug}`}>
+                      Revisar aula
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted">
+                    {item.percent}% ·{" "}
+                    <Link className="underline underline-offset-4" href={`/aulas/${item.slug}?continuar=1`}>
+                      Continuar
+                    </Link>
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section className="mt-10 border-t border-border pt-8">
         <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Seu próximo passo</h2>
         {!guidance.projectId ? (

@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { siteConfig } from "@/data/site-config";
+import { transactionalEmail } from "@/lib/email/brand-mail";
 
 type AuthEmail = {
   subject: string;
@@ -7,28 +7,26 @@ type AuthEmail = {
   text: string;
 };
 
-function shell(body: string): string {
-  return `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,Helvetica,sans-serif;line-height:1.6"><div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;padding:32px"><p style="margin:0 0 24px;width:40px;height:3px;background:#1e5eff"></p>${body}<p style="margin:24px 0 0;color:#5b6472">${siteConfig.name}<br>Tráfego Pago + Estrutura de Conversão</p></div></body></html>`;
-}
-
 export function verificationEmail(url: string): AuthEmail {
-  return {
-    subject: "Confirme seu e-mail — Alexandre Feio",
-    text: `Confirme seu e-mail para usar a conta.\n\n${url}\n\nSe você não criou esta conta, ignore esta mensagem.\n\n${siteConfig.name}`,
-    html: shell(
-      `<p style="margin:0 0 16px">Confirme seu e-mail para usar a conta.</p><p style="margin:0 0 16px"><a href="${url}" style="color:#1e5eff">Confirmar e-mail</a></p><p style="margin:0;color:#5b6472">Se você não criou esta conta, ignore esta mensagem.</p>`,
-    ),
-  };
+  const body = transactionalEmail({
+    preheader: "Confirme sua conta para continuar o aprendizado e salvar o progresso.",
+    title: "Confirme seu e-mail",
+    paragraphs: ["Você criou uma conta para continuar seu aprendizado e salvar seu progresso."],
+    cta: { label: "Confirmar meu e-mail", url },
+    note: "Este link expira por segurança. Se você não criou esta conta, ignore esta mensagem.",
+  });
+  return { subject: "Confirme seu e-mail — Alexandre Feio", ...body };
 }
 
 export function passwordResetEmail(url: string): AuthEmail {
-  return {
-    subject: "Redefinir senha — Alexandre Feio",
-    text: `Use o link abaixo para escolher uma nova senha.\n\n${url}\n\nSe você não pediu isso, ignore esta mensagem.\n\n${siteConfig.name}`,
-    html: shell(
-      `<p style="margin:0 0 16px">Use o link abaixo para escolher uma nova senha.</p><p style="margin:0 0 16px"><a href="${url}" style="color:#1e5eff">Redefinir senha</a></p><p style="margin:0;color:#5b6472">Se você não pediu isso, ignore esta mensagem.</p>`,
-    ),
-  };
+  const body = transactionalEmail({
+    preheader: "Use o link para escolher uma nova senha.",
+    title: "Redefina sua senha",
+    paragraphs: ["Recebemos um pedido para escolher uma nova senha da sua conta."],
+    cta: { label: "Redefinir senha", url },
+    note: "Este link expira por segurança. Se você não pediu isso, ignore esta mensagem.",
+  });
+  return { subject: "Redefina sua senha — Alexandre Feio", ...body };
 }
 
 export async function sendAuthEmail(input: AuthEmail & { to: string }): Promise<void> {

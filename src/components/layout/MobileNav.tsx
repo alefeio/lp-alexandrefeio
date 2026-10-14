@@ -7,8 +7,9 @@ import { navigation } from "@/data/navigation";
 import { siteConfig } from "@/data/site-config";
 import { ContactLink } from "@/components/ui/ContactLink";
 import { Wordmark } from "@/components/ui/Wordmark";
+import { AccountNav } from "@/components/layout/AccountNav";
 
-export function MobileNav() {
+export function MobileNav({ signedIn }: { signedIn: boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [open, setOpen] = useState(false);
@@ -75,6 +76,10 @@ export function MobileNav() {
               ))}
             </ul>
           </nav>
+
+          <div className="mt-8 border-t border-border pt-6">
+            <AccountNav signedIn={signedIn} source="public_header" compact onNavigate={closeMenu} />
+          </div>
 
           <div className="mt-auto pt-10">
             <ContactLink location="mobile_menu" className="w-full" onClick={closeMenu}>
