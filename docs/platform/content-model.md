@@ -25,7 +25,7 @@ O corpo do bloco é JSON validado por tipo. Isso evita um CMS de nós arbitrári
 
 O progresso guarda a chave do bloco, não a posição em pixels. A rolagem só decide se o bloco de leitura foi alcançado: uma faixa de 48px precisa cruzar o viewport, ou o bloco inteiro se ele for menor. Texto, callout, exemplo, conclusão e imagem seguem essa regra. Título de seção não entra no percentual. Checkpoint, atividade, checklist, resultado e ferramenta continuam valendo pela resposta salva. O `TOOL` não marca os textos anteriores. Saltar pelo índice até o fim não marca os blocos intermediários.
 
-`TOOL` é uma referência a uma ferramenta da plataforma, identificada por `toolKey`. `TRAFFIC_READINESS_V1` não guarda a nota nem as respostas do diagnóstico. `CAMPAIGN_BRIEF_V1` grava o Brief Inicial de Campanha em `LessonResult`, um por projeto. `DESTINATION_MEASUREMENT_PLAN_V1` grava o Plano de Destino e Mensuração do mesmo jeito. Só esses dois `toolKey` cumprem a entrega prática de uma aula paga. Um `TOOL` qualquer não substitui um `RESULT`.
+`TOOL` é uma referência a uma ferramenta da plataforma, identificada por `toolKey`. `TRAFFIC_READINESS_V1` não guarda a nota nem as respostas do diagnóstico. `CAMPAIGN_BRIEF_V1` grava o Brief Inicial de Campanha em `LessonResult`, um por projeto. `DESTINATION_MEASUREMENT_PLAN_V1` grava o Plano de Destino e Mensuração do mesmo jeito. `SEARCH_CAMPAIGN_BLUEPRINT_V1` grava o Blueprint de Campanha de Pesquisa, também um `LessonResult` por projeto, com grupos de anúncios estruturados para a aula seguinte. Só esses três `toolKey` cumprem a entrega prática de uma aula paga. Um `TOOL` qualquer não substitui um `RESULT`.
 
 ## Alterar a aula sem apagar o aluno
 

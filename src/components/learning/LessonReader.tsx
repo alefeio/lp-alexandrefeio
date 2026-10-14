@@ -34,9 +34,11 @@ import type { LessonSnapshot, ReaderBlock, ReaderLesson } from "@/lib/learning/r
 import type { TrafficToolPanel } from "@/lib/learning/tool";
 import { CampaignBriefTool } from "@/components/learning/CampaignBriefTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
+import { SearchBlueprintTool } from "@/components/learning/SearchBlueprintTool";
 import { TrafficReadinessTool } from "@/components/learning/TrafficReadinessTool";
 import type { CampaignBriefPanel } from "@/lib/learning/brief";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
+import type { SearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { buttonClass } from "@/lib/button-styles";
 
 type Props = {
@@ -47,7 +49,7 @@ type Props = {
   authenticated: boolean;
   resume: boolean;
   preview?: boolean;
-  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | null;
+  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | null;
 };
 
 export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
@@ -139,9 +141,13 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     let flushTimer = 0;
     let jumpTimer = 0;
     let frame = 0;
-    let settleY = window.scrollY;
     const hash = window.location.hash.slice(1);
-    if (hash && document.getElementById(hash)) jumpLock.current = true;
+    const hashNode = hash ? document.getElementById(hash) : null;
+    if (hashNode) {
+      jumpLock.current = true;
+      hashNode.scrollIntoView({ behavior: "instant", block: "start" });
+    }
+    let settleY = window.scrollY;
 
     function spans(): ReadingSpan[] {
       return [...document.querySelectorAll<HTMLElement>("[data-block-key]")].flatMap((node) => {
@@ -208,10 +214,42 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
       );
     }
 
+    let holdForHash = Boolean(hashNode);
+    let arrivedAt = 0;
+    const hashDeadline = Date.now() + 4000;
+
+    function hashInView() {
+      if (!hashNode) return true;
+      const top = hashNode.getBoundingClientRect().top;
+      return top >= -80 && top <= 220;
+    }
+
     function finishJump() {
       if (!jumpLock.current) return;
       const y = window.scrollY;
-      if (Math.abs(y - settleY) > 1) {
+      const moved = Math.abs(y - settleY) > 1;
+      if (holdForHash) {
+        const inView = hashInView();
+        if (!inView || moved) {
+          arrivedAt = 0;
+          settleY = y;
+          if (!inView && Date.now() > hashDeadline) holdForHash = false;
+          else {
+            window.clearTimeout(jumpTimer);
+            jumpTimer = window.setTimeout(finishJump, 160);
+            return;
+          }
+        } else {
+          if (!arrivedAt) arrivedAt = Date.now();
+          if (Date.now() - arrivedAt < 1000) {
+            settleY = y;
+            window.clearTimeout(jumpTimer);
+            jumpTimer = window.setTimeout(finishJump, 160);
+            return;
+          }
+          holdForHash = false;
+        }
+      } else if (moved) {
         settleY = y;
         window.clearTimeout(jumpTimer);
         jumpTimer = window.setTimeout(finishJump, 160);
@@ -574,7 +612,7 @@ function BlockView(props: {
   onResult: (values: Record<string, string>, blockKey: string) => void;
   onNote: (blockKey: string, body: string) => void;
   onBookmark: (blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const { block, snapshot } = props;
@@ -623,7 +661,7 @@ function BlockBody(props: {
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const data = props.block.data;
@@ -686,6 +724,15 @@ function BlockBody(props: {
     return (
       <div className="rounded-lg border border-border bg-surface px-5 py-5">
         <ResultForm {...props} data={data} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "blueprint" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <SearchBlueprintTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

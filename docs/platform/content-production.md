@@ -78,3 +78,20 @@ O plano guarda destino, CTA, conversão principal, verificações declaradas pel
 ## Módulo 1
 
 O módulo `planeje-antes-de-anunciar` tem o conteúdo editorial completo com as Aulas 4 e 5. O bundle continua R$ 57,90 e `NOT_FOR_SALE`. Nenhuma aula desse módulo está `AVAILABLE`.
+
+## Aula 6
+
+- Título: Estruture uma campanha de Pesquisa
+- Slug: `campanha-de-pesquisa`
+- Status: conteúdo definitivo V1
+- Versão: 1
+- Origem: editorial aprovada
+- Seed: `seedLesson06Content`, chamado por `npm run db:seed` depois da Aula 5
+- Data: 2026-10-13
+- Acesso: paga, R$ 39,90, fora de venda
+- Blocos ativos: 34, nenhum de imagem e nenhum `RESULT` manual
+- Resultado: `SEARCH_CAMPAIGN_BLUEPRINT_V1` em `LessonResult`, um por projeto
+
+O Blueprint guarda nome da campanha, oferta, objetivo, conversão, destino, região, idioma opcional, orçamento mensal em centavos, referência diária, foco de otimização, decisão de marca, decisão sobre parceiros de pesquisa e de 1 a 6 grupos de anúncios com nome, tema e intenção. O estado `READY_FOR_KEYWORDS` ou `NEEDS_PREPARATION` é calculado no servidor. Parceiros e marca podem ficar em “ainda preciso decidir” sem virar pendência. Uma pendência escrita, destino indefinido, objetivo indefinido ou orçamento ausente deixa o Blueprint em preparação, e isso ainda conclui a ferramenta. O projeto só muda depois de confirmação, nos campos que já existem. A Aula 7 poderá ler `campaignName`, `offer`, `locationPlan` e `adGroups` sem interpretar texto livre.
+
+O módulo `google-ads-na-pratica` continua R$ 103,90 e `NOT_FOR_SALE`. As Aulas 7 e 8 permanecem sem conteúdo definitivo.

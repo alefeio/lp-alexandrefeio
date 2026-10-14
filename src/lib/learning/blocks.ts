@@ -81,7 +81,7 @@ const resultBlock = z.object({
     .min(1)
     .max(8),
 });
-export const TOOL_KEYS = ["TRAFFIC_READINESS_V1", "CAMPAIGN_BRIEF_V1", "DESTINATION_MEASUREMENT_PLAN_V1"] as const;
+export const TOOL_KEYS = ["TRAFFIC_READINESS_V1", "CAMPAIGN_BRIEF_V1", "DESTINATION_MEASUREMENT_PLAN_V1", "SEARCH_CAMPAIGN_BLUEPRINT_V1"] as const;
 
 const toolBlock = z.object({
   type: z.literal("TOOL"),

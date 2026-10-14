@@ -62,7 +62,7 @@ test("aula 3 definitiva tem 27 blocos e passa na validação", () => {
   assert.equal(lessons.filter((lesson) => lesson.slug === LESSON_03_SLUG).length, 1);
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_01_SLUG)?.blocks.length, lesson01Blocks.length);
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_02_SLUG)?.blocks.length, lesson02Blocks.length);
-  assert.equal(lessons.find((lesson) => lesson.slug === "campanha-de-pesquisa")?.blocks.length, 0);
+  assert.equal(lessons.find((lesson) => lesson.slug === "palavras-chave-com-intencao")?.blocks.length, 0);
   const ready = assessLesson(
     {
       title: lesson03Meta.title,
@@ -102,7 +102,7 @@ test("seed da aula 3 é idempotente e preserva as outras aulas", async () => {
   const { getPrisma } = await import("../src/lib/db/prisma");
   const { seedLesson03Content } = await import("../src/lib/learning/seed-lesson-03");
   const prisma = getPrisma();
-  const untouched = [LESSON_01_SLUG, LESSON_02_SLUG, "palavras-chave-com-intencao", "campanha-de-pesquisa", "criativos-que-comunicam"];
+  const untouched = [LESSON_01_SLUG, LESSON_02_SLUG, "palavras-chave-com-intencao", "anuncios-alinhados-a-conversao", "criativos-que-comunicam"];
   const select = { slug: true, title: true, summary: true, priceCents: true, commerceStatus: true, accessType: true, publicPreview: true } as const;
   const before = (await prisma.lesson.findMany({
     where: { slug: { in: untouched } },

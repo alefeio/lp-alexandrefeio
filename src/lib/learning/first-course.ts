@@ -4,6 +4,7 @@ import { LESSON_02_SLUG, lesson02Blocks, lesson02Meta } from "@/lib/learning/les
 import { LESSON_03_SLUG, lesson03Blocks, lesson03Meta } from "@/lib/learning/lesson-03";
 import { LESSON_04_SLUG, lesson04Blocks, lesson04Meta } from "@/lib/learning/lesson-04";
 import { LESSON_05_SLUG, lesson05Blocks, lesson05Meta } from "@/lib/learning/lesson-05";
+import { LESSON_06_SLUG, lesson06Blocks, lesson06Meta } from "@/lib/learning/lesson-06";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -125,7 +126,17 @@ export const firstCourseSeed = {
       sortOrder: 2,
       bundlePriceCents: 10390,
       lessons: [
-        paid("campanha-de-pesquisa", "Estruture uma campanha de Pesquisa", "Campanha, grupo e anúncio com um objetivo só.", 3990, 0),
+        {
+          slug: LESSON_06_SLUG,
+          title: lesson06Meta.title,
+          summary: lesson06Meta.summary,
+          publicPreview: lesson06Meta.publicPreview,
+          estimatedMinutes: lesson06Meta.estimatedMinutes,
+          sortOrder: 0,
+          accessType: lesson06Meta.accessType,
+          priceCents: lesson06Meta.priceCents,
+          blocks: lesson06Blocks,
+        },
         paid("palavras-chave-com-intencao", "Escolha palavras-chave com intenção de compra", "Separar quem pesquisa para comprar de quem pesquisa para entender.", 3990, 1),
         paid("anuncios-alinhados-a-conversao", "Crie anúncios alinhados à conversão", "O texto do anúncio precisa combinar com a página que recebe a visita.", 3490, 2),
       ],

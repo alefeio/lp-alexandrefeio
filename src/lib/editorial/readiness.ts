@@ -51,7 +51,10 @@ export function assessLesson(lesson: ReadyLesson, blocks: ReadyBlock[]): Assessm
   const hasPracticalResult = parsed.some(
     (data) =>
       data.type === "RESULT" ||
-      (data.type === "TOOL" && (data.toolKey === "CAMPAIGN_BRIEF_V1" || data.toolKey === "DESTINATION_MEASUREMENT_PLAN_V1")),
+      (data.type === "TOOL" &&
+        (data.toolKey === "CAMPAIGN_BRIEF_V1" ||
+          data.toolKey === "DESTINATION_MEASUREMENT_PLAN_V1" ||
+          data.toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1")),
   );
   if (lesson.accessType === "PAID" && !hasPracticalResult) {
     issues.push("A aula paga precisa de um bloco de resultado.");

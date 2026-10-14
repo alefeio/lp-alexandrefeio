@@ -10,6 +10,7 @@ import { previewBlocksFor } from "@/lib/editorial/service";
 import type { ReaderBlock } from "@/lib/learning/reader-types";
 import { campaignBriefPreviewState } from "@/lib/learning/brief";
 import { destinationPlanPreviewState } from "@/lib/learning/measurement";
+import { searchBlueprintPreviewState } from "@/lib/learning/search-campaign";
 import { trafficToolPreviewState } from "@/lib/learning/tool";
 
 export const dynamic = "force-dynamic";
@@ -91,5 +92,6 @@ function previewToolPanel(blocks: ReaderBlock[]) {
   const toolKey = tool?.data.type === "TOOL" ? tool.data.toolKey : null;
   if (toolKey === "CAMPAIGN_BRIEF_V1") return campaignBriefPreviewState();
   if (toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") return destinationPlanPreviewState();
+  if (toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1") return searchBlueprintPreviewState();
   return trafficToolPreviewState();
 }

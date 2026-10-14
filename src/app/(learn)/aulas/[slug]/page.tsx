@@ -13,6 +13,7 @@ import { formatPriceCents } from "@/lib/learning/money";
 import type { LessonSnapshot } from "@/lib/learning/reader-types";
 import { loadCampaignBriefPanel } from "@/lib/learning/brief";
 import { loadDestinationPlanPanel } from "@/lib/learning/measurement";
+import { loadSearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { loadTrafficToolPanel } from "@/lib/learning/tool";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +59,9 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
       ? await loadCampaignBriefPanel({ userId: session?.user.id ?? null, blocks })
       : toolKey === "DESTINATION_MEASUREMENT_PLAN_V1"
         ? await loadDestinationPlanPanel({ userId: session?.user.id ?? null, blocks })
-        : await loadTrafficToolPanel({ userId: session?.user.id ?? null, blocks });
+        : toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1"
+          ? await loadSearchBlueprintPanel({ userId: session?.user.id ?? null, blocks })
+          : await loadTrafficToolPanel({ userId: session?.user.id ?? null, blocks });
 
   return (
     <LessonReader
