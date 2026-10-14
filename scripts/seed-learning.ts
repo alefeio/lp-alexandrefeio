@@ -6,7 +6,8 @@ loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
 assertMigrationTargetAllowed();
 
-deployLearningCatalog()
+// db:seed fecha a venda de propósito. catalog:deploy preserva o commerceStatus existente.
+deployLearningCatalog({ preserveCommerceStatus: false })
   .then((report) => {
     console.log(JSON.stringify(report));
   })

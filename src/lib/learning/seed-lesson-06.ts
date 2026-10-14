@@ -1,3 +1,4 @@
+import { commercePatch, commerceStatusMatches, preserveCommerce } from "@/lib/learning/catalog-commerce";
 import { parseBlockData } from "@/lib/learning/blocks";
 import { assessLesson } from "@/lib/editorial/readiness";
 import { LESSON_06_SLUG, lesson06Blocks, lesson06Meta } from "@/lib/learning/lesson-06";
@@ -19,7 +20,10 @@ export type Lesson06SeedReport = {
   activeBlocks: number;
 };
 
-export async function seedLesson06Content(prisma: Prisma = getPrisma()): Promise<Lesson06SeedReport> {
+export async function seedLesson06Content(
+  prisma: Prisma = getPrisma(),
+  options: { preserveCommerceStatus?: boolean } = {},
+): Promise<Lesson06SeedReport> {
   const lesson = await prisma.lesson.findUnique({ where: { slug: LESSON_06_SLUG } });
   if (!lesson) {
     throw new Error("Aula 6 não encontrada. O seed não cria uma segunda aula.");
@@ -38,7 +42,8 @@ export async function seedLesson06Content(prisma: Prisma = getPrisma()): Promise
   };
   const inUse = Object.values(usage).some((count) => count > 0);
   const existing = await prisma.lessonBlock.findMany({ where, orderBy: { position: "asc" } });
-  const appliedAlready = blocksMatch(existing) && metadataMatches(lesson);
+  const keepSale = preserveCommerce(options);
+  const appliedAlready = blocksMatch(existing) && metadataMatches(lesson, keepSale);
   if (inUse && !appliedAlready) {
     throw new Error(
       `Aula 6 já tem uso de aluno e o conteúdo ainda não é a versão definitiva. Nada foi alterado. ${JSON.stringify(usage)}`,
@@ -63,7 +68,7 @@ export async function seedLesson06Content(prisma: Prisma = getPrisma()): Promise
       estimatedMinutes: lesson06Meta.estimatedMinutes,
       accessType: "PAID",
       priceCents: lesson06Meta.priceCents,
-      commerceStatus: "NOT_FOR_SALE",
+      ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
     },
@@ -155,7 +160,7 @@ function metadataMatches(lesson: {
   priceCents: number | null;
   commerceStatus: string;
   status: string;
-}) {
+}, preserveCommerceStatus: boolean) {
   return (
     lesson.title === lesson06Meta.title &&
     lesson.summary === lesson06Meta.summary &&
@@ -163,7 +168,7 @@ function metadataMatches(lesson: {
     lesson.estimatedMinutes === lesson06Meta.estimatedMinutes &&
     lesson.accessType === "PAID" &&
     lesson.priceCents === lesson06Meta.priceCents &&
-    lesson.commerceStatus === "NOT_FOR_SALE" &&
+    commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );
 }

@@ -41,11 +41,19 @@ A API continua `POST /v1/orders` e `GET /v1/orders/{id}`. No teste, o pagador en
 
 Webhook: `https://alexandrefeio.com.br/api/webhooks/mercado-pago`. A assinatura é verificada. O webhook sozinho não libera acesso: a reconciliação lê o pedido no provider. `live_mode: true` é ignorado no modo teste. `live_mode` diferente de `true` é ignorado no modo production.
 
-## Catálogo
+## Catálogo e ativação comercial
 
-`npm run db:seed` continua recusando production. `npm run catalog:deploy` faz upsert de curso, módulos, aulas, blocos aprovados, preços e previews. Não apaga progresso, resposta, nota, marcador, `LessonResult`, projeto, diagnóstico, pedido, pagamento nem entitlement. Se o conteúdo em uso divergir, o seed da aula para.
+`catalog:deploy` e a ativação de venda são comandos diferentes.
 
-Ele regrava `commerceStatus` como `NOT_FOR_SALE`. Não é o comando de ativação. Neste gate rodou só no banco de development (12 aulas, conteúdo das aulas 1–6). Não foi executado em production. Rodar de novo depois do futuro flip para `AVAILABLE` desfaz essa ativação.
+`npm run db:seed` continua recusando production e regrava `commerceStatus` como `NOT_FOR_SALE`. Esse fechamento é só do seed de development.
+
+`npm run catalog:deploy` faz upsert de curso, módulos, aulas, blocos aprovados, preços e previews. Registro novo nasce `NOT_FOR_SALE`. Registro que já existe mantém o `commerceStatus` atual, seja `NOT_FOR_SALE` ou `AVAILABLE`. Não apaga progresso, resposta, nota, marcador, `LessonResult`, projeto, diagnóstico, pedido, pagamento nem entitlement. Se o conteúdo em uso divergir, o seed da aula para. Não foi executado em production.
+
+`npm run commerce:products` lista o estado comercial. Sem `--apply`, é dry-run e não grava. Com `--apply`, pode marcar `AVAILABLE` ou voltar para `NOT_FOR_SALE`. Não altera `COMMERCE_ENABLED` nem `COMMERCE_PRODUCTION_READY`. Em `DATABASE_ENV=production` também exige `COMMERCE_CATALOG_CONFIRM=production`. Não roda com `VERCEL_ENV=production`.
+
+Nesta fase a allowlist é só a Aula 4, a Aula 5, a Aula 6 e o Módulo 1. Aula incompleta, aulas 7–12, módulo Google Ads, módulo Meta Ads, módulo de análise e o curso completo são recusados. O módulo só ativa se as aulas 4 e 5 já estiverem `AVAILABLE` e prontas. Desativar a venda não apaga pedido, pagamento nem entitlement.
+
+A venda no site continua exigindo as duas condições: produto `AVAILABLE` e comércio global habilitado.
 
 ## O que poderá ser vendido depois
 
@@ -66,10 +74,10 @@ Home, curso, aulas 1–3, previews 4–6, cadastro, confirmação, login, `/app`
 Depois do banco, das migrations, do `catalog:deploy` confirmado, do webhook de production e de um smoke sem cobrança:
 
 1. Ligar `COMMERCE_ENABLED`, `COMMERCE_PRODUCTION_READY`, `MERCADO_PAGO_ENV=production` e as credenciais de production na Vercel.
-2. Marcar `AVAILABLE` só na Aula 4, na Aula 5, no Módulo 1 e na Aula 6.
-3. Não marcar o módulo Google, o curso completo nem as Aulas 7–12.
+2. Conferir o dry-run de `npm run commerce:products -- --enable` para a Aula 4, a Aula 5, o Módulo 1 e a Aula 6.
+3. Gravar com `--apply` e `COMMERCE_CATALOG_CONFIRM=production`. O módulo só entra depois das aulas 4 e 5.
 
-Rollback: desligar `COMMERCE_ENABLED` ou `COMMERCE_PRODUCTION_READY`. O comércio fecha na hora. Entitlements já concedidos permanecem. Não apagar o banco.
+Rollback da venda: `npm run commerce:products -- --disable <slug> --apply`, com a mesma confirmação em production. Quem já comprou continua com acesso. Desligar `COMMERCE_ENABLED` ou `COMMERCE_PRODUCTION_READY` fecha o checkout na hora. Entitlements já concedidos permanecem. Não apagar o banco.
 
 ## Search Console
 

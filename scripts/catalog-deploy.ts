@@ -17,7 +17,7 @@ if (label === "production") {
   throw new Error("catalog:deploy só aceita DATABASE_ENV=development ou production confirmado.");
 }
 
-deployLearningCatalog()
+deployLearningCatalog({ preserveCommerceStatus: true })
   .then((report) => {
     console.log(JSON.stringify(report));
   })

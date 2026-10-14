@@ -1,4 +1,5 @@
 import { getPrisma } from "@/lib/db/prisma";
+import { commercePatch, commerceStatusForCreate, type CatalogCommerceOptions, preserveCommerce } from "@/lib/learning/catalog-commerce";
 import { firstCourseSeed } from "@/lib/learning/first-course";
 import { LESSON_02_SLUG } from "@/lib/learning/lesson-02";
 import { LESSON_03_SLUG } from "@/lib/learning/lesson-03";
@@ -16,11 +17,13 @@ const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LE
 
 /**
  * Upsert do catálogo aprovado. Não apaga progresso, projeto, diagnóstico, pedido ou entitlement.
- * Aulas com conteúdo próprio passam pelos seeds idempotentes, que param se o conteúdo em uso divergir.
- * commerceStatus nasce NOT_FOR_SALE e é regravado assim pelos seeds de conteúdo. Não marca AVAILABLE.
+ * Registro novo nasce NOT_FOR_SALE. Registro existente só perde a venda quando preserveCommerceStatus é false
+ * (db:seed). catalog:deploy preserva AVAILABLE e NOT_FOR_SALE.
+ * Preço aprovado continua sendo sincronizado. Este comando não marca AVAILABLE.
  */
-export async function deployLearningCatalog() {
+export async function deployLearningCatalog(options: CatalogCommerceOptions = {}) {
   const prisma = getPrisma();
+  const keepSale = preserveCommerce(options);
   const now = new Date();
   const course = await prisma.course.upsert({
     where: { slug: firstCourseSeed.slug },
@@ -32,7 +35,7 @@ export async function deployLearningCatalog() {
       status: "PUBLISHED",
       sortOrder: 0,
       bundlePriceCents: firstCourseSeed.bundlePriceCents,
-      commerceStatus: "NOT_FOR_SALE",
+      commerceStatus: commerceStatusForCreate(),
       publishedAt: now,
     },
     update: {
@@ -41,7 +44,7 @@ export async function deployLearningCatalog() {
       description: firstCourseSeed.description,
       bundlePriceCents: firstCourseSeed.bundlePriceCents,
       status: "PUBLISHED",
-      commerceStatus: "NOT_FOR_SALE",
+      ...commercePatch(keepSale),
     },
   });
 
@@ -56,7 +59,7 @@ export async function deployLearningCatalog() {
         status: "PUBLISHED",
         sortOrder: moduleSeed.sortOrder,
         bundlePriceCents: moduleSeed.bundlePriceCents,
-        commerceStatus: "NOT_FOR_SALE",
+        commerceStatus: commerceStatusForCreate(),
       },
       update: {
         title: moduleSeed.title,
@@ -64,7 +67,7 @@ export async function deployLearningCatalog() {
         sortOrder: moduleSeed.sortOrder,
         bundlePriceCents: moduleSeed.bundlePriceCents,
         status: "PUBLISHED",
-        commerceStatus: "NOT_FOR_SALE",
+        ...commercePatch(keepSale),
       },
     });
 
@@ -82,7 +85,7 @@ export async function deployLearningCatalog() {
           status: "PUBLISHED",
           accessType: lessonSeed.accessType,
           priceCents: lessonSeed.priceCents,
-          commerceStatus: "NOT_FOR_SALE",
+          commerceStatus: commerceStatusForCreate(),
           publishedAt: now,
         },
         update: {
@@ -95,7 +98,7 @@ export async function deployLearningCatalog() {
           accessType: lessonSeed.accessType,
           priceCents: lessonSeed.priceCents,
           status: "PUBLISHED",
-          commerceStatus: "NOT_FOR_SALE",
+          ...commercePatch(keepSale),
         },
       });
 
@@ -117,12 +120,13 @@ export async function deployLearningCatalog() {
     }
   }
 
-  const lesson01 = await seedLesson01Content(prisma);
-  const lesson02 = await seedLesson02Content(prisma);
-  const lesson03 = await seedLesson03Content(prisma);
-  const lesson04 = await seedLesson04Content(prisma);
-  const lesson05 = await seedLesson05Content(prisma);
-  const lesson06 = await seedLesson06Content(prisma);
+  const seedOptions = { preserveCommerceStatus: keepSale };
+  const lesson01 = await seedLesson01Content(prisma, seedOptions);
+  const lesson02 = await seedLesson02Content(prisma, seedOptions);
+  const lesson03 = await seedLesson03Content(prisma, seedOptions);
+  const lesson04 = await seedLesson04Content(prisma, seedOptions);
+  const lesson05 = await seedLesson05Content(prisma, seedOptions);
+  const lesson06 = await seedLesson06Content(prisma, seedOptions);
   const lessons = await prisma.lesson.count({ where: { module: { courseId: course.id } } });
   const blocks = await prisma.lessonBlock.count({ where: { lesson: { module: { courseId: course.id } } } });
   return { course: course.slug, lessons, blocks, lesson01, lesson02, lesson03, lesson04, lesson05, lesson06 };

@@ -72,8 +72,12 @@ test("gates editoriais, readiness e arquivo de imagem", async () => {
   assert.equal(tree.includes("APIMG_API_KEY"), false);
   const seed = readFileSync("scripts/seed-learning.ts", "utf8");
   const catalog = readFileSync("src/lib/learning/catalog-deploy.ts", "utf8");
+  const commerce = readFileSync("src/lib/learning/catalog-commerce.ts", "utf8");
   assert.match(seed, /assertMigrationTargetAllowed/);
-  assert.match(catalog, /commerceStatus: "NOT_FOR_SALE"/);
+  assert.match(seed, /preserveCommerceStatus: false/);
+  assert.match(readFileSync("scripts/catalog-deploy.ts", "utf8"), /preserveCommerceStatus: true/);
+  assert.match(commerce, /return "NOT_FOR_SALE"/);
+  assert.match(catalog, /commercePatch\(keepSale\)/);
   assert.equal(/\.(lessonProgress|lessonResponse|project|diagnostic|order|payment|entitlement)\b/.test(catalog), false);
 });
 
