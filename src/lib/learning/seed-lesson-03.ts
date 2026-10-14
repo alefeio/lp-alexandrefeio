@@ -1,5 +1,5 @@
 import { commercePatch, commerceStatusMatches, preserveCommerce } from "@/lib/learning/catalog-commerce";
-import { parseBlockData } from "@/lib/learning/blocks";
+import { planUsedContent } from "@/lib/learning/content-guard";
 import { assessLesson } from "@/lib/editorial/readiness";
 import { LESSON_03_SLUG, lesson03Blocks, lesson03Meta } from "@/lib/learning/lesson-03";
 import { getPrisma } from "@/lib/db/prisma";
@@ -42,14 +42,34 @@ export async function seedLesson03Content(
   const inUse = Object.values(usage).some((count) => count > 0);
   const existing = await prisma.lessonBlock.findMany({ where, orderBy: { position: "asc" } });
   const keepSale = preserveCommerce(options);
-  const appliedAlready = blocksMatch(existing) && metadataMatches(lesson, keepSale);
-  if (inUse && !appliedAlready) {
-    throw new Error(
-      `Aula 3 já tem uso de aluno e o conteúdo ainda não é a versão definitiva. Nada foi alterado. ${JSON.stringify(usage)}`,
-    );
+  const blockPlan = planUsedContent(existing, lesson03Blocks, inUse);
+  if (blockPlan.kind === "stop") {
+    throw new Error(`Aula 3 já tem uso de aluno. ${blockPlan.reason} Nada foi alterado. ${JSON.stringify(usage)}`);
   }
-  if (inUse && appliedAlready) {
+  if (inUse && !metadataMatches(lesson, keepSale)) {
+    throw new Error(`Aula 3 já tem uso de aluno e os metadados divergem. Nada foi alterado. ${JSON.stringify(usage)}`);
+  }
+  if (blockPlan.kind === "skip") {
     return report(lesson.status, existing.filter((block) => !block.retiredAt).length, usage, true, true, [], []);
+  }
+  if (blockPlan.kind === "append") {
+    for (const block of lesson03Blocks) {
+      if (!blockPlan.keys.includes(block.blockKey)) continue;
+      await prisma.lessonBlock.create({
+        data: {
+          lessonId: lesson.id,
+          blockKey: block.blockKey,
+          type: block.data.type,
+          position: block.position,
+          payload: block.data,
+          countsForProgress: block.countsForProgress,
+          required: block.required,
+          retiredAt: null,
+        },
+      });
+    }
+    const active = await prisma.lessonBlock.count({ where: { lessonId: lesson.id, retiredAt: null } });
+    return report("PUBLISHED", active, usage, true, false, [], []);
   }
 
   const assessment = assessLesson(lessonReadyInput(lesson.status), lesson03Blocks.map(readyBlock));
@@ -168,30 +188,6 @@ function metadataMatches(lesson: {
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );
-}
-
-function blocksMatch(
-  existing: Array<{
-    blockKey: string;
-    position: number;
-    countsForProgress: boolean;
-    required: boolean;
-    retiredAt: Date | null;
-    payload: unknown;
-    type: string;
-  }>,
-) {
-  const active = existing.filter((block) => !block.retiredAt);
-  if (active.length !== lesson03Blocks.length) return false;
-  return lesson03Blocks.every((desired) => {
-    const current = active.find((block) => block.blockKey === desired.blockKey);
-    if (!current || current.type !== desired.data.type) return false;
-    if (current.position !== desired.position || current.countsForProgress !== desired.countsForProgress || current.required !== desired.required) {
-      return false;
-    }
-    const parsed = parseBlockData(current.payload);
-    return JSON.stringify(parsed) === JSON.stringify(parseBlockData(desired.data));
-  });
 }
 
 async function blockDependents(prisma: Prisma, lessonId: string, blockKey: string) {

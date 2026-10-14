@@ -61,9 +61,9 @@ export function mercadoPagoPublicKey(env: Env = process.env): string | null {
   return mercadoPagoRuntimeConfig(env)?.publicKey ?? null;
 }
 
-/** Webhook de teste não libera evento live. Webhook de produção não libera evento de teste. */
+/** Teste aceita só live_mode=false. Produção aceita só live_mode=true. Ausência não passa. */
 export function webhookLiveModeAllowed(mode: CommerceMode, liveMode: unknown): boolean {
-  if (mode === "test") return liveMode !== true;
+  if (mode === "test") return liveMode === false;
   return liveMode === true;
 }
 

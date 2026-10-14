@@ -8,6 +8,7 @@ import { LESSON_06_SLUG } from "@/lib/learning/lesson-06";
 import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
 
 export const COMMERCE_CATALOG_CONFIRM = "production";
+export const COMMERCE_SHARED_CONFIRM = "shared";
 
 export const FIRST_SALE_ALLOWLIST = [
   { kind: "lesson" as const, slug: LESSON_04_SLUG, priceCents: 2990 },
@@ -57,15 +58,25 @@ export function commerceWriteGate(env: Env, apply: boolean): CommerceWriteGate {
   }
   if (!apply) return { ok: true, write: false };
   const label = readDatabaseEnvLabel(env);
-  if (label === "production" && env.COMMERCE_CATALOG_CONFIRM !== COMMERCE_CATALOG_CONFIRM) {
+  if (label === "production") {
+    if (env.COMMERCE_CATALOG_CONFIRM !== COMMERCE_CATALOG_CONFIRM) {
+      return {
+        ok: false,
+        write: false,
+        message: "Em production, a alteração comercial exige COMMERCE_CATALOG_CONFIRM=production.",
+      };
+    }
+    return { ok: true, write: true };
+  }
+  if (label !== "development" && label !== "test") {
+    return { ok: false, write: false, message: "DATABASE_ENV precisa ser development, test ou production confirmado." };
+  }
+  if (env.COMMERCE_CATALOG_CONFIRM !== COMMERCE_SHARED_CONFIRM) {
     return {
       ok: false,
       write: false,
-      message: "Em production, a alteração comercial exige COMMERCE_CATALOG_CONFIRM=production.",
+      message: "O banco é compartilhado com production. A alteração comercial exige COMMERCE_CATALOG_CONFIRM=shared.",
     };
-  }
-  if (label !== "development" && label !== "test" && label !== "production") {
-    return { ok: false, write: false, message: "DATABASE_ENV precisa ser development, test ou production confirmado." };
   }
   return { ok: true, write: true };
 }

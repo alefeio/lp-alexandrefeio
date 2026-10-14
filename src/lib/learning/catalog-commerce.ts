@@ -1,10 +1,10 @@
 export type CatalogCommerceOptions = {
-  /** catalog:deploy preserva. db:seed continua fechando a venda. */
+  /** false só é um fechamento explícito. O padrão preserva, porque o banco é compartilhado. */
   preserveCommerceStatus?: boolean;
 };
 
 export function preserveCommerce(options?: CatalogCommerceOptions): boolean {
-  return options?.preserveCommerceStatus === true;
+  return options?.preserveCommerceStatus !== false;
 }
 
 /** Registro novo nasce fora de venda. */
@@ -14,7 +14,7 @@ export function commerceStatusForCreate(): "NOT_FOR_SALE" {
 
 /**
  * Update do catálogo. Objeto vazio não inclui commerceStatus, então o valor existente fica.
- * Sem preservação, o seed de development regrava NOT_FOR_SALE.
+ * O fechamento explícito existe só para um opt-in. Nenhum script de catálogo ou seed o usa.
  */
 export function commercePatch(preserveCommerceStatus: boolean): { commerceStatus: "NOT_FOR_SALE" } | Record<string, never> {
   if (preserveCommerceStatus) return {};

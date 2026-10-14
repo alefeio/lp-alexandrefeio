@@ -18,12 +18,7 @@ O site não usava banco. As quatro URLs locais são do Postgres de desenvolvimen
 
 ## Produção
 
-Antes de publicar a área autenticada em produção é obrigatório:
-
-1. provisionar um banco separado de production;
-2. configurar as variáveis por ambiente na Vercel;
-3. aplicar as migrations versionadas nesse banco, de forma controlada;
-4. não reutilizar o banco de desenvolvimento em production.
+Esta seção foi substituída. Development e production usam o mesmo Postgres físico. `DATABASE_ENV` é o runtime, não um segundo banco. O procedimento está em [production-launch.md](../production-launch.md). Não provisionar outro banco.
 
 O build da Vercel pode gerar o client sem essas variáveis. Uma rota autenticada em production sem `RUNTIME_DATABASE_URL` falha ao ser usada. A home não importa o client.
 

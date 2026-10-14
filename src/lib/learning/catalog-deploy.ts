@@ -17,8 +17,8 @@ const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LE
 
 /**
  * Upsert do catálogo aprovado. Não apaga progresso, projeto, diagnóstico, pedido ou entitlement.
- * Registro novo nasce NOT_FOR_SALE. Registro existente só perde a venda quando preserveCommerceStatus é false
- * (db:seed). catalog:deploy preserva AVAILABLE e NOT_FOR_SALE.
+ * Registro novo nasce NOT_FOR_SALE. Registro existente preserva commerceStatus.
+ * db:seed e catalog:deploy usam o mesmo banco físico de production e não fecham a venda.
  * Preço aprovado continua sendo sincronizado. Este comando não marca AVAILABLE.
  */
 export async function deployLearningCatalog(options: CatalogCommerceOptions = {}) {

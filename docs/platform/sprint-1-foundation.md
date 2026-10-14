@@ -36,7 +36,7 @@ Gate 0 confirmado em 9 de outubro de 2026: as URLs locais são do Postgres de de
 
 ## Produção
 
-Este banco não deve ir para production. Antes de ligar a área autenticada no ar: banco separado, variáveis por ambiente na Vercel, e `migrate deploy` controlado nesse banco novo.
+A decisão posterior é banco compartilhado entre development e production. O procedimento está em [production-launch.md](./production-launch.md). Não provisionar um segundo banco.
 
 O build consegue gerar o Prisma Client sem URL real. Sem `RUNTIME_DATABASE_URL` e `BETTER_AUTH_SECRET` em production, login e `/app` não funcionam. A home não depende disso.
 

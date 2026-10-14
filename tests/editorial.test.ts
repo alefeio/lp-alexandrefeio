@@ -74,7 +74,8 @@ test("gates editoriais, readiness e arquivo de imagem", async () => {
   const catalog = readFileSync("src/lib/learning/catalog-deploy.ts", "utf8");
   const commerce = readFileSync("src/lib/learning/catalog-commerce.ts", "utf8");
   assert.match(seed, /assertMigrationTargetAllowed/);
-  assert.match(seed, /preserveCommerceStatus: false/);
+  assert.match(seed, /preserveCommerceStatus: true/);
+  assert.match(seed, /CATALOG_DEPLOY_CONFIRM=shared|sharedCatalogWriteAllowed/);
   assert.match(readFileSync("scripts/catalog-deploy.ts", "utf8"), /preserveCommerceStatus: true/);
   assert.match(commerce, /return "NOT_FOR_SALE"/);
   assert.match(catalog, /commercePatch\(keepSale\)/);

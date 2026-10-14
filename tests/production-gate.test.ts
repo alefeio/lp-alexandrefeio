@@ -63,8 +63,11 @@ test("teste e production não cruzam ambiente", () => {
   assert.equal(mercadoPagoProductionConfig({ ...production, MERCADO_PAGO_ENV: "test" }), null);
   assert.equal(webhookLiveModeAllowed("test", true), false);
   assert.equal(webhookLiveModeAllowed("test", false), true);
+  assert.equal(webhookLiveModeAllowed("test", undefined), false);
+  assert.equal(webhookLiveModeAllowed("test", null), false);
   assert.equal(webhookLiveModeAllowed("production", true), true);
   assert.equal(webhookLiveModeAllowed("production", false), false);
+  assert.equal(webhookLiveModeAllowed("production", undefined), false);
 });
 
 test("aula gratuita segue anônima e o merge não volta progresso nem duplica resposta", () => {

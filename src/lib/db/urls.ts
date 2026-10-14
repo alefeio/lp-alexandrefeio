@@ -35,6 +35,14 @@ export function getMigrationDatabaseUrl(
   throw new Error("POSTGRES_URL is not set");
 }
 
+/**
+ * DATABASE_ENV é o rótulo do runtime da aplicação.
+ * Não identifica o banco físico: development e production podem usar o mesmo Postgres.
+ */
+export function databaseEnvIdentifiesPhysicalDatabase(): boolean {
+  return false;
+}
+
 export function readDatabaseEnvLabel(
   env: Record<string, string | undefined> = process.env,
 ): string | undefined {
@@ -49,7 +57,10 @@ export function readDatabaseEnvLabel(
   return undefined;
 }
 
-/** Produção não recebe migration por este helper. */
+/**
+ * Impede migrate deploy dentro do runtime da Vercel.
+ * DATABASE_ENV=development não significa banco descartável: a migration altera o schema compartilhado.
+ */
 export function assertMigrationTargetAllowed(
   env: Record<string, string | undefined> = process.env,
 ): void {
@@ -63,4 +74,27 @@ export function assertMigrationTargetAllowed(
   }
 
   throw new Error("Refusing to migrate without DATABASE_ENV=development, preview, or test");
+}
+
+/** Catálogo e seed gravam no banco compartilhado. Exigem confirmação explícita. */
+export function sharedCatalogWriteAllowed(
+  env: Record<string, string | undefined> = process.env,
+): { ok: true } | { ok: false; message: string } {
+  if (env.VERCEL_ENV === "production") {
+    return { ok: false, message: "catalog:deploy não roda dentro do runtime de production." };
+  }
+  const label = readDatabaseEnvLabel(env);
+  if (label === "production") {
+    if (env.CATALOG_DEPLOY_CONFIRM !== "production") {
+      return { ok: false, message: "catalog:deploy com DATABASE_ENV=production exige CATALOG_DEPLOY_CONFIRM=production." };
+    }
+    return { ok: true };
+  }
+  if (label !== "development" && label !== "test") {
+    return { ok: false, message: "catalog:deploy só aceita DATABASE_ENV=development, test ou production confirmado." };
+  }
+  if (env.CATALOG_DEPLOY_CONFIRM !== "shared") {
+    return { ok: false, message: "O banco é compartilhado com production. Confirme com CATALOG_DEPLOY_CONFIRM=shared." };
+  }
+  return { ok: true };
 }

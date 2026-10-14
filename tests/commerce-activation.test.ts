@@ -16,7 +16,7 @@ import {
 
 loadEnv({ path: ".env.local" });
 
-const developmentEnv = { DATABASE_ENV: "development" };
+const developmentEnv = { DATABASE_ENV: "development", COMMERCE_CATALOG_CONFIRM: "shared" };
 
 function readyLesson(overrides: Partial<LessonShape> = {}): LessonShape {
   return {
@@ -90,6 +90,8 @@ test("dry-run não grava e production sem confirmação falha", async () => {
   assert.equal(commerceWriteGate({ DATABASE_ENV: "production", COMMERCE_CATALOG_CONFIRM: "production" }, true).ok, true);
   assert.equal(commerceWriteGate({ DATABASE_ENV: "production", VERCEL_ENV: "production", COMMERCE_CATALOG_CONFIRM: "production" }, true).ok, false);
   assert.equal(commerceWriteGate(developmentEnv, false).write, false);
+  assert.equal(commerceWriteGate({ DATABASE_ENV: "development" }, true).ok, false);
+  assert.equal(commerceWriteGate(developmentEnv, true).write, true);
 
   const { assertMigrationTargetAllowed } = await import("../src/lib/db/urls");
   assertMigrationTargetAllowed();
@@ -108,6 +110,13 @@ test("dry-run não grava e production sem confirmação falha", async () => {
   );
   assert.equal(blocked.ok, false);
   assert.equal(blocked.written, false);
+  const local = await runCommerceProducts(
+    prisma,
+    { action: "enable", slugs: [LESSON_04_SLUG], apply: true },
+    { DATABASE_ENV: "development" },
+  );
+  assert.equal(local.ok, false);
+  assert.equal(local.written, false);
   const after = await prisma.lesson.findUniqueOrThrow({ where: { slug: LESSON_04_SLUG }, select: { commerceStatus: true } });
   assert.equal(after.commerceStatus, before.commerceStatus);
   assert.equal(process.env.COMMERCE_ENABLED, flags.enabled);
