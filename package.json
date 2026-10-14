@@ -14,7 +14,9 @@
     "db:seed": "tsx scripts/seed-learning.ts",
     "catalog:deploy": "tsx scripts/catalog-deploy.ts",
     "commerce:products": "tsx scripts/commerce-products.ts",
-    "test": "tsx --test tests/learning.test.ts tests/project-diagnostic.test.ts tests/plan.test.ts tests/commerce.test.ts tests/editorial.test.ts tests/lesson-01.test.ts tests/lesson-02.test.ts tests/lesson-03.test.ts tests/lesson-04.test.ts tests/lesson-05.test.ts tests/lesson-06.test.ts tests/acquisition.test.ts tests/production-gate.test.ts tests/commerce-activation.test.ts tests/shared-database.test.ts"
+    "test": "tsx scripts/run-unit-tests.ts",
+    "test:database-live": "tsx scripts/run-database-live-tests.ts",
+    "test:mercado-pago-live": "tsx scripts/run-mercado-pago-live-tests.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.4",

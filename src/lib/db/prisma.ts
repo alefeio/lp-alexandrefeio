@@ -11,6 +11,9 @@ function createPrismaClient() {
 }
 
 export function getPrisma(): PrismaClient {
+  if (process.env.UNIT_TEST_ISOLATION === "1") {
+    throw new Error("npm test não acessa o banco compartilhado. Use npm run test:database-live com SHARED_DATABASE_TEST_CONFIRM=true.");
+  }
   const cached = globalForPrisma.prisma;
   if (cached) return cached;
 

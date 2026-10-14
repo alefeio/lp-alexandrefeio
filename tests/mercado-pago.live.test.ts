@@ -8,6 +8,12 @@ loadEnv({ path: ".env.local" });
 const enabled = process.env.MP_LIVE_TEST === "1";
 
 test("Checkout Transparente via Orders em credencial de teste", { skip: !enabled }, async () => {
+  if (process.env.SHARED_DATABASE_TEST_CONFIRM !== "true") {
+    throw new Error("MP_LIVE_TEST grava no banco compartilhado e exige SHARED_DATABASE_TEST_CONFIRM=true.");
+  }
+  if (process.env.MERCADO_PAGO_ENV === "production") {
+    throw new Error("A suíte live não usa credencial de production.");
+  }
   const previousResend = process.env.RESEND_API_KEY;
   const previousCommerce = process.env.COMMERCE_ENABLED;
   process.env.COMMERCE_ENABLED = "true";

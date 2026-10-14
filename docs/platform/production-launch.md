@@ -17,7 +17,7 @@ Riscos:
 
 - uma migration aplicada em development altera o schema de production na hora;
 - `db:seed` e `catalog:deploy` reescrevem conteúdo editorial no banco vivo;
-- a suíte cria fixtures com id próprio e apaga só esses ids; não existe varredura por nome ou e-mail;
+- `npm run test:database-live` cria fixtures com id próprio e apaga só esses ids; `npm test` não grava nesse banco;
 - uma conta criada no smoke de production permanece nesse banco e não deve ser apagada como se fosse teste.
 
 Antes de uma migration futura:
@@ -97,10 +97,10 @@ O código não exige banco exclusivo. Os nomes, sem valores:
 - `DATABASE_ENV=production`
 - `RUNTIME_DATABASE_URL`
 - `POSTGRES_URL`
-- `BETTER_AUTH_URL`
+- `BETTER_AUTH_URL=https://alexandrefeio.com.br`
 - `BETTER_AUTH_SECRET`
 - `RESEND_API_KEY`
-- `RESEND_FROM`
+- `RESEND_FROM=contato@alexandrefeio.com.br`
 - `NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY`
 - `MERCADO_PAGO_ACCESS_TOKEN`
 - `MERCADO_PAGO_WEBHOOK_SECRET`
@@ -110,13 +110,54 @@ O código não exige banco exclusivo. Os nomes, sem valores:
 
 `COMMERCE_ENABLED` e `COMMERCE_PRODUCTION_READY` permanecem false até uma aprovação posterior. Produto `AVAILABLE` sozinho não abre checkout.
 
-## Smoke que ainda não rodou
+## Testes e o banco compartilhado
 
-Home, curso, aulas 1–3, previews 4–6, o checklist de auth acima, e a entrega do webhook sem conceder acesso só pelo payload. Este gate não conferiu os valores secretos da Vercel.
+`npm test` é a suíte padrão. Ela não abre o client do Postgres. Regras de quote, crédito de upgrade, disponibilidade, gates, webhook e entitlement ficam nessa suíte, com fixtures em memória.
+
+Testes que ainda precisam do banco estão em `tests/database-live/` e só rodam com:
+
+`SHARED_DATABASE_TEST_CONFIRM=true npm run test:database-live`
+
+Sem a flag, o comando recusa a execução. Ele não entra em `npm test`, `build`, `postinstall` nem deploy. Não há banco físico separado para teste.
+
+O checkout real do Mercado Pago fica fora das duas suítes. Ele exige `MP_LIVE_TEST=1` e `SHARED_DATABASE_TEST_CONFIRM=true` em `npm run test:mercado-pago-live`. Se `MERCADO_PAGO_ENV=production`, o comando recusa. Credencial de production não entra na suíte automática.
+
+Comandos que ainda gravam no banco compartilhado, cada um com confirmação própria:
+
+- `npm run db:seed` e `npm run catalog:deploy`, com `CATALOG_DEPLOY_CONFIRM=shared` ou `production`
+- `npm run db:deploy`, fora de `VERCEL_ENV=production`, e só depois de revisar o SQL
+- `npm run commerce:products -- --apply`, com `COMMERCE_CATALOG_CONFIRM=shared` ou `production`
+- `npm run test:database-live`, com `SHARED_DATABASE_TEST_CONFIRM=true`
+- `npm run test:mercado-pago-live`, com as duas flags e credencial de teste
+
+## Smoke de production
+
+Checklist manual, sem ativar venda e sem cobrança. A conta criada no smoke permanece no banco.
+
+1. Home, curso e aulas 1–3 respondem 200, com o corpo completo nas aulas gratuitas.
+2. Aulas 4–6 respondem 200 só com preview público e o texto “Conteúdo completo disponível em breve.”. TOOL, checkpoint privado e bloco privado não aparecem no HTML anônimo.
+3. Aulas 7–12 seguem `noindex`.
+4. Cadastro com e-mail real, confirmação, login, logout, login de novo e `/app`.
+5. Reset de senha uma vez, com a revogação de sessão já implementada.
+6. Progresso anônimo nas aulas 1 e 2 entra na conta sem duplicar resposta, mantém a posição mais avançada e esconde o CTA depois do login.
+7. Aula 3 cria Project e Diagnóstico, conclui a aula, e os três registros continuam depois de logout e login.
+8. Com `COMMERCE_ENABLED=false`, nenhum checkout de production inicia, mesmo com credencial válida. Produto `NOT_FOR_SALE` continua bloqueado.
+9. O webhook `https://alexandrefeio.com.br/api/webhooks/mercado-pago` exige assinatura. Evento sem pedido reconciliável não cria entitlement.
+10. Analytics registra os eventos públicos de curso, aula, preview, paywall e diagnóstico, sem e-mail, nome, projeto, resposta, nota ou orçamento.
+11. Canonical no apex, robots, sitemap, JSON-LD e markup de paywall permanecem como estão.
+
+## Evidência para liberar a primeira venda
+
+Ainda não autoriza `commerce:products --enable`, nem `COMMERCE_ENABLED=true`, nem `COMMERCE_PRODUCTION_READY=true`, nem cobrança. A autorização comercial só entra depois de todas estas evidências:
+
+- deploy de production no commit conferido;
+- smoke público, auth, e-mail, merge, projeto, diagnóstico, preview pago, comércio fechado, webhook e SEO marcados como passando;
+- variáveis de production conferidas, com as duas flags de comércio ainda false;
+- dry-run da allowlist sem gravação.
 
 ## Ativação futura
 
-Depois das variáveis de production conferidas, do webhook observado e de um smoke sem cobrança:
+Depois dessas evidências:
 
 1. Ligar `COMMERCE_ENABLED`, `COMMERCE_PRODUCTION_READY`, `MERCADO_PAGO_ENV=production` e as credenciais de production na Vercel.
 2. Conferir o dry-run de `npm run commerce:products -- --enable` para a Aula 4, a Aula 5, o Módulo 1 e a Aula 6.

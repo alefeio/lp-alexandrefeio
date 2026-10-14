@@ -2,12 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { canReadLessonBody } from "../src/lib/learning/access";
-import {
-  isCommerceEnabled,
-  mercadoPagoProductionConfig,
-  mercadoPagoTestConfig,
-  webhookLiveModeAllowed,
-} from "../src/lib/commerce/config";
+import { isCommerceEnabled, mercadoPagoProductionConfig, mercadoPagoTestConfig, webhookLiveModeAllowed } from "../src/lib/commerce/config";
 import { quoteCart, type SaleCourse, type SaleLesson, type SaleModule } from "../src/lib/commerce/quote";
 import { reconcileDecision } from "../src/lib/commerce/reconcile";
 import { mergeLessonProgress } from "../src/lib/learning/local-progress";
