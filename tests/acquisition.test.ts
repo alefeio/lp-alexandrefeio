@@ -139,8 +139,11 @@ test("preço e aulas futuras não estão hardcoded na página de vendas", () => 
   assert.match(sales, /Disponível em breve/);
   assert.match(sales, /isProductForSale/);
   const home = readFileSync(new URL("../src/components/home/CourseHome.tsx", import.meta.url), "utf8");
-  assert.match(home, /Começar gratuitamente/);
-  assert.match(home, /Prefiro contratar a gestão/);
+  const publicHome = readFileSync(new URL("../src/lib/home/public-home.ts", import.meta.url), "utf8");
+  assert.match(home, /publicHomeCopy\.primaryCta/);
+  assert.match(home, /publicHomeCopy\.secondaryCta/);
+  assert.match(publicHome, /Começar gratuitamente/);
+  assert.match(publicHome, /Prefiro contratar a gestão/);
   const page = readFileSync(new URL("../src/app/(learn)/aulas/[slug]/page.tsx", import.meta.url), "utf8");
   assert.match(page, /loadLessonBlocks\(page\.lesson\.id, "full"\)/);
   assert.match(page, /lesson-paywall|LessonPaywall/);

@@ -3,6 +3,7 @@ import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { Container } from "@/components/ui/Container";
 import { aboutContent } from "@/data/home";
 import { buttonClass } from "@/lib/button-styles";
+import { publicHomeCopy } from "@/lib/home/public-home";
 import { formatPriceCents } from "@/lib/learning/money";
 
 const COURSE_PATH = "/cursos/trafego-pago-na-pratica";
@@ -40,17 +41,17 @@ export function CourseHome({
         <Container>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-on-ink">Alexandre Feio</p>
           <h1 className="mt-4 max-w-3xl text-[2.05rem] font-semibold leading-[1.08] tracking-tight text-on-ink sm:text-5xl">
-            Aprenda tráfego pago aplicando no seu próprio negócio.
+            {publicHomeCopy.hero}
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-on-ink-muted sm:text-lg">
             Uma trilha em texto para planejar, executar e medir. Se preferir delegar, eu também cuido da estratégia e da gestão.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <AcquisitionLink className={buttonClass("inverted")} href={FREE_ANCHOR} event="course_cta_click" payload={{ course_slug: "trafego-pago-na-pratica", cta_name: "comecar_gratuitamente" }}>
-              Começar gratuitamente
+              {publicHomeCopy.primaryCta}
             </AcquisitionLink>
             <Link className={`${buttonClass("secondary")} border-white/20 bg-transparent text-on-ink hover:bg-white/10`} href="/trafego-pago">
-              Prefiro contratar a gestão
+              {publicHomeCopy.secondaryCta}
             </Link>
           </div>
         </Container>
@@ -177,10 +178,10 @@ export function CourseHome({
           <p className="mt-4 text-base leading-relaxed">O primeiro passo é aplicar o mapa, a escolha de canal e o diagnóstico no seu negócio.</p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <AcquisitionLink className={buttonClass("primary")} href={FREE_ANCHOR} event="course_cta_click" payload={{ course_slug: "trafego-pago-na-pratica", cta_name: "comecar_gratuitamente" }}>
-              Começar gratuitamente
+              {publicHomeCopy.primaryCta}
             </AcquisitionLink>
             <Link className={buttonClass("secondary")} href="/trafego-pago">
-              Prefiro contratar a gestão
+              {publicHomeCopy.secondaryCta}
             </Link>
           </div>
         </Container>

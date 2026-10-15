@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { Wordmark } from "@/components/ui/Wordmark";
+import { lessonRail, lessonRailSectionState } from "@/lib/learning/lesson-rail";
 import { authCtaParams, trackEvent } from "@/lib/analytics";
 import { CONSENT_STORAGE_KEY, parseConsent } from "@/lib/consent";
 import {
@@ -613,12 +615,12 @@ function LessonIndex({
       {headings.map((heading, index) => {
         if (heading.data.type !== "HEADING") return null;
         const active = heading.blockKey === current;
-        const state = active ? "Você está aqui" : currentIndex >= 0 && index < currentIndex ? "Já passou" : "Adiante";
+        const state = lessonRailSectionState(index, currentIndex);
         return (
           <li key={heading.blockKey}>
             <button
               type="button"
-              className={active ? "text-left font-medium text-foreground" : "text-left text-muted"}
+              className={active ? "break-words text-left font-medium text-foreground" : "break-words text-left text-muted"}
               onClick={() => jump(heading.blockKey)}
               aria-current={active ? "true" : undefined}
             >
@@ -633,12 +635,15 @@ function LessonIndex({
 
   return (
     <nav aria-label="Índice da aula" className="min-w-0">
-      <details ref={detailsRef} className="rounded-lg border border-border p-4 lg:hidden">
+      <details ref={detailsRef} className={lessonRail.mobileClass}>
         <summary className="cursor-pointer text-sm font-medium">Índice da aula</summary>
         <div className="mt-4">{list}</div>
       </details>
-      <div className="sticky top-24 hidden lg:block">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Nesta aula</p>
+      <div className={lessonRail.desktopClass}>
+        <Link href={lessonRail.logoHref} aria-label={lessonRail.logoLabel} className="inline-flex max-w-full">
+          <Wordmark />
+        </Link>
+        <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-muted">Nesta aula</p>
         <div className="mt-4">{list}</div>
       </div>
     </nav>
