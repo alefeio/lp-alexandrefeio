@@ -23,6 +23,7 @@ O marketing continua em `/`, com formulário via Resend e mensuração via GTM.
 | [payments.md](./payments.md) | Pedido, pagamento e direito de acesso |
 | [analytics.md](./analytics.md) | Eventos atuais e convenção futura |
 | [security.md](./security.md) | Revisão inicial de segurança |
+| [admin-operations.md](./admin-operations.md) | Admin operacional somente leitura |
 
 ADRs ficam em [adr/](./adr/). Status `PROPOSED` ou `PENDING` não é decisão implementada.
 

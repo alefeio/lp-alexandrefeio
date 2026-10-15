@@ -35,18 +35,20 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <div className="flex min-h-[100dvh] flex-col">
       <header className="border-b border-border">
-        <Container className="flex h-16 items-center justify-between gap-4">
-          <Link href="/admin" className="text-foreground">
+        <Container className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 py-3">
+          <Link href="/admin" className="text-foreground" aria-label="Visão geral — Alexandre Feio">
             <Wordmark />
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/admin/cursos">Cursos</Link>
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Link href="/admin">Visão geral</Link>
+            <Link href="/admin/usuarios">Usuários</Link>
             <Link href="/admin/compras">Compras</Link>
+            <Link href="/admin/cursos">Cursos</Link>
             <SignOutButton />
           </nav>
         </Container>
       </header>
-      <main id="conteudo" className="flex-1 py-16">
+      <main id="conteudo" className="flex-1 py-8 sm:py-10">
         {children}
       </main>
     </div>
