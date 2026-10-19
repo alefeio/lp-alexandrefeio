@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CourseSales } from "@/components/course/CourseSales";
+import { getSession } from "@/lib/auth/session";
+import { loadOwnedLessonIds } from "@/lib/commerce/catalog";
 import { getPrisma } from "@/lib/db/prisma";
 import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
 import { getPublishedCourse } from "@/lib/learning/catalog";
@@ -49,9 +51,12 @@ export default async function CoursePage({ params }: PageProps) {
     _count: { _all: true },
   });
   const previewIds = new Set(previewRows.filter((row) => row._count._all > 0).map((row) => row.lessonId));
+  const session = await getSession();
+  const ownedLessonIds = session ? await loadOwnedLessonIds(session.user.id) : [];
 
   return (
     <CourseSales
+      ownedLessonIds={ownedLessonIds}
       course={{
         id: course.id,
         slug: course.slug,

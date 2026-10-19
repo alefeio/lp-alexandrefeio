@@ -7,6 +7,7 @@ import { Container } from "@/components/ui/Container";
 import { aboutContent } from "@/data/home";
 import { buttonClass } from "@/lib/button-styles";
 import { isCommerceEnabled, isProductForSale } from "@/lib/commerce/config";
+import { paidLessonAction } from "@/lib/commerce/sale-action";
 import { formatPriceCents } from "@/lib/learning/money";
 import { courseJsonLd } from "@/lib/seo/learning-jsonld";
 
@@ -33,7 +34,9 @@ type SalesModule = {
 
 export function CourseSales({
   course,
+  ownedLessonIds = [],
 }: {
+  ownedLessonIds?: string[];
   course: {
     id: string;
     slug: string;
@@ -47,6 +50,12 @@ export function CourseSales({
 }) {
   const commerce = isCommerceEnabled();
   const courseOpen = isProductForSale(course.commerceStatus, course.bundlePriceCents);
+  const owned = new Set(ownedLessonIds);
+  const salesOpen = course.modules.some(
+    (moduleRow) =>
+      isProductForSale(moduleRow.commerceStatus, moduleRow.bundlePriceCents, commerce) ||
+      moduleRow.lessons.some((lesson) => lesson.accessType === "PAID" && isProductForSale(lesson.commerceStatus, lesson.priceCents, commerce)),
+  );
   const freeLessons = course.modules.flatMap((moduleRow) => moduleRow.lessons).filter((lesson) => lesson.accessType === "FREE");
 
   return (
@@ -122,7 +131,7 @@ export function CourseSales({
                 <ModulePrice moduleRow={moduleRow} commerce={commerce} />
                 <ol className="mt-4 space-y-3">
                   {moduleRow.lessons.map((lesson) => (
-                    <LessonRow key={lesson.id} lesson={lesson} courseSlug={course.slug} commerce={commerce} />
+                    <LessonRow key={lesson.id} lesson={lesson} courseSlug={course.slug} commerce={commerce} owned={owned.has(lesson.id)} />
                   ))}
                 </ol>
               </section>
@@ -181,7 +190,11 @@ export function CourseSales({
           </div>
           <div>
             <h3 className="font-medium">Já dá para comprar as aulas pagas?</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted">Ainda não. As aulas 4, 5 e 6 têm uma parte pública para leitura. O restante fica para quando a venda abrir.</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              {salesOpen
+                ? "Sim. As aulas e os módulos que estão à venda mostram o preço e o botão de compra. O que ainda não foi liberado continua em breve."
+                : "Ainda não. As aulas pagas têm uma parte pública para leitura. O restante fica para quando a venda abrir."}
+            </p>
           </div>
           <div>
             <h3 className="font-medium">O curso substitui a gestão?</h3>
@@ -222,13 +235,16 @@ function LessonRow({
   lesson,
   courseSlug,
   commerce,
+  owned,
 }: {
   lesson: SalesLesson;
   courseSlug: string;
   commerce: boolean;
+  owned: boolean;
 }) {
   const paid = lesson.accessType === "PAID";
   const open = paid && isProductForSale(lesson.commerceStatus, lesson.priceCents, commerce);
+  const action = paid ? paidLessonAction({ open, owned }) : null;
   return (
     <li className="rounded-lg border border-border p-4">
       <p className="text-xs text-muted">
@@ -249,13 +265,18 @@ function LessonRow({
             Começar aula
           </AcquisitionLink>
         ) : null}
-        {paid && !open ? <p className="text-sm">Disponível em breve.</p> : null}
-        {paid && lesson.hasPublicPreview ? (
+        {action === "soon" ? <p className="text-sm">Disponível em breve.</p> : null}
+        {action === "access" ? (
+          <Link className={buttonClass("primary")} href={`/aulas/${lesson.slug}`}>
+            Acessar minha aula
+          </Link>
+        ) : null}
+        {action !== "access" && paid && lesson.hasPublicPreview ? (
           <Link className="text-sm underline underline-offset-4" href={`/aulas/${lesson.slug}`}>
             Ler a parte gratuita
           </Link>
         ) : null}
-        {open && lesson.priceCents != null ? (
+        {action === "buy" && lesson.priceCents != null ? (
           <AddToCartButton id={lesson.id} type="LESSON" label={`Comprar esta aula — ${formatPriceCents(lesson.priceCents)}`} />
         ) : null}
       </div>
