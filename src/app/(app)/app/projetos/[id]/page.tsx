@@ -49,6 +49,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/plano#acao`}>Adicionar ação</Link>
             <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/plano#recarga`}>Planejar recarga</Link>
             <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/editar`}>Completar contexto</Link>
+            <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/dados`}>Dados da campanha</Link>
             <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/diagnostico`}>
               {inProgress ? "Continuar diagnóstico" : latest ? "Fazer novo diagnóstico" : "Fazer diagnóstico"}
             </Link>

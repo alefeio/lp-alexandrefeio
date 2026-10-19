@@ -28,6 +28,7 @@ model User {
   lessonResults        LessonResult[]
   projects             Project[]
   diagnostics          Diagnostic[]
+  campaignDataImports  CampaignDataImport[]
   orders               Order[]
   entitlements         Entitlement[]
 
@@ -397,6 +398,7 @@ model Project {
   tasks                   Task[]
   reminders               Reminder[]
   budgetPlan              ProjectBudgetPlan?
+  campaignDataImports     CampaignDataImport[]
 
   @@index([userId, updatedAt])
   @@map("project")
@@ -539,6 +541,76 @@ model ProjectBudgetPlan {
   updatedAt               DateTime @updatedAt
 
   @@map("project_budget_plan")
+}
+
+enum CampaignSourcePlatform {
+  GOOGLE_ADS
+  META_ADS
+  UNKNOWN
+}
+
+enum CampaignFileFormat {
+  CSV
+  XLSX
+}
+
+enum CampaignImportStatus {
+  PENDING_UPLOAD
+  UPLOADED
+  NEEDS_SHEET_SELECTION
+  NEEDS_MAPPING
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+}
+
+enum CampaignNumberLocale {
+  PT_BR
+  EN_US
+}
+
+enum CampaignCurrency {
+  BRL
+  USD
+  OTHER
+}
+
+/// Metadados do arquivo de campanha. O arquivo e o dataset ficam no Blob privado.
+model CampaignDataImport {
+  id                     String                  @id @default(cuid())
+  userId                 String
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId              String
+  project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourcePlatform         CampaignSourcePlatform
+  fileFormat             CampaignFileFormat
+  originalFileName       String?
+  mimeType               String?
+  sizeBytes              Int
+  sha256                 String?
+  rawStoragePath         String
+  normalizedStoragePath  String?
+  status                 CampaignImportStatus
+  sheetNames             Json?
+  selectedSheet          String?
+  rowCount               Int?
+  columnCount            Int?
+  columnMapping          Json?
+  availableDimensions    Json?
+  availableMetrics       Json?
+  warnings               Json?
+  numberLocale           CampaignNumberLocale?
+  currency               CampaignCurrency?
+  failureCode            String?
+  parsedAt               DateTime?
+  deletedAt              DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([userId, projectId, sha256])
+  @@map("campaign_data_import")
 }
 
 /// PAID exige compra quando a venda existir. AVAILABLE é o que pode ser cobrado agora.
