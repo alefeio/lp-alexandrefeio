@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { briefProjectIdsFrom } from "@/lib/learning/campaign-brief";
 import { planProjectIdsFrom } from "@/lib/learning/destination-plan";
+import { metaCampaignProjectIdsFrom } from "@/lib/learning/meta-campaign";
 import { responsiveAdProjectIdsFrom } from "@/lib/learning/responsive-search-ad";
 import { keywordProjectIdsFrom } from "@/lib/learning/keyword-intent";
 import { blueprintProjectIdsFrom } from "@/lib/learning/search-blueprint";
@@ -59,13 +60,16 @@ export async function loadSnapshot(userId: string, lessonId: string, rules: Prog
   const briefIds = briefProjectIdsFrom(projectResults);
   const planIds = planProjectIdsFrom(projectResults);
   const blueprintIds = blueprintProjectIdsFrom(projectResults);
+  const keywordIds = keywordProjectIdsFrom(projectResults);
+  const adIds = responsiveAdProjectIdsFrom(projectResults);
+  const metaIds = metaCampaignProjectIdsFrom(projectResults);
 
   return {
-    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds),
+    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds),
     completed: Boolean(progress?.completedAt),
     lastBlockKey: progress?.lastBlockKey ?? null,
     viewedBlockKeys: blockProgress.filter((row) => row.viewedAt).map((row) => row.blockKey),
-    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds),
+    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds),
     responses: Object.fromEntries(responses.map((row) => [row.blockKey, row.payload])),
     notes: Object.fromEntries(notes.map((row) => [row.blockKey, row.body])),
     bookmarks: bookmarks.map((row) => row.blockKey),
@@ -96,9 +100,10 @@ export async function recomputeProgress(
   const blueprintIds = blueprintProjectIdsFrom(projectResults);
   const keywordIds = keywordProjectIdsFrom(projectResults);
   const adIds = responsiveAdProjectIdsFrom(projectResults);
+  const metaIds = metaCampaignProjectIdsFrom(projectResults);
   const answers = answersFromRows(rules, blockProgress, responses, saved);
-  const percent = progressPercent(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds);
-  const completed = isLessonComplete(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds);
+  const percent = progressPercent(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds);
+  const completed = isLessonComplete(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds);
   const existing = await prisma.lessonProgress.findUnique({ where: { userId_lessonId: scope } });
   const now = new Date();
 

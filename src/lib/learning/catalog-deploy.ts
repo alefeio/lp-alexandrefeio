@@ -8,6 +8,7 @@ import { LESSON_05_SLUG } from "@/lib/learning/lesson-05";
 import { LESSON_06_SLUG } from "@/lib/learning/lesson-06";
 import { LESSON_07_SLUG } from "@/lib/learning/lesson-07";
 import { LESSON_08_SLUG } from "@/lib/learning/lesson-08";
+import { LESSON_09_SLUG } from "@/lib/learning/lesson-09";
 import { seedLesson01Content } from "@/lib/learning/seed-lesson-01";
 import { seedLesson02Content } from "@/lib/learning/seed-lesson-02";
 import { seedLesson03Content } from "@/lib/learning/seed-lesson-03";
@@ -17,8 +18,9 @@ import { seedLesson06Content } from "@/lib/learning/seed-lesson-06";
 import { seedLesson07Content } from "@/lib/learning/seed-lesson-07";
 
 import { seedLesson08Content } from "@/lib/learning/seed-lesson-08";
+import { seedLesson09Content } from "@/lib/learning/seed-lesson-09";
 
-const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LESSON_05_SLUG, LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG]);
+const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LESSON_05_SLUG, LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG, LESSON_09_SLUG]);
 
 /**
  * Upsert do catálogo aprovado. Não apaga progresso, projeto, diagnóstico, pedido ou entitlement.
@@ -134,7 +136,8 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
   const lesson06 = await seedLesson06Content(prisma, seedOptions);
   const lesson07 = await seedLesson07Content(prisma, seedOptions);
   const lesson08 = await seedLesson08Content(prisma, seedOptions);
+  const lesson09 = await seedLesson09Content(prisma, seedOptions);
   const lessons = await prisma.lesson.count({ where: { module: { courseId: course.id } } });
   const blocks = await prisma.lessonBlock.count({ where: { lesson: { module: { courseId: course.id } } } });
-  return { course: course.slug, lessons, blocks, lesson01, lesson02, lesson03, lesson04, lesson05, lesson06, lesson07, lesson08 };
+  return { course: course.slug, lessons, blocks, lesson01, lesson02, lesson03, lesson04, lesson05, lesson06, lesson07, lesson08, lesson09 };
 }

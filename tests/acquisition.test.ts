@@ -15,7 +15,6 @@ import { breadcrumbList, courseJsonLd, lessonJsonLd } from "../src/lib/seo/learn
 
 const allowed = new Set<string>(PUBLIC_PREVIEW_TYPES);
 const later = [
-  "objetivo-publico-estrutura",
   "campanhas-leads-whatsapp",
   "leia-os-numeros",
   "o-que-mudar",

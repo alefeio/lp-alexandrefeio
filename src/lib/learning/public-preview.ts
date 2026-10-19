@@ -30,6 +30,15 @@ export const LESSON_05_PUBLIC_PREVIEW_KEYS = [
   "exemplo-destino-coerente",
 ] as const;
 
+export const LESSON_09_PUBLIC_PREVIEW_KEYS = [
+  "campanha-comeca-pelo-resultado",
+  "cadeia-do-resultado",
+  "negocio-nao-e-o-botao",
+  "os-seis-objetivos",
+  "cada-objetivo-em-uma-frase",
+  "tres-niveis-da-campanha",
+] as const;
+
 export const LESSON_08_PUBLIC_PREVIEW_KEYS = [
   "busca-anuncio-pagina",
   "cadeia-da-conversao",
