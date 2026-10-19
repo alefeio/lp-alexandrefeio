@@ -165,7 +165,7 @@ export async function getOrderForUser(userId: string, orderId: string) {
   return getPrisma().order.findFirst({
     where: { id: orderId, userId },
     include: {
-      items: true,
+      items: { include: { lesson: { select: { slug: true } } } },
       payments: { orderBy: { createdAt: "desc" } },
     },
   });

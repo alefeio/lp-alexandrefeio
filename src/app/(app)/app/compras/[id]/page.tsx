@@ -4,7 +4,9 @@ import { PurchaseBeacon } from "@/components/commerce/PurchaseBeacon";
 import { RefreshPayment } from "@/components/commerce/RefreshPayment";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
+import { buttonClass } from "@/lib/button-styles";
 import { getOrderForUser } from "@/lib/commerce/orders";
+import { purchasedLessonPath } from "@/lib/commerce/purchase-cta";
 import { fetchPixPresentation } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
 
@@ -40,6 +42,9 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
     ? await fetchPixPresentation(payment.providerPaymentId)
     : null;
   const item = order.items[0];
+  const lessonPath = purchasedLessonPath(
+    order.items.map((row) => ({ productType: row.productType, lessonSlug: row.lesson?.slug ?? null })),
+  );
 
   return (
     <Container className="max-w-2xl">
@@ -79,7 +84,16 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
       ) : null}
       <RefreshPayment orderId={order.id} pending={pending} />
       {order.status === "PAID" ? (
-        <Link className="mt-6 inline-block text-sm underline underline-offset-4" href="/app/aprendizado">Continuar aprendendo</Link>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          {lessonPath ? (
+            <Link className={buttonClass("primary")} href={lessonPath}>
+              Acessar minha aula
+            </Link>
+          ) : null}
+          <Link className={buttonClass(lessonPath ? "secondary" : "primary")} href="/app/aprendizado">
+            Ver meu aprendizado
+          </Link>
+        </div>
       ) : null}
     </Container>
   );

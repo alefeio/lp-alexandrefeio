@@ -64,6 +64,21 @@ export default async function LearningPage() {
           </li>
         ))}
       </Section>
+      {lists.available.length > 0 ? (
+        <Section title="Disponíveis para estudar" empty="">
+          {lists.available.map((item) => (
+            <li key={item.lessonId}>
+              <Link className="underline underline-offset-4" href={`/aulas/${item.slug}`}>
+                {item.title}
+              </Link>
+              <span className="ml-2 text-sm text-muted">Comprada</span>
+              <Link className="ml-2 text-sm underline underline-offset-4" href={`/aulas/${item.slug}`}>
+                Começar aula
+              </Link>
+            </li>
+          ))}
+        </Section>
+      ) : null}
       <Section title="Concluídas" empty="Nenhuma aula concluída.">
         {lists.completed.map((item) => (
           <li key={item.id}>

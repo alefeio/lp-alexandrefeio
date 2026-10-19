@@ -2,6 +2,7 @@ import { canIndexLesson, canReadLessonBody, isPublicLesson } from "@/lib/learnin
 import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
 import { parseBlockData, toPublicBlockData, type LessonBlockData } from "@/lib/learning/blocks";
 import { getPrisma } from "@/lib/db/prisma";
+import { lessonsAvailableToStudy } from "@/lib/learning/available-study";
 import type { SitemapCourse, SitemapLesson } from "@/lib/seo/public-sitemap";
 import { savedCheckpointFeedback, type CheckpointFeedback } from "@/lib/learning/progress";
 import { studentAreaState, type StudyCard } from "@/lib/learning/student-home";
@@ -280,7 +281,7 @@ export async function studentLearningHome(userId: string) {
 
 export async function learningLists(userId: string) {
   const prisma = getPrisma();
-  const [inProgress, completed, notes, bookmarks] = await Promise.all([
+  const [inProgress, completed, notes, bookmarks, entitlements] = await Promise.all([
     prisma.lessonProgress.findMany({
       where: { userId, completedAt: null },
       orderBy: { lastActiveAt: "desc" },
@@ -303,8 +304,21 @@ export async function learningLists(userId: string) {
       take: 8,
       include: { lesson: { select: { slug: true, title: true } } },
     }),
+    prisma.entitlement.findMany({
+      where: { userId, status: "ACTIVE" },
+      select: { lessonId: true, lesson: { select: { slug: true, title: true } } },
+    }),
   ]);
-  return { inProgress, completed, notes, bookmarks };
+  const available = lessonsAvailableToStudy(
+    entitlements.map((item) => ({
+      lessonId: item.lessonId,
+      slug: item.lesson.slug,
+      title: item.lesson.title,
+      status: "ACTIVE",
+    })),
+    [...inProgress, ...completed].map((item) => item.lessonId),
+  );
+  return { inProgress, completed, notes, bookmarks, available };
 }
 
 export async function sectionTitlesFor(items: { lessonId: string; blockKey: string | null }[]): Promise<Record<string, string>> {
