@@ -73,7 +73,7 @@ test("aula 2 definitiva tem 28 blocos válidos e passa na validação", () => {
   const lessons = firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons);
   assert.equal(lessons.filter((lesson) => lesson.slug === LESSON_02_SLUG).length, 1);
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_01_SLUG)?.blocks.length, lesson01Blocks.length);
-  assert.equal(lessons.find((lesson) => lesson.slug === "anuncios-alinhados-a-conversao")?.blocks.length, 0);
+  assert.equal(lessons.find((lesson) => lesson.slug === "objetivo-publico-estrutura")?.blocks.length, 0);
   const ready = assessLesson(
     {
       title: lesson02Meta.title,

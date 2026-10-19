@@ -51,7 +51,7 @@ test("aula incompleta, aula fora da allowlist e curso completo não ativam", () 
   assert.equal(incomplete.allowed, false);
   const future = planLessonEnable(readyLesson({ slug: "palavras-chave-com-intencao", priceCents: 3990 }));
   assert.equal(future.allowed, false);
-  assert.match(future.reason ?? "", /não está pronta/);
+  assert.match(future.reason ?? "", /allowlist/);
   const course = planCourseEnable({
     slug: FIRST_COURSE_SLUG,
     title: "Curso",

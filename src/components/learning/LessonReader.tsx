@@ -38,11 +38,13 @@ import type { TrafficToolPanel } from "@/lib/learning/tool";
 import { CampaignBriefTool } from "@/components/learning/CampaignBriefTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { KeywordIntentTool } from "@/components/learning/KeywordIntentTool";
+import { ResponsiveSearchAdTool } from "@/components/learning/ResponsiveSearchAdTool";
 import { SearchBlueprintTool } from "@/components/learning/SearchBlueprintTool";
 import { TrafficReadinessTool } from "@/components/learning/TrafficReadinessTool";
 import type { CampaignBriefPanel } from "@/lib/learning/brief";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
+import type { ResponsiveAdPanel } from "@/lib/learning/responsive-ad-plan";
 import type { SearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { authNextHref } from "@/lib/auth/messages";
 import { buttonClass } from "@/lib/button-styles";
@@ -55,7 +57,7 @@ type Props = {
   authenticated: boolean;
   resume: boolean;
   preview?: boolean;
-  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | null;
+  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | null;
 };
 
 export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
@@ -665,7 +667,7 @@ function BlockView(props: {
   onResult: (values: Record<string, string>, blockKey: string) => void;
   onNote: (blockKey: string, body: string) => void;
   onBookmark: (blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const { block, snapshot } = props;
@@ -714,7 +716,7 @@ function BlockBody(props: {
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const data = props.block.data;
@@ -777,6 +779,15 @@ function BlockBody(props: {
     return (
       <div className="rounded-lg border border-border bg-surface px-5 py-5">
         <ResultForm {...props} data={data} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "RESPONSIVE_SEARCH_AD_PLAN_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "ads" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <ResponsiveSearchAdTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

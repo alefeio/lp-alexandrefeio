@@ -6,6 +6,7 @@ import { LESSON_04_SLUG, lesson04Blocks, lesson04Meta } from "@/lib/learning/les
 import { LESSON_05_SLUG, lesson05Blocks, lesson05Meta } from "@/lib/learning/lesson-05";
 import { LESSON_06_SLUG, lesson06Blocks, lesson06Meta } from "@/lib/learning/lesson-06";
 import { LESSON_07_SLUG, lesson07Blocks, lesson07Meta } from "@/lib/learning/lesson-07";
+import { LESSON_08_SLUG, lesson08Blocks, lesson08Meta } from "@/lib/learning/lesson-08";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -149,7 +150,17 @@ export const firstCourseSeed = {
           priceCents: lesson07Meta.priceCents,
           blocks: lesson07Blocks,
         },
-        paid("anuncios-alinhados-a-conversao", "Crie anúncios alinhados à conversão", "O texto do anúncio precisa combinar com a página que recebe a visita.", 3490, 2),
+        {
+          slug: LESSON_08_SLUG,
+          title: lesson08Meta.title,
+          summary: lesson08Meta.summary,
+          publicPreview: lesson08Meta.publicPreview,
+          estimatedMinutes: lesson08Meta.estimatedMinutes,
+          sortOrder: 2,
+          accessType: lesson08Meta.accessType,
+          priceCents: lesson08Meta.priceCents,
+          blocks: lesson08Blocks,
+        },
       ],
     },
     {

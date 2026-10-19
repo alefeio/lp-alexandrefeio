@@ -11,6 +11,7 @@ import type { ReaderBlock } from "@/lib/learning/reader-types";
 import { campaignBriefPreviewState } from "@/lib/learning/brief";
 import { destinationPlanPreviewState } from "@/lib/learning/measurement";
 import { keywordIntentPreviewState } from "@/lib/learning/keyword-plan";
+import { responsiveAdPreviewState } from "@/lib/learning/responsive-ad-plan";
 import { searchBlueprintPreviewState } from "@/lib/learning/search-campaign";
 import { trafficToolPreviewState } from "@/lib/learning/tool";
 
@@ -95,5 +96,6 @@ function previewToolPanel(blocks: ReaderBlock[]) {
   if (toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") return destinationPlanPreviewState();
   if (toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1") return searchBlueprintPreviewState();
   if (toolKey === "KEYWORD_INTENT_PLAN_V1") return keywordIntentPreviewState();
+  if (toolKey === "RESPONSIVE_SEARCH_AD_PLAN_V1") return responsiveAdPreviewState();
   return trafficToolPreviewState();
 }

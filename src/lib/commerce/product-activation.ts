@@ -5,6 +5,8 @@ import { FIRST_COURSE_SLUG } from "@/lib/learning/first-course";
 import { LESSON_04_SLUG } from "@/lib/learning/lesson-04";
 import { LESSON_05_SLUG } from "@/lib/learning/lesson-05";
 import { LESSON_06_SLUG } from "@/lib/learning/lesson-06";
+import { LESSON_07_SLUG } from "@/lib/learning/lesson-07";
+import { LESSON_08_SLUG } from "@/lib/learning/lesson-08";
 import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
 
 export const COMMERCE_CATALOG_CONFIRM = "production";
@@ -19,13 +21,12 @@ export const FIRST_SALE_ALLOWLIST = [
 
 const MODULE_LESSONS: Record<string, readonly string[]> = {
   "planeje-antes-de-anunciar": [LESSON_04_SLUG, LESSON_05_SLUG],
+  "google-ads-na-pratica": [LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG],
 };
 
-const INCOMPLETE_MODULES = new Set(["google-ads-na-pratica", "meta-ads-na-pratica", "entenda-e-melhore"]);
+const INCOMPLETE_MODULES = new Set(["meta-ads-na-pratica", "entenda-e-melhore"]);
 
 const INCOMPLETE_LESSONS = new Set([
-  "palavras-chave-com-intencao",
-  "anuncios-alinhados-a-conversao",
   "objetivo-publico-estrutura",
   "campanhas-leads-whatsapp",
   "leia-os-numeros",

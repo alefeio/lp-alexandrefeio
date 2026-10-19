@@ -25,7 +25,6 @@ const required = [
   "checkpoint-final-mensuracao",
 ];
 const laterLessons = [
-  "anuncios-alinhados-a-conversao",
   "objetivo-publico-estrutura",
   "campanhas-leads-whatsapp",
   "leia-os-numeros",

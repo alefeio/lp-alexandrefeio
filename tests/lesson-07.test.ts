@@ -115,7 +115,7 @@ test("aula 7 definitiva permanece paga, publicada no conteúdo e fora de venda",
   const lesson = lessons.find((item) => item.slug === LESSON_07_SLUG);
   assert.equal(lesson?.blocks.length, lesson07Blocks.length);
   assert.equal(lesson?.priceCents, 3990);
-  assert.equal(lessons.find((item) => item.slug === LESSON_08_SLUG)?.blocks.length, 0);
+  assert.notEqual(lessons.find((item) => item.slug === LESSON_08_SLUG)?.blocks.length, 0);
   assert.equal(isProductForSale("NOT_FOR_SALE", 3990, true), false);
   assert.equal(paidLessonAction({ open: false, owned: false }), "soon");
   const blocked = planLessonEnable({

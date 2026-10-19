@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { briefProjectIdsFrom } from "@/lib/learning/campaign-brief";
 import { planProjectIdsFrom } from "@/lib/learning/destination-plan";
+import { responsiveAdProjectIdsFrom } from "@/lib/learning/responsive-search-ad";
 import { keywordProjectIdsFrom } from "@/lib/learning/keyword-intent";
 import { blueprintProjectIdsFrom } from "@/lib/learning/search-blueprint";
 import { parseBlockData } from "@/lib/learning/blocks";
@@ -94,9 +95,10 @@ export async function recomputeProgress(
   const planIds = planProjectIdsFrom(projectResults);
   const blueprintIds = blueprintProjectIdsFrom(projectResults);
   const keywordIds = keywordProjectIdsFrom(projectResults);
+  const adIds = responsiveAdProjectIdsFrom(projectResults);
   const answers = answersFromRows(rules, blockProgress, responses, saved);
-  const percent = progressPercent(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds);
-  const completed = isLessonComplete(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds);
+  const percent = progressPercent(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds);
+  const completed = isLessonComplete(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds);
   const existing = await prisma.lessonProgress.findUnique({ where: { userId_lessonId: scope } });
   const now = new Date();
 

@@ -30,6 +30,15 @@ export const LESSON_05_PUBLIC_PREVIEW_KEYS = [
   "exemplo-destino-coerente",
 ] as const;
 
+export const LESSON_08_PUBLIC_PREVIEW_KEYS = [
+  "busca-anuncio-pagina",
+  "cadeia-da-conversao",
+  "anuncio-nao-existe-sozinho",
+  "o-que-e-rsa",
+  "combinacoes-do-rsa",
+  "exemplo-curso-curto",
+] as const;
+
 export const LESSON_07_PUBLIC_PREVIEW_KEYS = [
   "palavra-nao-e-termo",
   "regra-e-termo",
