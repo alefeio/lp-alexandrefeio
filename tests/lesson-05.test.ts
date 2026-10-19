@@ -24,9 +24,7 @@ const required = [
   "plano-destino-mensuracao",
   "checkpoint-final-mensuracao",
 ];
-const laterLessons = [
-  "o-que-mudar",
-];
+const laterLessons: string[] = [];
 
 test("aula 5 definitiva tem 32 blocos e passa na validação", () => {
   assert.equal(lesson05Blocks.length, 32);

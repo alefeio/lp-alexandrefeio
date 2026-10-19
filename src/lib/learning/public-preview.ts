@@ -30,6 +30,15 @@ export const LESSON_05_PUBLIC_PREVIEW_KEYS = [
   "exemplo-destino-coerente",
 ] as const;
 
+export const LESSON_12_PUBLIC_PREVIEW_KEYS = [
+  "mexer-cedo-demais",
+  "dado-nao-e-ordem",
+  "diagnostico-nao-e-decisao",
+  "aula-11-mostra-aula-12-decide",
+  "uma-mudanca-por-vez",
+  "acao-teste-espera",
+] as const;
+
 export const LESSON_11_PUBLIC_PREVIEW_KEYS = [
   "numeros-nao-falam-sozinhos",
   "numero-isolado",

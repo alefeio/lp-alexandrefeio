@@ -62,7 +62,7 @@ export function CampaignDiagnosisTool({
       setMessage(saved.message);
       return;
     }
-    if (saved.view) setView(saved.view);
+    if (saved.view && "lines" in saved.view) setView(saved.view);
     onSaved(saved.snapshot);
     setMessage("Diagnóstico registrado neste projeto.");
   }

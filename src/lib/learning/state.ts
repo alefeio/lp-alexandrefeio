@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { briefProjectIdsFrom } from "@/lib/learning/campaign-brief";
 import { planProjectIdsFrom } from "@/lib/learning/destination-plan";
 import { diagnosisProjectIdsFrom } from "@/lib/learning/campaign-diagnosis";
+import { nextActionProjectIdsFrom } from "@/lib/learning/campaign-next-action";
 import { leadConversionProjectIdsFrom } from "@/lib/learning/lead-conversion";
 import { metaCampaignProjectIdsFrom } from "@/lib/learning/meta-campaign";
 import { responsiveAdProjectIdsFrom } from "@/lib/learning/responsive-search-ad";
@@ -67,13 +68,14 @@ export async function loadSnapshot(userId: string, lessonId: string, rules: Prog
   const metaIds = metaCampaignProjectIdsFrom(projectResults);
   const leadIds = leadConversionProjectIdsFrom(projectResults);
   const diagnosisIds = diagnosisProjectIdsFrom(projectResults);
+  const nextActionIds = nextActionProjectIdsFrom(projectResults);
 
   return {
-    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds),
+    percent: progress?.percent ?? progressPercent(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds, nextActionIds),
     completed: Boolean(progress?.completedAt),
     lastBlockKey: progress?.lastBlockKey ?? null,
     viewedBlockKeys: blockProgress.filter((row) => row.viewedAt).map((row) => row.blockKey),
-    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds),
+    completedBlockKeys: completedBlockKeys(rules, answers, Boolean(resultPayload), briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds, nextActionIds),
     responses: Object.fromEntries(responses.map((row) => [row.blockKey, row.payload])),
     notes: Object.fromEntries(notes.map((row) => [row.blockKey, row.body])),
     bookmarks: bookmarks.map((row) => row.blockKey),
@@ -107,9 +109,10 @@ export async function recomputeProgress(
   const metaIds = metaCampaignProjectIdsFrom(projectResults);
   const leadIds = leadConversionProjectIdsFrom(projectResults);
   const diagnosisIds = diagnosisProjectIdsFrom(projectResults);
+  const nextActionIds = nextActionProjectIdsFrom(projectResults);
   const answers = answersFromRows(rules, blockProgress, responses, saved);
-  const percent = progressPercent(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds);
-  const completed = isLessonComplete(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds);
+  const percent = progressPercent(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds, nextActionIds);
+  const completed = isLessonComplete(rules, answers, saved, briefIds, planIds, blueprintIds, keywordIds, adIds, metaIds, leadIds, diagnosisIds, nextActionIds);
   const existing = await prisma.lessonProgress.findUnique({ where: { userId_lessonId: scope } });
   const now = new Date();
 

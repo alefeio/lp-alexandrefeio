@@ -10,6 +10,7 @@ import { LESSON_08_SLUG, lesson08Blocks, lesson08Meta } from "@/lib/learning/les
 import { LESSON_09_SLUG, lesson09Blocks, lesson09Meta } from "@/lib/learning/lesson-09";
 import { LESSON_10_SLUG, lesson10Blocks, lesson10Meta } from "@/lib/learning/lesson-10";
 import { LESSON_11_SLUG, lesson11Blocks, lesson11Meta } from "@/lib/learning/lesson-11";
+import { LESSON_12_SLUG, lesson12Blocks, lesson12Meta } from "@/lib/learning/lesson-12";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -215,22 +216,18 @@ export const firstCourseSeed = {
           priceCents: lesson11Meta.priceCents,
           blocks: lesson11Blocks,
         },
-        paid("o-que-mudar", "Saiba o que mudar — e quando não mexer", "Ajustar o que trava o contato, sem desfazer o que já funciona.", 3990, 1),
+        {
+          slug: LESSON_12_SLUG,
+          title: lesson12Meta.title,
+          summary: lesson12Meta.summary,
+          publicPreview: lesson12Meta.publicPreview,
+          estimatedMinutes: lesson12Meta.estimatedMinutes,
+          sortOrder: 1,
+          accessType: lesson12Meta.accessType,
+          priceCents: lesson12Meta.priceCents,
+          blocks: lesson12Blocks,
+        },
       ],
     },
-  ] satisfies SeedModule[],
+  ] as SeedModule[],
 };
-
-function paid(slug: string, title: string, summary: string, priceCents: number, sortOrder: number): SeedLesson {
-  return {
-    slug,
-    title,
-    summary,
-    publicPreview: "O conteúdo desta aula será aberto quando a compra estiver disponível. Ainda não há checkout.",
-    estimatedMinutes: 15,
-    sortOrder,
-    accessType: "PAID",
-    priceCents,
-    blocks: [],
-  };
-}

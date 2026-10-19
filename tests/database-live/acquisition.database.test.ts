@@ -17,7 +17,6 @@ const later = [
   "anuncios-alinhados-a-conversao",
   "objetivo-publico-estrutura",
   "campanhas-leads-whatsapp",
-  "o-que-mudar",
 ];
 
 test("consulta pública da aula paga não devolve bloco privado", async () => {

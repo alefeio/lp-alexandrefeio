@@ -49,6 +49,8 @@ import { LeadConversionTool } from "@/components/learning/LeadConversionTool";
 import type { LeadConversionPanel } from "@/lib/learning/lead-conversion-plan";
 import type { CampaignDiagnosisPanel } from "@/lib/learning/campaign-diagnosis-plan";
 import { CampaignDiagnosisTool } from "@/components/learning/CampaignDiagnosisTool";
+import type { CampaignNextActionPanel } from "@/lib/learning/campaign-next-action-plan";
+import { CampaignNextActionTool } from "@/components/learning/CampaignNextActionTool";
 import type { MetaCampaignPanel } from "@/lib/learning/meta-campaign-plan";
 import type { ResponsiveAdPanel } from "@/lib/learning/responsive-ad-plan";
 import type { SearchBlueprintPanel } from "@/lib/learning/search-campaign";
@@ -63,7 +65,7 @@ type Props = {
   authenticated: boolean;
   resume: boolean;
   preview?: boolean;
-  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | null;
+  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | null;
 };
 
 export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
@@ -673,7 +675,7 @@ function BlockView(props: {
   onResult: (values: Record<string, string>, blockKey: string) => void;
   onNote: (blockKey: string, body: string) => void;
   onBookmark: (blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const { block, snapshot } = props;
@@ -722,7 +724,7 @@ function BlockBody(props: {
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | null;
+  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | null;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const data = props.block.data;
@@ -785,6 +787,15 @@ function BlockBody(props: {
     return (
       <div className="rounded-lg border border-border bg-surface px-5 py-5">
         <ResultForm {...props} data={data} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "CAMPAIGN_NEXT_ACTION_PLAN_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "next-action" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <CampaignNextActionTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

@@ -23,9 +23,7 @@ const required = [
   "checkpoint-final-blueprint",
 ];
 
-const laterLessons = [
-  "o-que-mudar",
-];
+const laterLessons: string[] = [];
 
 const group = { name: "Ultrassom Obstétrico", theme: "Exame de ultrassonografia obstétrica", intent: "Pessoas procurando realizar ultrassonografia obstétrica." };
 

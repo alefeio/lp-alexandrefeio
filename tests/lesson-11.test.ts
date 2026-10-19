@@ -40,7 +40,7 @@ test("aula 11 definitiva tem 36 blocos e continua fora de venda", () => {
   assert.equal(ready.ready, true, ready.issues.join(" "));
   const lessons = firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons);
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_11_SLUG)?.blocks.length, 36);
-  assert.equal(lessons.find((lesson) => lesson.slug === LESSON_12_SLUG)?.blocks.length, 0);
+  assert.equal(lessons.find((lesson) => lesson.slug === LESSON_12_SLUG)?.blocks.length, 36);
   const moduleFinal = firstCourseSeed.modules.find((moduleRow) => moduleRow.slug === "entenda-e-melhore");
   assert.equal(moduleFinal?.bundlePriceCents, 6790);
   const sale = planLessonEnable({

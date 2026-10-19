@@ -109,6 +109,7 @@ export function isBlockComplete(
   metaProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   leadProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   diagnosisProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  nextActionProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): boolean {
   if (block.retiredAt) return false;
   const viewed = answer?.viewed === true;
@@ -139,7 +140,8 @@ export function isBlockComplete(
         block.data.toolKey === "RESPONSIVE_SEARCH_AD_PLAN_V1" ||
         block.data.toolKey === "META_CAMPAIGN_BLUEPRINT_V1" ||
         block.data.toolKey === "META_LEAD_CONVERSION_PLAN_V1" ||
-        block.data.toolKey === "CAMPAIGN_PERFORMANCE_DIAGNOSIS_V1"
+        block.data.toolKey === "CAMPAIGN_PERFORMANCE_DIAGNOSIS_V1" ||
+        block.data.toolKey === "CAMPAIGN_NEXT_ACTION_PLAN_V1"
       ) {
         const parsed = campaignBriefLinkSchema.safeParse(answer?.response);
         const ids =
@@ -157,7 +159,9 @@ export function isBlockComplete(
                       ? metaProjectIds
                       : block.data.toolKey === "META_LEAD_CONVERSION_PLAN_V1"
                         ? leadProjectIds
-                        : diagnosisProjectIds;
+                        : block.data.toolKey === "CAMPAIGN_PERFORMANCE_DIAGNOSIS_V1"
+                          ? diagnosisProjectIds
+                          : nextActionProjectIds;
         return parsed.success && ids.has(parsed.data.projectId);
       }
       return toolResponseSchema.safeParse(answer?.response).success;
@@ -178,10 +182,11 @@ export function progressPercent(
   metaProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   leadProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   diagnosisProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  nextActionProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): number {
   const counting = blocks.filter((block) => !block.retiredAt && block.countsForProgress);
   if (counting.length === 0) return 0;
-  const done = counting.filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds)).length;
+  const done = counting.filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds, nextActionProjectIds)).length;
   return Math.round((done / counting.length) * 100);
 }
 
@@ -197,14 +202,15 @@ export function isLessonComplete(
   metaProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   leadProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   diagnosisProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  nextActionProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): boolean {
   const active = blocks.filter((block) => !block.retiredAt);
   const counting = active.filter((block) => block.countsForProgress);
   if (counting.length === 0) return false;
-  const countingDone = counting.every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds));
+  const countingDone = counting.every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds, nextActionProjectIds));
   const requiredDone = active
     .filter((block) => block.required)
-    .every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds));
+    .every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds, nextActionProjectIds));
   return countingDone && requiredDone;
 }
 
@@ -220,9 +226,10 @@ export function completedBlockKeys(
   metaProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   leadProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   diagnosisProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  nextActionProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): string[] {
   return blocks
-    .filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds))
+    .filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds, adProjectIds, metaProjectIds, leadProjectIds, diagnosisProjectIds, nextActionProjectIds))
     .map((block) => block.blockKey);
 }
 

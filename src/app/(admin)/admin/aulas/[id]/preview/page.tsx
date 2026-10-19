@@ -13,6 +13,7 @@ import { destinationPlanPreviewState } from "@/lib/learning/measurement";
 import { keywordIntentPreviewState } from "@/lib/learning/keyword-plan";
 import { leadConversionPreviewState } from "@/lib/learning/lead-conversion-plan";
 import { campaignDiagnosisPreviewState } from "@/lib/learning/campaign-diagnosis-plan";
+import { campaignNextActionPreviewState } from "@/lib/learning/campaign-next-action-plan";
 import { metaCampaignPreviewState } from "@/lib/learning/meta-campaign-plan";
 import { responsiveAdPreviewState } from "@/lib/learning/responsive-ad-plan";
 import { searchBlueprintPreviewState } from "@/lib/learning/search-campaign";
@@ -103,5 +104,6 @@ function previewToolPanel(blocks: ReaderBlock[]) {
   if (toolKey === "META_CAMPAIGN_BLUEPRINT_V1") return metaCampaignPreviewState();
   if (toolKey === "META_LEAD_CONVERSION_PLAN_V1") return leadConversionPreviewState();
   if (toolKey === "CAMPAIGN_PERFORMANCE_DIAGNOSIS_V1") return campaignDiagnosisPreviewState();
+  if (toolKey === "CAMPAIGN_NEXT_ACTION_PLAN_V1") return campaignNextActionPreviewState();
   return trafficToolPreviewState();
 }

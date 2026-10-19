@@ -14,9 +14,7 @@ import { buildPublicSitemap } from "../src/lib/seo/public-sitemap";
 import { breadcrumbList, courseJsonLd, lessonJsonLd } from "../src/lib/seo/learning-jsonld";
 
 const allowed = new Set<string>(PUBLIC_PREVIEW_TYPES);
-const later = [
-  "o-que-mudar",
-];
+const later: string[] = [];
 
 function assertPreviewKeys(blocks: { blockKey: string; data: { type: string } }[], keys: readonly string[], forbidden: string[]) {
   for (const key of keys) {
