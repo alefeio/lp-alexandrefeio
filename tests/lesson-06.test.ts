@@ -24,7 +24,6 @@ const required = [
 ];
 
 const laterLessons = [
-  "campanhas-leads-whatsapp",
   "leia-os-numeros",
   "o-que-mudar",
 ];

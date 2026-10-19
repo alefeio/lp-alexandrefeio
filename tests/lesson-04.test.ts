@@ -45,7 +45,7 @@ test("aula 4 definitiva tem 30 blocos e passa na validação", () => {
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_01_SLUG)?.blocks.length, lesson01Blocks.length);
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_02_SLUG)?.blocks.length, lesson02Blocks.length);
   assert.equal(lessons.find((lesson) => lesson.slug === LESSON_03_SLUG)?.blocks.length, lesson03Blocks.length);
-  assert.equal(lessons.find((lesson) => lesson.slug === "campanhas-leads-whatsapp")?.blocks.length, 0);
+  assert.equal(lessons.find((lesson) => lesson.slug === "leia-os-numeros")?.blocks.length, 0);
   const ready = assessLesson(
     {
       title: lesson04Meta.title,

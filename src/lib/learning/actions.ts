@@ -22,6 +22,8 @@ import { addCampaignPreparationTask, loadCampaignBriefPanel, saveCampaignBriefFo
 import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinationPlanForUser, syncDestinationPlanProject, type DestinationPlanPanel } from "@/lib/learning/measurement";
 import { saveKeywordIntentForUser, type KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import type { KeywordPlanFormInput } from "@/lib/learning/keyword-intent";
+import { saveLeadConversionForUser, type LeadConversionPanel } from "@/lib/learning/lead-conversion-plan";
+import type { LeadConversionFormInput } from "@/lib/learning/lead-conversion";
 import { saveMetaCampaignForUser, type MetaCampaignPanel } from "@/lib/learning/meta-campaign-plan";
 import type { MetaCampaignFormInput } from "@/lib/learning/meta-campaign";
 import { saveResponsiveAdForUser, type ResponsiveAdPanel } from "@/lib/learning/responsive-ad-plan";
@@ -31,7 +33,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | null }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | null }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -399,6 +401,14 @@ export async function saveMetaCampaign(slug: string, blockKey: string, input: Me
   const session = await getSession();
   if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
   const saved = await saveMetaCampaignForUser(session.user.id, slug, blockKey, input);
+  if (!saved.ok) return saved;
+  return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
+}
+
+export async function saveLeadConversion(slug: string, blockKey: string, input: LeadConversionFormInput): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveLeadConversionForUser(session.user.id, slug, blockKey, input);
   if (!saved.ok) return saved;
   return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
 }

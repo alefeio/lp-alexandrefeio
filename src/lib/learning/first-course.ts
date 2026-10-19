@@ -8,6 +8,7 @@ import { LESSON_06_SLUG, lesson06Blocks, lesson06Meta } from "@/lib/learning/les
 import { LESSON_07_SLUG, lesson07Blocks, lesson07Meta } from "@/lib/learning/lesson-07";
 import { LESSON_08_SLUG, lesson08Blocks, lesson08Meta } from "@/lib/learning/lesson-08";
 import { LESSON_09_SLUG, lesson09Blocks, lesson09Meta } from "@/lib/learning/lesson-09";
+import { LESSON_10_SLUG, lesson10Blocks, lesson10Meta } from "@/lib/learning/lesson-10";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -182,7 +183,17 @@ export const firstCourseSeed = {
           priceCents: lesson09Meta.priceCents,
           blocks: lesson09Blocks,
         },
-        paid("campanhas-leads-whatsapp", "Crie campanhas para leads e WhatsApp", "Quando o destino é um formulário e quando é uma conversa.", 3990, 1),
+        {
+          slug: LESSON_10_SLUG,
+          title: lesson10Meta.title,
+          summary: lesson10Meta.summary,
+          publicPreview: lesson10Meta.publicPreview,
+          estimatedMinutes: lesson10Meta.estimatedMinutes,
+          sortOrder: 1,
+          accessType: lesson10Meta.accessType,
+          priceCents: lesson10Meta.priceCents,
+          blocks: lesson10Blocks,
+        },
       ],
     },
     {

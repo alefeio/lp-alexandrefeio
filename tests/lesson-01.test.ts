@@ -51,7 +51,7 @@ test("aula 1 definitiva tem 27 blocos válidos e passa na validação", () => {
   assert.equal(canReadLessonBody({ status: "PUBLISHED", accessType: "FREE" }), true);
   const lessons = firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons);
   assert.equal(lessons.filter((lesson) => lesson.slug === LESSON_01_SLUG).length, 1);
-  assert.equal(lessons.filter((lesson) => lesson.blocks.length > 0).length, 9);
+  assert.equal(lessons.filter((lesson) => lesson.blocks.length > 0).length, 10);
   assert.equal(lessons.find((lesson) => lesson.slug === "como-funciona-o-trafego-pago")?.blocks.length, 27);
   const ready = assessLesson(
     {
