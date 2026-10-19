@@ -183,7 +183,8 @@ test("aula 10 definitiva permanece paga e fora de venda", () => {
     contentIssues: [],
     hasPublicPreviewBlocks: true,
   });
-  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.allowed, true);
+  assert.equal(blocked.intended, "AVAILABLE");
   const ready = assessLesson(
     {
       title: lesson10Meta.title,
