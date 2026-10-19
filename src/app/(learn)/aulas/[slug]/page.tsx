@@ -18,6 +18,7 @@ import { formatPriceCents } from "@/lib/learning/money";
 import type { LessonSnapshot } from "@/lib/learning/reader-types";
 import { loadCampaignBriefPanel } from "@/lib/learning/brief";
 import { loadDestinationPlanPanel } from "@/lib/learning/measurement";
+import { loadKeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import { loadSearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { loadTrafficToolPanel } from "@/lib/learning/tool";
 import { breadcrumbList, lessonJsonLd } from "@/lib/seo/learning-jsonld";
@@ -158,7 +159,9 @@ async function FullLesson({
         ? await loadDestinationPlanPanel({ userId, blocks })
         : toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1"
           ? await loadSearchBlueprintPanel({ userId, blocks })
-          : await loadTrafficToolPanel({ userId, blocks });
+          : toolKey === "KEYWORD_INTENT_PLAN_V1"
+            ? await loadKeywordIntentPanel({ userId, blocks })
+            : await loadTrafficToolPanel({ userId, blocks });
   const neighbors = await adjacentLessons(lesson.courseSlug, lesson.slug);
   const path = `/aulas/${lesson.slug}`;
   const description = metaDescription(lesson.summary);

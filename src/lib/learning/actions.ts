@@ -20,12 +20,14 @@ import { getSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db/prisma";
 import { addCampaignPreparationTask, loadCampaignBriefPanel, saveCampaignBriefForUser, syncCampaignBriefProject, type CampaignBriefPanel } from "@/lib/learning/brief";
 import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinationPlanForUser, syncDestinationPlanProject, type DestinationPlanPanel } from "@/lib/learning/measurement";
+import { saveKeywordIntentForUser, type KeywordIntentPanel } from "@/lib/learning/keyword-plan";
+import type { KeywordPlanFormInput } from "@/lib/learning/keyword-intent";
 import { saveSearchBlueprintForUser, syncSearchBlueprintProject, type SearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | null }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | null }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -387,6 +389,14 @@ export async function syncDestinationPlan(slug: string, projectId: string): Prom
   if (!lesson) return { ok: false, message: "Aula não encontrada." };
   const snapshot = await loadSnapshot(session.user.id, lesson.id, await loadRuleBlocks(lesson.id));
   return { ok: true, snapshot, panel: synced.panel };
+}
+
+export async function saveKeywordIntent(slug: string, blockKey: string, input: KeywordPlanFormInput): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveKeywordIntentForUser(session.user.id, slug, blockKey, input);
+  if (!saved.ok) return saved;
+  return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
 }
 
 export async function saveSearchBlueprint(slug: string, blockKey: string, input: SearchBlueprintFormInput): Promise<LearningActionResult> {

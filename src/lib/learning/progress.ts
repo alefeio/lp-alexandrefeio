@@ -104,6 +104,7 @@ export function isBlockComplete(
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
   planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   blueprintProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  keywordProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): boolean {
   if (block.retiredAt) return false;
   const viewed = answer?.viewed === true;
@@ -129,7 +130,8 @@ export function isBlockComplete(
       if (
         block.data.toolKey === "CAMPAIGN_BRIEF_V1" ||
         block.data.toolKey === "DESTINATION_MEASUREMENT_PLAN_V1" ||
-        block.data.toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1"
+        block.data.toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1" ||
+        block.data.toolKey === "KEYWORD_INTENT_PLAN_V1"
       ) {
         const parsed = campaignBriefLinkSchema.safeParse(answer?.response);
         const ids =
@@ -137,7 +139,9 @@ export function isBlockComplete(
             ? briefProjectIds
             : block.data.toolKey === "DESTINATION_MEASUREMENT_PLAN_V1"
               ? planProjectIds
-              : blueprintProjectIds;
+              : block.data.toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1"
+                ? blueprintProjectIds
+                : keywordProjectIds;
         return parsed.success && ids.has(parsed.data.projectId);
       }
       return toolResponseSchema.safeParse(answer?.response).success;
@@ -153,10 +157,11 @@ export function progressPercent(
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
   planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   blueprintProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  keywordProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): number {
   const counting = blocks.filter((block) => !block.retiredAt && block.countsForProgress);
   if (counting.length === 0) return 0;
-  const done = counting.filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds)).length;
+  const done = counting.filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds)).length;
   return Math.round((done / counting.length) * 100);
 }
 
@@ -167,14 +172,15 @@ export function isLessonComplete(
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
   planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   blueprintProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  keywordProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): boolean {
   const active = blocks.filter((block) => !block.retiredAt);
   const counting = active.filter((block) => block.countsForProgress);
   if (counting.length === 0) return false;
-  const countingDone = counting.every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds));
+  const countingDone = counting.every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds));
   const requiredDone = active
     .filter((block) => block.required)
-    .every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds));
+    .every((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds));
   return countingDone && requiredDone;
 }
 
@@ -185,9 +191,10 @@ export function completedBlockKeys(
   briefProjectIds: ReadonlySet<string> = EMPTY_BRIEF_PROJECTS,
   planProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
   blueprintProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
+  keywordProjectIds: ReadonlySet<string> = EMPTY_PLAN_PROJECTS,
 ): string[] {
   return blocks
-    .filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds))
+    .filter((block) => isBlockComplete(block, answers[block.blockKey], lessonResultSaved, briefProjectIds, planProjectIds, blueprintProjectIds, keywordProjectIds))
     .map((block) => block.blockKey);
 }
 

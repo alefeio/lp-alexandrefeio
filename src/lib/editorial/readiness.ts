@@ -54,7 +54,8 @@ export function assessLesson(lesson: ReadyLesson, blocks: ReadyBlock[]): Assessm
       (data.type === "TOOL" &&
         (data.toolKey === "CAMPAIGN_BRIEF_V1" ||
           data.toolKey === "DESTINATION_MEASUREMENT_PLAN_V1" ||
-          data.toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1")),
+          data.toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1" ||
+          data.toolKey === "KEYWORD_INTENT_PLAN_V1")),
   );
   if (lesson.accessType === "PAID" && !hasPracticalResult) {
     issues.push("A aula paga precisa de um bloco de resultado.");

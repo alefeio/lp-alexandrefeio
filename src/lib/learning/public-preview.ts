@@ -30,6 +30,15 @@ export const LESSON_05_PUBLIC_PREVIEW_KEYS = [
   "exemplo-destino-coerente",
 ] as const;
 
+export const LESSON_07_PUBLIC_PREVIEW_KEYS = [
+  "palavra-nao-e-termo",
+  "regra-e-termo",
+  "keyword-e-regra",
+  "exemplo-advogado-trabalhista",
+  "intencao-antes-do-volume",
+  "intencao-nao-e-nota",
+] as const;
+
 export const LESSON_06_PUBLIC_PREVIEW_KEYS = [
   "campanha-antes-da-plataforma",
   "pesquisa-nao-comeca-palavra-chave",
