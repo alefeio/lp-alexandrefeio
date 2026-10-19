@@ -12,6 +12,7 @@ import { campaignBriefPreviewState } from "@/lib/learning/brief";
 import { destinationPlanPreviewState } from "@/lib/learning/measurement";
 import { keywordIntentPreviewState } from "@/lib/learning/keyword-plan";
 import { leadConversionPreviewState } from "@/lib/learning/lead-conversion-plan";
+import { campaignDiagnosisPreviewState } from "@/lib/learning/campaign-diagnosis-plan";
 import { metaCampaignPreviewState } from "@/lib/learning/meta-campaign-plan";
 import { responsiveAdPreviewState } from "@/lib/learning/responsive-ad-plan";
 import { searchBlueprintPreviewState } from "@/lib/learning/search-campaign";
@@ -101,5 +102,6 @@ function previewToolPanel(blocks: ReaderBlock[]) {
   if (toolKey === "RESPONSIVE_SEARCH_AD_PLAN_V1") return responsiveAdPreviewState();
   if (toolKey === "META_CAMPAIGN_BLUEPRINT_V1") return metaCampaignPreviewState();
   if (toolKey === "META_LEAD_CONVERSION_PLAN_V1") return leadConversionPreviewState();
+  if (toolKey === "CAMPAIGN_PERFORMANCE_DIAGNOSIS_V1") return campaignDiagnosisPreviewState();
   return trafficToolPreviewState();
 }

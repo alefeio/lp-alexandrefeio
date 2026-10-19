@@ -12,6 +12,17 @@ const STATUS: Record<string, string> = {
   DELETED: "Excluído",
 };
 
+const DERIVED_LABELS: Record<string, string> = {
+  CTR: "CTR",
+  CPC: "CPC",
+  CONVERSION_RATE: "Taxa de conversão",
+  CPA: "CPA",
+  ROAS: "ROAS",
+  CPL: "CPL",
+  QUALIFICATION_RATE: "Taxa de qualificação",
+  COST_PER_QUALIFIED_LEAD: "Custo por lead qualificado",
+};
+
 const FIELDS: Record<CanonicalField, string> = {
   DATE: "Data",
   CAMPAIGN: "Campanha",
@@ -39,7 +50,7 @@ export function importStatusLabel(status: string): string {
 }
 
 export function fieldLabel(field: CanonicalField | DimensionId | BaseMetricId | DerivedMetricId | string): string {
-  return FIELDS[field as CanonicalField] ?? field;
+  return FIELDS[field as CanonicalField] ?? DERIVED_LABELS[field] ?? field;
 }
 
 export function failureLabel(code: string | null): string | null {

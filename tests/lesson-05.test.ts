@@ -25,7 +25,6 @@ const required = [
   "checkpoint-final-mensuracao",
 ];
 const laterLessons = [
-  "leia-os-numeros",
   "o-que-mudar",
 ];
 

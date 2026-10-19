@@ -24,7 +24,6 @@ const required = [
 ];
 
 const laterLessons = [
-  "leia-os-numeros",
   "o-que-mudar",
 ];
 

@@ -30,6 +30,15 @@ export const LESSON_05_PUBLIC_PREVIEW_KEYS = [
   "exemplo-destino-coerente",
 ] as const;
 
+export const LESSON_11_PUBLIC_PREVIEW_KEYS = [
+  "numeros-nao-falam-sozinhos",
+  "numero-isolado",
+  "comece-pelo-funil",
+  "estagios-do-funil",
+  "ctr-cpc-cpa-em-contexto",
+  "exemplo-tres-grupos",
+] as const;
+
 export const LESSON_10_PUBLIC_PREVIEW_KEYS = [
   "lead-nao-e-venda",
   "contato-nao-e-venda",

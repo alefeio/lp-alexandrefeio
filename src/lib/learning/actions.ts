@@ -23,6 +23,7 @@ import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinatio
 import { saveKeywordIntentForUser, type KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import type { KeywordPlanFormInput } from "@/lib/learning/keyword-intent";
 import { saveLeadConversionForUser, type LeadConversionPanel } from "@/lib/learning/lead-conversion-plan";
+import { openCampaignDiagnosisForUser, saveCampaignDiagnosisForUser, type CampaignDiagnosisPanel, type DiagnosisView } from "@/lib/learning/campaign-diagnosis-plan";
 import type { LeadConversionFormInput } from "@/lib/learning/lead-conversion";
 import { saveMetaCampaignForUser, type MetaCampaignPanel } from "@/lib/learning/meta-campaign-plan";
 import type { MetaCampaignFormInput } from "@/lib/learning/meta-campaign";
@@ -33,7 +34,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | null }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | null; view?: DiagnosisView }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -403,6 +404,20 @@ export async function saveMetaCampaign(slug: string, blockKey: string, input: Me
   const saved = await saveMetaCampaignForUser(session.user.id, slug, blockKey, input);
   if (!saved.ok) return saved;
   return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
+}
+
+export async function openCampaignDiagnosis(projectId: string, importId: string): Promise<{ ok: true; view: DiagnosisView } | { ok: false; message: string }> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para ler o arquivo." };
+  return openCampaignDiagnosisForUser(session.user.id, projectId, importId);
+}
+
+export async function saveCampaignDiagnosis(slug: string, blockKey: string, projectId: string, importId: string): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveCampaignDiagnosisForUser(session.user.id, slug, blockKey, projectId, importId);
+  if (!saved.ok) return saved;
+  return { ok: true, snapshot: saved.snapshot, panel: saved.panel, view: saved.view };
 }
 
 export async function saveLeadConversion(slug: string, blockKey: string, input: LeadConversionFormInput): Promise<LearningActionResult> {

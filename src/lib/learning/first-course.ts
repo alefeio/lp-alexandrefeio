@@ -9,6 +9,7 @@ import { LESSON_07_SLUG, lesson07Blocks, lesson07Meta } from "@/lib/learning/les
 import { LESSON_08_SLUG, lesson08Blocks, lesson08Meta } from "@/lib/learning/lesson-08";
 import { LESSON_09_SLUG, lesson09Blocks, lesson09Meta } from "@/lib/learning/lesson-09";
 import { LESSON_10_SLUG, lesson10Blocks, lesson10Meta } from "@/lib/learning/lesson-10";
+import { LESSON_11_SLUG, lesson11Blocks, lesson11Meta } from "@/lib/learning/lesson-11";
 
 export const FIRST_COURSE_SLUG = "trafego-pago-na-pratica";
 export const DEMO_LESSON_SLUG = LESSON_01_SLUG;
@@ -203,7 +204,17 @@ export const firstCourseSeed = {
       sortOrder: 4,
       bundlePriceCents: 6790,
       lessons: [
-        paid("leia-os-numeros", "Leia os números e encontre o gargalo", "Clique, visita e contato não respondem à mesma pergunta.", 3490, 0),
+        {
+          slug: LESSON_11_SLUG,
+          title: lesson11Meta.title,
+          summary: lesson11Meta.summary,
+          publicPreview: lesson11Meta.publicPreview,
+          estimatedMinutes: lesson11Meta.estimatedMinutes,
+          sortOrder: 0,
+          accessType: lesson11Meta.accessType,
+          priceCents: lesson11Meta.priceCents,
+          blocks: lesson11Blocks,
+        },
         paid("o-que-mudar", "Saiba o que mudar — e quando não mexer", "Ajustar o que trava o contato, sem desfazer o que já funciona.", 3990, 1),
       ],
     },

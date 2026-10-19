@@ -17,7 +17,6 @@ const later = [
   "anuncios-alinhados-a-conversao",
   "objetivo-publico-estrutura",
   "campanhas-leads-whatsapp",
-  "leia-os-numeros",
   "o-que-mudar",
 ];
 
