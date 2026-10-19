@@ -16,7 +16,10 @@ export const FIRST_SALE_ALLOWLIST = [
   { kind: "lesson" as const, slug: LESSON_04_SLUG, priceCents: 2990 },
   { kind: "lesson" as const, slug: LESSON_05_SLUG, priceCents: 3490 },
   { kind: "lesson" as const, slug: LESSON_06_SLUG, priceCents: 3990 },
+  { kind: "lesson" as const, slug: LESSON_07_SLUG, priceCents: 3990 },
+  { kind: "lesson" as const, slug: LESSON_08_SLUG, priceCents: 3490 },
   { kind: "module" as const, slug: "planeje-antes-de-anunciar", priceCents: 5790 },
+  { kind: "module" as const, slug: "google-ads-na-pratica", priceCents: 10390 },
 ];
 
 const MODULE_LESSONS: Record<string, readonly string[]> = {

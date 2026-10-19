@@ -118,7 +118,7 @@ test("aula 7 definitiva permanece paga, publicada no conteúdo e fora de venda",
   assert.notEqual(lessons.find((item) => item.slug === LESSON_08_SLUG)?.blocks.length, 0);
   assert.equal(isProductForSale("NOT_FOR_SALE", 3990, true), false);
   assert.equal(paidLessonAction({ open: false, owned: false }), "soon");
-  const blocked = planLessonEnable({
+  const readyToSell = planLessonEnable({
     slug: LESSON_07_SLUG,
     title: lesson07Meta.title,
     status: "PUBLISHED",
@@ -130,7 +130,8 @@ test("aula 7 definitiva permanece paga, publicada no conteúdo e fora de venda",
     contentIssues: [],
     hasPublicPreviewBlocks: true,
   });
-  assert.equal(blocked.allowed, false);
+  assert.equal(readyToSell.allowed, true);
+  assert.equal(readyToSell.intended, "AVAILABLE");
   const moduleBlocked = planModuleEnable({
     slug: "google-ads-na-pratica",
     title: "Google Ads na prática",

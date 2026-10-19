@@ -122,7 +122,7 @@ test("aula 8 definitiva permanece paga e fora de venda", () => {
   assert.equal(lesson?.blocks.length, lesson08Blocks.length);
   assert.equal(lesson?.priceCents, 3490);
   assert.equal(isProductForSale("NOT_FOR_SALE", 3490, true), false);
-  const blocked = planLessonEnable({
+  const readyToSell = planLessonEnable({
     slug: LESSON_08_SLUG,
     title: lesson08Meta.title,
     status: "PUBLISHED",
@@ -134,8 +134,8 @@ test("aula 8 definitiva permanece paga e fora de venda", () => {
     contentIssues: [],
     hasPublicPreviewBlocks: true,
   });
-  assert.equal(blocked.allowed, false);
-  assert.match(blocked.reason ?? "", /allowlist/);
+  assert.equal(readyToSell.allowed, true);
+  assert.equal(readyToSell.intended, "AVAILABLE");
   const moduleBlocked = planModuleEnable({
     slug: "google-ads-na-pratica",
     title: "Google Ads na prática",
@@ -145,7 +145,7 @@ test("aula 8 definitiva permanece paga e fora de venda", () => {
     lessons: [],
   });
   assert.equal(moduleBlocked.allowed, false);
-  assert.match(moduleBlocked.reason ?? "", /allowlist/);
+  assert.match(moduleBlocked.reason ?? "", /não está neste módulo/);
   const ready = assessLesson(
     {
       title: lesson08Meta.title,

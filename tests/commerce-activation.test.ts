@@ -5,6 +5,9 @@ import { commercePatch, commerceStatusForCreate, commerceStatusMatches } from ".
 import { FIRST_COURSE_SLUG } from "../src/lib/learning/first-course";
 import { LESSON_04_SLUG } from "../src/lib/learning/lesson-04";
 import { LESSON_05_SLUG } from "../src/lib/learning/lesson-05";
+import { LESSON_06_SLUG } from "../src/lib/learning/lesson-06";
+import { LESSON_07_SLUG } from "../src/lib/learning/lesson-07";
+import { LESSON_08_SLUG } from "../src/lib/learning/lesson-08";
 import { commerceWriteGate, planCourseEnable, planLessonEnable, planModuleEnable, type LessonShape } from "../src/lib/commerce/product-activation";
 
 loadEnv({ path: ".env.local" });
@@ -49,9 +52,12 @@ test("dry-run e confirmação comercial não gravam sem a flag", () => {
 test("aula incompleta, aula fora da allowlist e curso completo não ativam", () => {
   const incomplete = planLessonEnable(readyLesson({ contentReady: false, contentIssues: ["Falta a conclusão."] }));
   assert.equal(incomplete.allowed, false);
-  const future = planLessonEnable(readyLesson({ slug: "palavras-chave-com-intencao", priceCents: 3990 }));
+  const future = planLessonEnable(readyLesson({ slug: "leia-os-numeros", priceCents: 3490 }));
   assert.equal(future.allowed, false);
-  assert.match(future.reason ?? "", /allowlist/);
+  assert.match(future.reason ?? "", /pronta/);
+  const outside = planLessonEnable(readyLesson({ slug: "fora-da-fase", priceCents: 3990 }));
+  assert.equal(outside.allowed, false);
+  assert.match(outside.reason ?? "", /allowlist/);
   const course = planCourseEnable({
     slug: FIRST_COURSE_SLUG,
     title: "Curso",
@@ -69,6 +75,17 @@ test("aula incompleta, aula fora da allowlist e curso completo não ativam", () 
     lessons: [],
   });
   assert.equal(moduleBlocked.allowed, false);
+  assert.match(moduleBlocked.reason ?? "", /não está neste módulo/);
+  const meta = planModuleEnable({
+    slug: "meta-ads-na-pratica",
+    title: "Meta",
+    priceCents: 7190,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    lessons: [],
+  });
+  assert.equal(meta.allowed, false);
+  assert.match(meta.reason ?? "", /editorialmente completo/);
 });
 
 test("aula válida e módulo exigem a allowlist e as aulas componentes", () => {
@@ -99,5 +116,38 @@ test("aula válida e módulo exigem a allowlist e as aulas componentes", () => {
     ],
   });
   assert.equal(ready.allowed, true);
+  const lessonSeven = planLessonEnable(readyLesson({ slug: LESSON_07_SLUG, priceCents: 3990 }));
+  const lessonEight = planLessonEnable(readyLesson({ slug: LESSON_08_SLUG, priceCents: 3490 }));
+  assert.equal(lessonSeven.allowed, true);
+  assert.equal(lessonEight.allowed, true);
+  const wrongPrice = planLessonEnable(readyLesson({ slug: LESSON_08_SLUG, priceCents: 3990 }));
+  assert.equal(wrongPrice.allowed, false);
+  const googleEarly = planModuleEnable({
+    slug: "google-ads-na-pratica",
+    title: "Google",
+    priceCents: 10390,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    lessons: [
+      { slug: LESSON_06_SLUG, title: "Aula 6", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+      { slug: LESSON_07_SLUG, title: "Aula 7", commerceStatus: "NOT_FOR_SALE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+      { slug: LESSON_08_SLUG, title: "Aula 8", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+    ],
+  });
+  assert.equal(googleEarly.allowed, false);
+  const google = planModuleEnable({
+    slug: "google-ads-na-pratica",
+    title: "Google",
+    priceCents: 10390,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    lessons: [
+      { slug: LESSON_06_SLUG, title: "Aula 6", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+      { slug: LESSON_07_SLUG, title: "Aula 7", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+      { slug: LESSON_08_SLUG, title: "Aula 8", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+    ],
+  });
+  assert.equal(google.allowed, true);
+  assert.equal(google.priceCents, 10390);
 });
 
