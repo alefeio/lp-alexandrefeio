@@ -24,7 +24,7 @@ export default async function Home() {
   const session = await getSession();
   const course = await getPublishedCourse(FIRST_COURSE_SLUG);
   const lessons = course?.modules.flatMap((moduleRow) => moduleRow.lessons) ?? [];
-  const freeLessons = lessons.filter((lesson) => lesson.accessType === "FREE");
+  const freeLessonCount = lessons.filter((lesson) => lesson.accessType === "FREE").length;
 
   let continuation = null;
   if (session?.user.id) {
@@ -37,15 +37,10 @@ export default async function Home() {
   return (
     <CourseHome
       courseTitle={course?.title ?? "Tráfego Pago na Prática para Pequenos Negócios"}
+      courseSlug={course?.slug ?? FIRST_COURSE_SLUG}
       lessonCount={lessons.length || 12}
       moduleCount={course?.modules.length || 5}
-      freeLessons={freeLessons.map((lesson) => ({
-        slug: lesson.slug,
-        title: lesson.title,
-        summary: lesson.summary,
-        estimatedMinutes: lesson.estimatedMinutes,
-        accessType: lesson.accessType,
-      }))}
+      freeLessonCount={freeLessonCount}
       continuation={continuation}
     />
   );
