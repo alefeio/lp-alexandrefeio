@@ -4,8 +4,10 @@ import { CourseSales } from "@/components/course/CourseSales";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnedLessonIds } from "@/lib/commerce/catalog";
 import { getPrisma } from "@/lib/db/prisma";
+import { courseMetadataDescription } from "@/lib/learning/course-sales-copy";
 import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
 import { getPublishedCourse } from "@/lib/learning/catalog";
+import { sitesCoursePlannedResultBySlug } from "@/lib/learning/sites-course";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const course = await getPublishedCourse(slug);
   if (!course) return { robots: { index: false, follow: false } };
-  const description = metaDescription(
-    course.subtitle
-      ? `${course.subtitle} Três aulas gratuitas para aplicar tráfego pago no pequeno negócio.`
-      : course.description,
-  );
+  const description = metaDescription(courseMetadataDescription(course.slug, course.subtitle, course.description));
   return {
     title: course.title,
     description,
@@ -40,17 +38,27 @@ export default async function CoursePage({ params }: PageProps) {
   const course = await getPublishedCourse(slug);
   if (!course) notFound();
 
-  const previewRows = await getPrisma().lessonBlock.groupBy({
-    by: ["lessonId"],
-    where: {
-      retiredAt: null,
-      isPublicPreview: true,
-      type: { in: [...PUBLIC_PREVIEW_TYPES] },
-      lesson: { module: { courseId: course.id }, accessType: "PAID", status: "PUBLISHED" },
-    },
-    _count: { _all: true },
-  });
+  const prisma = getPrisma();
+  const lessonIds = course.modules.flatMap((moduleRow) => moduleRow.lessons.map((lesson) => lesson.id));
+  const [previewRows, bodyRows] = await Promise.all([
+    prisma.lessonBlock.groupBy({
+      by: ["lessonId"],
+      where: {
+        retiredAt: null,
+        isPublicPreview: true,
+        type: { in: [...PUBLIC_PREVIEW_TYPES] },
+        lessonId: { in: lessonIds },
+      },
+      _count: { _all: true },
+    }),
+    prisma.lessonBlock.groupBy({
+      by: ["lessonId"],
+      where: { retiredAt: null, lessonId: { in: lessonIds } },
+      _count: { _all: true },
+    }),
+  ]);
   const previewIds = new Set(previewRows.filter((row) => row._count._all > 0).map((row) => row.lessonId));
+  const bodyIds = new Set(bodyRows.filter((row) => row._count._all > 0).map((row) => row.lessonId));
   const session = await getSession();
   const ownedLessonIds = session ? await loadOwnedLessonIds(session.user.id) : [];
 
@@ -81,6 +89,8 @@ export default async function CoursePage({ params }: PageProps) {
             commerceStatus: lesson.commerceStatus,
             priceCents: lesson.priceCents,
             hasPublicPreview: previewIds.has(lesson.id),
+            hasBody: bodyIds.has(lesson.id),
+            plannedResult: sitesCoursePlannedResultBySlug(lesson.slug),
           })),
         })),
       }}

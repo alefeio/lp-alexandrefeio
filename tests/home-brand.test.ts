@@ -17,13 +17,14 @@ test("home posiciona a plataforma e não a landing de um único curso", () => {
   assert.match(home, /Você não termina uma aula só com anotações/);
   assert.match(home, /Uma plataforma feita para colocar conhecimento em prática/);
   assert.match(home, /Escolha onde você quer avançar/);
-  assert.match(home, /Curso em destaque/);
+  assert.match(home, /md:grid-cols-2/);
+  assert.match(home, /Conhecer o curso/);
+  assert.match(home, /freeLessonCount/);
   assert.match(home, /Menos conteúdo esquecido/);
   assert.match(home, /Sua jornada fica visível/);
   assert.match(home, /Você pode começar gratuitamente/);
   assert.match(home, /Você escolhe como avançar/);
   assert.match(home, /Explorar os cursos/);
-  assert.equal(home.includes("Comece gratuitamente"), false);
   assert.equal(home.includes("Porta de entrada do curso de Tráfego Pago"), false);
   assert.equal(home.includes("Meu primeiro mapa de tráfego"), false);
   assert.equal(home.includes('id="comece-gratis"'), false);
@@ -44,9 +45,12 @@ test("nav e footer usam semântica multi-curso sem Aulas gratuitas", () => {
 
 test("página do curso preserva aulas gratuitas e oferta completa", () => {
   const sales = readFileSync(new URL("../src/components/course/CourseSales.tsx", import.meta.url), "utf8");
+  const copy = readFileSync(new URL("../src/lib/learning/course-sales-copy.ts", import.meta.url), "utf8");
   assert.match(sales, /id="aulas-gratuitas"/);
   assert.match(sales, /id="curso-completo"/);
   assert.match(sales, /id="programa"/);
-  assert.match(sales, /Três aulas gratuitas/);
-  assert.match(sales, /Faça a jornada completa/);
+  assert.match(sales, /courseSalesCopy/);
+  assert.match(copy, /Três aulas gratuitas/);
+  assert.match(copy, /Faça a jornada completa/);
+  assert.match(copy, /Começar gratuitamente/);
 });

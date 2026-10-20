@@ -39,15 +39,20 @@ export function CourseCatalog({ courses }: { courses: CourseCatalogCard[] }) {
                 <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{course.title}</h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted">{course.summary}</p>
                 <p className="mt-4 text-sm text-muted">
-                  {course.lessonCount} aulas · {course.moduleCount} módulos · Ferramentas práticas
+                  {course.lessonCount} aulas · {course.moduleCount} módulos
+                  {course.freeLessonCount > 0 ? ` · ${course.freeLessonCount} aulas gratuitas` : ""}
                 </p>
+                {course.microcopy ? <p className="mt-2 text-sm font-medium text-cta">{course.microcopy}</p> : null}
                 {course.progress ? <p className="mt-2 text-sm text-muted">{course.progress.detail}</p> : null}
                 <p className="mt-6">
                   <AcquisitionLink
                     className={buttonClass("primary")}
                     href={course.href}
                     event="course_catalog_click"
-                    payload={{ course_slug: course.slug, cta_name: course.ctaLabel === "Continuar curso" ? "continuar_curso" : "ver_curso" }}
+                    payload={{
+                      course_slug: course.slug,
+                      cta_name: course.ctaLabel === "Continuar curso" ? "continuar_curso" : "conhecer_o_curso",
+                    }}
                   >
                     {course.ctaLabel}
                   </AcquisitionLink>

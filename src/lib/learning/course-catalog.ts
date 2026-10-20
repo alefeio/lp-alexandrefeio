@@ -9,8 +9,10 @@ export type CourseCatalogCard = {
   summary: string;
   lessonCount: number;
   moduleCount: number;
+  freeLessonCount: number;
   href: string;
-  ctaLabel: "Ver curso" | "Continuar curso";
+  ctaLabel: "Conhecer o curso" | "Continuar curso";
+  microcopy: string | null;
   progress: { label: "Em andamento"; detail: string } | null;
 };
 
@@ -26,6 +28,7 @@ export function buildCourseCatalogCard(
   const lessons = course.modules.flatMap((moduleRow) => moduleRow.lessons);
   const owned = new Set(input.ownedLessonIds);
   const completed = new Set(input.completedLessonIds);
+  const freeLessonCount = lessons.filter((lesson) => lesson.accessType === "FREE").length;
   const accessible = lessons.filter((lesson) => lesson.accessType === "FREE" || owned.has(lesson.id));
   const completedAccessible = accessible.filter((lesson) => completed.has(lesson.id)).length;
   const inProgress = accessible.length > 0 && completedAccessible > 0 && completedAccessible < accessible.length;
@@ -38,8 +41,10 @@ export function buildCourseCatalogCard(
     summary: course.subtitle?.trim() || course.description.trim(),
     lessonCount: lessons.length,
     moduleCount: course.modules.length,
+    freeLessonCount,
     href: `/cursos/${course.slug}`,
-    ctaLabel: started ? "Continuar curso" : "Ver curso",
+    ctaLabel: started ? "Continuar curso" : "Conhecer o curso",
+    microcopy: freeLessonCount > 0 && !started ? "Comece gratuitamente" : null,
     progress:
       started && accessible.length > 0
         ? {

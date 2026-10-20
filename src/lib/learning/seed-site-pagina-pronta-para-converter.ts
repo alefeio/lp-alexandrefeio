@@ -21,7 +21,7 @@ export type SiteLesson03SeedReport = {
 
 /**
  * Conteúdo definitivo da Aula 3 do curso Sites (fecha o bloco FREE).
- * Mantém o Course em DRAFT. Publica só a Lesson para admin/preview e futuro go-live.
+ * Publica a Lesson FREE do funil. Course/commerce ficam a cargo do scaffold (PUBLISHED + NOT_FOR_SALE).
  */
 export async function seedSitePaginaProntaContent(
   prisma: Prisma = getPrisma(),

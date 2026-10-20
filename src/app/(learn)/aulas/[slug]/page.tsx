@@ -296,6 +296,7 @@ function LessonNeighbors({
   previous: { slug: string; title: string } | null;
   next: { slug: string; title: string } | null;
 }) {
+  const freeFunnelEnd = courseSlug === "sites-que-convertem" && !next;
   return (
     <nav aria-label="Aulas próximas" className="mt-12 text-sm">
       <p>
@@ -303,6 +304,22 @@ function LessonNeighbors({
           Voltar para {courseTitle}
         </Link>
       </p>
+      {freeFunnelEnd ? (
+        <aside className="mt-6 rounded-lg border border-border bg-surface px-5 py-4">
+          <p className="font-medium">Você concluiu a etapa gratuita.</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Agora você já mapeou sua jornada, definiu a estrutura mais adequada e identificou os principais pontos de atenção.
+          </p>
+          <p className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Link className="text-sm font-medium underline underline-offset-4" href="/cursos">
+              Explorar outros cursos
+            </Link>
+            <Link className="text-sm font-medium underline underline-offset-4" href={`/cursos/${courseSlug}#aulas-gratuitas`}>
+              Ver meu diagnóstico / aulas gratuitas
+            </Link>
+          </p>
+        </aside>
+      ) : null}
       <LessonStepNav previous={previous} next={next} />
     </nav>
   );

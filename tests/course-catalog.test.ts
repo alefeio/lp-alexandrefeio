@@ -72,7 +72,9 @@ test("catálogo data-driven mostra 12 aulas e 5 módulos", () => {
   assert.equal(card.lessonCount, 12);
   assert.equal(card.moduleCount, 5);
   assert.equal(card.href, "/cursos/trafego-pago-na-pratica");
-  assert.equal(card.ctaLabel, "Ver curso");
+  assert.equal(card.ctaLabel, "Conhecer o curso");
+  assert.equal(card.freeLessonCount, 3);
+  assert.equal(card.microcopy, "Comece gratuitamente");
   assert.equal(card.progress, null);
 });
 
@@ -84,6 +86,7 @@ test("catálogo autenticado com progresso fica discreto", () => {
   assert.equal(card.progress?.label, "Em andamento");
   assert.equal(card.progress?.detail, "2 de 4 aulas");
   assert.equal(card.ctaLabel, "Continuar curso");
+  assert.equal(card.microcopy, null);
 });
 
 test("navegação pública e footer usam Cursos → /cursos", () => {
@@ -103,14 +106,23 @@ test("página de vendas prioriza curso completo antes dos módulos", () => {
   assert.ok(freeIdx > 0);
   assert.ok(fullIdx > freeIdx);
   assert.ok(programIdx > fullIdx);
-  assert.match(sales, /Prefere avançar por partes\?/);
   assert.match(sales, /individualTotalCents/);
   assert.match(sales, /savingsCents/);
   assert.match(sales, /formatPriceCents/);
   assert.equal(sales.includes("249,90"), false);
   assert.equal(sales.includes("334,10"), false);
   assert.equal(sales.includes("84,20"), false);
-  assert.match(sales, /Disponível em breve/);
+  assert.match(sales, /hidePrices/);
+  assert.match(sales, /courseSalesCopy/);
+});
+
+test("Home multi-curso usa catálogo data-driven", () => {
+  const home = readFileSync(new URL("../src/components/home/CourseHome.tsx", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../src/app/(public)/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /loadCourseCatalog/);
+  assert.match(home, /md:grid-cols-2/);
+  assert.match(home, /Conhecer o curso/);
+  assert.match(home, /freeLessonCount/);
 });
 
 test("CollectionPage e sitemap incluem /cursos", () => {

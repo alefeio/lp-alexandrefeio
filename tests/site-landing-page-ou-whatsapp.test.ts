@@ -210,21 +210,25 @@ test("privacidade: analytics/UI admin sem vazamento estratégico; seed wired", (
   assert.match(deploy, /SITE_LESSON_02_SLUG/);
 });
 
-test("curso sites permanece DRAFT fora do catálogo; curso 1 intacto; aula 2 não indexável via course draft", () => {
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+test("curso sites público NFS; aula 2 indexável com corpo; curso 1 intacto", () => {
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(isPublicLesson({ status: "DRAFT" }), false);
+  assert.equal(isPublicLesson({ status: "PUBLISHED" }), true);
   assert.equal(canReadLessonBody({ status: "PUBLISHED", accessType: "FREE" }), true);
+  assert.equal(canIndexLesson({ status: "PUBLISHED", accessType: "FREE", publicPreview: "x" }, true), true);
   assert.equal(canIndexLesson({ status: "PUBLISHED", accessType: "FREE", publicPreview: "x" }, false), false);
   const sitemap = buildPublicSitemap("https://alexandrefeio.com.br", {
-    courses: [{ slug: firstCourseSeed.slug, updatedAt: new Date() }],
+    courses: [
+      { slug: firstCourseSeed.slug, updatedAt: new Date() },
+      { slug: SITES_COURSE_SLUG, updatedAt: new Date() },
+    ],
     lessons: [
-      { slug: SITE_LESSON_01_SLUG, updatedAt: new Date(), indexable: false },
-      { slug: SITE_LESSON_02_SLUG, updatedAt: new Date(), indexable: false },
+      { slug: SITE_LESSON_01_SLUG, updatedAt: new Date(), indexable: true },
+      { slug: SITE_LESSON_02_SLUG, updatedAt: new Date(), indexable: true },
     ],
   });
-  assert.equal(sitemap.some((entry) => entry.url.includes(SITES_COURSE_SLUG)), false);
-  assert.equal(sitemap.some((entry) => entry.url.includes(SITE_LESSON_02_SLUG)), false);
+  assert.equal(sitemap.some((entry) => entry.url.endsWith(`/cursos/${SITES_COURSE_SLUG}`)), true);
+  assert.equal(sitemap.some((entry) => entry.url.endsWith(`/aulas/${SITE_LESSON_02_SLUG}`)), true);
   assert.equal(firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons).length, 12);
   assert.equal(firstCourseSeed.bundlePriceCents, 24990);
   const lesson2Seed = sitesCourseSeed.modules[0]!.lessons[1]!;

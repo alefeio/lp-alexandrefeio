@@ -1,6 +1,6 @@
 /**
  * Scaffold editorial do segundo curso.
- * Sem blocos, Tools ou LessonResults. Status DRAFT / NOT_FOR_SALE até publicação futura.
+ * Funil gratuito público: Course PUBLISHED + NOT_FOR_SALE. Conteúdo pago permanece fechado.
  */
 
 export const SITES_COURSE_SLUG = "sites-que-convertem";
@@ -28,10 +28,10 @@ export type SitesSeedModule = {
 };
 
 export const sitesCourseEditorial = {
-  contentStatus: "SCAFFOLDED" as const,
-  publicRelease: "NOT_APPROVED" as const,
+  contentStatus: "FREE_FUNNEL_LIVE" as const,
+  publicRelease: "APPROVED" as const,
   commerceRelease: "NOT_APPROVED" as const,
-  publicationStatus: "DRAFT" as const,
+  publicationStatus: "PUBLISHED" as const,
   commerceStatus: "NOT_FOR_SALE" as const,
 };
 
@@ -43,7 +43,7 @@ export const sitesCourseSeed = {
     "Curso de estratégia de página, jornada, oferta, conversão, copy, estrutura, experiência, confiança e mensuração para pequenos negócios. Não ensina programação nem CMS.",
   sortOrder: 1,
   bundlePriceCents: 24990,
-  status: "DRAFT" as const,
+  status: "PUBLISHED" as const,
   commerceStatus: "NOT_FOR_SALE" as const,
   modules: [
     {
@@ -259,7 +259,11 @@ export function sitesCoursePlannedTools(seed = sitesCourseSeed): string[] {
   return sitesCourseLessons(seed).map((lesson) => lesson.plannedTool);
 }
 
-/** Catálogo/sitemap/indexação públicos só aceitam PUBLISHED. Scaffold permanece DRAFT. */
+/** Catálogo/sitemap/indexação públicos só aceitam PUBLISHED. */
 export function sitesCourseIsPubliclyVisible(status: "DRAFT" | "PUBLISHED" = sitesCourseSeed.status): boolean {
   return status === "PUBLISHED";
+}
+
+export function sitesCoursePlannedResultBySlug(slug: string): string | null {
+  return sitesCourseLessons().find((lesson) => lesson.slug === slug)?.plannedResult ?? null;
 }

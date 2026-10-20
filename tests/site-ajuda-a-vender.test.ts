@@ -137,19 +137,22 @@ test("URL opcional e OTHER exige texto; analytics/seed não vazam oferta", () =>
   assert.match(toolUi, /pré-visualização não cria progresso/i);
 });
 
-test("curso sites permanece fora do catálogo/sitemap; curso 1 intacto", () => {
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+test("curso sites público NFS; aula 1 indexável com corpo; curso 1 intacto", () => {
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(isPublicLesson({ status: "DRAFT" }), false);
+  assert.equal(isPublicLesson({ status: "PUBLISHED" }), true);
   assert.equal(canIndexLesson({ status: "PUBLISHED", accessType: "FREE", publicPreview: "x" }, true), true);
   assert.equal(canIndexLesson({ status: "DRAFT", accessType: "FREE", publicPreview: "x" }, true), false);
   assert.equal(canReadLessonBody({ status: "PUBLISHED", accessType: "FREE" }), true);
   const sitemap = buildPublicSitemap("https://alexandrefeio.com.br", {
-    courses: [{ slug: firstCourseSeed.slug, updatedAt: new Date() }],
-    lessons: [{ slug: SITE_LESSON_01_SLUG, updatedAt: new Date(), indexable: false }],
+    courses: [
+      { slug: firstCourseSeed.slug, updatedAt: new Date() },
+      { slug: SITES_COURSE_SLUG, updatedAt: new Date() },
+    ],
+    lessons: [{ slug: SITE_LESSON_01_SLUG, updatedAt: new Date(), indexable: true }],
   });
-  assert.equal(sitemap.some((entry) => entry.url.includes(SITES_COURSE_SLUG)), false);
-  assert.equal(sitemap.some((entry) => entry.url.includes(SITE_LESSON_01_SLUG)), false);
+  assert.equal(sitemap.some((entry) => entry.url.endsWith(`/cursos/${SITES_COURSE_SLUG}`)), true);
+  assert.equal(sitemap.some((entry) => entry.url.endsWith(`/aulas/${SITE_LESSON_01_SLUG}`)), true);
   assert.equal(firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons).length, 12);
   assert.equal(firstCourseSeed.bundlePriceCents, 24990);
   const deploy = readFileSync(new URL("../src/lib/learning/catalog-deploy.ts", import.meta.url), "utf8");

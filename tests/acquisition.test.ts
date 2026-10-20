@@ -136,7 +136,8 @@ test("preço e aulas futuras não estão hardcoded na página de vendas", () => 
   assert.match(home, /publicHomeCopy\.primaryCta/);
   assert.match(home, /publicHomeCopy\.secondaryCta/);
   assert.match(home, /href="\/cursos"/);
-  assert.match(home, /Curso em destaque/);
+  assert.match(home, /md:grid-cols-2/);
+  assert.match(home, /Conhecer o curso/);
   assert.match(publicHome, /Explorar os cursos/);
   assert.match(publicHome, /Prefiro contratar a gestão/);
   const page = readFileSync(new URL("../src/app/(learn)/aulas/[slug]/page.tsx", import.meta.url), "utf8");

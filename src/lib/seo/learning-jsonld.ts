@@ -53,7 +53,13 @@ export function lessonJsonLd(input: {
   };
 }
 
-export function courseJsonLd(input: { title: string; description: string; path: string }) {
+export function courseJsonLd(input: {
+  title: string;
+  description: string;
+  path: string;
+  /** Quando true, indica conteúdo gratuito disponível sem Offer pago. */
+  hasFreeContent?: boolean;
+}) {
   return {
     "@context": "https://schema.org",
     "@type": "Course",
@@ -62,6 +68,7 @@ export function courseJsonLd(input: { title: string; description: string; path: 
     url: `${siteConfig.url}${input.path}`,
     inLanguage: "pt-BR",
     provider: personAuthor(),
+    ...(input.hasFreeContent ? { isAccessibleForFree: true } : {}),
   };
 }
 

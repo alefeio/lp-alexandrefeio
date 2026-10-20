@@ -4,22 +4,15 @@ import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { Container } from "@/components/ui/Container";
 import { buttonClass } from "@/lib/button-styles";
 import { publicHomeCopy } from "@/lib/home/public-home";
+import type { CourseCatalogCard } from "@/lib/learning/course-catalog";
 
 const flowSteps = ["Aprenda", "Aplique", "Construa", "Avance"] as const;
 
 export function CourseHome({
-  courseTitle,
-  courseSlug,
-  lessonCount,
-  moduleCount,
-  freeLessonCount,
+  courses,
   continuation = null,
 }: {
-  courseTitle: string;
-  courseSlug: string;
-  lessonCount: number;
-  moduleCount: number;
-  freeLessonCount: number;
+  courses: CourseCatalogCard[];
   continuation?: ReactNode;
 }) {
   return (
@@ -118,30 +111,41 @@ export function CourseHome({
           <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Escolha onde você quer avançar.</h2>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">Cursos para transformar conhecimento em execução.</p>
 
-          <article className="mt-8 rounded-2xl border border-border bg-surface p-6 shadow-[0_22px_44px_-36px_rgba(11,18,32,0.5)] sm:p-8">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Curso em destaque</p>
-            <h3 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">{courseTitle}</h3>
-            <p className="mt-3 text-sm text-muted">
-              {lessonCount} aulas · {moduleCount} módulos
-              {freeLessonCount > 0 ? ` · ${freeLessonCount} aulas gratuitas` : ""}
-            </p>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
-              Do planejamento à análise dos resultados, aplicando cada etapa no seu próprio negócio.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <AcquisitionLink
-                className={buttonClass("primary")}
-                href={`/cursos/${courseSlug}`}
-                event="course_cta_click"
-                payload={{ course_slug: courseSlug, cta_name: "conhecer_o_curso" }}
-              >
-                Conhecer o curso
-              </AcquisitionLink>
-              <Link className={buttonClass("secondary")} href="/cursos">
-                Ver todos os cursos
-              </Link>
-            </div>
-          </article>
+          {courses.length === 0 ? (
+            <p className="mt-8 text-base text-muted">Nenhum curso disponível no momento.</p>
+          ) : (
+            <ul className="mt-8 grid gap-4 md:grid-cols-2">
+              {courses.map((course) => (
+                <li key={course.id}>
+                  <article className="h-full rounded-2xl border border-border bg-surface p-6 shadow-[0_22px_44px_-36px_rgba(11,18,32,0.5)] sm:p-8">
+                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Curso</p>
+                    <h3 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">{course.title}</h3>
+                    <p className="mt-3 text-sm text-muted">
+                      {course.lessonCount} aulas · {course.moduleCount} módulos
+                      {course.freeLessonCount > 0 ? ` · ${course.freeLessonCount} aulas gratuitas` : ""}
+                    </p>
+                    <p className="mt-4 text-base leading-relaxed text-muted">{course.summary}</p>
+                    {course.microcopy ? <p className="mt-3 text-sm font-medium text-cta">{course.microcopy}</p> : null}
+                    <div className="mt-6">
+                      <AcquisitionLink
+                        className={buttonClass("primary")}
+                        href={course.href}
+                        event="course_cta_click"
+                        payload={{ course_slug: course.slug, cta_name: "conhecer_o_curso" }}
+                      >
+                        Conhecer o curso
+                      </AcquisitionLink>
+                    </div>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-6">
+            <Link className={buttonClass("secondary")} href="/cursos">
+              Ver todos os cursos
+            </Link>
+          </p>
         </Container>
       </section>
 

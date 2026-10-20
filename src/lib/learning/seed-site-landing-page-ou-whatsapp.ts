@@ -21,7 +21,7 @@ export type SiteLesson02SeedReport = {
 
 /**
  * Conteúdo definitivo da Aula 2 do curso Sites.
- * Mantém o Course em DRAFT. Publica só a Lesson para admin/preview e futuro go-live.
+ * Publica a Lesson FREE do funil. Course/commerce ficam a cargo do scaffold (PUBLISHED + NOT_FOR_SALE).
  */
 export async function seedSiteLandingWhatsappContent(
   prisma: Prisma = getPrisma(),

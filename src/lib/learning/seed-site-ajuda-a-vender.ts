@@ -21,7 +21,7 @@ export type SiteLesson01SeedReport = {
 
 /**
  * Conteúdo definitivo da Aula 1 do curso Sites.
- * Mantém o Course em DRAFT (scaffold). Publica só a Lesson para admin/preview e futuro go-live.
+ * Publica a Lesson FREE do funil. Course/commerce ficam a cargo do scaffold (PUBLISHED + NOT_FOR_SALE).
  * Não cria Tool funcional além do bloco TOOL; LessonResult nasce no uso do aluno.
  */
 export async function seedSiteAjudaAVenderContent(
