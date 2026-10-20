@@ -159,7 +159,12 @@ test("preço, crédito e pacote saem do servidor", () => {
     sources: [],
     ownedLessonIds: [],
   });
-  assert.equal(mixed.ok, false);
+  assert.equal(mixed.ok, true);
+  if (mixed.ok) {
+    assert.equal(mixed.items.length, 1);
+    assert.equal(mixed.itemType, "COURSE");
+    assert.deepEqual(mixed.lines, [{ type: "COURSE", id: "course" }]);
+  }
 });
 
 test("upgrade do módulo Google usa só o valor pago das aulas 6, 7 e 8", () => {

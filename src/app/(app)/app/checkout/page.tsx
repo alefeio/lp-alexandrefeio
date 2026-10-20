@@ -3,7 +3,10 @@ import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
 import { mercadoPagoPublicKey } from "@/lib/commerce/config";
 
-export const metadata = { title: "Pagamento" };
+export const metadata = {
+  title: "Pagamento",
+  robots: { index: false, follow: false },
+};
 
 export default async function CheckoutPage() {
   const session = await requireSession();

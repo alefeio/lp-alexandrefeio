@@ -171,7 +171,14 @@ export function CourseSales({
               {`Curso completo: ${formatPriceCents(course.bundlePriceCents)}.${courseOpen ? "" : " Disponível em breve."}`}
             </p>
           ) : null}
-          {courseOpen ? <AddToCartButton id={course.id} type="COURSE" label={`Curso completo — ${formatPriceCents(course.bundlePriceCents ?? 0)}`} /> : null}
+          {courseOpen ? (
+            <AddToCartButton
+              id={course.id}
+              type="COURSE"
+              label={`Curso completo — ${formatPriceCents(course.bundlePriceCents ?? 0)}`}
+              lessonIds={course.modules.flatMap((moduleRow) => moduleRow.lessons).filter((lesson) => lesson.accessType === "PAID").map((lesson) => lesson.id)}
+            />
+          ) : null}
           <p className="mt-3 text-sm leading-relaxed text-muted">Os valores das aulas e dos módulos aparecem no programa, vindos do cadastro do curso.</p>
         </Container>
       </section>
@@ -234,7 +241,14 @@ function ModulePrice({ moduleRow, commerce }: { moduleRow: SalesModule; commerce
   return (
     <div className="mt-2 text-sm text-muted">
       <p>{`Módulo: ${formatPriceCents(moduleRow.bundlePriceCents)}.${open ? "" : " Disponível em breve."}`}</p>
-      {open ? <AddToCartButton id={moduleRow.id} type="MODULE" label={`Ver módulo — ${formatPriceCents(moduleRow.bundlePriceCents)}`} /> : null}
+      {open ? (
+        <AddToCartButton
+          id={moduleRow.id}
+          type="MODULE"
+          label={`Ver módulo — ${formatPriceCents(moduleRow.bundlePriceCents)}`}
+          lessonIds={moduleRow.lessons.filter((lesson) => lesson.accessType === "PAID").map((lesson) => lesson.id)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -285,7 +299,7 @@ function LessonRow({
           </Link>
         ) : null}
         {action === "buy" && lesson.priceCents != null ? (
-          <AddToCartButton id={lesson.id} type="LESSON" label={`Comprar esta aula — ${formatPriceCents(lesson.priceCents)}`} />
+          <AddToCartButton id={lesson.id} type="LESSON" label={`Comprar esta aula — ${formatPriceCents(lesson.priceCents)}`} lessonIds={[lesson.id]} />
         ) : null}
       </div>
     </li>

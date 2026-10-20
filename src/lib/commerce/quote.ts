@@ -1,3 +1,5 @@
+import { normalizeCartSelection } from "@/lib/commerce/cart-normalize";
+
 export type CommerceStatusName = "NOT_FOR_SALE" | "AVAILABLE";
 export type ProductTypeName = "LESSON" | "MODULE" | "COURSE";
 
@@ -54,7 +56,7 @@ export type QuoteItem = {
 };
 
 export type Quote =
-  | { ok: false; message: string }
+  | { ok: false; message: string; code?: "empty" | "invalid" | "not_for_sale" | "already_owned" | "mixed" }
   | {
       ok: true;
       kind: "payment" | "zero_upgrade" | "already_owned";
@@ -63,6 +65,7 @@ export type Quote =
       creditCents: number;
       totalCents: number;
       itemType: ProductTypeName;
+      lines: CartLine[];
     };
 
 const MAX_INSTALLMENTS = 3;
@@ -125,41 +128,50 @@ export function quoteCart(input: {
   sources: CreditSource[];
   ownedLessonIds: string[];
 }): Quote {
-  const lines = dedupe(input.lines);
-  if (lines.length === 0) return { ok: false, message: "O carrinho está vazio." };
-  const types = new Set(lines.map((line) => line.type));
-  if (types.size > 1 || (lines[0]?.type !== "LESSON" && lines.length > 1)) {
-    return { ok: false, message: "Este checkout aceita várias aulas ou um único pacote." };
+  const lines = normalizeCartSelection(dedupe(input.lines), input);
+  if (lines.length === 0) return { ok: false, message: "O carrinho está vazio.", code: "empty" };
+
+  const moduleLines = lines.filter((line) => line.type === "MODULE");
+  const courseLines = lines.filter((line) => line.type === "COURSE");
+  const lessonLines = lines.filter((line) => line.type === "LESSON");
+  if (courseLines.length > 1 || moduleLines.length > 1 || (courseLines.length > 0 && (moduleLines.length > 0 || lessonLines.length > 0))) {
+    return { ok: false, message: "Revise os itens do carrinho e tente de novo.", code: "mixed" };
   }
 
   const owned = new Set(input.ownedLessonIds);
   const items: QuoteItem[] = [];
 
-  if (lines[0]?.type === "LESSON") {
-    for (const line of lines) {
-      const lesson = input.lessons.find((item) => item.id === line.id);
-      if (!lesson || lesson.accessType !== "PAID" || !forSale(lesson.status, lesson.commerceStatus, lesson.priceCents)) {
-        return { ok: false, message: "Esta aula não está à venda." };
-      }
-      if (owned.has(lesson.id)) return { ok: false, message: "Você já tem esta aula." };
-      items.push({
-        productType: "LESSON",
-        productId: lesson.id,
-        title: lesson.title,
-        slug: lesson.slug,
-        lessonIds: [lesson.id],
-        listPriceCents: lesson.priceCents,
-        creditAppliedCents: 0,
-        finalPriceCents: lesson.priceCents,
-      });
+  for (const line of lessonLines) {
+    const lesson = input.lessons.find((item) => item.id === line.id);
+    if (!lesson || lesson.accessType !== "PAID" || !forSale(lesson.status, lesson.commerceStatus, lesson.priceCents)) {
+      return { ok: false, message: "Esta aula não está à venda.", code: "not_for_sale" };
     }
-  } else if (lines[0]?.type === "MODULE") {
-    const moduleRow = input.modules.find((item) => item.id === lines[0]?.id);
+    if (owned.has(lesson.id)) return { ok: false, message: "Você já tem esta aula.", code: "already_owned" };
+    if (moduleLines[0]) {
+      const moduleRow = input.modules.find((item) => item.id === moduleLines[0]?.id);
+      if (moduleRow?.paidLessonIds.includes(lesson.id)) {
+        continue;
+      }
+    }
+    items.push({
+      productType: "LESSON",
+      productId: lesson.id,
+      title: lesson.title,
+      slug: lesson.slug,
+      lessonIds: [lesson.id],
+      listPriceCents: lesson.priceCents,
+      creditAppliedCents: 0,
+      finalPriceCents: lesson.priceCents,
+    });
+  }
+
+  if (moduleLines[0]) {
+    const moduleRow = input.modules.find((item) => item.id === moduleLines[0]?.id);
     if (!moduleRow || !forSale(moduleRow.status, moduleRow.commerceStatus, moduleRow.bundlePriceCents)) {
-      return { ok: false, message: "Este módulo não está à venda." };
+      return { ok: false, message: "Este módulo não está à venda.", code: "not_for_sale" };
     }
     if (!compositionReady(moduleRow.paidLessonIds, input.lessons)) {
-      return { ok: false, message: "Este módulo ainda não está à venda." };
+      return { ok: false, message: "Este módulo ainda não está à venda.", code: "not_for_sale" };
     }
     items.push(
       lineItem({
@@ -173,13 +185,15 @@ export function quoteCart(input: {
         sources: input.sources,
       }),
     );
-  } else {
-    const course = input.courses.find((item) => item.id === lines[0]?.id);
+  }
+
+  if (courseLines[0]) {
+    const course = input.courses.find((item) => item.id === courseLines[0]?.id);
     if (!course || !forSale(course.status, course.commerceStatus, course.bundlePriceCents)) {
-      return { ok: false, message: "Este curso não está à venda." };
+      return { ok: false, message: "Este curso não está à venda.", code: "not_for_sale" };
     }
     if (!compositionReady(course.paidLessonIds, input.lessons)) {
-      return { ok: false, message: "Este curso ainda não está à venda." };
+      return { ok: false, message: "Este curso ainda não está à venda.", code: "not_for_sale" };
     }
     items.push(
       lineItem({
@@ -195,15 +209,19 @@ export function quoteCart(input: {
     );
   }
 
+  if (items.length === 0) return { ok: false, message: "O carrinho está vazio.", code: "empty" };
+
   const subtotalCents = items.reduce((sum, item) => sum + item.listPriceCents, 0);
   const creditCents = items.reduce((sum, item) => sum + item.creditAppliedCents, 0);
   const totalCents = items.reduce((sum, item) => sum + item.finalPriceCents, 0);
   const targetLessons = items.flatMap((item) => item.lessonIds);
   if (targetLessons.length > 0 && targetLessons.every((id) => owned.has(id))) {
-    return { ok: false, message: "Você já tem este conteúdo." };
+    return { ok: false, message: "Você já tem este conteúdo.", code: "already_owned" };
   }
   const kind = totalCents === 0 ? "zero_upgrade" : "payment";
-  return { ok: true, kind, items, subtotalCents, creditCents, totalCents, itemType: items[0]?.productType ?? "LESSON" };
+  const itemType =
+    courseLines.length > 0 ? "COURSE" : moduleLines.length > 0 ? "MODULE" : "LESSON";
+  return { ok: true, kind, items, subtotalCents, creditCents, totalCents, itemType, lines };
 }
 
 function compositionReady(lessonIds: string[], lessons: SaleLesson[]) {
