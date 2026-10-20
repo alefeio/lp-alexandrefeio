@@ -52,20 +52,32 @@ test("dry-run e confirmação comercial não gravam sem a flag", () => {
   assert.equal(commerceWriteGate(developmentEnv, true).write, true);
 });
 
-test("aula incompleta, aula fora da allowlist e curso completo não ativam", () => {
+test("aula incompleta, aula fora da allowlist e curso sem aulas pagas não ativam", () => {
   const incomplete = planLessonEnable(readyLesson({ contentReady: false, contentIssues: ["Falta a conclusão."] }));
   assert.equal(incomplete.allowed, false);
   const outside = planLessonEnable(readyLesson({ slug: "fora-da-fase", priceCents: 3990 }));
   assert.equal(outside.allowed, false);
   assert.match(outside.reason ?? "", /allowlist/);
-  const course = planCourseEnable({
+  const courseEarly = planCourseEnable({
     slug: FIRST_COURSE_SLUG,
     title: "Curso",
     priceCents: 24990,
     commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    paidLessons: [],
   });
-  assert.equal(course.allowed, false);
-  assert.match(course.reason ?? "", /bloqueado/);
+  assert.equal(courseEarly.allowed, false);
+  assert.match(courseEarly.reason ?? "", /não está neste curso/);
+  const courseWrongPrice = planCourseEnable({
+    slug: FIRST_COURSE_SLUG,
+    title: "Curso",
+    priceCents: 19990,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    paidLessons: [],
+  });
+  assert.equal(courseWrongPrice.allowed, false);
+  assert.match(courseWrongPrice.reason ?? "", /preço/);
   const moduleBlocked = planModuleEnable({
     slug: "google-ads-na-pratica",
     title: "Google",
@@ -217,5 +229,38 @@ test("aula válida e módulo exigem a allowlist e as aulas componentes", () => {
   });
   assert.equal(finalModule.allowed, true);
   assert.equal(finalModule.priceCents, 6790);
+  const paidCourseLessons = [
+    { slug: LESSON_04_SLUG, title: "Aula 4", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_05_SLUG, title: "Aula 5", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_06_SLUG, title: "Aula 6", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_07_SLUG, title: "Aula 7", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_08_SLUG, title: "Aula 8", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_09_SLUG, title: "Aula 9", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_10_SLUG, title: "Aula 10", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_11_SLUG, title: "Aula 11", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+    { slug: LESSON_12_SLUG, title: "Aula 12", commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const },
+  ];
+  const courseBeforeLessons = planCourseEnable({
+    slug: FIRST_COURSE_SLUG,
+    title: "Curso",
+    priceCents: 24990,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    paidLessons: paidCourseLessons.map((lesson, index) =>
+      index === 0 ? { ...lesson, commerceStatus: "NOT_FOR_SALE" } : lesson,
+    ),
+  });
+  assert.equal(courseBeforeLessons.allowed, false);
+  const courseReady = planCourseEnable({
+    slug: FIRST_COURSE_SLUG,
+    title: "Curso",
+    priceCents: 24990,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    paidLessons: paidCourseLessons,
+  });
+  assert.equal(courseReady.allowed, true);
+  assert.equal(courseReady.intended, "AVAILABLE");
+  assert.equal(courseReady.priceCents, 24990);
 });
 

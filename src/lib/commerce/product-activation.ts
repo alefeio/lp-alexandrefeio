@@ -29,6 +29,7 @@ export const FIRST_SALE_ALLOWLIST = [
   { kind: "module" as const, slug: "google-ads-na-pratica", priceCents: 10390 },
   { kind: "module" as const, slug: "meta-ads-na-pratica", priceCents: 7190 },
   { kind: "module" as const, slug: "entenda-e-melhore", priceCents: 6790 },
+  { kind: "course" as const, slug: FIRST_COURSE_SLUG, priceCents: 24990 },
 ];
 
 const MODULE_LESSONS: Record<string, readonly string[]> = {
@@ -37,6 +38,18 @@ const MODULE_LESSONS: Record<string, readonly string[]> = {
   "meta-ads-na-pratica": [LESSON_09_SLUG, LESSON_10_SLUG],
   "entenda-e-melhore": [LESSON_11_SLUG, LESSON_12_SLUG],
 };
+
+const COURSE_PAID_LESSONS: readonly string[] = [
+  LESSON_04_SLUG,
+  LESSON_05_SLUG,
+  LESSON_06_SLUG,
+  LESSON_07_SLUG,
+  LESSON_08_SLUG,
+  LESSON_09_SLUG,
+  LESSON_10_SLUG,
+  LESSON_11_SLUG,
+  LESSON_12_SLUG,
+];
 
 const INCOMPLETE_MODULES = new Set<string>();
 
@@ -191,17 +204,40 @@ export function planCourseEnable(input: {
   title: string;
   priceCents: number | null;
   commerceStatus: CommerceStatusName;
+  status?: "DRAFT" | "PUBLISHED";
+  paidLessons?: ModuleLesson[];
 }): ProductPlan {
-  return {
-    kind: "course",
+  const base = {
+    kind: "course" as const,
     slug: input.slug,
     title: input.title,
     priceCents: input.priceCents,
     current: input.commerceStatus,
-    intended: "AVAILABLE",
-    allowed: false,
-    reason: "O curso completo está bloqueado nesta fase.",
+    intended: "AVAILABLE" as const,
   };
+  const allowed = allowlistItem("course", input.slug);
+  if (!allowed) return { ...base, allowed: false, reason: blockedReason("course", input.slug) };
+  if (input.status && input.status !== "PUBLISHED") {
+    return { ...base, allowed: false, reason: "O curso precisa estar publicado." };
+  }
+  if (input.priceCents !== allowed.priceCents) {
+    return { ...base, allowed: false, reason: "O preço não confere com o valor aprovado." };
+  }
+  const lessons = input.paidLessons ?? [];
+  const issues: string[] = [];
+  for (const slug of COURSE_PAID_LESSONS) {
+    const lesson = lessons.find((item) => item.slug === slug);
+    if (!lesson) {
+      issues.push(`A aula ${slug} não está neste curso.`);
+      continue;
+    }
+    if (lesson.commerceStatus !== "AVAILABLE") issues.push(`${lesson.title} ainda não está disponível para venda.`);
+    if (!lesson.ready || lesson.status !== "PUBLISHED" || lesson.accessType !== "PAID") {
+      issues.push(`${lesson.title} ainda não passou na prontidão comercial.`);
+    }
+  }
+  if (issues.length > 0) return { ...base, allowed: false, reason: issues[0] ?? "O curso não pode ir à venda." };
+  return { ...base, allowed: true, reason: null };
 }
 
 export function planDisable(input: {
@@ -223,14 +259,14 @@ export function planDisable(input: {
   };
 }
 
-function allowlistItem(kind: "lesson" | "module", slug: string) {
+function allowlistItem(kind: "lesson" | "module" | "course", slug: string) {
   return FIRST_SALE_ALLOWLIST.find((item) => item.kind === kind && item.slug === slug) ?? null;
 }
 
-function blockedReason(kind: "lesson" | "module", slug: string): string {
+function blockedReason(kind: "lesson" | "module" | "course", slug: string): string {
   if (kind === "module" && INCOMPLETE_MODULES.has(slug)) return "Este módulo ainda não está editorialmente completo.";
   if (kind === "lesson" && INCOMPLETE_LESSONS.has(slug)) return "Esta aula ainda não está pronta para venda.";
-  if (slug === FIRST_COURSE_SLUG) return "O curso completo está bloqueado nesta fase.";
+  if (kind === "course" && slug === FIRST_COURSE_SLUG) return "O curso completo está fora da allowlist desta fase.";
   return "Este produto está fora da allowlist desta fase.";
 }
 
@@ -294,6 +330,7 @@ async function planSlug(db: CommerceDb, action: "enable" | "disable", slug: stri
   if (action === "disable") return planDisable(found.identity);
   if (found.lesson) return planLessonEnable(found.lesson);
   if (found.module) return planModuleEnable(found.module);
+  if (found.course) return planCourseEnable(found.course);
   return planCourseEnable(found.identity);
 }
 
@@ -313,9 +350,15 @@ async function writeStatus(db: CommerceDb, plan: ProductPlan): Promise<void> {
 }
 
 type Found =
-  | { identity: ProductPlanIdentity; lesson: LessonShape; module?: undefined }
-  | { identity: ProductPlanIdentity; module: Parameters<typeof planModuleEnable>[0]; lesson?: undefined }
-  | { identity: ProductPlanIdentity; lesson?: undefined; module?: undefined };
+  | { identity: ProductPlanIdentity; lesson: LessonShape; module?: undefined; course?: undefined }
+  | { identity: ProductPlanIdentity; module: Parameters<typeof planModuleEnable>[0]; lesson?: undefined; course?: undefined }
+  | {
+      identity: ProductPlanIdentity;
+      course: Parameters<typeof planCourseEnable>[0];
+      lesson?: undefined;
+      module?: undefined;
+    }
+  | { identity: ProductPlanIdentity; lesson?: undefined; module?: undefined; course?: undefined };
 
 type ProductPlanIdentity = {
   kind: ProductKind;
@@ -425,8 +468,46 @@ async function findProduct(db: CommerceDb, slug: string): Promise<Found | null> 
     };
   }
 
-  const course = await db.course.findUnique({ where: { slug } });
+  const course = await db.course.findUnique({
+    where: { slug },
+    include: {
+      modules: {
+        include: {
+          lessons: {
+            include: { blocks: { select: { blockKey: true, retiredAt: true, payload: true } } },
+          },
+        },
+      },
+    },
+  });
   if (!course) return null;
+  const paidLessons: ModuleLesson[] = course.modules.flatMap((moduleRow) =>
+    moduleRow.lessons
+      .filter((item) => item.accessType === "PAID")
+      .map((item) => {
+        const assessment = assessLesson(
+          {
+            title: item.title,
+            summary: item.summary,
+            publicPreview: item.publicPreview,
+            estimatedMinutes: item.estimatedMinutes,
+            accessType: item.accessType,
+            status: item.status,
+            priceCents: item.priceCents,
+            commerceStatus: item.commerceStatus,
+          },
+          item.blocks.map((block) => ({ blockKey: block.blockKey, retiredAt: block.retiredAt, payload: block.payload })),
+        );
+        return {
+          slug: item.slug,
+          title: item.title,
+          commerceStatus: item.commerceStatus,
+          ready: assessment.ready,
+          status: item.status,
+          accessType: item.accessType,
+        };
+      }),
+  );
   return {
     identity: {
       kind: "course",
@@ -434,6 +515,14 @@ async function findProduct(db: CommerceDb, slug: string): Promise<Found | null> 
       title: course.title,
       priceCents: course.bundlePriceCents,
       commerceStatus: course.commerceStatus,
+    },
+    course: {
+      slug: course.slug,
+      title: course.title,
+      priceCents: course.bundlePriceCents,
+      commerceStatus: course.commerceStatus,
+      status: course.status,
+      paidLessons,
     },
   };
 }
@@ -447,6 +536,7 @@ async function listCommercialState(db: CommerceDb): Promise<ProductPlan[]> {
   });
   const rows: ProductPlan[] = [];
   if (course) {
+    const courseAllowed = allowlistItem("course", course.slug);
     rows.push({
       kind: "course",
       slug: course.slug,
@@ -454,8 +544,8 @@ async function listCommercialState(db: CommerceDb): Promise<ProductPlan[]> {
       priceCents: course.bundlePriceCents,
       current: course.commerceStatus,
       intended: course.commerceStatus,
-      allowed: false,
-      reason: "O curso completo está bloqueado nesta fase.",
+      allowed: courseAllowed != null,
+      reason: courseAllowed ? null : blockedReason("course", course.slug),
     });
   }
   for (const moduleRow of modules) {
