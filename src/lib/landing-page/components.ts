@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { landingPageActionSchema } from "@/lib/landing-page/actions";
-import { LANDING_COMPONENT_TYPES, LANDING_PAGE_LIMITS, type LandingComponentType } from "@/lib/landing-page/constants";
+import {
+  LANDING_COMPONENT_TYPES,
+  LANDING_PAGE_CONTENT_STATUSES,
+  LANDING_PAGE_LIMITS,
+  type LandingComponentType,
+} from "@/lib/landing-page/constants";
 
 const FORBIDDEN_CONTENT_KEYS = new Set(["html", "rawHtml", "script", "javascript", "customCode"]);
 
@@ -17,6 +22,33 @@ const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().trim().max(max).optional();
 
 const emptySettings = z.object({}).strict();
+
+export const landingPageContentStatusSchema = z.enum(LANDING_PAGE_CONTENT_STATUSES);
+
+const listItemSchema = z
+  .object({
+    title: text(LANDING_PAGE_LIMITS.maxShortText),
+    description: text(LANDING_PAGE_LIMITS.maxMediumText),
+  })
+  .strict();
+
+const problemContentSchema = z
+  .object({
+    heading: text(LANDING_PAGE_LIMITS.maxHeadline),
+    description: optionalText(LANDING_PAGE_LIMITS.maxMediumText),
+    items: z.array(listItemSchema).max(LANDING_PAGE_LIMITS.maxBenefits).optional(),
+  })
+  .strict()
+  .superRefine(rejectForbiddenKeys);
+
+const solutionContentSchema = z
+  .object({
+    heading: text(LANDING_PAGE_LIMITS.maxHeadline),
+    description: text(LANDING_PAGE_LIMITS.maxMediumText),
+    items: z.array(listItemSchema).max(LANDING_PAGE_LIMITS.maxBenefits).optional(),
+  })
+  .strict()
+  .superRefine(rejectForbiddenKeys);
 
 const heroContentSchema = z
   .object({
@@ -158,6 +190,18 @@ export const COMPONENT_REGISTRY_V1 = {
     contentSchema: heroContentSchema,
     settingsSchema: emptySettings,
   },
+  PROBLEM: {
+    type: "PROBLEM" as const,
+    variants: ["default"] as const,
+    contentSchema: problemContentSchema,
+    settingsSchema: emptySettings,
+  },
+  SOLUTION: {
+    type: "SOLUTION" as const,
+    variants: ["default"] as const,
+    contentSchema: solutionContentSchema,
+    settingsSchema: emptySettings,
+  },
   BENEFITS: {
     type: "BENEFITS" as const,
     variants: ["default", "grid"] as const,
@@ -223,6 +267,31 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: heroContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("PROBLEM"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.PROBLEM.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: problemContentSchema,
+      settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("SOLUTION"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.SOLUTION.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: solutionContentSchema,
+      settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -234,6 +303,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: benefitsContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -245,6 +315,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: processContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -256,6 +327,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: trustContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -267,6 +339,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: faqContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -278,6 +351,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: ctaContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -289,6 +363,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: formContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -300,6 +375,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: contactContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
   z
@@ -311,6 +387,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       enabled: z.boolean(),
       content: footerContentSchema,
       settings: emptySettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
     })
     .strict(),
 ]);
@@ -323,6 +400,7 @@ type SectionFor<T extends LandingComponentType> = {
   enabled: boolean;
   content: z.infer<(typeof COMPONENT_REGISTRY_V1)[T]["contentSchema"]>;
   settings: z.infer<(typeof COMPONENT_REGISTRY_V1)[T]["settingsSchema"]>;
+  contentStatus?: z.infer<typeof landingPageContentStatusSchema>;
 };
 
 export type LandingPageSection = {

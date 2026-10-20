@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 e PHASE 2 IMPLEMENTED**. Phases 3–10 ainda não implementadas.
+Status: **ACCEPTED — PHASE 1, PHASE 2 e PHASE 3 IMPLEMENTED**. Phases 4–10 ainda não implementadas.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -256,13 +256,24 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 - Canvas do aluno não inclui marca Alexandre Feio. O chrome da área logada fica fora do canvas.
 - A rota pública `/p/[slug]` e o modo `PUBLIC` com interações reais ficam para a phase de publicação.
 
+## Phase 3 — guided wireframe engine
+
+- `WireframeContextV1` é um contrato de domínio, independente de `LessonResult`. Aulas 4 e 5 serão adaptadores futuros (`WireframeCourseAdapter`), ainda não implementados.
+- `generateWireframePlan` é determinístico e sem IA. Devolve `WireframePlanV1` com `engineVersion` `GUIDED_WIREFRAME_ENGINE_V1`, estratégia, propósito, `reasonCode`, avisos, confiança e `planFingerprint`.
+- Estratégias por precedência explícita: contexto insuficiente, `TRUST_HEAVY`, `EXPLANATORY`, `CONVERSATIONAL`, `FOCUSED`, senão `BALANCED`.
+- Contexto `INSUFFICIENT` produz plano mínimo (hero, CTA, rodapé), confiança `LIMITED` e aviso pedindo mais contexto.
+- `materializeWireframePlan` cria seções do registry com `contentStatus: PLACEHOLDER`. Não escreve copy final, depoimento, número ou benefício inventado.
+- `PROBLEM` e `SOLUTION` entram no registry V1, compatíveis com documentos antigos.
+- `applyGuidedWireframe` só grava em rascunho vazio (`ONLY_IF_EMPTY`), com a revisão otimista da phase 1. `REPLACE_ALL` existe no contrato e permanece desligado. Tema, conversão, medição e mídia são preservados.
+- Gerar o plano não altera o projeto. O preview continua sem analytics.
+
 ## Implementation phases
 
 | Phase | Escopo |
 | --- | --- |
 | 1 | IMPLEMENTED — core model + schemas tipados + persistência draft |
 | 2 | IMPLEMENTED — renderer controlado + preview autenticado do draft |
-| 3 | Guided Wireframe Engine |
+| 3 | IMPLEMENTED — motor guiado de wireframe, sem IA |
 | 4 | Copy assist (provider-agnostic + factual guards) |
 | 5 | Theme / design tokens |
 | 6 | Trust + public media |

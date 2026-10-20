@@ -28,5 +28,13 @@ export {
   updateLandingPageTitle,
   type LandingPageProjectView,
 } from "@/lib/landing-page/service";
+export { GUIDED_WIREFRAME_ENGINE_V1, LANDING_PAGE_CONTENT_STATUSES, type LandingPageContentStatus } from "@/lib/landing-page/constants";
+export { landingPageContentStatusSchema } from "@/lib/landing-page/components";
+export { parseWireframeContext, wireframeContextSchema, type WireframeContextV1 } from "@/lib/landing-page/wireframe/context";
+export { generateWireframePlan, decideWireframeStrategy } from "@/lib/landing-page/wireframe/engine";
+export { materializeWireframePlan } from "@/lib/landing-page/wireframe/materialize";
+export { applyGuidedWireframe, type AppliedWireframe } from "@/lib/landing-page/wireframe/apply";
+export { wireframePlanSchema, type WireframePlanV1 } from "@/lib/landing-page/wireframe/plan";
+export type { WireframeCourseAdapter } from "@/lib/landing-page/wireframe/course-adapter";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";
 export { createPrismaLandingPageStore } from "@/lib/landing-page/prisma-store";

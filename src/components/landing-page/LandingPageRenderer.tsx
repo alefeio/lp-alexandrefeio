@@ -237,6 +237,32 @@ function FooterBlock({
   );
 }
 
+function NarrativeBlock({
+  section,
+}: {
+  section: Extract<LandingPageSection, { type: "PROBLEM" | "SOLUTION" }>;
+}) {
+  const items = section.content.items ?? [];
+  return (
+    <SectionFrame section={section}>
+      <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{section.content.heading}</h2>
+      {section.content.description ? (
+        <p className="mt-3 break-words text-base leading-relaxed">{section.content.description}</p>
+      ) : null}
+      {items.length > 0 ? (
+        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {items.map((item) => (
+            <li key={item.title} className="min-w-0 rounded-lg border border-current/15 p-4">
+              <h3 className="break-words text-lg font-medium">{item.title}</h3>
+              <p className="mt-2 break-words text-sm leading-relaxed">{item.description}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </SectionFrame>
+  );
+}
+
 function renderSection(
   section: LandingPageSection,
   mode: LandingPageRenderMode,
@@ -245,6 +271,9 @@ function renderSection(
   switch (section.type) {
     case "HERO":
       return <HeroBlock section={section} mode={mode} asHeading={heroHeading} />;
+    case "PROBLEM":
+    case "SOLUTION":
+      return <NarrativeBlock section={section} />;
     case "BENEFITS":
       return <BenefitsBlock section={section} />;
     case "PROCESS":

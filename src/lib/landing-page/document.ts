@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { landingPageSectionSchema } from "@/lib/landing-page/components";
 import {
+  GUIDED_WIREFRAME_ENGINE_V1,
   LANDING_COMPONENT_REGISTRY_V1,
   LANDING_PAGE_DOCUMENT_SCHEMA_VERSION,
   LANDING_PAGE_LIMITS,
@@ -46,6 +47,15 @@ export const landingPageMeasurementSchema = z
   })
   .strict();
 
+export const guidedWireframeOriginSchema = z
+  .object({
+    engineVersion: z.literal(GUIDED_WIREFRAME_ENGINE_V1),
+    planFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    strategy: z.enum(["FOCUSED", "EXPLANATORY", "TRUST_HEAVY", "CONVERSATIONAL", "BALANCED"]),
+    confidence: z.enum(["STRONG", "MODERATE", "LIMITED"]),
+  })
+  .strict();
+
 export const landingPageMediaRefSchema = z
   .object({
     id: z.string().trim().min(1).max(64),
@@ -64,6 +74,7 @@ export const landingPageDocumentSchema = z
     conversion: landingPageConversionSchema,
     measurement: landingPageMeasurementSchema,
     mediaRefs: z.array(landingPageMediaRefSchema).max(40),
+    guidedWireframe: guidedWireframeOriginSchema.optional(),
   })
   .strict()
   .superRefine((doc, ctx) => {

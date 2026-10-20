@@ -292,6 +292,8 @@ test("WhatsApp action valida e sanitiza telefone", () => {
 test("component registry V1 cobre os tipos MVP", () => {
   assert.deepEqual([...LANDING_COMPONENT_TYPES], [
     "HERO",
+    "PROBLEM",
+    "SOLUTION",
     "BENEFITS",
     "PROCESS",
     "TRUST",

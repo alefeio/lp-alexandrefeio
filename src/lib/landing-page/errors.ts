@@ -11,6 +11,8 @@ export const LANDING_PAGE_CODES = [
   "INVALID_TITLE",
   "COURSE_NOT_FOUND",
   "INVALID_INPUT",
+  "LANDING_PAGE_WIREFRAME_NOT_EMPTY",
+  "LANDING_PAGE_WIREFRAME_REPLACE_DISABLED",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -28,6 +30,8 @@ const MESSAGES: Record<LandingPageCode, string> = {
   INVALID_TITLE: "Informe um título válido.",
   COURSE_NOT_FOUND: "Curso associado à landing page não encontrado.",
   INVALID_INPUT: "Dados inválidos.",
+  LANDING_PAGE_WIREFRAME_NOT_EMPTY: "O rascunho já tem seções. A estrutura guiada só entra em uma página vazia.",
+  LANDING_PAGE_WIREFRAME_REPLACE_DISABLED: "Substituir a estrutura inteira ainda não está disponível.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {

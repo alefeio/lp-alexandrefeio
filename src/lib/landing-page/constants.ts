@@ -2,6 +2,12 @@ export const LANDING_PAGE_DOCUMENT_SCHEMA_VERSION = 1 as const;
 
 export const LANDING_COMPONENT_REGISTRY_V1 = "LANDING_COMPONENT_REGISTRY_V1" as const;
 
+export const GUIDED_WIREFRAME_ENGINE_V1 = "GUIDED_WIREFRAME_ENGINE_V1" as const;
+
+export const LANDING_PAGE_CONTENT_STATUSES = ["PLACEHOLDER", "DRAFT", "APPROVED"] as const;
+
+export type LandingPageContentStatus = (typeof LANDING_PAGE_CONTENT_STATUSES)[number];
+
 export const LANDING_PAGE_COURSE_SLUG = "sites-que-convertem" as const;
 
 export const LANDING_PAGE_LIMITS = {
@@ -44,6 +50,8 @@ export const LANDING_PAGE_RESERVED_SLUGS = new Set([
 
 export const LANDING_COMPONENT_TYPES = [
   "HERO",
+  "PROBLEM",
+  "SOLUTION",
   "BENEFITS",
   "PROCESS",
   "TRUST",
