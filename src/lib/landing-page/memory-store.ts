@@ -85,6 +85,7 @@ export function createMemoryLandingPageStore(seed?: {
       if (!row || row.userId !== input.userId) return { ok: false, reason: "NOT_FOUND" };
       if (row.draftRevision !== input.expectedRevision) return { ok: false, reason: "CONFLICT" };
       row.draftDocument = structuredClone(input.document) as LandingPageDocumentV1;
+      if (input.status === "DRAFT" || input.status === "READY_TO_PREVIEW") row.status = input.status;
       row.draftRevision += 1;
       row.updatedAt = new Date();
       return { ok: true, record: clone(row) };

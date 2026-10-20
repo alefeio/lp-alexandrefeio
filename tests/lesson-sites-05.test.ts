@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { assessLesson } from "../src/lib/editorial/readiness";
 import {
@@ -105,7 +105,6 @@ test("aula 5 completa com 31 blocos, 4 checkpoints, tool e transição", () => {
   assert.equal(assessment.ready, true, assessment.issues.join(" "));
   assert.equal(sitesCourseSeed.status, "DRAFT");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(existsSync("src/lib/learning/site-organize-as-secoes-da-pagina.ts"), false);
 });
 
 test("schema da jornada aceita sinais válidos e rejeita inválidos", () => {

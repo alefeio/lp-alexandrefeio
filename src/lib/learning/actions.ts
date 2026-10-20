@@ -27,6 +27,15 @@ import { savePageReadinessForUser, type PageReadinessPanel } from "@/lib/learnin
 import { pageReadinessResponseSchema } from "@/lib/learning/conversion-page-readiness";
 import { saveConversionBriefForUser, SITE_OFFER_BRIEF_SLUG, type ConversionBriefPanel } from "@/lib/learning/conversion-page-brief";
 import { saveVisitorDecisionForUser, SITE_VISITOR_JOURNEY_SLUG, type VisitorDecisionPanel } from "@/lib/learning/visitor-decision";
+import {
+  applyWireframeForUser,
+  proposeWireframeForUser,
+  saveWireframeStructureForUser,
+  SITE_WIREFRAME_SLUG,
+  type WireframePanel,
+} from "@/lib/learning/landing-page-wireframe";
+import type { LandingComponentType } from "@/lib/landing-page/constants";
+import type { WireframeProposal } from "@/lib/landing-page/wireframe/structure";
 import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinationPlanForUser, syncDestinationPlanProject, type DestinationPlanPanel } from "@/lib/learning/measurement";
 import { saveKeywordIntentForUser, type KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import type { KeywordPlanFormInput } from "@/lib/learning/keyword-intent";
@@ -49,7 +58,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | WireframePanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number; proposal?: WireframeProposal; previewHref?: string }
   | { ok: false; message: string; code?: string };
 
 async function authorizedLesson(slug: string) {
@@ -439,6 +448,56 @@ export async function saveVisitorDecision(
     snapshot: saved.snapshot,
     landingPageProjectId: saved.landingPageProjectId,
     draftRevision: saved.draftRevision,
+  };
+}
+
+export async function proposeLandingPageWireframe(
+  blockKey: string,
+  landingPageProjectId: string,
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const proposed = await proposeWireframeForUser(session.user.id, SITE_WIREFRAME_SLUG, blockKey, landingPageProjectId);
+  if (!proposed.ok) return { ok: false, message: proposed.message, code: proposed.code };
+  return { ok: true, snapshot: proposed.snapshot, proposal: proposed.proposal };
+}
+
+export async function applyLandingPageWireframe(
+  blockKey: string,
+  input: { landingPageProjectId: string; expectedRevision: number; reviewed: unknown },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await applyWireframeForUser(session.user.id, SITE_WIREFRAME_SLUG, blockKey, input);
+  if (!saved.ok) return { ok: false, message: saved.message, code: saved.code };
+  return {
+    ok: true,
+    snapshot: saved.snapshot,
+    landingPageProjectId: saved.landingPageProjectId,
+    draftRevision: saved.draftRevision,
+    previewHref: saved.previewHref,
+  };
+}
+
+export async function saveLandingPageWireframeStructure(
+  blockKey: string,
+  input: {
+    landingPageProjectId: string;
+    expectedRevision: number;
+    orderedSectionIds: string[];
+    additions?: Array<{ type: LandingComponentType; variant?: string }>;
+  },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveWireframeStructureForUser(session.user.id, SITE_WIREFRAME_SLUG, blockKey, input);
+  if (!saved.ok) return { ok: false, message: saved.message, code: saved.code };
+  return {
+    ok: true,
+    snapshot: saved.snapshot,
+    landingPageProjectId: saved.landingPageProjectId,
+    draftRevision: saved.draftRevision,
+    previewHref: saved.previewHref,
   };
 }
 

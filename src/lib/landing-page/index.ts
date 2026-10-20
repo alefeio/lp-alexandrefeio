@@ -40,6 +40,20 @@ export { applyGuidedWireframe, type AppliedWireframe } from "@/lib/landing-page/
 export { wireframePlanSchema, type WireframePlanV1 } from "@/lib/landing-page/wireframe/plan";
 export type { WireframeCourseAdapter } from "@/lib/landing-page/wireframe/course-adapter";
 export { buildWireframeContextFromLandingPageProject, wireframeContextCompleteness } from "@/lib/landing-page/wireframe/from-brief";
+export {
+  applyReviewedWireframe,
+  proposeWireframeFromDocument,
+  updateLandingPageWireframeStructure,
+} from "@/lib/landing-page/wireframe/structure";
+export {
+  addReviewedSection,
+  moveReviewedSection,
+  removeReviewedSection,
+  reviewedPlanFromEngine,
+  reviewedWireframePlanSchema,
+  validateReviewedWireframePlan,
+} from "@/lib/landing-page/wireframe/review";
+export { wireframeStructureSummary } from "@/lib/landing-page/wireframe/summary";
 export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
 export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";

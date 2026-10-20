@@ -4,10 +4,10 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–5 COMPLETE · Aulas 6–12 SCAFFOLDED |
+| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–6 COMPLETE · Aulas 7–12 SCAFFOLDED |
 | PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
 | COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–5 PAID com conteúdo (internamente PUBLISHED no seed) · Aulas 6–12 DRAFT |
+| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–6 PAID com conteúdo (internamente PUBLISHED no seed) · Aulas 7–12 DRAFT |
 | Commerce | NOT_FOR_SALE |
 | Catálogo público | não |
 | Sitemap / indexação | não (curso fora do público) |
@@ -68,13 +68,14 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
    Resultado: Mapa de decisão do visitante · Tool: `VISITOR_DECISION_JOURNEY_V1`  
    Cria `draftDocument.strategy.decisionJourney` no mesmo projeto. A navegação da aula é independente; a ferramenta exige o brief da Aula 4. `buildWireframeContextFromLandingPageProject` passa a montar o `WireframeContextV1`. A Aula 6 consome esse contexto. Esta aula não gera seções.
 
-### Módulo 3 — Estruture e comunique — R$ 71,90 — SCAFFOLDED
+### Módulo 3 — Estruture e comunique — R$ 71,90 — Aula 6 COMPLETE · Aula 7 SCAFFOLDED
 
-6. **Organize as seções da página** (`organize-as-secoes-da-pagina`) — PAID R$ 39,90  
-   Resultado: Wireframe da minha landing page · Tool: `LANDING_PAGE_WIREFRAME_V1` (Guided Wireframe Engine)
+6. **Monte a estrutura da sua landing page** (`organize-as-secoes-da-pagina`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
+   Resultado: Estrutura da minha landing page · Tool: `LANDING_PAGE_WIREFRAME_V1`  
+   Aula 4 grava `strategy.brief`. Aula 5 grava `strategy.decisionJourney`. Aula 6 grava `strategy.wireframe` e materializa `draftDocument.sections` com conteúdo provisório. O status passa a `READY_TO_PREVIEW`, que significa apenas que existe uma estrutura válida para visualizar. Não significa pronta para publicar.
 7. **Escreva uma mensagem que deixa sua oferta clara** (`mensagem-que-deixa-a-oferta-clara`) — PAID R$ 39,90  
    Resultado: Copy aplicada à landing page · Tool: `LANDING_PAGE_COPY_ASSIST_V1`  
-   IA sugere; humano publica no projeto. Nunca inventar prova social ou fatos.
+   IA sugere; humano publica no projeto. Nunca inventar prova social ou fatos. Ainda não produzida.
 
 ### Módulo 4 — Atenção e confiança — R$ 62,90 — SCAFFOLDED
 

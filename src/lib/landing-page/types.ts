@@ -39,6 +39,7 @@ export type LandingPageStore = {
     userId: string;
     expectedRevision: number;
     document: LandingPageDocumentV1;
+    status?: "DRAFT" | "READY_TO_PREVIEW";
   }): Promise<{ ok: true; record: LandingPageProjectRecord } | { ok: false; reason: "NOT_FOUND" | "CONFLICT" }>;
   updateTitleAtomic(input: {
     id: string;

@@ -70,4 +70,5 @@ export const wireframePlanSchema = z
 
 export type WireframePlanV1 = z.infer<typeof wireframePlanSchema>;
 export type WireframeStrategy = (typeof WIREFRAME_STRATEGIES)[number];
+export type WireframeConfidence = (typeof WIREFRAME_CONFIDENCE)[number];
 export type WireframeSectionKey = (typeof WIREFRAME_SECTION_KEYS)[number];

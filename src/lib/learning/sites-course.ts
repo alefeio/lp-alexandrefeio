@@ -141,14 +141,15 @@ export const sitesCourseSeed = {
       lessons: [
         {
           slug: "organize-as-secoes-da-pagina",
-          title: "Organize as seções da página",
-          summary: "Gere e edite o wireframe guiado da landing page a partir do brief e da jornada.",
-          publicPreview: null,
+          title: "Monte a estrutura da sua landing page",
+          summary: "Transforme a estratégia e a jornada em uma estrutura real de seções, ainda sem a copy final.",
+          publicPreview:
+            "A estrutura da página nasce das decisões que você já registrou. Nesta aula você vê, ajusta e visualiza o esqueleto da sua landing page.",
           estimatedMinutes: 35,
           sortOrder: 0,
           accessType: "PAID" as const,
           priceCents: 3990,
-          plannedResult: "Wireframe da minha landing page",
+          plannedResult: "Estrutura da minha landing page",
           plannedTool: "LANDING_PAGE_WIREFRAME_V1",
         },
         {

@@ -46,11 +46,11 @@ function materializeAction(intent: WireframeActionIntent, anchor: string): Landi
 }
 
 function sectionContent(
-  planSection: WireframePlanV1["sections"][number],
+  type: WireframePlanV1["sections"][number]["type"],
   action: LandingPageAction,
   phone: string | null,
 ): LandingPageSection["content"] {
-  switch (planSection.type) {
+  switch (type) {
     case "HERO":
       return {
         headline: WIREFRAME_PLACEHOLDERS.heroHeadline,
@@ -125,7 +125,7 @@ function sectionContent(
         links: [],
       };
     default: {
-      const unreachable: never = planSection.type;
+      const unreachable: never = type;
       return unreachable;
     }
   }
@@ -155,7 +155,7 @@ export function materializeWireframePlan(
       variant: planSection.variant,
       order: index,
       enabled: true,
-      content: sectionContent(planSection, action, phone),
+      content: sectionContent(planSection.type, action, phone),
       settings: {},
       contentStatus: "PLACEHOLDER" as const,
     };
@@ -165,4 +165,39 @@ export function materializeWireframePlan(
   }
 
   return ok(sections);
+}
+
+export function materializeReviewedSections(
+  sections: Array<{ type: LandingPageSection["type"]; variant: string }>,
+  context: WireframeContextV1,
+  options?: { idFactory?: () => string; action?: LandingPageAction },
+): LandingPageResult<LandingPageSection[]> {
+  const idFactory = options?.idFactory ?? defaultId;
+  const ids = sections.map(() => idFactory());
+  const formIndex = sections.findIndex((section) => section.type === "FORM");
+  const contactIndex = sections.findIndex((section) => section.type === "CONTACT");
+  const phone = context.primaryAction.type === "WHATSAPP" && context.primaryAction.phone
+    ? sanitizeWhatsAppPhone(context.primaryAction.phone)
+    : null;
+  const action = options?.action ?? materializeAction(context.primaryAction, anchorFor({
+    formId: formIndex >= 0 ? ids[formIndex] : undefined,
+    contactId: contactIndex >= 0 ? ids[contactIndex] : undefined,
+  }));
+  const materialized: LandingPageSection[] = [];
+  for (const [index, section] of sections.entries()) {
+    const candidate = {
+      id: ids[index],
+      type: section.type,
+      variant: section.variant,
+      order: index,
+      enabled: true,
+      content: sectionContent(section.type, action, phone),
+      settings: {},
+      contentStatus: "PLACEHOLDER" as const,
+    };
+    const parsed = landingPageSectionSchema.safeParse(candidate);
+    if (!parsed.success) return fail("INVALID_INPUT");
+    materialized.push(parsed.data);
+  }
+  return ok(materialized);
 }

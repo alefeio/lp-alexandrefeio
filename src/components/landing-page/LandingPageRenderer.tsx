@@ -336,7 +336,17 @@ export function LandingPageRenderer({
     <div data-landing-canvas data-render-mode={mode} className="overflow-x-hidden" style={mapLandingPageTheme(parsed.document.theme)}>
       {sections.map((section) => {
         const heroHeading = section.type === "HERO" ? (heroCount++ === 0 ? "h1" : "h2") : "h2";
-        return <div key={section.id}>{renderSection(section, mode, heroHeading)}</div>;
+        const placeholder = mode === "PREVIEW" && section.contentStatus === "PLACEHOLDER";
+        return (
+          <div key={section.id}>
+            {placeholder ? (
+              <p data-placeholder-badge className="px-4 pt-4 text-xs text-slate-500">
+                Conteúdo provisório
+              </p>
+            ) : null}
+            {renderSection(section, mode, heroHeading)}
+          </div>
+        );
       })}
     </div>
   );

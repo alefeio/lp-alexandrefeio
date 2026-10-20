@@ -283,6 +283,15 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 - Com brief e jornada completos, o adaptador devolve `SUFFICIENT`. Sinais `UNKNOWN` devolvem `PARTIAL`. Sem brief, `INSUFFICIENT`.
 - Salvar a Aula 5 não chama o motor e não materializa seções. O status permanece `DRAFT`.
 
+## Aula 6 — strategy.wireframe e seções
+
+- `ReviewedWireframePlanV1` é validado no servidor. O cliente pode reordenar, remover seções opcionais e adicionar tipos ainda disponíveis. A policy de cardinalidade fica centralizada: hero e rodapé são obrigatórios, CTA aceita no máximo duas ocorrências e os demais tipos aceitam no máximo uma.
+- `proposeWireframeFromDocument` chama `buildWireframeContextFromLandingPageProject` e `generateWireframePlan`. Não grava seções. Contexto `INSUFFICIENT` não pode ser aplicado. Contexto `PARTIAL` gera recomendação inicial.
+- A primeira aplicação só entra em rascunho vazio. Grava `strategy.wireframe` (origem da decisão, sem copiar o conteúdo das seções) e materializa `draftDocument.sections` com `contentStatus: PLACEHOLDER`.
+- `READY_TO_PREVIEW` significa apenas que há uma estrutura válida para visualizar. Não é prontidão de publicação e esta aula não transiciona para `PUBLISHED`.
+- Depois da materialização, `updateLandingPageWireframeStructure` altera ordem, inclusão e remoção segura. Seção com conteúdo `DRAFT` ou `APPROVED` não é removida. Reordenar preserva id, conteúdo e status. Toda mutation usa `expectedRevision`.
+- O indicador “Conteúdo provisório” aparece só no modo `PREVIEW`.
+
 ## Implementation phases
 
 | Phase | Escopo |
@@ -298,7 +307,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico: Aulas 1–5 com conteúdo interno. Aulas 6–12 ainda não produzidas. Phase 4 (copy assist) não implementada.
+Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda não produzidas. Phase 4 (copy assist) não implementada.
 
 ## Consequences
 

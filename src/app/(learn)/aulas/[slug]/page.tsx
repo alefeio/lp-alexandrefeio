@@ -22,6 +22,7 @@ import { loadDigitalPresencePanel } from "@/lib/learning/digital-presence";
 import { loadPageReadinessPanel } from "@/lib/learning/page-readiness";
 import { loadConversionBriefPanel } from "@/lib/learning/conversion-page-brief";
 import { loadVisitorDecisionPanel } from "@/lib/learning/visitor-decision";
+import { loadWireframePanel } from "@/lib/learning/landing-page-wireframe";
 import { loadDestinationPlanPanel } from "@/lib/learning/measurement";
 import { loadKeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import { loadLeadConversionPanel } from "@/lib/learning/lead-conversion-plan";
@@ -173,6 +174,8 @@ async function FullLesson({
             ? await loadConversionBriefPanel({ userId, blocks })
             : toolKey === "VISITOR_DECISION_JOURNEY_V1"
               ? await loadVisitorDecisionPanel({ userId, blocks })
+              : toolKey === "LANDING_PAGE_WIREFRAME_V1"
+                ? await loadWireframePanel({ userId, blocks })
           : toolKey === "CAMPAIGN_BRIEF_V1"
           ? await loadCampaignBriefPanel({ userId, blocks })
           : toolKey === "DESTINATION_MEASUREMENT_PLAN_V1"

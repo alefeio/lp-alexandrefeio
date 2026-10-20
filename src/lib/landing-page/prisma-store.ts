@@ -114,6 +114,7 @@ export function createPrismaLandingPageStore(): LandingPageStore {
         data: {
           draftDocument: input.document as Prisma.InputJsonValue,
           draftRevision: { increment: 1 },
+          ...(input.status === "DRAFT" || input.status === "READY_TO_PREVIEW" ? { status: input.status } : {}),
         },
       });
       if (result.count === 0) {

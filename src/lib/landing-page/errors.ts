@@ -15,6 +15,8 @@ export const LANDING_PAGE_CODES = [
   "LANDING_PAGE_WIREFRAME_REPLACE_DISABLED",
   "LANDING_PAGE_BRIEF_REQUIRED",
   "ACTION_CHANGE_REQUIRES_CONFIRMATION",
+  "LANDING_PAGE_CONTEXT_INSUFFICIENT",
+  "LANDING_PAGE_SECTION_HAS_CONTENT",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -36,6 +38,8 @@ const MESSAGES: Record<LandingPageCode, string> = {
   LANDING_PAGE_WIREFRAME_REPLACE_DISABLED: "Substituir a estrutura inteira ainda não está disponível.",
   LANDING_PAGE_BRIEF_REQUIRED: "Defina primeiro a estratégia básica desta página.",
   ACTION_CHANGE_REQUIRES_CONFIRMATION: "A ação principal vai mudar. Confirme antes de salvar.",
+  LANDING_PAGE_CONTEXT_INSUFFICIENT: "Complete a estratégia antes de aplicar uma estrutura.",
+  LANDING_PAGE_SECTION_HAS_CONTENT: "Esta seção já tem conteúdo e não pode ser removida por aqui.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {

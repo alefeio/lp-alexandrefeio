@@ -3,6 +3,7 @@ import { landingPageSectionSchema } from "@/lib/landing-page/components";
 import {
   GUIDED_WIREFRAME_ENGINE_V1,
   LANDING_COMPONENT_REGISTRY_V1,
+  LANDING_COMPONENT_TYPES,
   LANDING_PAGE_DOCUMENT_SCHEMA_VERSION,
   LANDING_PAGE_LIMITS,
 } from "@/lib/landing-page/constants";
@@ -58,10 +59,33 @@ export const guidedWireframeOriginSchema = z
   })
   .strict();
 
+export const landingPageWireframeStateSchema = z
+  .object({
+    version: z.literal(1),
+    engineVersion: z.literal(GUIDED_WIREFRAME_ENGINE_V1),
+    planFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    strategy: z.enum(["FOCUSED", "EXPLANATORY", "TRUST_HEAVY", "CONVERSATIONAL", "BALANCED"]),
+    confidence: z.enum(["STRONG", "MODERATE", "LIMITED"]),
+    finalSections: z
+      .array(
+        z
+          .object({
+            key: z.string().trim().min(1).max(40),
+            type: z.enum(LANDING_COMPONENT_TYPES),
+            origin: z.enum(["ENGINE", "USER_ADDED"]),
+          })
+          .strict(),
+      )
+      .max(LANDING_PAGE_LIMITS.maxSections),
+    userModified: z.boolean(),
+  })
+  .strict();
+
 export const landingPageStrategySchema = z
   .object({
     brief: conversionPageBriefSchema.optional(),
     decisionJourney: visitorDecisionJourneySchema.optional(),
+    wireframe: landingPageWireframeStateSchema.optional(),
   })
   .strict();
 
