@@ -25,6 +25,7 @@ import { seedLesson09Content } from "@/lib/learning/seed-lesson-09";
 import { seedLesson10Content } from "@/lib/learning/seed-lesson-10";
 import { seedLesson11Content } from "@/lib/learning/seed-lesson-11";
 import { seedLesson12Content } from "@/lib/learning/seed-lesson-12";
+import { sitesCourseSeed } from "@/lib/learning/sites-course";
 
 const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LESSON_05_SLUG, LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG, LESSON_09_SLUG, LESSON_10_SLUG, LESSON_11_SLUG, LESSON_12_SLUG]);
 
@@ -148,5 +149,129 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
   const lesson12 = await seedLesson12Content(prisma, seedOptions);
   const lessons = await prisma.lesson.count({ where: { module: { courseId: course.id } } });
   const blocks = await prisma.lessonBlock.count({ where: { lesson: { module: { courseId: course.id } } } });
-  return { course: course.slug, lessons, blocks, lesson01, lesson02, lesson03, lesson04, lesson05, lesson06, lesson07, lesson08, lesson09, lesson10, lesson11, lesson12 };
+  const sitesCourse = await deploySitesCourseScaffold();
+  return {
+    course: course.slug,
+    lessons,
+    blocks,
+    lesson01,
+    lesson02,
+    lesson03,
+    lesson04,
+    lesson05,
+    lesson06,
+    lesson07,
+    lesson08,
+    lesson09,
+    lesson10,
+    lesson11,
+    lesson12,
+    sitesCourse,
+  };
+}
+
+/**
+ * Scaffold do segundo curso: DRAFT, NOT_FOR_SALE, sem blocos.
+ * Idempotente por slug. Não publica, não ativa venda e não cria Tool/LessonResult.
+ */
+export async function deploySitesCourseScaffold() {
+  const prisma = getPrisma();
+  const course = await prisma.course.upsert({
+    where: { slug: sitesCourseSeed.slug },
+    create: {
+      slug: sitesCourseSeed.slug,
+      title: sitesCourseSeed.title,
+      subtitle: sitesCourseSeed.subtitle,
+      description: sitesCourseSeed.description,
+      status: "DRAFT",
+      sortOrder: sitesCourseSeed.sortOrder,
+      bundlePriceCents: sitesCourseSeed.bundlePriceCents,
+      commerceStatus: commerceStatusForCreate(),
+      publishedAt: null,
+    },
+    update: {
+      title: sitesCourseSeed.title,
+      subtitle: sitesCourseSeed.subtitle,
+      description: sitesCourseSeed.description,
+      sortOrder: sitesCourseSeed.sortOrder,
+      bundlePriceCents: sitesCourseSeed.bundlePriceCents,
+      status: "DRAFT",
+      commerceStatus: "NOT_FOR_SALE",
+      publishedAt: null,
+    },
+  });
+
+  let modules = 0;
+  let lessons = 0;
+  for (const moduleSeed of sitesCourseSeed.modules) {
+    const moduleRow = await prisma.module.upsert({
+      where: { courseId_slug: { courseId: course.id, slug: moduleSeed.slug } },
+      create: {
+        courseId: course.id,
+        slug: moduleSeed.slug,
+        title: moduleSeed.title,
+        description: moduleSeed.description,
+        status: "DRAFT",
+        sortOrder: moduleSeed.sortOrder,
+        bundlePriceCents: moduleSeed.bundlePriceCents,
+        commerceStatus: commerceStatusForCreate(),
+      },
+      update: {
+        title: moduleSeed.title,
+        description: moduleSeed.description,
+        sortOrder: moduleSeed.sortOrder,
+        bundlePriceCents: moduleSeed.bundlePriceCents,
+        status: "DRAFT",
+        commerceStatus: "NOT_FOR_SALE",
+      },
+    });
+    modules += 1;
+
+    for (const lessonSeed of moduleSeed.lessons) {
+      await prisma.lesson.upsert({
+        where: { slug: lessonSeed.slug },
+        create: {
+          moduleId: moduleRow.id,
+          slug: lessonSeed.slug,
+          title: lessonSeed.title,
+          summary: lessonSeed.summary,
+          publicPreview: lessonSeed.publicPreview,
+          estimatedMinutes: lessonSeed.estimatedMinutes,
+          sortOrder: lessonSeed.sortOrder,
+          status: "DRAFT",
+          accessType: lessonSeed.accessType,
+          priceCents: lessonSeed.priceCents,
+          commerceStatus: commerceStatusForCreate(),
+          publishedAt: null,
+        },
+        update: {
+          moduleId: moduleRow.id,
+          title: lessonSeed.title,
+          summary: lessonSeed.summary,
+          publicPreview: lessonSeed.publicPreview,
+          estimatedMinutes: lessonSeed.estimatedMinutes,
+          sortOrder: lessonSeed.sortOrder,
+          accessType: lessonSeed.accessType,
+          priceCents: lessonSeed.priceCents,
+          status: "DRAFT",
+          commerceStatus: "NOT_FOR_SALE",
+          publishedAt: null,
+        },
+      });
+      lessons += 1;
+    }
+  }
+
+  const blockCount = await prisma.lessonBlock.count({
+    where: { lesson: { module: { courseId: course.id } } },
+  });
+
+  return {
+    course: course.slug,
+    status: course.status,
+    commerceStatus: course.commerceStatus,
+    modules,
+    lessons,
+    blocks: blockCount,
+  };
 }
