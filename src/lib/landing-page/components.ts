@@ -210,34 +210,124 @@ export const COMPONENT_REGISTRY_V1 = {
 
 export type ComponentRegistryV1 = typeof COMPONENT_REGISTRY_V1;
 
-function sectionSchemaFor(type: LandingComponentType) {
-  const def = COMPONENT_REGISTRY_V1[type];
-  return z
-    .object({
-      id: z.string().trim().min(1).max(64),
-      type: z.literal(type),
-      variant: z.enum(def.variants),
-      order: z.number().int().min(0).max(LANDING_PAGE_LIMITS.maxSections),
-      enabled: z.boolean(),
-      content: def.contentSchema,
-      settings: def.settingsSchema,
-    })
-    .strict();
-}
+const sectionIdSchema = z.string().trim().min(1).max(64);
+const sectionOrderSchema = z.number().int().min(0).max(LANDING_PAGE_LIMITS.maxSections);
 
 export const landingPageSectionSchema = z.discriminatedUnion("type", [
-  sectionSchemaFor("HERO"),
-  sectionSchemaFor("BENEFITS"),
-  sectionSchemaFor("PROCESS"),
-  sectionSchemaFor("TRUST"),
-  sectionSchemaFor("FAQ"),
-  sectionSchemaFor("CTA"),
-  sectionSchemaFor("FORM"),
-  sectionSchemaFor("CONTACT"),
-  sectionSchemaFor("FOOTER"),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("HERO"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.HERO.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: heroContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("BENEFITS"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.BENEFITS.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: benefitsContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("PROCESS"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.PROCESS.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: processContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("TRUST"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.TRUST.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: trustContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("FAQ"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.FAQ.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: faqContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("CTA"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.CTA.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: ctaContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("FORM"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.FORM.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: formContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("CONTACT"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.CONTACT.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: contactContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("FOOTER"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.FOOTER.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: footerContentSchema,
+      settings: emptySettings,
+    })
+    .strict(),
 ]);
 
-export type LandingPageSection = z.infer<typeof landingPageSectionSchema>;
+type SectionFor<T extends LandingComponentType> = {
+  id: string;
+  type: T;
+  variant: (typeof COMPONENT_REGISTRY_V1)[T]["variants"][number];
+  order: number;
+  enabled: boolean;
+  content: z.infer<(typeof COMPONENT_REGISTRY_V1)[T]["contentSchema"]>;
+  settings: z.infer<(typeof COMPONENT_REGISTRY_V1)[T]["settingsSchema"]>;
+};
+
+export type LandingPageSection = {
+  [T in LandingComponentType]: SectionFor<T>;
+}[LandingComponentType];
 
 export function isLandingComponentType(value: string): value is LandingComponentType {
   return (LANDING_COMPONENT_TYPES as readonly string[]).includes(value);

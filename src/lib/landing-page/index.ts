@@ -14,6 +14,10 @@ export {
   type LandingPageDocumentV1,
 } from "@/lib/landing-page/document";
 export { landingPageActionSchema, sanitizeWhatsAppPhone } from "@/lib/landing-page/actions";
+export { resolveLandingPageAction } from "@/lib/landing-page/action-resolver";
+export { mapLandingPageTheme, themeToCssVariables } from "@/lib/landing-page/theme";
+export { visibleLandingPageSections } from "@/lib/landing-page/order";
+export { consultoriaLandingFixture } from "@/lib/landing-page/fixtures";
 export { LandingPageError, landingPageMessage, type LandingPageCode } from "@/lib/landing-page/errors";
 export { isValidLandingPageSlug, normalizeLandingPageSlug } from "@/lib/landing-page/slug";
 export {

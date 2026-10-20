@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 IMPLEMENTED** (core model + schemas + draft persistence). Phases 2–10 ainda não implementadas.
+Status: **ACCEPTED — PHASE 1 e PHASE 2 IMPLEMENTED**. Phases 3–10 ainda não implementadas.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -245,12 +245,23 @@ Objetivo: tráfego/compartilhamento/conversão sem contaminar SEO da marca com U
 
 Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publication policy**.
 
+## Phase 2 — renderer e preview
+
+- `LandingPageRenderer` recebe documento já validado (`parseLandingPageDocument`) e `mode`: `PREVIEW` | `PUBLIC`.
+- Componentes apresentacionais do registry V1. Sem `dangerouslySetInnerHTML`, CSS arbitrário ou className vinda do documento.
+- Theme vira `--lp-primary`, `--lp-background`, `--lp-text`, `--lp-content-width` e `--lp-radius` a partir de hex e tokens allowlisted.
+- Seções `enabled` ordenadas por `order`, posição original e `id`.
+- `resolveLandingPageAction` gera href sanitizado (WhatsApp, URL http(s), rota interna, âncora). No `PREVIEW` os controles são botões e o formulário não envia.
+- Preview autenticado em `/app/landing-pages/[id]/preview`: somente o dono, lê `draftDocument`, `noindex, nofollow`, fora do sitemap, sem analytics, sem progresso e sem mutação.
+- Canvas do aluno não inclui marca Alexandre Feio. O chrome da área logada fica fora do canvas.
+- A rota pública `/p/[slug]` e o modo `PUBLIC` com interações reais ficam para a phase de publicação.
+
 ## Implementation phases
 
 | Phase | Escopo |
 | --- | --- |
-| 1 | Core model + schemas tipados + persistência draft |
-| 2 | Builder renderer + preview autenticado |
+| 1 | IMPLEMENTED — core model + schemas tipados + persistência draft |
+| 2 | IMPLEMENTED — renderer controlado + preview autenticado do draft |
 | 3 | Guided Wireframe Engine |
 | 4 | Copy assist (provider-agnostic + factual guards) |
 | 5 | Theme / design tokens |
