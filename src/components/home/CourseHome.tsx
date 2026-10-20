@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { Container } from "@/components/ui/Container";
@@ -16,6 +17,8 @@ const builds = [
   { title: "Brief Inicial de Campanha", lesson: "Aula 4", href: "/aulas/objetivo-oferta-orcamento" },
   { title: "Plano de Destino e Mensuração", lesson: "Aula 5", href: "/aulas/destino-e-mensuracao" },
   { title: "Blueprint de Campanha de Pesquisa", lesson: "Aula 6", href: "/aulas/campanha-de-pesquisa" },
+  { title: "Leitura de números da campanha", lesson: "Aula 11", href: "/aulas/leia-os-numeros" },
+  { title: "Plano de ação no Plano Vivo", lesson: "Aula 12", href: "/aulas/o-que-mudar" },
 ] as const;
 
 type HomeLesson = {
@@ -30,10 +33,12 @@ export function CourseHome({
   courseTitle,
   coursePriceCents,
   freeLessons,
+  continuation = null,
 }: {
   courseTitle: string;
   coursePriceCents: number | null;
   freeLessons: HomeLesson[];
+  continuation?: ReactNode;
 }) {
   return (
     <>
@@ -56,6 +61,8 @@ export function CourseHome({
           </div>
         </Container>
       </section>
+
+      {continuation}
 
       <section id="nao-e-so-assistir" className="scroll-mt-24 py-16">
         <Container className="max-w-3xl">
@@ -102,7 +109,7 @@ export function CourseHome({
             ))}
           </ul>
           <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted">
-            As aulas seguintes do programa — palavras-chave, anúncios, Meta Ads e leitura de números — ainda estão em preparação. Elas não têm ferramenta pronta nesta versão.
+            Do mapa inicial à leitura de números e ao plano de ação: cada etapa grava uma decisão no seu projeto.
           </p>
         </Container>
       </section>
@@ -111,10 +118,10 @@ export function CourseHome({
         <Container className="max-w-3xl">
           <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{courseTitle}</h2>
           <p className="mt-4 text-base leading-relaxed">
-            Cinco módulos e doze aulas. Três estão abertas. As aulas pagas publicadas mostram uma amostra real; a compra ainda não está aberta.
+            Cinco módulos e doze aulas. Três estão abertas para começar. O restante do programa aplica o que você decide no seu próprio negócio.
           </p>
           {coursePriceCents != null ? (
-            <p className="mt-4 text-sm text-muted">Curso completo: {formatPriceCents(coursePriceCents)}. Disponível em breve.</p>
+            <p className="mt-4 text-sm text-muted">Curso completo: {formatPriceCents(coursePriceCents)}.</p>
           ) : null}
           <p className="mt-6">
             <Link className={buttonClass("primary")} href={COURSE_PATH}>

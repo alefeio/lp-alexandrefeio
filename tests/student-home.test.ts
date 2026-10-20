@@ -44,10 +44,12 @@ test("anônimo permanece na home pública e a metadata não muda", () => {
   assert.equal(studentHomeRendering.sharedCache, false);
   const page = readFileSync(new URL("../src/app/(public)/page.tsx", import.meta.url), "utf8");
   assert.match(page, /export const dynamic = "force-dynamic"/);
+  assert.match(page, /CourseHome/);
+  assert.equal(page.includes("StudentHome"), false);
   assert.equal(page.includes("student_home_view"), false);
 });
 
-test("autenticado recebe home personalizada e o dado de outro usuário não entra", () => {
+test("view model legado permanece isolado por usuário", () => {
   assert.equal(homeAudience(true), "student");
   const view = buildStudentHome(input());
   assert.match(view.greeting, /Olá, Alexandre/);

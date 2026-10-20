@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CourseHome } from "@/components/home/CourseHome";
-import { StudentHome } from "@/components/home/StudentHome";
-import { loadStudentHome } from "@/lib/home/load-student-home";
+import { HomeContinuation } from "@/components/home/HomeContinuation";
+import { loadHomeContinuation } from "@/lib/home/load-home-continuation";
 import { homeBelongsToViewer, publicHomeMetadata } from "@/lib/home/public-home";
 import { getSession } from "@/lib/auth/session";
 import { getPublishedCourse } from "@/lib/learning/catalog";
@@ -22,14 +22,17 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const session = await getSession();
-  if (session?.user.id) {
-    const view = await loadStudentHome(session.user.id, session.user.name);
-    if (homeBelongsToViewer(view.userId, session.user.id)) return <StudentHome view={view} />;
-  }
-
   const course = await getPublishedCourse(FIRST_COURSE_SLUG);
   const freeLessons =
     course?.modules.flatMap((moduleRow) => moduleRow.lessons).filter((lesson) => lesson.accessType === "FREE") ?? [];
+
+  let continuation = null;
+  if (session?.user.id) {
+    const card = await loadHomeContinuation(session.user.id, session.user.name);
+    if (homeBelongsToViewer(card.userId, session.user.id)) {
+      continuation = <HomeContinuation card={card} />;
+    }
+  }
 
   return (
     <CourseHome
@@ -42,6 +45,7 @@ export default async function Home() {
         estimatedMinutes: lesson.estimatedMinutes,
         accessType: lesson.accessType,
       }))}
+      continuation={continuation}
     />
   );
 }
