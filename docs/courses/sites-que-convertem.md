@@ -4,36 +4,39 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | FREE_FUNNEL_LIVE (Aulas 1–3) / SCAFFOLDED (4–12) |
-| PUBLIC_RELEASE | APPROVED |
+| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–3 COMPLETE · Aulas 4–12 SCAFFOLDED |
+| PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
 | COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course PUBLISHED · Aulas 1–3 FREE com conteúdo · Aulas 4–12 PUBLISHED sem corpo (programa visível) |
+| Publication | Course DRAFT · Aulas 1–3 FREE com conteúdo (internamente PUBLISHED) · Aulas 4–12 DRAFT |
 | Commerce | NOT_FOR_SALE |
-| Catálogo público | sim |
-| Sitemap / indexação | curso + aulas 1–3 |
+| Catálogo público | não |
+| Sitemap / indexação | não (curso fora do público) |
 
-Curso e módulos publicados editorialmente. Commerce permanece NOT_FOR_SALE. Sem checkout até release comercial.
+ADR técnico: [`docs/adr/landing-page-builder-v1.md`](../adr/landing-page-builder-v1.md).
 
-## Proposta
+## Nova promessa central
 
-Ensinar pequenos negócios, profissionais e empreendedores a planejar e estruturar páginas capazes de conduzir o visitante até uma ação real (contato, orçamento, agendamento, lead, compra ou outra conversão).
+**Planeje, construa e publique sua própria landing page enquanto aprende.**
 
-Não é curso de HTML, CSS, JavaScript, WordPress, Next.js ou programação.
+O aluno não termina apenas sabendo “como uma landing page deveria ser”. Termina com uma **landing page real**: planejada, estruturada, escrita, personalizada, responsiva, mensurável e publicada na plataforma.
 
-É curso de estratégia de página, jornada, oferta, conversão, copy, estrutura, experiência, confiança e mensuração.
+- “Blueprint” não é benefício público principal (pode existir como termo técnico interno).
+- Não é curso de HTML, CSS, JavaScript, WordPress, Next.js ou programação.
+- Não há execução de código arbitrário gerado por usuário/LLM.
 
-Princípio pedagógico: Entender → Diagnosticar → Planejar → Estruturar → Comunicar → Validar → Medir.
+## Divisão FREE × PAID
 
-## Público
-
-Pequenos negócios, profissionais e empreendedores que precisam de páginas mais claras e orientadas à conversão, sem depender de implementação técnica nesta trilha.
+| Bloco | Papel | Entrega |
+| --- | --- | --- |
+| Aulas 1–3 (FREE) | **Descobrir** | mapa de conversão · estrutura digital · diagnóstico |
+| Aulas 4–12 (PAID) | **Construir e publicar** | cada etapa enriquece o mesmo `LandingPageProject` até a publicação |
 
 ## Identidade
 
 - **Título:** Sites que Convertem para Pequenos Negócios
 - **Slug:** `sites-que-convertem`
-- **Subtítulo:** Aprenda a planejar páginas mais claras, confiáveis e orientadas à conversão — aplicando cada etapa no seu próprio negócio.
-- **Ordem no catálogo editorial:** depois de `trafego-pago-na-pratica` (`sortOrder: 1`)
+- **Subtítulo:** Planeje, construa e publique sua própria landing page enquanto aprende.
+- **Ordem editorial:** depois de `trafego-pago-na-pratica` (`sortOrder: 1`)
 - **Totais:** 12 aulas · 5 módulos · 3 aulas gratuitas
 - **Preço planejado do curso completo:** R$ 249,90 (não exibir publicamente enquanto NOT_FOR_SALE)
 
@@ -41,53 +44,61 @@ Pequenos negócios, profissionais e empreendedores que precisam de páginas mais
 
 Soma das aulas pagas individuais: **R$ 334,10**  
 Soma dos módulos pagos: **R$ 301,60**  
-Curso completo: **R$ 249,90** (economia planejada R$ 84,20 / ~25,2% — não exibir publicamente ainda)
+Curso completo: **R$ 249,90** (economia planejada R$ 84,20 / ~25,2%)
 
 Nenhum produto deste curso fica `AVAILABLE` neste estágio.
 
 ## Módulos e aulas
 
-### Módulo 1 — Antes de construir (gratuito / introdutório) — DISPONÍVEL AGORA
+### Módulo 1 — Antes de construir (FREE / descobrir)
 
-Sem preço de bundle.
+1. **Seu site realmente ajuda a vender?** (`site-ajuda-a-vender`) — FREE · COMPLETE  
+   Resultado: Meu mapa de conversão · Tool: `CONVERSION_JOURNEY_MAP_V1`
+2. **Site, landing page ou WhatsApp: o que seu negócio precisa?** (`site-landing-page-ou-whatsapp`) — FREE · COMPLETE  
+   Resultado: Minha estrutura digital ideal · Tool: `DIGITAL_PRESENCE_DECISION_V1`
+3. **Sua página está pronta para converter?** (`pagina-pronta-para-converter`) — FREE · COMPLETE  
+   Resultado: Diagnóstico de prontidão da página · Tool: `CONVERSION_PAGE_READINESS_V1`
 
-1. **Seu site realmente ajuda a vender?** (`site-ajuda-a-vender`) — 25 min — FREE · **conteúdo definitivo V1**  
-   Resultado: Meu mapa de conversão · Tool: `CONVERSION_JOURNEY_MAP_V1` · Seed: `seedSiteAjudaAVenderContent`
-2. **Site, landing page ou WhatsApp: o que seu negócio precisa?** (`site-landing-page-ou-whatsapp`) — 25 min — FREE · **conteúdo definitivo V1**  
-   Resultado: Minha estrutura digital ideal · Tool: `DIGITAL_PRESENCE_DECISION_V1` · Seed: `seedSiteLandingWhatsappContent`
-3. **Sua página está pronta para converter?** (`pagina-pronta-para-converter`) — 25 min — FREE · **conteúdo definitivo V1**  
-   Resultado: Diagnóstico de prontidão da página · Tool: `CONVERSION_PAGE_READINESS_V1` · Seed: `seedSitePaginaProntaContent`
+### Módulo 2 — Planeje antes de desenhar — R$ 62,90 — SCAFFOLDED
 
-### Módulo 2 — Planeje antes de desenhar — R$ 62,90 — em preparação
+4. **Defina oferta, público e ação principal** (`oferta-publico-acao-principal`) — PAID R$ 34,90  
+   Resultado: Brief de conversão da landing page · Tool: `CONVERSION_PAGE_BRIEF_V1`  
+   Alimenta diretamente `LandingPageProject` (oferta, público, problema, benefício, objetivo, CTAs, resultado, objeções, contexto de chegada).
+5. **Planeje a jornada do visitante** (`jornada-do-visitante`) — PAID R$ 34,90  
+   Resultado: Mapa de decisão do visitante · Tool: `VISITOR_DECISION_JOURNEY_V1`
 
-4. **Defina oferta, público e ação principal** (`oferta-publico-acao-principal`) — 30 min — PAID R$ 34,90  
-   Resultado planejado: Brief da página · Tool planejada: `CONVERSION_PAGE_BRIEF_V1`
-5. **Planeje a jornada do visitante** (`jornada-do-visitante`) — 30 min — PAID R$ 34,90  
-   Resultado planejado: Minha jornada de conversão · Tool planejada: `VISITOR_JOURNEY_PLAN_V1`
+### Módulo 3 — Estruture e comunique — R$ 71,90 — SCAFFOLDED
 
-### Módulo 3 — Estruture e comunique — R$ 71,90 — em preparação
+6. **Organize as seções da página** (`organize-as-secoes-da-pagina`) — PAID R$ 39,90  
+   Resultado: Wireframe da minha landing page · Tool: `LANDING_PAGE_WIREFRAME_V1` (Guided Wireframe Engine)
+7. **Escreva uma mensagem que deixa sua oferta clara** (`mensagem-que-deixa-a-oferta-clara`) — PAID R$ 39,90  
+   Resultado: Copy aplicada à landing page · Tool: `LANDING_PAGE_COPY_ASSIST_V1`  
+   IA sugere; humano publica no projeto. Nunca inventar prova social ou fatos.
 
-6. **Organize as seções da página** (`organize-as-secoes-da-pagina`) — 35 min — PAID R$ 39,90  
-   Resultado planejado: Estrutura da minha página · Tool planejada: `CONVERSION_PAGE_STRUCTURE_V1`
-7. **Escreva uma mensagem que deixa sua oferta clara** (`mensagem-que-deixa-a-oferta-clara`) — 35 min — PAID R$ 39,90  
-   Resultado planejado: Plano de copy da página · Tool planejada: `CONVERSION_COPY_PLAN_V1`
+### Módulo 4 — Atenção e confiança — R$ 62,90 — SCAFFOLDED
 
-### Módulo 4 — Atenção e confiança — R$ 62,90 — em preparação
+8. **Use hierarquia visual para conduzir a atenção** (`hierarquia-visual-e-atencao`) — PAID R$ 34,90  
+   Resultado: Tema/direção visual aplicada · Tool: `LANDING_PAGE_THEME_V1` (design tokens)
+9. **Construa confiança antes de pedir a ação** (`construa-confianca`) — PAID R$ 34,90  
+   Resultado: Elementos de confiança na landing page · Tool: `LANDING_PAGE_TRUST_V1`
 
-8. **Use hierarquia visual para conduzir a atenção** (`hierarquia-visual-e-atencao`) — 30 min — PAID R$ 34,90  
-   Resultado planejado: Direção visual da página · Tool planejada: `PAGE_VISUAL_DIRECTION_V1`
-9. **Construa confiança antes de pedir a ação** (`construa-confianca`) — 30 min — PAID R$ 34,90  
-   Resultado planejado: Plano de confiança e prova · Tool planejada: `TRUST_PROOF_PLAN_V1`
+### Módulo 5 — Publique, meça e melhore — R$ 103,90 — SCAFFOLDED
 
-### Módulo 5 — Publique, meça e melhore — R$ 103,90 — em preparação
+10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90  
+    Resultado: Página ajustada para publicação · Tool: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`
+11. **Configure o que precisa ser medido** (`mensuracao-da-pagina`) — PAID R$ 39,90  
+    Resultado: Mapa de mensuração aplicado ao projeto · Tool: `LANDING_PAGE_MEASUREMENT_V1`
+12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90  
+    Resultado: Landing page publicada · Tool: `LANDING_PAGE_PUBLISH_V1`  
+    Slug estável mantido; título e papel reframeados para publicação real.
 
-10. **Prepare a página para mobile e experiência** (`pagina-mobile-e-experiencia`) — 30 min — PAID R$ 34,90  
-    Resultado planejado: Checklist de experiência · Tool planejada: `PAGE_EXPERIENCE_CHECKLIST_V1`
-11. **Meça a ação da página** (`mensuracao-da-pagina`) — 35 min — PAID R$ 39,90  
-    Resultado planejado: Plano de mensuração da página · Tool planejada: `PAGE_MEASUREMENT_PLAN_V1`
-12. **Revise antes de investir em tráfego** (`revisao-antes-do-trafego`) — 35 min — PAID R$ 39,90  
-    Resultado planejado: Diagnóstico final da página · Tool planejada: `CONVERSION_PAGE_FINAL_REVIEW_V1`
+## Resultado macro
+
+`LandingPageProject` — página que o aluno constrói ao longo das aulas 4–12.  
+Relação opcional com `Project` genérico (1 Project → N landing pages).  
+`LessonResult` continua por aula para progresso/histórico; o projeto de página é a fonte central da construção.
 
 ## Deploy
 
-`deploySitesCourseScaffold` + seeds das aulas 1–3 via `catalog:deploy`.
+`deploySitesCourseScaffold` + seeds das aulas 1–3 via `catalog:deploy`.  
+Course permanece DRAFT até decisão explícita de release (pós-ADR/core do builder).

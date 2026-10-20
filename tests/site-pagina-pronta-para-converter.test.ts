@@ -202,7 +202,7 @@ test("CONVERSION_PAGE_READINESS_V1: form, progresso, chave local", () => {
   }
 });
 
-test("privacidade e discovery: analytics sem dados estratégicos; curso público NFS", () => {
+test("privacidade e discovery: analytics sem dados estratégicos; curso DRAFT/NFS", () => {
   const analytics = readFileSync(new URL("../src/lib/learning/analytics-events.ts", import.meta.url), "utf8");
   assert.equal(analytics.includes("primaryBottleneck"), false);
   assert.equal(analytics.includes("CONVERSION_PAGE_READINESS"), false);
@@ -213,20 +213,16 @@ test("privacidade e discovery: analytics sem dados estratégicos; curso público
   assert.match(deploy, /seedSitePaginaProntaContent/);
   assert.match(deploy, /SITE_LESSON_03_SLUG/);
 
-  assert.equal(sitesCourseSeed.status, "PUBLISHED");
+  assert.equal(sitesCourseSeed.status, "DRAFT");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(isPublicLesson({ status: "PUBLISHED" }), true);
+  assert.equal(isPublicLesson({ status: "DRAFT" }), false);
   assert.equal(canReadLessonBody({ status: "PUBLISHED", accessType: "FREE" }), true);
-  assert.equal(canIndexLesson({ status: "PUBLISHED", accessType: "FREE", publicPreview: "x" }, true), true);
   assert.equal(canIndexLesson({ status: "PUBLISHED", accessType: "FREE", publicPreview: "x" }, false), false);
   const sitemap = buildPublicSitemap("https://alexandrefeio.com.br", {
-    courses: [
-      { slug: firstCourseSeed.slug, updatedAt: new Date() },
-      { slug: SITES_COURSE_SLUG, updatedAt: new Date() },
-    ],
-    lessons: [{ slug: SITE_LESSON_03_SLUG, updatedAt: new Date(), indexable: true }],
+    courses: [{ slug: firstCourseSeed.slug, updatedAt: new Date() }],
+    lessons: [{ slug: SITE_LESSON_03_SLUG, updatedAt: new Date(), indexable: false }],
   });
-  assert.equal(sitemap.some((entry) => entry.url.endsWith(`/aulas/${SITE_LESSON_03_SLUG}`)), true);
+  assert.equal(sitemap.some((entry) => entry.url.includes(SITE_LESSON_03_SLUG)), false);
   assert.equal(firstCourseSeed.modules.flatMap((moduleRow) => moduleRow.lessons).length, 12);
   const lesson3 = sitesCourseSeed.modules[0]!.lessons[2]!;
   assert.equal(lesson3.slug, SITE_LESSON_03_SLUG);

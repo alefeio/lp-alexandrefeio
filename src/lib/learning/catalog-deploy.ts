@@ -183,17 +183,13 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
 }
 
 /**
- * Scaffold do segundo curso: PUBLISHED + NOT_FOR_SALE.
- * Funil gratuito (aulas 1–3) fica público via seeds. Aulas 4–12 publicadas sem corpo (programa visível, sem compra).
- * Idempotente por slug. Não cria Tool/LessonResult nem ativa AVAILABLE.
+ * Scaffold do segundo curso: DRAFT + NOT_FOR_SALE (release público suspenso).
+ * Aulas 1–3 recebem conteúdo via seeds (PUBLISHED internamente). Aulas 4–12 ficam DRAFT sem corpo.
+ * Idempotente por slug. Não cria Tool/LessonResult, LandingPageProject nem ativa AVAILABLE.
  */
 export async function deploySitesCourseScaffold() {
   const prisma = getPrisma();
   const now = new Date();
-  const existingCourse = await prisma.course.findUnique({
-    where: { slug: sitesCourseSeed.slug },
-    select: { publishedAt: true },
-  });
   const course = await prisma.course.upsert({
     where: { slug: sitesCourseSeed.slug },
     create: {
@@ -201,11 +197,11 @@ export async function deploySitesCourseScaffold() {
       title: sitesCourseSeed.title,
       subtitle: sitesCourseSeed.subtitle,
       description: sitesCourseSeed.description,
-      status: "PUBLISHED",
+      status: "DRAFT",
       sortOrder: sitesCourseSeed.sortOrder,
       bundlePriceCents: sitesCourseSeed.bundlePriceCents,
       commerceStatus: commerceStatusForCreate(),
-      publishedAt: now,
+      publishedAt: null,
     },
     update: {
       title: sitesCourseSeed.title,
@@ -213,9 +209,9 @@ export async function deploySitesCourseScaffold() {
       description: sitesCourseSeed.description,
       sortOrder: sitesCourseSeed.sortOrder,
       bundlePriceCents: sitesCourseSeed.bundlePriceCents,
-      status: "PUBLISHED",
+      status: "DRAFT",
       commerceStatus: "NOT_FOR_SALE",
-      publishedAt: existingCourse?.publishedAt ?? now,
+      publishedAt: null,
     },
   });
 
@@ -229,7 +225,7 @@ export async function deploySitesCourseScaffold() {
         slug: moduleSeed.slug,
         title: moduleSeed.title,
         description: moduleSeed.description,
-        status: "PUBLISHED",
+        status: "DRAFT",
         sortOrder: moduleSeed.sortOrder,
         bundlePriceCents: moduleSeed.bundlePriceCents,
         commerceStatus: commerceStatusForCreate(),
@@ -239,7 +235,7 @@ export async function deploySitesCourseScaffold() {
         description: moduleSeed.description,
         sortOrder: moduleSeed.sortOrder,
         bundlePriceCents: moduleSeed.bundlePriceCents,
-        status: "PUBLISHED",
+        status: "DRAFT",
         commerceStatus: "NOT_FOR_SALE",
       },
     });
@@ -258,7 +254,7 @@ export async function deploySitesCourseScaffold() {
           publicPreview: lessonSeed.publicPreview,
           estimatedMinutes: lessonSeed.estimatedMinutes,
           sortOrder: lessonSeed.sortOrder,
-          status: "PUBLISHED",
+          status: contentOwned ? "PUBLISHED" : "DRAFT",
           accessType: lessonSeed.accessType,
           priceCents: lessonSeed.priceCents,
           commerceStatus: commerceStatusForCreate(),
@@ -273,8 +269,13 @@ export async function deploySitesCourseScaffold() {
           sortOrder: lessonSeed.sortOrder,
           accessType: lessonSeed.accessType,
           priceCents: lessonSeed.priceCents,
-          status: "PUBLISHED",
           commerceStatus: "NOT_FOR_SALE",
+          ...(contentOwned
+            ? {}
+            : {
+                status: "DRAFT" as const,
+                publishedAt: null,
+              }),
         },
       });
       lessons += 1;
