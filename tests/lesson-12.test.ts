@@ -59,6 +59,6 @@ test("aula 12 definitiva tem 36 blocos e continua fora de venda", () => {
     contentReady: true,
     contentIssues: [],
   });
-  assert.equal(sale.allowed, false);
-  assert.match(sale.reason ?? "", /pronta/);
+  assert.equal(sale.allowed, true);
+  assert.equal(sale.intended, "AVAILABLE");
 });

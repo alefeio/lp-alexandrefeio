@@ -10,6 +10,7 @@ import { LESSON_07_SLUG } from "../src/lib/learning/lesson-07";
 import { LESSON_08_SLUG } from "../src/lib/learning/lesson-08";
 import { LESSON_09_SLUG } from "../src/lib/learning/lesson-09";
 import { LESSON_10_SLUG } from "../src/lib/learning/lesson-10";
+import { LESSON_11_SLUG, LESSON_12_SLUG } from "../src/lib/learning/lesson-11";
 import { commerceWriteGate, planCourseEnable, planLessonEnable, planModuleEnable, type LessonShape } from "../src/lib/commerce/product-activation";
 
 loadEnv({ path: ".env.local" });
@@ -54,9 +55,6 @@ test("dry-run e confirmação comercial não gravam sem a flag", () => {
 test("aula incompleta, aula fora da allowlist e curso completo não ativam", () => {
   const incomplete = planLessonEnable(readyLesson({ contentReady: false, contentIssues: ["Falta a conclusão."] }));
   assert.equal(incomplete.allowed, false);
-  const future = planLessonEnable(readyLesson({ slug: "leia-os-numeros", priceCents: 3490 }));
-  assert.equal(future.allowed, false);
-  assert.match(future.reason ?? "", /pronta/);
   const outside = planLessonEnable(readyLesson({ slug: "fora-da-fase", priceCents: 3990 }));
   assert.equal(outside.allowed, false);
   assert.match(outside.reason ?? "", /allowlist/);
@@ -88,7 +86,7 @@ test("aula incompleta, aula fora da allowlist e curso completo não ativam", () 
   });
   assert.equal(metaEarly.allowed, false);
   assert.match(metaEarly.reason ?? "", /não está neste módulo/);
-  const finalModule = planModuleEnable({
+  const finalEarly = planModuleEnable({
     slug: "entenda-e-melhore",
     title: "Entenda",
     priceCents: 6790,
@@ -96,8 +94,8 @@ test("aula incompleta, aula fora da allowlist e curso completo não ativam", () 
     status: "PUBLISHED",
     lessons: [],
   });
-  assert.equal(finalModule.allowed, false);
-  assert.match(finalModule.reason ?? "", /editorialmente completo/);
+  assert.equal(finalEarly.allowed, false);
+  assert.match(finalEarly.reason ?? "", /não está neste módulo/);
 });
 
 test("aula válida e módulo exigem a allowlist e as aulas componentes", () => {
@@ -190,5 +188,34 @@ test("aula válida e módulo exigem a allowlist e as aulas componentes", () => {
   });
   assert.equal(meta.allowed, true);
   assert.equal(meta.priceCents, 7190);
+  const lessonEleven = planLessonEnable(readyLesson({ slug: LESSON_11_SLUG, priceCents: 3490 }));
+  const lessonTwelve = planLessonEnable(readyLesson({ slug: LESSON_12_SLUG, priceCents: 3990 }));
+  assert.equal(lessonEleven.allowed, true);
+  assert.equal(lessonTwelve.allowed, true);
+  const finalBeforeLessons = planModuleEnable({
+    slug: "entenda-e-melhore",
+    title: "Entenda",
+    priceCents: 6790,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    lessons: [
+      { slug: LESSON_11_SLUG, title: "Aula 11", commerceStatus: "NOT_FOR_SALE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+      { slug: LESSON_12_SLUG, title: "Aula 12", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+    ],
+  });
+  assert.equal(finalBeforeLessons.allowed, false);
+  const finalModule = planModuleEnable({
+    slug: "entenda-e-melhore",
+    title: "Entenda",
+    priceCents: 6790,
+    commerceStatus: "NOT_FOR_SALE",
+    status: "PUBLISHED",
+    lessons: [
+      { slug: LESSON_11_SLUG, title: "Aula 11", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+      { slug: LESSON_12_SLUG, title: "Aula 12", commerceStatus: "AVAILABLE", ready: true, status: "PUBLISHED", accessType: "PAID" },
+    ],
+  });
+  assert.equal(finalModule.allowed, true);
+  assert.equal(finalModule.priceCents, 6790);
 });
 

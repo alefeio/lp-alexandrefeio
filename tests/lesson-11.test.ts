@@ -55,5 +55,6 @@ test("aula 11 definitiva tem 36 blocos e continua fora de venda", () => {
     contentReady: true,
     contentIssues: [],
   });
-  assert.equal(sale.allowed, false);
+  assert.equal(sale.allowed, true);
+  assert.equal(sale.intended, "AVAILABLE");
 });

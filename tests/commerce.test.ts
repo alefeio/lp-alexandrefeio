@@ -317,6 +317,81 @@ test("upgrade do módulo Meta usa só o valor pago das aulas 9 e 10", () => {
   assert.equal(amountDueCents(7190, 3990), 3200);
 });
 
+test("upgrade do módulo final usa só o valor pago das aulas 11 e 12", () => {
+  const finalLessons = [lesson("l11", 3490), lesson("l12", 3990)];
+  const finalModule: SaleModule = {
+    ...moduleRow,
+    id: "final",
+    slug: "entenda-e-melhore",
+    bundlePriceCents: 6790,
+    paidLessonIds: ["l11", "l12"],
+  };
+  function due(paid: Array<[string, number]>, owned: string[]) {
+    const quote = quoteCart({
+      lines: [{ type: "MODULE", id: "final" }],
+      lessons: finalLessons,
+      modules: [finalModule],
+      courses: [],
+      sources: paid.map(([id, cents]) => source(id, cents, [id])),
+      ownedLessonIds: owned,
+    });
+    assert.equal(quote.ok, true);
+    return quote.ok ? { credit: quote.creditCents, total: quote.totalCents, kind: quote.kind } : null;
+  }
+  assert.deepEqual(due([], []), { credit: 0, total: 6790, kind: "payment" });
+  assert.deepEqual(due([["l11", 3490]], ["l11"]), { credit: 3490, total: 3300, kind: "payment" });
+  assert.deepEqual(due([["l12", 3990]], ["l12"]), { credit: 3990, total: 2800, kind: "payment" });
+  const ownedBoth = quoteCart({
+    lines: [{ type: "MODULE", id: "final" }],
+    lessons: finalLessons,
+    modules: [finalModule],
+    courses: [],
+    sources: [source("l11", 3490, ["l11"]), source("l12", 3990, ["l12"])],
+    ownedLessonIds: ["l11", "l12"],
+  });
+  assert.equal(ownedBoth.ok, false);
+  if (!ownedBoth.ok) assert.match(ownedBoth.message, /já tem este conteúdo/);
+  const entitlementOnly = quoteCart({
+    lines: [{ type: "MODULE", id: "final" }],
+    lessons: finalLessons,
+    modules: [finalModule],
+    courses: [],
+    sources: [],
+    ownedLessonIds: ["l11"],
+  });
+  assert.equal(entitlementOnly.ok && entitlementOnly.creditCents, 0);
+  assert.equal(entitlementOnly.ok && entitlementOnly.totalCents, 6790);
+  const countedOnce = eligibleCreditCents(
+    ["l11", "l12"],
+    [source("l11", 3490, ["l11"]), source("l12", 3990, ["l12"])],
+  );
+  assert.equal(countedOnce, 7480);
+  const unrelated = quoteCart({
+    lines: [{ type: "MODULE", id: "final" }],
+    lessons: [...finalLessons, lesson("l9", 3990)],
+    modules: [finalModule],
+    courses: [],
+    sources: [source("l9", 3990, ["l9"])],
+    ownedLessonIds: ["l9"],
+  });
+  assert.equal(unrelated.ok && unrelated.creditCents, 0);
+  assert.equal(unrelated.ok && unrelated.totalCents, 6790);
+  const repeat = quoteCart({
+    lines: [{ type: "LESSON", id: "l11" }],
+    lessons: finalLessons,
+    modules: [finalModule],
+    courses: [],
+    sources: [source("l11", 3490, ["l11"])],
+    ownedLessonIds: ["l11"],
+  });
+  assert.equal(repeat.ok, false);
+  if (!repeat.ok) assert.match(repeat.message, /já tem esta aula/);
+  const refundedNotEligible = eligibleCreditCents(["l11", "l12"], []);
+  assert.equal(refundedNotEligible, 0);
+  assert.equal(amountDueCents(6790, 3490), 3300);
+  assert.equal(amountDueCents(6790, 3990), 2800);
+});
+
 test("reconciliação não libera pendente e não duplica aprovado", () => {
   const pending = reconcileDecision({
     orderId: "order-1",

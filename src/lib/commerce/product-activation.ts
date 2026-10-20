@@ -9,6 +9,7 @@ import { LESSON_07_SLUG } from "@/lib/learning/lesson-07";
 import { LESSON_08_SLUG } from "@/lib/learning/lesson-08";
 import { LESSON_09_SLUG } from "@/lib/learning/lesson-09";
 import { LESSON_10_SLUG } from "@/lib/learning/lesson-10";
+import { LESSON_11_SLUG, LESSON_12_SLUG } from "@/lib/learning/lesson-11";
 import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
 
 export const COMMERCE_CATALOG_CONFIRM = "production";
@@ -22,23 +23,24 @@ export const FIRST_SALE_ALLOWLIST = [
   { kind: "lesson" as const, slug: LESSON_08_SLUG, priceCents: 3490 },
   { kind: "lesson" as const, slug: LESSON_09_SLUG, priceCents: 3990 },
   { kind: "lesson" as const, slug: LESSON_10_SLUG, priceCents: 3990 },
+  { kind: "lesson" as const, slug: LESSON_11_SLUG, priceCents: 3490 },
+  { kind: "lesson" as const, slug: LESSON_12_SLUG, priceCents: 3990 },
   { kind: "module" as const, slug: "planeje-antes-de-anunciar", priceCents: 5790 },
   { kind: "module" as const, slug: "google-ads-na-pratica", priceCents: 10390 },
   { kind: "module" as const, slug: "meta-ads-na-pratica", priceCents: 7190 },
+  { kind: "module" as const, slug: "entenda-e-melhore", priceCents: 6790 },
 ];
 
 const MODULE_LESSONS: Record<string, readonly string[]> = {
   "planeje-antes-de-anunciar": [LESSON_04_SLUG, LESSON_05_SLUG],
   "google-ads-na-pratica": [LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG],
   "meta-ads-na-pratica": [LESSON_09_SLUG, LESSON_10_SLUG],
+  "entenda-e-melhore": [LESSON_11_SLUG, LESSON_12_SLUG],
 };
 
-const INCOMPLETE_MODULES = new Set(["entenda-e-melhore"]);
+const INCOMPLETE_MODULES = new Set<string>();
 
-const INCOMPLETE_LESSONS = new Set([
-  "leia-os-numeros",
-  "o-que-mudar",
-]);
+const INCOMPLETE_LESSONS = new Set<string>();
 
 export type CommerceStatusName = "NOT_FOR_SALE" | "AVAILABLE";
 export type ProductKind = "lesson" | "module" | "course";
