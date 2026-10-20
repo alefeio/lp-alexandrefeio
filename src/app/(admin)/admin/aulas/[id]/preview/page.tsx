@@ -13,6 +13,7 @@ import { conversionJourneyPreviewState } from "@/lib/learning/conversion-journey
 import { digitalPresencePreviewState } from "@/lib/learning/digital-presence";
 import { pageReadinessPreviewState } from "@/lib/learning/page-readiness";
 import { conversionBriefPreviewState } from "@/lib/learning/conversion-page-brief";
+import { visitorDecisionPreviewState } from "@/lib/learning/visitor-decision";
 import { destinationPlanPreviewState } from "@/lib/learning/measurement";
 import { keywordIntentPreviewState } from "@/lib/learning/keyword-plan";
 import { leadConversionPreviewState } from "@/lib/learning/lead-conversion-plan";
@@ -104,6 +105,7 @@ function previewToolPanel(blocks: ReaderBlock[]) {
   if (toolKey === "DIGITAL_PRESENCE_DECISION_V1") return digitalPresencePreviewState();
   if (toolKey === "CONVERSION_PAGE_READINESS_V1") return pageReadinessPreviewState();
   if (toolKey === "CONVERSION_PAGE_BRIEF_V1") return conversionBriefPreviewState();
+  if (toolKey === "VISITOR_DECISION_JOURNEY_V1") return visitorDecisionPreviewState();
   if (toolKey === "CAMPAIGN_BRIEF_V1") return campaignBriefPreviewState();
   if (toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") return destinationPlanPreviewState();
   if (toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1") return searchBlueprintPreviewState();

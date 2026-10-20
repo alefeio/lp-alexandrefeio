@@ -10,6 +10,7 @@ import { journeyMapResponseSchema } from "@/lib/learning/conversion-journey-map"
 import { digitalPresenceResponseSchema } from "@/lib/learning/digital-presence-decision";
 import { pageReadinessResponseSchema } from "@/lib/learning/conversion-page-readiness";
 import { conversionBriefResponseSchema } from "@/lib/landing-page/brief";
+import { visitorDecisionResponseSchema } from "@/lib/landing-page/decision-journey";
 
 const EMPTY_BRIEF_PROJECTS: ReadonlySet<string> = new Set();
 const EMPTY_PLAN_PROJECTS: ReadonlySet<string> = new Set();
@@ -147,6 +148,9 @@ export function isBlockComplete(
       }
       if (block.data.toolKey === "CONVERSION_PAGE_BRIEF_V1") {
         return conversionBriefResponseSchema.safeParse(answer?.response).success;
+      }
+      if (block.data.toolKey === "VISITOR_DECISION_JOURNEY_V1") {
+        return visitorDecisionResponseSchema.safeParse(answer?.response).success;
       }
       if (
         block.data.toolKey === "CAMPAIGN_BRIEF_V1" ||

@@ -25,6 +25,7 @@ export {
   getLandingPageProject,
   listLandingPageProjects,
   saveConversionPageBrief,
+  saveVisitorDecisionJourney,
   updateLandingPageDraft,
   updateLandingPageSlug,
   updateLandingPageTitle,
@@ -38,7 +39,8 @@ export { materializeWireframePlan } from "@/lib/landing-page/wireframe/materiali
 export { applyGuidedWireframe, type AppliedWireframe } from "@/lib/landing-page/wireframe/apply";
 export { wireframePlanSchema, type WireframePlanV1 } from "@/lib/landing-page/wireframe/plan";
 export type { WireframeCourseAdapter } from "@/lib/landing-page/wireframe/course-adapter";
-export { buildWireframeContextFromLandingPageProject } from "@/lib/landing-page/wireframe/from-brief";
+export { buildWireframeContextFromLandingPageProject, wireframeContextCompleteness } from "@/lib/landing-page/wireframe/from-brief";
 export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
+export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";
 export { createPrismaLandingPageStore } from "@/lib/landing-page/prisma-store";

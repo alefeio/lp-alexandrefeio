@@ -75,7 +75,6 @@ test("aula 4 completa com 31 blocos, chaves estáveis, 4 checkpoints, tool e res
     siteLesson04Blocks.map((block) => ({ blockKey: block.blockKey, retiredAt: null, payload: block.data })),
   );
   assert.equal(assessment.ready, true, assessment.issues.join(" "));
-  assert.equal(existsSync("src/lib/learning/site-jornada-do-visitante.ts"), false);
 });
 
 test("curso continua draft e fora de venda; curso 1 segue publicado no seed", () => {

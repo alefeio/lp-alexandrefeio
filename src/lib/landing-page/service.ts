@@ -1,4 +1,5 @@
 import { conversionOutcomeLabel, operationalActionFromIntent, parseConversionPageBrief } from "@/lib/landing-page/brief";
+import { parseVisitorDecisionJourney, syncBriefWithDecisionJourney } from "@/lib/landing-page/decision-journey";
 import { createEmptyLandingPageDocument, parseLandingPageDocument } from "@/lib/landing-page/document";
 import { fail, ok, type LandingPageResult } from "@/lib/landing-page/errors";
 import { LANDING_PAGE_COURSE_SLUG, LANDING_PAGE_LIMITS } from "@/lib/landing-page/constants";
@@ -204,6 +205,62 @@ export async function saveConversionPageBrief(
       primaryAction: operationalActionFromIntent(brief.brief.primaryAction),
       secondaryAction: operationalActionFromIntent(brief.brief.secondaryAction),
       businessOutcome: conversionOutcomeLabel(brief.brief),
+    },
+  };
+  const parsed = parseLandingPageDocument(document);
+  if (!parsed.ok) return fail("INVALID_DOCUMENT");
+
+  const updated = await store.updateDraftAtomic({
+    id: input.landingPageProjectId,
+    userId: input.userId,
+    expectedRevision: input.expectedRevision,
+    document: parsed.document,
+  });
+  if (!updated.ok) {
+    if (updated.reason === "CONFLICT") return fail("LANDING_PAGE_DRAFT_CONFLICT");
+    return fail("NOT_FOUND");
+  }
+  if (updated.record.status !== current.status) return fail("INVALID_DOCUMENT");
+  return ok(mapRecord(updated.record));
+}
+
+export async function saveVisitorDecisionJourney(
+  store: LandingPageStore,
+  input: {
+    userId: string;
+    landingPageProjectId: string;
+    expectedRevision: number;
+    decisionJourney: unknown;
+    confirmActionChange?: boolean;
+  },
+): Promise<LandingPageResult<LandingPageProjectView>> {
+  if (!Number.isInteger(input.expectedRevision) || input.expectedRevision < 1) return fail("INVALID_INPUT");
+  const journey = parseVisitorDecisionJourney(input.decisionJourney);
+  if (!journey.ok) return fail("INVALID_INPUT");
+
+  const current = await store.findByIdForUser(input.landingPageProjectId, input.userId);
+  if (!current) return fail("NOT_FOUND");
+  const brief = current.draftDocument.strategy?.brief;
+  if (!brief) return fail("LANDING_PAGE_BRIEF_REQUIRED");
+
+  const synced = syncBriefWithDecisionJourney(brief, journey.journey, input.confirmActionChange === true);
+  if (!synced.ok) {
+    if (synced.reason === "confirm") return fail("ACTION_CHANGE_REQUIRES_CONFIRMATION");
+    return fail("INVALID_INPUT");
+  }
+  const parsedBrief = parseConversionPageBrief(synced.brief);
+  if (!parsedBrief.ok) return fail("INVALID_INPUT");
+
+  const document = {
+    ...current.draftDocument,
+    strategy: {
+      ...current.draftDocument.strategy,
+      brief: parsedBrief.brief,
+      decisionJourney: journey.journey,
+    },
+    conversion: {
+      ...current.draftDocument.conversion,
+      ...(synced.conversionAction === "keep" ? {} : { primaryAction: synced.conversionAction }),
     },
   };
   const parsed = parseLandingPageDocument(document);

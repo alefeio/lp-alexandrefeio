@@ -258,7 +258,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 
 ## Phase 3 — guided wireframe engine
 
-- `WireframeContextV1` é um contrato de domínio, independente de `LessonResult`. Aulas 4 e 5 serão adaptadores futuros (`WireframeCourseAdapter`), ainda não implementados.
+- `WireframeContextV1` é um contrato de domínio, independente de resultados de aula. O adaptador implementado é `buildWireframeContextFromLandingPageProject`.
 - `generateWireframePlan` é determinístico e sem IA. Devolve `WireframePlanV1` com `engineVersion` `GUIDED_WIREFRAME_ENGINE_V1`, estratégia, propósito, `reasonCode`, avisos, confiança e `planFingerprint`.
 - Estratégias por precedência explícita: contexto insuficiente, `TRUST_HEAVY`, `EXPLANATORY`, `CONVERSATIONAL`, `FOCUSED`, senão `BALANCED`.
 - Contexto `INSUFFICIENT` produz plano mínimo (hero, CTA, rodapé), confiança `LIMITED` e aviso pedindo mais contexto.
@@ -272,8 +272,16 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 - `draftDocument.strategy` é opcional. `schemaVersion` permanece 1. Documentos antigos continuam válidos.
 - `strategy.brief` (`ConversionPageBriefV1`) é a fonte estratégica. `conversion` recebe só a configuração operacional compatível (`primaryAction`, `secondaryAction`, `businessOutcome`), no mesmo save atômico.
 - Intenção sem dados suficientes (WhatsApp sem telefone, formulário, URL ainda vazia) permanece no brief e não entra em `conversion`.
-- `buildWireframeContextFromLandingPageProject` adapta o brief para um contexto `PARTIAL`. Não chama o motor e não cria seções.
+- `buildWireframeContextFromLandingPageProject` adapta o brief para um contexto `PARTIAL` enquanto a jornada não existe. Não chama o motor e não cria seções.
 - Concluir a aula não muda o status do projeto para `READY_TO_PREVIEW`.
+
+## Aula 5 — strategy.decisionJourney
+
+- `strategy.decisionJourney` (`VisitorDecisionJourneyV1`) é opcional. `schemaVersion` permanece 1.
+- `brief.objections` continua a lista factual. A jornada classifica essa mesma lista. Salvar a jornada atualiza as duas no mesmo documento.
+- Troca de ação principal só ocorre com confirmação explícita e, nesse caso, atualiza brief, `conversion` e jornada na mesma revisão.
+- Com brief e jornada completos, o adaptador devolve `SUFFICIENT`. Sinais `UNKNOWN` devolvem `PARTIAL`. Sem brief, `INSUFFICIENT`.
+- Salvar a Aula 5 não chama o motor e não materializa seções. O status permanece `DRAFT`.
 
 ## Implementation phases
 
@@ -290,7 +298,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico: Aulas 1–4 com conteúdo interno. Aulas 5–12 ainda não produzidas. Phase 4 (copy assist) não implementada.
+Conteúdo pedagógico: Aulas 1–5 com conteúdo interno. Aulas 6–12 ainda não produzidas. Phase 4 (copy assist) não implementada.
 
 ## Consequences
 

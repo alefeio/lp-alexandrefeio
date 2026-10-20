@@ -40,6 +40,7 @@ import { ConversionJourneyMapTool } from "@/components/learning/ConversionJourne
 import { DigitalPresenceDecisionTool } from "@/components/learning/DigitalPresenceDecisionTool";
 import { ConversionPageReadinessTool } from "@/components/learning/ConversionPageReadinessTool";
 import { ConversionPageBriefTool } from "@/components/learning/ConversionPageBriefTool";
+import { VisitorDecisionTool } from "@/components/learning/VisitorDecisionTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { KeywordIntentTool } from "@/components/learning/KeywordIntentTool";
 import { MetaCampaignTool } from "@/components/learning/MetaCampaignTool";
@@ -53,6 +54,7 @@ import type { DigitalPresencePanel } from "@/lib/learning/digital-presence";
 import { digitalPresenceResponseSchema, type DigitalPresenceDecision } from "@/lib/learning/digital-presence-decision";
 import type { PageReadinessPanel } from "@/lib/learning/page-readiness";
 import type { ConversionBriefPanel } from "@/lib/learning/conversion-page-brief";
+import type { VisitorDecisionPanel } from "@/lib/learning/visitor-decision";
 import { pageReadinessResponseSchema, type ConversionPageReadiness } from "@/lib/learning/conversion-page-readiness";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
@@ -83,6 +85,7 @@ type ToolPanel =
   | DigitalPresencePanel
   | PageReadinessPanel
   | ConversionBriefPanel
+  | VisitorDecisionPanel
   | null;
 
 type Props = {
@@ -1010,6 +1013,15 @@ function BlockBody(props: {
       <div>
         <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
         <ConversionPageBriefTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "VISITOR_DECISION_JOURNEY_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "visitor-decision" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <VisitorDecisionTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

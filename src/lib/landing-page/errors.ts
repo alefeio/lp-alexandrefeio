@@ -13,6 +13,8 @@ export const LANDING_PAGE_CODES = [
   "INVALID_INPUT",
   "LANDING_PAGE_WIREFRAME_NOT_EMPTY",
   "LANDING_PAGE_WIREFRAME_REPLACE_DISABLED",
+  "LANDING_PAGE_BRIEF_REQUIRED",
+  "ACTION_CHANGE_REQUIRES_CONFIRMATION",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -32,6 +34,8 @@ const MESSAGES: Record<LandingPageCode, string> = {
   INVALID_INPUT: "Dados inválidos.",
   LANDING_PAGE_WIREFRAME_NOT_EMPTY: "O rascunho já tem seções. A estrutura guiada só entra em uma página vazia.",
   LANDING_PAGE_WIREFRAME_REPLACE_DISABLED: "Substituir a estrutura inteira ainda não está disponível.",
+  LANDING_PAGE_BRIEF_REQUIRED: "Defina primeiro a estratégia básica desta página.",
+  ACTION_CHANGE_REQUIRES_CONFIRMATION: "A ação principal vai mudar. Confirme antes de salvar.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {
