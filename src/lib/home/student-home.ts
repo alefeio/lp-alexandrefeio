@@ -70,6 +70,7 @@ export type StudentHomeView = {
   subtext: string;
   continue: {
     kind: "start" | "resume" | "done";
+    section: string;
     title: string;
     detail: string | null;
     href: string | null;
@@ -195,6 +196,7 @@ function continueBlock(current: HomeContinue): StudentHomeView["continue"] {
   if (current.kind === "start") {
     return {
       kind: "start",
+      section: "Continuar estudando",
       title: "Comece pelas aulas gratuitas.",
       detail: current.title,
       href: `/aulas/${current.slug || LESSON_01_SLUG}`,
@@ -205,18 +207,30 @@ function continueBlock(current: HomeContinue): StudentHomeView["continue"] {
     const remaining = current.remainingMinutes == null ? null : `cerca de ${current.remainingMinutes} min restantes`;
     return {
       kind: "resume",
+      section: "Continuar estudando",
       title: current.title,
       detail: `${current.percent}%${remaining ? ` · ${remaining}` : ""}`,
       href: `/aulas/${current.slug}?continuar=1`,
       cta: "Continuar aula",
     };
   }
+  if (!current.next) {
+    return {
+      kind: "done",
+      section: "Curso concluído",
+      title: "Você concluiu as aulas disponíveis neste curso.",
+      detail: "Revise resultados no projeto, acompanhe o Plano Vivo ou rode uma nova análise quando tiver dados novos.",
+      href: "/app/projetos",
+      cta: "Abrir meus projetos",
+    };
+  }
   return {
     kind: "done",
+    section: "Continuar estudando",
     title: `Você concluiu ${current.title}.`,
-    detail: current.next?.title ?? null,
-    href: current.next ? `/aulas/${current.next.slug}` : null,
-    cta: current.next ? "Começar próxima aula" : null,
+    detail: current.next.title,
+    href: `/aulas/${current.next.slug}`,
+    cta: "Começar próxima aula",
   };
 }
 

@@ -25,7 +25,9 @@ export default async function StudentHomePage() {
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Conta</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Área do aluno</h1>
       <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Continuar estudando</h2>
+        <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-cta">
+          {learning.continue.kind === "completed" && !learning.continue.next ? "Curso concluído" : "Continuar estudando"}
+        </h2>
       {learning.continue.kind === "resume" && resume ? (
         <div className="mt-4">
           <p className="text-base font-medium">{resume.title}</p>
@@ -45,7 +47,13 @@ export default async function StudentHomePage() {
                 Continuar curso
               </Link>
             </div>
-          ) : null}
+          ) : (
+            <p className="mt-4">
+              <Link className={`${buttonClass("primary")} mt-4`} href="/app/projetos">
+                Abrir meus projetos
+              </Link>
+            </p>
+          )}
         </div>
       ) : (
         <p className="mt-4 text-base leading-relaxed text-muted">

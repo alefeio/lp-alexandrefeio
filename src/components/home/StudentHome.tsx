@@ -11,7 +11,7 @@ export function StudentHome({ view }: { view: StudentHomeView }) {
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">{view.subtext}</p>
 
       <section className="mt-10 rounded-lg border border-border bg-surface p-5 sm:p-6">
-        <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Continuar estudando</h2>
+        <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-cta">{view.continue.section}</h2>
         {view.continue.kind === "start" ? (
           <>
             <p className="mt-3 text-lg font-medium">{view.continue.title}</p>
@@ -20,7 +20,11 @@ export function StudentHome({ view }: { view: StudentHomeView }) {
         ) : view.continue.kind === "done" ? (
           <>
             <p className="mt-3 text-lg font-medium">{view.continue.title}</p>
-            {view.continue.detail ? <p className="mt-2 text-sm text-muted">Próxima: {view.continue.detail}</p> : null}
+            {view.continue.detail ? (
+              <p className="mt-2 text-sm text-muted">
+                {view.continue.section === "Curso concluído" ? view.continue.detail : `Próxima: ${view.continue.detail}`}
+              </p>
+            ) : null}
           </>
         ) : (
           <>

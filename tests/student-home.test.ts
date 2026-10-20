@@ -83,9 +83,23 @@ test("aula concluída sugere a próxima", () => {
     continue: { kind: "done", title: "Como funciona o tráfego pago", next: { slug: "google-ads-ou-meta-ads", title: "Google Ads ou Meta Ads: qual escolher?" } },
     completedCount: 1,
   }));
+  assert.equal(view.continue.section, "Continuar estudando");
   assert.match(view.continue.title, /Você concluiu Como funciona o tráfego pago/);
   assert.equal(view.continue.cta, "Começar próxima aula");
   assert.equal(view.continue.href, "/aulas/google-ads-ou-meta-ads");
+});
+
+test("trilha sem próxima aula mostra curso concluído", () => {
+  const view = buildStudentHome(input({
+    continue: { kind: "done", title: "Saiba o que mudar — e quando não mexer", next: null },
+    completedCount: 12,
+    openCount: 0,
+    lockedCount: 0,
+  }));
+  assert.equal(view.continue.section, "Curso concluído");
+  assert.match(view.continue.title, /concluiu as aulas disponíveis/);
+  assert.equal(view.continue.href, "/app/projetos");
+  assert.equal(view.continue.cta, "Abrir meus projetos");
 });
 
 test("sem projeto pede para criar um", () => {

@@ -235,7 +235,7 @@ A interface da sua conta pode não mostrar todas essas opções. O plano guarda 
     type: "CALLOUT",
     tone: "info",
     title: "A próxima aula lê os números",
-    body: "Leia os números e encontre o gargalo usa a conversão desejada, o estágio que você mede e o canal escolhido aqui. Essa aula ainda não está à venda. Disponível em breve.",
+    body: "Leia os números e encontre o gargalo usa a conversão desejada, o estágio que você mede e o canal escolhido aqui.",
   }),
   block(33, "fontes-oficiais", true, false, {
     type: "TEXT",
@@ -251,7 +251,7 @@ Sem esse plano, a aula segue. Preencha o mínimo e volte na estrutura quando fiz
   }),
   block(35, "aula-continua-fechada", true, false, {
     type: "TEXT",
-    body: `Esta aula e o módulo Meta continuam fora de venda. O plano não cria campanha, não conecta a Marketing API e não pede lista de clientes, telefone, e-mail, CPF, dado de saúde, token ou identificador de Pixel.
+    body: `O plano não cria campanha, não conecta a Marketing API e não pede lista de clientes, telefone, e-mail, CPF, dado de saúde, token ou identificador de Pixel.
 
 A estrutura simples da aula anterior deve ser preservada. Não abra um conjunto novo para cada pergunta.`,
   }),

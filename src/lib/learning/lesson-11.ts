@@ -191,7 +191,7 @@ Sem esse diagnóstico, a próxima aula não deve inventar o gargalo. Sem arquivo
     type: "CALLOUT",
     tone: "info",
     title: "A próxima aula decide o que fazer",
-    body: "Saiba o que mudar — e quando não mexer ainda não está à venda. Disponível em breve. Ela recebe este diagnóstico. Esta aula não antecipa a espera nem a mudança.",
+    body: "Saiba o que mudar — e quando não mexer recebe este diagnóstico. Esta aula não antecipa a espera nem a mudança.",
   }),
   block(30, "sem-aula-anterior", true, false, {
     type: "TEXT",

@@ -27,10 +27,15 @@ export function studentAreaState(input: {
   if (current) return { continue: { kind: "resume", lesson: current }, learning };
 
   if (input.completed.length > 0) {
+    const finishedTrack = !input.nextLesson;
     return {
       continue: {
         kind: "completed",
-        headline: input.completed.length === 1 ? "Você concluiu sua primeira aula." : "Você já concluiu aulas.",
+        headline: finishedTrack
+          ? "Curso concluído. Revise resultados no projeto ou rode uma nova análise quando tiver dados novos."
+          : input.completed.length === 1
+            ? "Você concluiu sua primeira aula."
+            : "Você já concluiu aulas.",
         next: input.nextLesson,
       },
       learning,

@@ -89,7 +89,9 @@ export default async function DiagnosticResultPage({
                   <Link className="underline underline-offset-4" href={`/aulas/${item.lesson.slug}`}>
                     {item.lesson.title}
                   </Link>
-                  {item.lesson.accessType === "PAID" ? <span className="text-muted"> · Disponível em breve</span> : null}
+                  {item.lesson.accessType === "PAID" && item.lesson.commerceStatus !== "AVAILABLE" ? (
+                    <span className="text-muted"> · Disponível em breve</span>
+                  ) : null}
                 </p>
               ) : null}
             </li>

@@ -88,7 +88,7 @@ export function CourseSales({
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">O que você aprende</h2>
             <p className="mt-3 text-base leading-relaxed">
-              Como o anúncio chega numa pessoa, quando Google ou Meta faz mais sentido, se o negócio está pronto para anunciar, e como registrar objetivo, oferta, orçamento, destino e a estrutura de uma campanha de pesquisa.
+              Como o anúncio chega numa pessoa, quando Google ou Meta faz mais sentido, se o negócio está pronto para anunciar, como planejar oferta e mensuração, configurar a primeira campanha, ler os números e decidir a próxima ação com critério.
             </p>
           </div>
           <div>
@@ -150,8 +150,16 @@ export function CourseSales({
             <li>Brief Inicial de Campanha</li>
             <li>Plano de Destino e Mensuração</li>
             <li>Blueprint de Campanha de Pesquisa</li>
+            <li>Plano inicial de palavras-chave</li>
+            <li>Plano de anúncios responsivos</li>
+            <li>Plano inicial de campanha Meta</li>
+            <li>Plano de geração e atendimento de leads</li>
+            <li>Diagnóstico dos resultados da campanha</li>
+            <li>Plano de próxima ação</li>
           </ul>
-          <p className="mt-4 text-sm leading-relaxed text-muted">As aulas ainda sem texto definitivo não entregam ferramenta nesta versão.</p>
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            Nas aulas de análise, você também pode enviar um CSV ou XLSX privado da campanha para diagnosticar gargalos sem expor o arquivo em páginas públicas.
+          </p>
         </Container>
       </section>
 

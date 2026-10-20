@@ -11,7 +11,7 @@ export async function getDiagnosticForUser(userId: string, projectId: string, di
       recommendations: {
         orderBy: { createdAt: "asc" },
         include: {
-          lesson: { select: { slug: true, title: true, accessType: true, status: true } },
+          lesson: { select: { slug: true, title: true, accessType: true, status: true, commerceStatus: true } },
           tasks: { where: { status: { in: ["TODO", "IN_PROGRESS"] } }, take: 1 },
         },
       },

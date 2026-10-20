@@ -317,6 +317,76 @@ test("upgrade do módulo Meta usa só o valor pago das aulas 9 e 10", () => {
   assert.equal(amountDueCents(7190, 3990), 3200);
 });
 
+test("upgrade do curso completo usa crédito real sem duplicar módulo", () => {
+  const paid = [
+    lesson("l4", 2990),
+    lesson("l5", 3490),
+    lesson("l6", 3990),
+    lesson("l7", 3990),
+    lesson("l8", 3490),
+    lesson("l9", 3990),
+    lesson("l10", 3990),
+    lesson("l11", 3490),
+    lesson("l12", 3990),
+  ];
+  const fullCourse: SaleCourse = {
+    ...course,
+    id: "course",
+    slug: "trafego-pago-na-pratica",
+    bundlePriceCents: 24990,
+    paidLessonIds: paid.map((item) => item.id),
+  };
+  function due(sources: CreditSource[], owned: string[]) {
+    const quote = quoteCart({
+      lines: [{ type: "COURSE", id: "course" }],
+      lessons: paid,
+      modules: [],
+      courses: [fullCourse],
+      sources,
+      ownedLessonIds: owned,
+    });
+    assert.equal(quote.ok, true);
+    return quote.ok ? { credit: quote.creditCents, total: quote.totalCents, kind: quote.kind } : null;
+  }
+  assert.deepEqual(due([], []), { credit: 0, total: 24990, kind: "payment" });
+  assert.deepEqual(due([source("l4", 2990, ["l4"])], ["l4"]), { credit: 2990, total: 22000, kind: "payment" });
+  assert.deepEqual(
+    due([source("planeje", 5790, ["l4", "l5"])], ["l4", "l5"]),
+    { credit: 5790, total: 19200, kind: "payment" },
+  );
+  assert.deepEqual(
+    due([source("l4", 2990, ["l4"]), source("planeje", 2800, ["l4", "l5"])], ["l4", "l5"]),
+    { credit: 5790, total: 19200, kind: "payment" },
+  );
+  assert.deepEqual(
+    due([source("l6", 3990, ["l6"]), source("google", 6400, ["l6", "l7", "l8"])], ["l6", "l7", "l8"]),
+    { credit: 10390, total: 14600, kind: "payment" },
+  );
+  assert.deepEqual(
+    due(
+      [source("planeje", 5790, ["l4", "l5"]), source("google", 10390, ["l6", "l7", "l8"])],
+      ["l4", "l5", "l6", "l7", "l8"],
+    ),
+    { credit: 16180, total: 8810, kind: "payment" },
+  );
+  const allOwned = quoteCart({
+    lines: [{ type: "COURSE", id: "course" }],
+    lessons: paid,
+    modules: [],
+    courses: [fullCourse],
+    sources: [
+      source("planeje", 5790, ["l4", "l5"]),
+      source("google", 10390, ["l6", "l7", "l8"]),
+      source("meta", 7190, ["l9", "l10"]),
+      source("final", 6790, ["l11", "l12"]),
+    ],
+    ownedLessonIds: paid.map((item) => item.id),
+  });
+  assert.equal(allOwned.ok, false);
+  if (!allOwned.ok) assert.match(allOwned.message, /já tem este conteúdo/);
+  assert.equal(amountDueCents(24990, 33410), 0);
+});
+
 test("upgrade do módulo final usa só o valor pago das aulas 11 e 12", () => {
   const finalLessons = [lesson("l11", 3490), lesson("l12", 3990)];
   const finalModule: SaleModule = {

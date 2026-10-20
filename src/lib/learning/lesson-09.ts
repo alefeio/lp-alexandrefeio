@@ -285,11 +285,11 @@ Sem as aulas anteriores, preencha só o que falta: oferta, resultado, conversão
     type: "CALLOUT",
     tone: "info",
     title: "A próxima aula configura leads e WhatsApp",
-    body: "Crie campanhas para leads e WhatsApp usa este plano: objetivo do negócio, objetivo da Meta, caminho da conversão, conjuntos, destino e orçamento. Essa aula ainda não está à venda. Disponível em breve.",
+    body: "Crie campanhas para leads e WhatsApp usa este plano: objetivo do negócio, objetivo da Meta, caminho da conversão, conjuntos, destino e orçamento.",
   }),
   block(36, "diagnostico-nao-bloqueia", true, false, {
     type: "TEXT",
-    body: `O módulo Meta continua fora de venda. Esta aula também. O plano que você salvar fica no projeto e não abre uma campanha na Meta.
+    body: `O plano que você salvar fica no projeto e não abre uma campanha na Meta.
 
 Se o diagnóstico apontou outro canal, use esta aula mesmo assim. A indicação ajuda a decidir por onde começar. Não trava o estudo.`,
   }),

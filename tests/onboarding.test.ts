@@ -63,6 +63,20 @@ test("área do aluno reconhece concluída, em andamento e vazio", () => {
   }
   assert.equal(done.learning[0]?.status, "completed");
 
+  const finished = studentAreaState({
+    inProgress: [],
+    completed: [
+      { slug: "como-funciona-o-trafego-pago", title: "Aula 1", percent: 100 },
+      { slug: "o-que-mudar", title: "Aula 12", percent: 100 },
+    ],
+    nextLesson: null,
+  });
+  assert.equal(finished.continue.kind, "completed");
+  if (finished.continue.kind === "completed") {
+    assert.match(finished.continue.headline, /Curso concluído/);
+    assert.equal(finished.continue.next, null);
+  }
+
   const both = studentAreaState({
     inProgress: [{ slug: "google-ads-ou-meta-ads", title: "Google Ads ou Meta Ads: qual escolher?", percent: 45 }],
     completed: [{ slug: "como-anuncio-pago-encontra-cliente", title: "Aula 1", percent: 100 }],
