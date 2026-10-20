@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: proposto (documentação / arquitetura). Sem implementação de tabelas, UI, IA ou publicação nesta etapa.
+Status: **ACCEPTED — PHASE 1 IMPLEMENTED** (core model + schemas + draft persistence). Phases 2–10 ainda não implementadas.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -54,14 +54,17 @@ Princípio: **renderer controlado** lê JSON tipado → componentes React intern
 | userId | owner |
 | projectId | opcional → `Project` genérico |
 | courseId | referência ao curso sites (contexto pedagógico) |
-| slug | único no namespace público (`/p/[slug]`) |
+| slug | **canônico** para roteamento futuro `/p/[slug]` · unique |
 | title | |
 | status | `DRAFT` \| `READY_TO_PREVIEW` \| `PUBLISHED` \| `UNPUBLISHED` |
-| draftDocument | JSON tipado (sections, theme, ctas, measurement, seo) |
+| draftDocument | JSON tipado com `schemaVersion` + `registryVersion` |
+| draftRevision | optimistic concurrency (int, inicia em 1) |
 | publishedPublicationId | ponteiro opcional para snapshot ativo |
 | createdAt / updatedAt | |
 
 Não substitui `Project`. Relação: **Project 0..1 → LandingPageProject N**.
+
+**Slug lock (Phase 1):** enquanto `publicationCount == 0`, slug pode mudar. Após a primeira `LandingPagePublication`, mutação de slug é rejeitada (`LANDING_PAGE_SLUG_LOCKED_AFTER_PUBLICATION`). Sem redirects na V1.
 
 ### LandingPagePublication
 
@@ -69,24 +72,26 @@ Não substitui `Project`. Relação: **Project 0..1 → LandingPageProject N**.
 | --- | --- |
 | id | |
 | landingPageProjectId | |
-| version | inteiro monotônico |
+| version | inteiro monotônico · unique com projectId |
 | snapshot | cópia congelada do draft no momento do publish |
 | publishedAt | |
-| publicSlug | slug servido |
+| publishedSlug | slug usado no snapshot (auditoria) · **não** é autoridade de roteamento |
 
-Editar draft **não** altera o snapshot ativo até nova publicação.
+Roteamento canônico usa `LandingPageProject.slug`. Editar draft **não** altera o snapshot ativo até nova publicação.
 
 ### LessonResult (compatibilidade)
 
 Cada aula 4–12 pode gravar `LessonResult` com resumo/etapa (brief, wireframe hash, etc.).  
 O estado canônico da página vive em `LandingPageProject.draftDocument`.
 
-### Mudanças de modelo necessárias (futuras migrations)
+### Phase 1 consolidada
 
-- Tabelas `LandingPageProject`, `LandingPagePublication`
-- Opcional: `LandingPageMedia`, `LandingPageLead`, `LandingPageEvent` (agregados)
-- Índices: `(userId)`, `(slug)` unique, `(projectId)`
-- **Não criar nestas migrations** nesta tarefa documental
+- `schemaVersion: 1` (`LANDING_PAGE_DOCUMENT_SCHEMA_VERSION`)
+- `registryVersion: "LANDING_COMPONENT_REGISTRY_V1"`
+- `draftRevision` + update atômico com `expectedRevision`
+- Registry MVP tipado (Zod): HERO, BENEFITS, PROCESS, TRUST, FAQ, CTA, FORM, CONTACT, FOOTER
+- Sem UI, preview, publish, mídia, form backend, IA
+- Migration: `20261020180000_add_landing_page_builder_core` (aditiva)
 
 ## Component registry
 
