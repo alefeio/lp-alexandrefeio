@@ -90,7 +90,7 @@ test("dados estruturados e paywall comercial", () => {
 
   const crumbs = breadcrumbList([
     { name: "Home", path: "/" },
-    { name: "Curso", path: "/cursos/trafego-pago-na-pratica" },
+    { name: "Cursos", path: "/cursos" },
     { name: "Aula", path: "/aulas/objetivo-oferta-orcamento" },
   ]);
   assert.equal(crumbs["@type"], "BreadcrumbList");

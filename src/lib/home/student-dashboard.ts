@@ -361,13 +361,12 @@ export function resolveDashboardNextAction(input: DashboardBuildInput): Dashboar
 export function buildQuickAccess(input: DashboardBuildInput): QuickAccessCard[] {
   const accessible = input.lessons.filter((lesson) => lesson.accessible);
   const completed = accessible.filter((lesson) => lesson.completed).length;
-  const resume = accessible.find((lesson) => lesson.inProgress);
   const cards: QuickAccessCard[] = [
     {
       id: "course",
-      title: "Curso",
-      detail: accessible.length === 0 ? "Ver aulas" : `${completed} de ${accessible.length} aulas`,
-      href: resume ? `/aulas/${resume.slug}?continuar=1` : "/cursos/trafego-pago-na-pratica",
+      title: "Cursos",
+      detail: accessible.length === 0 || completed === 0 ? "Veja os cursos disponíveis" : "Continue sua jornada",
+      href: "/cursos",
     },
   ];
 
@@ -387,7 +386,7 @@ export function buildQuickAccess(input: DashboardBuildInput): QuickAccessCard[] 
         },
   );
 
-  const hasStudy = completed > 0 || Boolean(resume);
+  const hasStudy = completed > 0 || accessible.some((lesson) => lesson.inProgress);
   if (!hasStudy && !input.project) {
     return cards.slice(0, 2);
   }

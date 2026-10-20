@@ -64,3 +64,24 @@ export function courseJsonLd(input: { title: string; description: string; path: 
     provider: personAuthor(),
   };
 }
+
+export function collectionPageJsonLd(input: {
+  name: string;
+  description: string;
+  path: string;
+  courses: { name: string; path: string }[];
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: input.name,
+    description: input.description,
+    url: `${siteConfig.url}${input.path}`,
+    inLanguage: "pt-BR",
+    hasPart: input.courses.map((course) => ({
+      "@type": "Course",
+      name: course.name,
+      url: `${siteConfig.url}${course.path}`,
+    })),
+  };
+}

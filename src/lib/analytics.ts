@@ -11,6 +11,8 @@ export type AnalyticsEventName =
   | "lesson_progress"
   | "lesson_completed"
   | "course_view"
+  | "course_catalog_view"
+  | "course_catalog_click"
   | "course_free_start"
   | "lesson_public_preview_view"
   | "lesson_paywall_view"

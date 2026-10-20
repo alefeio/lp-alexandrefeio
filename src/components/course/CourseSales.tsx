@@ -9,7 +9,7 @@ import { buttonClass } from "@/lib/button-styles";
 import { isCommerceEnabled, isProductForSale } from "@/lib/commerce/config";
 import { paidLessonAction } from "@/lib/commerce/sale-action";
 import { formatPriceCents } from "@/lib/learning/money";
-import { courseJsonLd } from "@/lib/seo/learning-jsonld";
+import { breadcrumbList, courseJsonLd } from "@/lib/seo/learning-jsonld";
 
 type SalesLesson = {
   id: string;
@@ -32,6 +32,16 @@ type SalesModule = {
   lessons: SalesLesson[];
 };
 
+const FULL_COURSE_BENEFITS = [
+  "Planejamento de campanha",
+  "Google Ads",
+  "Meta Ads",
+  "Ferramentas práticas",
+  "Diagnóstico dos resultados",
+  "Análise de CSV/XLSX",
+  "Plano de próxima ação",
+] as const;
+
 export function CourseSales({
   course,
   ownedLessonIds = [],
@@ -51,17 +61,32 @@ export function CourseSales({
   const commerce = isCommerceEnabled();
   const courseOpen = isProductForSale(course.commerceStatus, course.bundlePriceCents);
   const owned = new Set(ownedLessonIds);
+  const allLessons = course.modules.flatMap((moduleRow) => moduleRow.lessons);
+  const paidLessons = allLessons.filter((lesson) => lesson.accessType === "PAID");
+  const freeLessons = allLessons.filter((lesson) => lesson.accessType === "FREE");
+  const ownsAllPaid = paidLessons.length > 0 && paidLessons.every((lesson) => owned.has(lesson.id));
+  const hasPartialPurchase = ownedLessonIds.length > 0 && !ownsAllPaid;
+  const individualTotalCents = paidLessons.reduce((sum, lesson) => sum + (lesson.priceCents ?? 0), 0);
+  const savingsCents =
+    course.bundlePriceCents != null && individualTotalCents > course.bundlePriceCents
+      ? individualTotalCents - course.bundlePriceCents
+      : 0;
   const salesOpen = course.modules.some(
     (moduleRow) =>
       isProductForSale(moduleRow.commerceStatus, moduleRow.bundlePriceCents, commerce) ||
       moduleRow.lessons.some((lesson) => lesson.accessType === "PAID" && isProductForSale(lesson.commerceStatus, lesson.priceCents, commerce)),
   );
-  const freeLessons = course.modules.flatMap((moduleRow) => moduleRow.lessons).filter((lesson) => lesson.accessType === "FREE");
 
   return (
     <>
       <ViewEvent event="course_view" slug={course.slug} courseSlug={course.slug} />
       <JsonLd data={courseJsonLd({ title: course.title, description: course.description, path: `/cursos/${course.slug}` })} />
+      <JsonLd
+        data={breadcrumbList([
+          { name: "Cursos", path: "/cursos" },
+          { name: course.title, path: `/cursos/${course.slug}` },
+        ])}
+      />
       <section className="hero-stage final-stage py-14 text-on-ink sm:py-16">
         <Container className="max-w-3xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-on-ink">Curso · 3 aulas gratuitas</p>
@@ -69,11 +94,29 @@ export function CourseSales({
           <p className="mt-5 text-base leading-relaxed text-on-ink-muted sm:text-lg">
             Aprenda, aplique no seu negócio e salve o diagnóstico e as ferramentas no seu projeto.
           </p>
-          <p className="mt-6">
-            <AcquisitionLink className={buttonClass("inverted")} href="#aulas-gratuitas" event="course_free_start" payload={{ course_slug: course.slug, cta_name: "aulas_gratuitas" }}>
-              Começar com as aulas gratuitas
-            </AcquisitionLink>
-          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            {ownsAllPaid ? (
+              <Link className={buttonClass("inverted")} href="/app/aprendizado">
+                Continuar curso
+              </Link>
+            ) : (
+              <>
+                <AcquisitionLink className={buttonClass("inverted")} href="#aulas-gratuitas" event="course_free_start" payload={{ course_slug: course.slug, cta_name: "aulas_gratuitas" }}>
+                  Começar pelas aulas gratuitas
+                </AcquisitionLink>
+                {courseOpen ? (
+                  <AcquisitionLink
+                    className={buttonClass("secondary", "border-white/30 bg-transparent text-on-ink hover:bg-white/10")}
+                    href="#curso-completo"
+                    event="course_cta_click"
+                    payload={{ course_slug: course.slug, cta_name: "curso_completo_hero" }}
+                  >
+                    {`Curso completo — ${formatPriceCents(course.bundlePriceCents ?? 0)}`}
+                  </AcquisitionLink>
+                ) : null}
+              </>
+            )}
+          </div>
         </Container>
       </section>
 
@@ -118,9 +161,78 @@ export function CourseSales({
         </Container>
       </section>
 
+      <section id="curso-completo" className="scroll-mt-24 border-t border-border bg-[linear-gradient(180deg,#f7f9fc_0%,#ffffff_72%)] py-16">
+        <Container className="max-w-3xl">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Oferta principal</p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Faça a jornada completa</h2>
+          <p className="mt-3 text-base leading-relaxed text-muted">Do primeiro planejamento até a análise dos seus próprios resultados.</p>
+
+          <div className="mt-8 rounded-2xl border border-cta/25 bg-surface p-6 shadow-[0_24px_48px_-36px_rgba(11,18,32,0.55)] sm:p-8">
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Curso completo</p>
+            <h3 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">{course.title}</h3>
+            <p className="mt-3 text-sm text-muted">
+              {allLessons.length} aulas · {course.modules.length} módulos
+            </p>
+            <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+              {FULL_COURSE_BENEFITS.map((benefit) => (
+                <li key={benefit} className="text-sm text-foreground">
+                  <span className="mr-2 text-cta" aria-hidden>
+                    ✓
+                  </span>
+                  {benefit}
+                </li>
+              ))}
+            </ul>
+
+            {course.bundlePriceCents != null ? (
+              <div className="mt-6 space-y-2 border-t border-border pt-5">
+                {individualTotalCents > 0 ? (
+                  <p className="text-sm text-muted">
+                    Comprando as aulas individualmente: <span className="line-through">{formatPriceCents(individualTotalCents)}</span>
+                  </p>
+                ) : null}
+                <p className="text-lg font-semibold text-foreground">
+                  Curso completo: {formatPriceCents(course.bundlePriceCents)}
+                  {courseOpen ? "" : " · Disponível em breve."}
+                </p>
+                {savingsCents > 0 ? (
+                  <p className="text-sm text-muted">
+                    Economia: {formatPriceCents(savingsCents)}
+                    {individualTotalCents > 0 ? ` (cerca de ${Math.round((savingsCents / individualTotalCents) * 100)}%)` : ""}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="mt-6">
+              {ownsAllPaid ? (
+                <Link className={buttonClass("primary")} href="/app/aprendizado">
+                  Acessar meu aprendizado
+                </Link>
+              ) : courseOpen ? (
+                <AddToCartButton
+                  id={course.id}
+                  type="COURSE"
+                  label={`Comprar curso completo — ${formatPriceCents(course.bundlePriceCents ?? 0)}`}
+                  lessonIds={paidLessons.map((lesson) => lesson.id)}
+                />
+              ) : (
+                <p className="text-sm text-muted">Disponível em breve.</p>
+              )}
+            </div>
+            {hasPartialPurchase && !ownsAllPaid ? (
+              <p className="mt-4 text-sm leading-relaxed text-muted">
+                Compras anteriores elegíveis viram crédito automaticamente no checkout.
+              </p>
+            ) : null}
+          </div>
+        </Container>
+      </section>
+
       <section id="programa" className="scroll-mt-24 border-t border-border py-16">
         <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight">Programa</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Prefere avançar por partes?</h2>
+          <p className="mt-3 text-base leading-relaxed text-muted">Você também pode adquirir módulos ou aulas individualmente.</p>
           <div className="mt-8 space-y-10">
             {course.modules.map((moduleRow, index) => (
               <section key={moduleRow.id}>
@@ -160,26 +272,6 @@ export function CourseSales({
           <p className="mt-4 text-sm leading-relaxed text-muted">
             Nas aulas de análise, você também pode enviar um CSV ou XLSX privado da campanha para diagnosticar gargalos sem expor o arquivo em páginas públicas.
           </p>
-        </Container>
-      </section>
-
-      <section id="precos" className="scroll-mt-24 border-t border-border py-16">
-        <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight">Preços</h2>
-          {course.bundlePriceCents != null ? (
-            <p className="mt-4 text-base">
-              {`Curso completo: ${formatPriceCents(course.bundlePriceCents)}.${courseOpen ? "" : " Disponível em breve."}`}
-            </p>
-          ) : null}
-          {courseOpen ? (
-            <AddToCartButton
-              id={course.id}
-              type="COURSE"
-              label={`Curso completo — ${formatPriceCents(course.bundlePriceCents ?? 0)}`}
-              lessonIds={course.modules.flatMap((moduleRow) => moduleRow.lessons).filter((lesson) => lesson.accessType === "PAID").map((lesson) => lesson.id)}
-            />
-          ) : null}
-          <p className="mt-3 text-sm leading-relaxed text-muted">Os valores das aulas e dos módulos aparecem no programa, vindos do cadastro do curso.</p>
         </Container>
       </section>
 
