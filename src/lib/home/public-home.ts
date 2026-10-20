@@ -1,13 +1,15 @@
 export const publicHomeCopy = {
-  hero: "Aprenda tráfego pago aplicando no seu próprio negócio.",
-  primaryCta: "Começar gratuitamente",
-  secondaryCta: "Prefiro contratar a gestão",
+  hero: "Tecnologia, marketing e estratégia para fazer seu negócio avançar.",
+  support:
+    "Aprenda com cursos práticos ou conte comigo para estruturar sua presença digital, tráfego e conversão.",
+  primaryCta: "Conhecer os cursos",
+  secondaryCta: "Quero atrair mais clientes",
 } as const;
 
 export const publicHomeMetadata = {
-  title: "Aprenda tráfego pago na prática",
+  title: "Cursos, tráfego pago e tecnologia",
   description:
-    "Alexandre Feio ensina tráfego pago para aplicar no próprio negócio e também faz a gestão para quem prefere delegar.",
+    "Alexandre Feio: cursos práticos e gestão de tráfego, sites e conversão para pequenos negócios avançarem com critério.",
   canonical: "/",
 } as const;
 

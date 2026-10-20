@@ -23,8 +23,8 @@ export const metadata: Metadata = {
 export default async function Home() {
   const session = await getSession();
   const course = await getPublishedCourse(FIRST_COURSE_SLUG);
-  const freeLessons =
-    course?.modules.flatMap((moduleRow) => moduleRow.lessons).filter((lesson) => lesson.accessType === "FREE") ?? [];
+  const lessons = course?.modules.flatMap((moduleRow) => moduleRow.lessons) ?? [];
+  const freeLessons = lessons.filter((lesson) => lesson.accessType === "FREE");
 
   let continuation = null;
   if (session?.user.id) {
@@ -37,7 +37,8 @@ export default async function Home() {
   return (
     <CourseHome
       courseTitle={course?.title ?? "Tráfego Pago na Prática para Pequenos Negócios"}
-      coursePriceCents={course?.bundlePriceCents ?? null}
+      lessonCount={lessons.length || 12}
+      moduleCount={course?.modules.length || 5}
       freeLessons={freeLessons.map((lesson) => ({
         slug: lesson.slug,
         title: lesson.title,

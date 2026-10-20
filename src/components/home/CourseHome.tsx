@@ -5,21 +5,9 @@ import { Container } from "@/components/ui/Container";
 import { aboutContent } from "@/data/home";
 import { buttonClass } from "@/lib/button-styles";
 import { publicHomeCopy } from "@/lib/home/public-home";
-import { formatPriceCents } from "@/lib/learning/money";
 
 const COURSE_PATH = "/cursos/trafego-pago-na-pratica";
-const FREE_ANCHOR = `${COURSE_PATH}#aulas-gratuitas`;
-
-const builds = [
-  { title: "Meu primeiro mapa de tráfego", lesson: "Aula 1", href: "/aulas/como-funciona-o-trafego-pago" },
-  { title: "Minha indicação inicial de canal", lesson: "Aula 2", href: "/aulas/google-ads-ou-meta-ads" },
-  { title: "Diagnóstico de Prontidão", lesson: "Aula 3", href: "/aulas/negocio-pronto-para-anunciar" },
-  { title: "Brief Inicial de Campanha", lesson: "Aula 4", href: "/aulas/objetivo-oferta-orcamento" },
-  { title: "Plano de Destino e Mensuração", lesson: "Aula 5", href: "/aulas/destino-e-mensuracao" },
-  { title: "Blueprint de Campanha de Pesquisa", lesson: "Aula 6", href: "/aulas/campanha-de-pesquisa" },
-  { title: "Leitura de números da campanha", lesson: "Aula 11", href: "/aulas/leia-os-numeros" },
-  { title: "Plano de ação no Plano Vivo", lesson: "Aula 12", href: "/aulas/o-que-mudar" },
-] as const;
+const FIRST_FREE_LESSON = "/aulas/como-funciona-o-trafego-pago";
 
 type HomeLesson = {
   slug: string;
@@ -31,15 +19,19 @@ type HomeLesson = {
 
 export function CourseHome({
   courseTitle,
-  coursePriceCents,
+  lessonCount,
+  moduleCount,
   freeLessons,
   continuation = null,
 }: {
   courseTitle: string;
-  coursePriceCents: number | null;
+  lessonCount: number;
+  moduleCount: number;
   freeLessons: HomeLesson[];
   continuation?: ReactNode;
 }) {
+  const freeCount = freeLessons.length;
+
   return (
     <>
       <section className="hero-stage final-stage py-14 text-on-ink sm:py-16 lg:py-20">
@@ -48,11 +40,9 @@ export function CourseHome({
           <h1 className="mt-4 max-w-3xl text-[2.05rem] font-semibold leading-[1.08] tracking-tight text-on-ink sm:text-5xl">
             {publicHomeCopy.hero}
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-on-ink-muted sm:text-lg">
-            Uma trilha em texto para planejar, executar e medir. Se preferir delegar, eu também cuido da estratégia e da gestão.
-          </p>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-on-ink-muted sm:text-lg">{publicHomeCopy.support}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <AcquisitionLink className={buttonClass("inverted")} href={FREE_ANCHOR} event="course_cta_click" payload={{ course_slug: "trafego-pago-na-pratica", cta_name: "comecar_gratuitamente" }}>
+            <AcquisitionLink className={buttonClass("inverted")} href="/cursos" event="course_cta_click" payload={{ cta_name: "conhecer_os_cursos" }}>
               {publicHomeCopy.primaryCta}
             </AcquisitionLink>
             <Link className={`${buttonClass("secondary")} border-white/20 bg-transparent text-on-ink hover:bg-white/10`} href="/trafego-pago">
@@ -64,70 +54,95 @@ export function CourseHome({
 
       {continuation}
 
-      <section id="nao-e-so-assistir" className="scroll-mt-24 py-16">
-        <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Não é só assistir</h2>
-          <p className="mt-4 text-base leading-relaxed">
-            Cada aula pede uma decisão sobre o seu negócio. O que você responde fica salvo no seu projeto: mapa, diagnóstico, brief, plano e estrutura de campanha.
-          </p>
-        </Container>
-      </section>
-
-      <section className="border-t border-border py-16">
+      <section id="cursos" className="scroll-mt-24 py-16">
         <Container>
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Três aulas gratuitas</h2>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Cursos</p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Aprenda na prática</h2>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
-            Comece sem conta. O texto completo das três primeiras aulas está aberto.
+            Cursos feitos para transformar conhecimento em aplicação real no seu negócio.
           </p>
-          <ol className="mt-8 grid gap-4 md:grid-cols-3">
-            {freeLessons.map((lesson, index) => (
-              <li key={lesson.slug} className="rounded-lg border border-border bg-surface p-5">
-                <p className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Aula {index + 1} · gratuita</p>
-                <h3 className="mt-3 text-lg font-medium">{lesson.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{lesson.summary}</p>
-                <p className="mt-4 text-sm text-muted">{lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min` : "Leitura"}</p>
-                <AcquisitionLink className="mt-4 inline-flex text-sm font-medium underline underline-offset-4" href={`/aulas/${lesson.slug}`} event="course_free_start" payload={{ course_slug: "trafego-pago-na-pratica", lesson_slug: lesson.slug, cta_name: "comecar_aula" }}>
-                  Começar aula
-                </AcquisitionLink>
-              </li>
-            ))}
-          </ol>
+
+          <article className="mt-8 rounded-2xl border border-border bg-surface p-6 shadow-[0_22px_44px_-36px_rgba(11,18,32,0.5)] sm:p-8">
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Curso em destaque</p>
+            <h3 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">{courseTitle}</h3>
+            <p className="mt-3 text-sm text-muted">
+              {lessonCount} aulas · {moduleCount} módulos
+              {freeCount > 0 ? ` · ${freeCount} aulas gratuitas` : ""}
+            </p>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
+              Do planejamento à análise dos resultados, aplicando cada etapa no seu próprio negócio.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <AcquisitionLink
+                className={buttonClass("primary")}
+                href={COURSE_PATH}
+                event="course_cta_click"
+                payload={{ course_slug: "trafego-pago-na-pratica", cta_name: "conhecer_o_curso" }}
+              >
+                Conhecer o curso
+              </AcquisitionLink>
+              <AcquisitionLink
+                className={buttonClass("secondary")}
+                href={freeLessons[0] ? `/aulas/${freeLessons[0].slug}` : FIRST_FREE_LESSON}
+                event="course_free_start"
+                payload={{ course_slug: "trafego-pago-na-pratica", cta_name: "comecar_gratuitamente" }}
+              >
+                Começar gratuitamente
+              </AcquisitionLink>
+            </div>
+          </article>
         </Container>
       </section>
 
-      <section id="o-que-voce-constroi" className="scroll-mt-24 border-t border-border py-16">
-        <Container>
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">O que você constrói</h2>
-          <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-            {builds.map((item) => (
-              <li key={item.href} className="rounded-lg border border-border p-4">
-                <p className="text-xs text-muted">{item.lesson}</p>
-                <Link className="mt-1 inline-flex font-medium underline underline-offset-4" href={item.href}>
-                  {item.title}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted">
-            Do mapa inicial à leitura de números e ao plano de ação: cada etapa grava uma decisão no seu projeto.
-          </p>
-        </Container>
-      </section>
+      {freeCount > 0 ? (
+        <section id="comece-gratis" className="scroll-mt-24 border-t border-border py-16">
+          <Container>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Comece gratuitamente</h2>
+            <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
+              Porta de entrada do curso de Tráfego Pago. Três aulas abertas para aplicar no seu negócio sem criar conta.
+            </p>
+            <ol className="mt-8 grid gap-4 md:grid-cols-3">
+              {freeLessons.map((lesson, index) => (
+                <li key={lesson.slug} className="rounded-lg border border-border bg-surface p-5">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Aula {index + 1} · gratuita</p>
+                  <h3 className="mt-3 text-lg font-medium">{lesson.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{lesson.summary}</p>
+                  <p className="mt-4 text-sm text-muted">{lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min` : "Leitura"}</p>
+                  <AcquisitionLink
+                    className="mt-4 inline-flex text-sm font-medium underline underline-offset-4"
+                    href={`/aulas/${lesson.slug}`}
+                    event="course_free_start"
+                    payload={{ course_slug: "trafego-pago-na-pratica", lesson_slug: lesson.slug, cta_name: "comecar_aula" }}
+                  >
+                    Começar aula
+                  </AcquisitionLink>
+                </li>
+              ))}
+            </ol>
+          </Container>
+        </section>
+      ) : null}
 
-      <section id="curso" className="scroll-mt-24 border-t border-border py-16">
+      <section id="aprenda-aplicando" className="scroll-mt-24 border-t border-border py-16">
         <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{courseTitle}</h2>
-          <p className="mt-4 text-base leading-relaxed">
-            Cinco módulos e doze aulas. Três estão abertas para começar. O restante do programa aplica o que você decide no seu próprio negócio.
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Aprenda aplicando</h2>
+          <p className="mt-4 text-base leading-relaxed text-muted">
+            Os cursos combinam conteúdo, ferramentas e atividades práticas para você sair com algo construído — não apenas com aulas assistidas.
           </p>
-          {coursePriceCents != null ? (
-            <p className="mt-4 text-sm text-muted">Curso completo: {formatPriceCents(coursePriceCents)}.</p>
-          ) : null}
-          <p className="mt-6">
-            <Link className={buttonClass("primary")} href={COURSE_PATH}>
-              Ver o curso
-            </Link>
-          </p>
+          <ol className="mt-8 grid gap-4 sm:grid-cols-3">
+            <li className="rounded-lg border border-border p-5">
+              <h3 className="font-medium">Planeje</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Defina critério, oferta e destino antes de investir.</p>
+            </li>
+            <li className="rounded-lg border border-border p-5">
+              <h3 className="font-medium">Aplique</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Use ferramentas e decisões no seu próprio projeto.</p>
+            </li>
+            <li className="rounded-lg border border-border p-5">
+              <h3 className="font-medium">Meça</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Leia o resultado e escolha a próxima ação com base.</p>
+            </li>
+          </ol>
         </Container>
       </section>
 
@@ -154,43 +169,28 @@ export function CourseHome({
         </Container>
       </section>
 
+      <section id="servico" className="scroll-mt-24 border-t border-border py-16">
+        <Container className="max-w-3xl">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Prefere delegar?</h2>
+          <p className="mt-4 text-base leading-relaxed">
+            Cursos são para aprender e aplicar. Se preferir que eu conduza, cuido da gestão de tráfego, da estrutura de conversão, da mensuração e, quando precisa, da landing page.
+          </p>
+          <p className="mt-6">
+            <AcquisitionLink className={buttonClass("secondary")} href="/trafego-pago" event="service_from_course_click" payload={{ cta_name: "conhecer_gestao" }}>
+              Conhecer a gestão
+            </AcquisitionLink>
+          </p>
+        </Container>
+      </section>
+
       <section id="sobre" className="scroll-mt-24 border-t border-border py-16">
         <Container className="max-w-3xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">{aboutContent.eyebrow}</p>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{aboutContent.title}</h2>
           <p className="mt-4 text-base leading-relaxed">{aboutContent.description}</p>
           <p className="mt-4 text-sm leading-relaxed text-muted">
-            O conteúdo do curso é escrito por mim, a partir de desenvolvimento, tecnologia, tráfego pago e marketing.
+            Trabalho com tecnologia, desenvolvimento, marketing, produto, tráfego e conversão — do aprendizado à execução.
           </p>
-        </Container>
-      </section>
-
-      <section id="servico" className="scroll-mt-24 border-t border-border py-16">
-        <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Prefere delegar?</h2>
-          <p className="mt-4 text-base leading-relaxed">
-            Além do curso, eu faço a gestão de tráfego pago, a estrutura de conversão, a mensuração e, quando precisa, a landing page.
-          </p>
-          <p className="mt-6">
-            <AcquisitionLink className={buttonClass("secondary")} href="/trafego-pago" event="service_from_course_click" payload={{ course_slug: "trafego-pago-na-pratica", cta_name: "conhecer_servico" }}>
-              Conhecer o serviço
-            </AcquisitionLink>
-          </p>
-        </Container>
-      </section>
-
-      <section className="border-t border-border py-16">
-        <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Comece pelas aulas abertas</h2>
-          <p className="mt-4 text-base leading-relaxed">O primeiro passo é aplicar o mapa, a escolha de canal e o diagnóstico no seu negócio.</p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <AcquisitionLink className={buttonClass("primary")} href={FREE_ANCHOR} event="course_cta_click" payload={{ course_slug: "trafego-pago-na-pratica", cta_name: "comecar_gratuitamente" }}>
-              {publicHomeCopy.primaryCta}
-            </AcquisitionLink>
-            <Link className={buttonClass("secondary")} href="/trafego-pago">
-              {publicHomeCopy.secondaryCta}
-            </Link>
-          </div>
         </Container>
       </section>
     </>

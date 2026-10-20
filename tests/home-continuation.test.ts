@@ -20,7 +20,7 @@ function lessons(patch: Partial<ContinuationLesson>[] = []): ContinuationLesson[
 
 test("anônimo permanece na home pública e a metadata não muda", () => {
   assert.equal(homeAudience(false), "anonymous");
-  assert.equal(publicHomeCopy.hero, "Aprenda tráfego pago aplicando no seu próprio negócio.");
+  assert.equal(publicHomeCopy.hero, "Tecnologia, marketing e estratégia para fazer seu negócio avançar.");
   assert.equal(publicHomeMetadata.canonical, "/");
   assert.equal(studentHomeRendering.dynamic, "force-dynamic");
   const page = readFileSync(new URL("../src/app/(public)/page.tsx", import.meta.url), "utf8");
