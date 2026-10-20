@@ -26,7 +26,9 @@ import { seedLesson10Content } from "@/lib/learning/seed-lesson-10";
 import { seedLesson11Content } from "@/lib/learning/seed-lesson-11";
 import { seedLesson12Content } from "@/lib/learning/seed-lesson-12";
 import { seedSiteAjudaAVenderContent } from "@/lib/learning/seed-site-ajuda-a-vender";
+import { seedSiteLandingWhatsappContent } from "@/lib/learning/seed-site-landing-page-ou-whatsapp";
 import { SITE_LESSON_01_SLUG } from "@/lib/learning/site-ajuda-a-vender";
+import { SITE_LESSON_02_SLUG } from "@/lib/learning/site-landing-page-ou-whatsapp";
 import { sitesCourseSeed } from "@/lib/learning/sites-course";
 
 const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LESSON_05_SLUG, LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG, LESSON_09_SLUG, LESSON_10_SLUG, LESSON_11_SLUG, LESSON_12_SLUG]);
@@ -153,6 +155,7 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
   const blocks = await prisma.lessonBlock.count({ where: { lesson: { module: { courseId: course.id } } } });
   const sitesCourse = await deploySitesCourseScaffold();
   const siteLesson01 = await seedSiteAjudaAVenderContent(prisma, seedOptions);
+  const siteLesson02 = await seedSiteLandingWhatsappContent(prisma, seedOptions);
   return {
     course: course.slug,
     lessons,
@@ -171,6 +174,7 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
     lesson12,
     sitesCourse,
     siteLesson01,
+    siteLesson02,
   };
 }
 
@@ -232,7 +236,7 @@ export async function deploySitesCourseScaffold() {
     modules += 1;
 
     for (const lessonSeed of moduleSeed.lessons) {
-      const contentOwned = lessonSeed.slug === SITE_LESSON_01_SLUG;
+      const contentOwned = lessonSeed.slug === SITE_LESSON_01_SLUG || lessonSeed.slug === SITE_LESSON_02_SLUG;
       await prisma.lesson.upsert({
         where: { slug: lessonSeed.slug },
         create: {

@@ -21,6 +21,8 @@ import { getPrisma } from "@/lib/db/prisma";
 import { addCampaignPreparationTask, loadCampaignBriefPanel, saveCampaignBriefForUser, syncCampaignBriefProject, type CampaignBriefPanel } from "@/lib/learning/brief";
 import { saveConversionJourneyForUser, type ConversionJourneyPanel } from "@/lib/learning/conversion-journey";
 import { journeyMapResponseSchema } from "@/lib/learning/conversion-journey-map";
+import { saveDigitalPresenceForUser, type DigitalPresencePanel } from "@/lib/learning/digital-presence";
+import { digitalPresenceResponseSchema } from "@/lib/learning/digital-presence-decision";
 import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinationPlanForUser, syncDestinationPlanProject, type DestinationPlanPanel } from "@/lib/learning/measurement";
 import { saveKeywordIntentForUser, type KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import type { KeywordPlanFormInput } from "@/lib/learning/keyword-intent";
@@ -43,7 +45,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -369,6 +371,28 @@ export async function saveConversionJourneyMap(
   return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
 }
 
+export async function saveDigitalPresenceDecision(
+  slug: string,
+  blockKey: string,
+  input: {
+    offer: string;
+    numberOfOffers: string;
+    explanationNeed: string;
+    trustNeed: string;
+    trafficSources: string[];
+    primaryAction: string;
+    currentStructure: string;
+    contentNeed: string;
+    projectId?: string;
+  },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveDigitalPresenceForUser(session.user.id, slug, blockKey, input);
+  if (!saved.ok) return saved;
+  return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
+}
+
 export async function syncCampaignBrief(slug: string, projectId: string): Promise<LearningActionResult> {
   const session = await getSession();
   if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
@@ -596,18 +620,30 @@ async function applyImported(
 
   for (const [blockKey, response] of Object.entries(progress.responses)) {
     const rule = known.get(blockKey);
-    if (!rule || rule.data.type !== "TOOL" || rule.data.toolKey !== "CONVERSION_JOURNEY_MAP_V1") continue;
+    if (!rule || rule.data.type !== "TOOL") continue;
     const existing = await prisma.lessonResponse.findUnique({
       where: { userId_lessonId_blockKey: { userId, lessonId, blockKey } },
     });
     if (existing) continue;
-    const parsed = journeyMapResponseSchema.safeParse(response);
-    if (!parsed.success || parsed.data.kind !== "personal") continue;
-    await prisma.lessonResponse.create({
-      data: { userId, lessonId, blockKey, payload: { kind: "personal", projectId: null, map: parsed.data.map } },
-    });
-    if (!(await prisma.lessonResult.findFirst({ where: { userId, lessonId, projectId: null } }))) {
-      await prisma.lessonResult.create({ data: { userId, lessonId, projectId: null, payload: parsed.data.map } });
+    if (rule.data.toolKey === "CONVERSION_JOURNEY_MAP_V1") {
+      const parsed = journeyMapResponseSchema.safeParse(response);
+      if (!parsed.success || parsed.data.kind !== "personal") continue;
+      await prisma.lessonResponse.create({
+        data: { userId, lessonId, blockKey, payload: { kind: "personal", projectId: null, map: parsed.data.map } },
+      });
+      if (!(await prisma.lessonResult.findFirst({ where: { userId, lessonId, projectId: null } }))) {
+        await prisma.lessonResult.create({ data: { userId, lessonId, projectId: null, payload: parsed.data.map } });
+      }
+    }
+    if (rule.data.toolKey === "DIGITAL_PRESENCE_DECISION_V1") {
+      const parsed = digitalPresenceResponseSchema.safeParse(response);
+      if (!parsed.success || parsed.data.kind !== "personal") continue;
+      await prisma.lessonResponse.create({
+        data: { userId, lessonId, blockKey, payload: { kind: "personal", projectId: null, decision: parsed.data.decision } },
+      });
+      if (!(await prisma.lessonResult.findFirst({ where: { userId, lessonId, projectId: null } }))) {
+        await prisma.lessonResult.create({ data: { userId, lessonId, projectId: null, payload: parsed.data.decision } });
+      }
     }
   }
 }

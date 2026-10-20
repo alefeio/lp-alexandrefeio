@@ -7,6 +7,7 @@ import {
   type LessonBlockData,
 } from "@/lib/learning/blocks";
 import { journeyMapResponseSchema } from "@/lib/learning/conversion-journey-map";
+import { digitalPresenceResponseSchema } from "@/lib/learning/digital-presence-decision";
 
 const EMPTY_BRIEF_PROJECTS: ReadonlySet<string> = new Set();
 const EMPTY_PLAN_PROJECTS: ReadonlySet<string> = new Set();
@@ -135,6 +136,9 @@ export function isBlockComplete(
     case "TOOL":
       if (block.data.toolKey === "CONVERSION_JOURNEY_MAP_V1") {
         return journeyMapResponseSchema.safeParse(answer?.response).success;
+      }
+      if (block.data.toolKey === "DIGITAL_PRESENCE_DECISION_V1") {
+        return digitalPresenceResponseSchema.safeParse(answer?.response).success;
       }
       if (
         block.data.toolKey === "CAMPAIGN_BRIEF_V1" ||

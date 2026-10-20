@@ -70,7 +70,8 @@ export const sitesCourseSeed = {
           slug: "site-landing-page-ou-whatsapp",
           title: "Site, landing page ou WhatsApp: o que seu negócio precisa?",
           summary: "Escolha a estrutura digital adequada ao tipo de oferta e ao próximo passo do cliente.",
-          publicPreview: null,
+          publicPreview:
+            "A resposta não é “todo mundo precisa de site”. Nesta aula você decide se faz mais sentido landing page, site institucional, página de serviço, WhatsApp ou uma combinação — com base na jornada do seu negócio.",
           estimatedMinutes: 25,
           sortOrder: 1,
           accessType: "FREE" as const,

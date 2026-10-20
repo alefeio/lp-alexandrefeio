@@ -10,6 +10,7 @@ import { previewBlocksFor } from "@/lib/editorial/service";
 import type { ReaderBlock } from "@/lib/learning/reader-types";
 import { campaignBriefPreviewState } from "@/lib/learning/brief";
 import { conversionJourneyPreviewState } from "@/lib/learning/conversion-journey";
+import { digitalPresencePreviewState } from "@/lib/learning/digital-presence";
 import { destinationPlanPreviewState } from "@/lib/learning/measurement";
 import { keywordIntentPreviewState } from "@/lib/learning/keyword-plan";
 import { leadConversionPreviewState } from "@/lib/learning/lead-conversion-plan";
@@ -98,6 +99,7 @@ function previewToolPanel(blocks: ReaderBlock[]) {
   const tool = blocks.find((block) => block.data.type === "TOOL");
   const toolKey = tool?.data.type === "TOOL" ? tool.data.toolKey : null;
   if (toolKey === "CONVERSION_JOURNEY_MAP_V1") return conversionJourneyPreviewState();
+  if (toolKey === "DIGITAL_PRESENCE_DECISION_V1") return digitalPresencePreviewState();
   if (toolKey === "CAMPAIGN_BRIEF_V1") return campaignBriefPreviewState();
   if (toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") return destinationPlanPreviewState();
   if (toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1") return searchBlueprintPreviewState();
