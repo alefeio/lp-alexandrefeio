@@ -37,6 +37,7 @@ const modules: SaleModule[] = [
     bundlePriceCents: 5790,
     courseId: "course",
     paidLessonIds: ["l4", "l5"],
+    lessonCount: 2,
   },
   {
     id: "google",
@@ -47,6 +48,7 @@ const modules: SaleModule[] = [
     bundlePriceCents: 10390,
     courseId: "course",
     paidLessonIds: ["l6", "l7", "l8"],
+    lessonCount: 3,
   },
   {
     id: "meta",
@@ -57,6 +59,7 @@ const modules: SaleModule[] = [
     bundlePriceCents: 7190,
     courseId: "course",
     paidLessonIds: ["l9"],
+    lessonCount: 1,
   },
 ];
 
@@ -68,6 +71,7 @@ const course: SaleCourse = {
   commerceStatus: "AVAILABLE",
   bundlePriceCents: 24990,
   paidLessonIds: ["l4", "l5", "l6", "l7", "l8", "l9"],
+  lessonCount: 12,
 };
 
 const catalog = { lessons, modules, courses: [course] };

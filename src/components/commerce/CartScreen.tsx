@@ -123,10 +123,10 @@ export function CartScreen() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-base font-medium text-foreground">{item.title}</p>
-                    <p className="mt-1 text-sm text-muted">{typeLabel(item.productType, item.lessonIds.length)}</p>
+                    <p className="mt-1 text-sm text-muted">{typeLabel(item.productType, item.displayLessonCount)}</p>
                     {item.productType === "COURSE" ? (
                       <p className="mt-3 text-sm text-muted">
-                        {item.lessonIds.length} aulas · Ferramentas práticas · Diagnóstico e plano de ação
+                        {item.displayLessonCount} aulas · Ferramentas práticas · Diagnóstico e plano de ação
                       </p>
                     ) : null}
                   </div>

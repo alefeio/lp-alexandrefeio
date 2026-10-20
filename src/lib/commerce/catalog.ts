@@ -16,10 +16,12 @@ export async function loadSaleCatalog(): Promise<{ lessons: SaleLesson[]; module
   const courses: SaleCourse[] = [];
   for (const course of rows) {
     const coursePaid: string[] = [];
+    let courseLessonCount = 0;
     for (const moduleRow of course.modules) {
       const paid = moduleRow.lessons.filter((lesson) => lesson.accessType === "PAID");
       const paidIds = paid.map((lesson) => lesson.id);
       coursePaid.push(...paidIds);
+      courseLessonCount += moduleRow.lessons.length;
       for (const lesson of moduleRow.lessons) {
         lessons.push({
           id: lesson.id,
@@ -42,6 +44,7 @@ export async function loadSaleCatalog(): Promise<{ lessons: SaleLesson[]; module
         bundlePriceCents: moduleRow.bundlePriceCents,
         courseId: course.id,
         paidLessonIds: paidIds,
+        lessonCount: moduleRow.lessons.length,
       });
     }
     courses.push({
@@ -52,6 +55,7 @@ export async function loadSaleCatalog(): Promise<{ lessons: SaleLesson[]; module
       commerceStatus: course.commerceStatus,
       bundlePriceCents: course.bundlePriceCents,
       paidLessonIds: coursePaid,
+      lessonCount: courseLessonCount,
     });
   }
   return { lessons, modules, courses };

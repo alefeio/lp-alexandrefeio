@@ -23,7 +23,10 @@ export type SaleModule = {
   commerceStatus: CommerceStatusName;
   bundlePriceCents: number | null;
   courseId: string;
+  /** Aulas PAID do módulo — escopo de entitlement e crédito. */
   paidLessonIds: string[];
+  /** Quantidade comercial exibida: composição real do módulo (todas as aulas). */
+  lessonCount: number;
 };
 
 export type SaleCourse = {
@@ -33,7 +36,10 @@ export type SaleCourse = {
   status: "DRAFT" | "PUBLISHED";
   commerceStatus: CommerceStatusName;
   bundlePriceCents: number | null;
+  /** Aulas PAID do curso — escopo de entitlement e crédito. */
   paidLessonIds: string[];
+  /** Quantidade comercial exibida: composição real do curso (FREE + PAID). */
+  lessonCount: number;
 };
 
 export type CreditSource = {
@@ -49,7 +55,10 @@ export type QuoteItem = {
   productId: string;
   title: string;
   slug: string;
+  /** Escopo PAID (entitlement / crédito). Não usar para texto comercial. */
   lessonIds: string[];
+  /** Contagem exibida no checkout (composição do produto). */
+  displayLessonCount: number;
   listPriceCents: number;
   creditAppliedCents: number;
   finalPriceCents: number;
@@ -102,6 +111,7 @@ function lineItem(input: {
   title: string;
   slug: string;
   lessonIds: string[];
+  displayLessonCount: number;
   listPriceCents: number;
   ownedLessonIds: Set<string>;
   sources: CreditSource[];
@@ -114,6 +124,7 @@ function lineItem(input: {
     title: input.title,
     slug: input.slug,
     lessonIds: input.lessonIds,
+    displayLessonCount: input.displayLessonCount,
     listPriceCents: input.listPriceCents,
     creditAppliedCents,
     finalPriceCents: input.listPriceCents - creditAppliedCents,
@@ -159,6 +170,7 @@ export function quoteCart(input: {
       title: lesson.title,
       slug: lesson.slug,
       lessonIds: [lesson.id],
+      displayLessonCount: 1,
       listPriceCents: lesson.priceCents,
       creditAppliedCents: 0,
       finalPriceCents: lesson.priceCents,
@@ -180,6 +192,7 @@ export function quoteCart(input: {
         title: moduleRow.title,
         slug: moduleRow.slug,
         lessonIds: moduleRow.paidLessonIds,
+        displayLessonCount: moduleRow.lessonCount,
         listPriceCents: moduleRow.bundlePriceCents,
         ownedLessonIds: owned,
         sources: input.sources,
@@ -202,6 +215,7 @@ export function quoteCart(input: {
         title: course.title,
         slug: course.slug,
         lessonIds: course.paidLessonIds,
+        displayLessonCount: course.lessonCount,
         listPriceCents: course.bundlePriceCents,
         ownedLessonIds: owned,
         sources: input.sources,

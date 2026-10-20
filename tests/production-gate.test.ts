@@ -127,6 +127,7 @@ test("NOT_FOR_SALE não gera checkout e AVAILABLE futuro gera", () => {
     bundlePriceCents: 5790,
     courseId: "course",
     paidLessonIds: ["lesson-4"],
+    lessonCount: 1,
   };
   const course: SaleCourse = {
     id: "course",
@@ -136,6 +137,7 @@ test("NOT_FOR_SALE não gera checkout e AVAILABLE futuro gera", () => {
     commerceStatus: "NOT_FOR_SALE",
     bundlePriceCents: 24990,
     paidLessonIds: ["lesson-4"],
+    lessonCount: 12,
   };
   const closed = quoteCart({ lines: [{ type: "LESSON", id: "lesson-4" }], lessons: [lesson("NOT_FOR_SALE")], modules: [], courses: [], sources: [], ownedLessonIds: [] });
   assert.equal(closed.ok, false);

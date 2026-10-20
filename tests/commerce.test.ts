@@ -43,6 +43,7 @@ const moduleRow: SaleModule = {
   bundlePriceCents: 10390,
   courseId: "course",
   paidLessonIds: ["a", "b", "c"],
+  lessonCount: 3,
 };
 const course: SaleCourse = {
   id: "course",
@@ -52,6 +53,7 @@ const course: SaleCourse = {
   commerceStatus: "AVAILABLE",
   bundlePriceCents: 24990,
   paidLessonIds: ["a", "b", "c"],
+  lessonCount: 3,
 };
 
 function view(patch: Partial<ProviderPaymentView>): ProviderPaymentView {
@@ -175,6 +177,7 @@ test("upgrade do módulo Google usa só o valor pago das aulas 6, 7 e 8", () => 
     slug: "google-ads-na-pratica",
     bundlePriceCents: 10390,
     paidLessonIds: ["l6", "l7", "l8"],
+    lessonCount: 3,
   };
   function due(paid: Array<[string, number]>, owned: string[]) {
     const quote = quoteCart({
@@ -256,6 +259,7 @@ test("upgrade do módulo Meta usa só o valor pago das aulas 9 e 10", () => {
     slug: "meta-ads-na-pratica",
     bundlePriceCents: 7190,
     paidLessonIds: ["l9", "l10"],
+    lessonCount: 2,
   };
   function due(paid: Array<[string, number]>, owned: string[]) {
     const quote = quoteCart({
@@ -340,6 +344,7 @@ test("upgrade do curso completo usa crédito real sem duplicar módulo", () => {
     slug: "trafego-pago-na-pratica",
     bundlePriceCents: 24990,
     paidLessonIds: paid.map((item) => item.id),
+    lessonCount: 12,
   };
   function due(sources: CreditSource[], owned: string[]) {
     const quote = quoteCart({
@@ -392,6 +397,98 @@ test("upgrade do curso completo usa crédito real sem duplicar módulo", () => {
   assert.equal(amountDueCents(24990, 33410), 0);
 });
 
+test("curso completo exibe 12 aulas e mantém entitlement pago em 9", () => {
+  const free = [
+    lesson("l1", 0, { accessType: "FREE", priceCents: null, commerceStatus: "NOT_FOR_SALE" }),
+    lesson("l2", 0, { accessType: "FREE", priceCents: null, commerceStatus: "NOT_FOR_SALE" }),
+    lesson("l3", 0, { accessType: "FREE", priceCents: null, commerceStatus: "NOT_FOR_SALE" }),
+  ];
+  const paid = [
+    lesson("l4", 2990),
+    lesson("l5", 3490),
+    lesson("l6", 3990),
+    lesson("l7", 3990),
+    lesson("l8", 3490),
+    lesson("l9", 3990),
+    lesson("l10", 3990),
+    lesson("l11", 3490),
+    lesson("l12", 3990),
+  ];
+  const modules: SaleModule[] = [
+    {
+      ...moduleRow,
+      id: "planeje",
+      slug: "planeje-antes-de-anunciar",
+      title: "Planeje",
+      bundlePriceCents: 5790,
+      paidLessonIds: ["l4", "l5"],
+      lessonCount: 2,
+    },
+    {
+      ...moduleRow,
+      id: "google",
+      slug: "google-ads-na-pratica",
+      title: "Google",
+      bundlePriceCents: 10390,
+      paidLessonIds: ["l6", "l7", "l8"],
+      lessonCount: 3,
+    },
+    {
+      ...moduleRow,
+      id: "meta",
+      slug: "meta-ads-na-pratica",
+      title: "Meta",
+      bundlePriceCents: 7190,
+      paidLessonIds: ["l9", "l10"],
+      lessonCount: 2,
+    },
+    {
+      ...moduleRow,
+      id: "final",
+      slug: "entenda-e-melhore",
+      title: "Final",
+      bundlePriceCents: 6790,
+      paidLessonIds: ["l11", "l12"],
+      lessonCount: 2,
+    },
+  ];
+  const fullCourse: SaleCourse = {
+    ...course,
+    id: "course",
+    slug: "trafego-pago-na-pratica",
+    bundlePriceCents: 24990,
+    paidLessonIds: paid.map((item) => item.id),
+    lessonCount: free.length + paid.length,
+  };
+
+  assert.equal(fullCourse.lessonCount, 12);
+  assert.equal(fullCourse.paidLessonIds.length, 9);
+  assert.deepEqual(
+    modules.map((row) => ({ title: row.title, count: row.lessonCount })),
+    [
+      { title: "Planeje", count: 2 },
+      { title: "Google", count: 3 },
+      { title: "Meta", count: 2 },
+      { title: "Final", count: 2 },
+    ],
+  );
+
+  const quote = quoteCart({
+    lines: [{ type: "COURSE", id: "course" }],
+    lessons: [...free, ...paid],
+    modules,
+    courses: [fullCourse],
+    sources: [source("l4", 2990, ["l4"])],
+    ownedLessonIds: ["l4"],
+  });
+  assert.equal(quote.ok, true);
+  if (!quote.ok) return;
+  assert.equal(quote.items[0]?.displayLessonCount, 12);
+  assert.equal(quote.items[0]?.lessonIds.length, 9);
+  assert.equal(quote.creditCents, 2990);
+  assert.equal(quote.totalCents, 22000);
+});
+
 test("upgrade do módulo final usa só o valor pago das aulas 11 e 12", () => {
   const finalLessons = [lesson("l11", 3490), lesson("l12", 3990)];
   const finalModule: SaleModule = {
@@ -400,6 +497,7 @@ test("upgrade do módulo final usa só o valor pago das aulas 11 e 12", () => {
     slug: "entenda-e-melhore",
     bundlePriceCents: 6790,
     paidLessonIds: ["l11", "l12"],
+    lessonCount: 2,
   };
   function due(paid: Array<[string, number]>, owned: string[]) {
     const quote = quoteCart({
