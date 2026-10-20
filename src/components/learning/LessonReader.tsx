@@ -36,6 +36,7 @@ import {
 import type { LessonSnapshot, ReaderBlock, ReaderLesson } from "@/lib/learning/reader-types";
 import type { TrafficToolPanel } from "@/lib/learning/tool";
 import { CampaignBriefTool } from "@/components/learning/CampaignBriefTool";
+import { ConversionJourneyMapTool } from "@/components/learning/ConversionJourneyMapTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { KeywordIntentTool } from "@/components/learning/KeywordIntentTool";
 import { MetaCampaignTool } from "@/components/learning/MetaCampaignTool";
@@ -43,6 +44,8 @@ import { ResponsiveSearchAdTool } from "@/components/learning/ResponsiveSearchAd
 import { SearchBlueprintTool } from "@/components/learning/SearchBlueprintTool";
 import { TrafficReadinessTool } from "@/components/learning/TrafficReadinessTool";
 import type { CampaignBriefPanel } from "@/lib/learning/brief";
+import type { ConversionJourneyPanel } from "@/lib/learning/conversion-journey";
+import { journeyMapResponseSchema, type ConversionJourneyMap } from "@/lib/learning/conversion-journey-map";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import { LeadConversionTool } from "@/components/learning/LeadConversionTool";
@@ -57,6 +60,20 @@ import type { SearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { authNextHref } from "@/lib/auth/messages";
 import { buttonClass } from "@/lib/button-styles";
 
+type ToolPanel =
+  | TrafficToolPanel
+  | CampaignBriefPanel
+  | DestinationPlanPanel
+  | SearchBlueprintPanel
+  | KeywordIntentPanel
+  | ResponsiveAdPanel
+  | MetaCampaignPanel
+  | LeadConversionPanel
+  | CampaignDiagnosisPanel
+  | CampaignNextActionPanel
+  | ConversionJourneyPanel
+  | null;
+
 type Props = {
   lesson: ReaderLesson;
   blocks: ReaderBlock[];
@@ -65,9 +82,8 @@ type Props = {
   authenticated: boolean;
   resume: boolean;
   preview?: boolean;
-  toolPanel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | null;
+  toolPanel?: ToolPanel;
 };
-
 export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
   const [snapshot, setSnapshot] = useState(initial);
   const [explanations, setExplanations] = useState<Record<string, string>>(() =>
@@ -582,10 +598,28 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
                 onBookmark={onBookmark}
                 toolPanel={toolPanel}
                 onToolLinked={setSnapshot}
+                onAnonymousJourneySaved={(map, blockKey) => {
+                  setSnapshot((current) => {
+                    const next = withCompleted(
+                      {
+                        ...current,
+                        lastBlockKey: advanceKey(blocks, current.lastBlockKey, blockKey),
+                        responses: {
+                          ...current.responses,
+                          [blockKey]: { kind: "personal", projectId: null, map },
+                        },
+                      },
+                      blocks,
+                      blockKey,
+                    );
+                    remember(lesson.slug, next);
+                    return next;
+                  });
+                }}
               />
               {!preview &&
               shouldOfferSaveProgress({ slug: lesson.slug, authenticated, completedBlockKeys: snapshot.completedBlockKeys }) &&
-              (block.blockKey === "resultado-primeiro-mapa" || block.blockKey === "resultado-indicacao-canal") ? (
+              (block.blockKey === "resultado-primeiro-mapa" || block.blockKey === "resultado-indicacao-canal" || block.blockKey === "tool-mapa-conversao") ? (
                 <aside className="mt-6 rounded-lg border border-border bg-surface px-5 py-4">
                   <p className="font-medium">Salve seu progresso na sua conta</p>
                   <p className="mt-2 text-sm leading-relaxed text-muted">Continue de qualquer dispositivo e use seus resultados nas próximas aulas.</p>
@@ -675,8 +709,9 @@ function BlockView(props: {
   onResult: (values: Record<string, string>, blockKey: string) => void;
   onNote: (blockKey: string, body: string) => void;
   onBookmark: (blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | null;
+  toolPanel: ToolPanel;
   onToolLinked: (snapshot: LessonSnapshot) => void;
+  onAnonymousJourneySaved?: (map: ConversionJourneyMap, blockKey: string) => void;
 }) {
   const { block, snapshot } = props;
   const done = snapshot.completedBlockKeys.includes(block.blockKey);
@@ -720,11 +755,12 @@ function BlockBody(props: {
   explanation?: string;
   correct?: boolean;
   pending: boolean;
+  onAnonymousJourneySaved?: (map: ConversionJourneyMap, blockKey: string) => void;
   onCheckpoint: (blockKey: string, optionId: string) => void;
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
-  toolPanel: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | null;
+  toolPanel: ToolPanel;
   onToolLinked: (snapshot: LessonSnapshot) => void;
 }) {
   const data = props.block.data;
@@ -868,6 +904,20 @@ function BlockBody(props: {
       <div>
         <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
         <CampaignBriefTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "CONVERSION_JOURNEY_MAP_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "journey" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <ConversionJourneyMapTool
+          panel={panel}
+          description={data.description}
+          onSaved={(snapshot) => props.onToolLinked(snapshot)}
+          onAnonymousSaved={props.onAnonymousJourneySaved}
+        />
       </div>
     );
   }
@@ -1196,6 +1246,9 @@ function savedKeys(blocks: ReaderBlock[], local: LocalLessonProgress) {
       if (block.data.items.length > 0 && block.data.items.every((item) => checked.includes(item.id))) keys.add(block.blockKey);
     }
     if (block.data.type === "RESULT" && local.result && block.data.fields.every((field) => (local.result?.[field.key] ?? "").trim())) {
+      keys.add(block.blockKey);
+    }
+    if (block.data.type === "TOOL" && block.data.toolKey === "CONVERSION_JOURNEY_MAP_V1" && journeyMapResponseSchema.safeParse(saved).success) {
       keys.add(block.blockKey);
     }
   }

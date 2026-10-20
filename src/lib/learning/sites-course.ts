@@ -57,7 +57,8 @@ export const sitesCourseSeed = {
           slug: "site-ajuda-a-vender",
           title: "Seu site realmente ajuda a vender?",
           summary: "Entenda se a presença digital atual conduz o visitante até uma ação real do negócio.",
-          publicPreview: null,
+          publicPreview:
+            "Um site não precisa existir só para parecer profissional. Nesta aula você constrói o mapa Origem → Página → Ação → Resultado aplicado ao seu próprio negócio.",
           estimatedMinutes: 25,
           sortOrder: 0,
           accessType: "FREE" as const,

@@ -17,6 +17,7 @@ import { adjacentLessons, getPublicLesson, getReaderSnapshot, loadLessonBlocks, 
 import { formatPriceCents } from "@/lib/learning/money";
 import type { LessonSnapshot } from "@/lib/learning/reader-types";
 import { loadCampaignBriefPanel } from "@/lib/learning/brief";
+import { loadConversionJourneyPanel } from "@/lib/learning/conversion-journey";
 import { loadDestinationPlanPanel } from "@/lib/learning/measurement";
 import { loadKeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import { loadLeadConversionPanel } from "@/lib/learning/lead-conversion-plan";
@@ -158,26 +159,27 @@ async function FullLesson({
   const tool = blocks.find((block) => block.data.type === "TOOL");
   const toolKey = tool?.data.type === "TOOL" ? tool.data.toolKey : null;
   const toolPanel =
-    toolKey === "CAMPAIGN_BRIEF_V1"
-      ? await loadCampaignBriefPanel({ userId, blocks })
-      : toolKey === "DESTINATION_MEASUREMENT_PLAN_V1"
-        ? await loadDestinationPlanPanel({ userId, blocks })
-        : toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1"
-          ? await loadSearchBlueprintPanel({ userId, blocks })
-          : toolKey === "KEYWORD_INTENT_PLAN_V1"
-            ? await loadKeywordIntentPanel({ userId, blocks })
-            : toolKey === "RESPONSIVE_SEARCH_AD_PLAN_V1"
-              ? await loadResponsiveAdPanel({ userId, blocks })
-              : toolKey === "META_CAMPAIGN_BLUEPRINT_V1"
-                ? await loadMetaCampaignPanel({ userId, blocks })
-                : toolKey === "META_LEAD_CONVERSION_PLAN_V1"
-                  ? await loadLeadConversionPanel({ userId, blocks })
-                  : toolKey === "CAMPAIGN_PERFORMANCE_DIAGNOSIS_V1"
-                    ? await loadCampaignDiagnosisPanel({ userId, blocks })
-                    : toolKey === "CAMPAIGN_NEXT_ACTION_PLAN_V1"
-                      ? await loadCampaignNextActionPanel({ userId, blocks })
-                      : await loadTrafficToolPanel({ userId, blocks });
-  const neighbors = await adjacentLessons(lesson.courseSlug, lesson.slug);
+    toolKey === "CONVERSION_JOURNEY_MAP_V1"
+      ? await loadConversionJourneyPanel({ userId, blocks })
+      : toolKey === "CAMPAIGN_BRIEF_V1"
+        ? await loadCampaignBriefPanel({ userId, blocks })
+        : toolKey === "DESTINATION_MEASUREMENT_PLAN_V1"
+          ? await loadDestinationPlanPanel({ userId, blocks })
+          : toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1"
+            ? await loadSearchBlueprintPanel({ userId, blocks })
+            : toolKey === "KEYWORD_INTENT_PLAN_V1"
+              ? await loadKeywordIntentPanel({ userId, blocks })
+              : toolKey === "RESPONSIVE_SEARCH_AD_PLAN_V1"
+                ? await loadResponsiveAdPanel({ userId, blocks })
+                : toolKey === "META_CAMPAIGN_BLUEPRINT_V1"
+                  ? await loadMetaCampaignPanel({ userId, blocks })
+                  : toolKey === "META_LEAD_CONVERSION_PLAN_V1"
+                    ? await loadLeadConversionPanel({ userId, blocks })
+                    : toolKey === "CAMPAIGN_PERFORMANCE_DIAGNOSIS_V1"
+                      ? await loadCampaignDiagnosisPanel({ userId, blocks })
+                      : toolKey === "CAMPAIGN_NEXT_ACTION_PLAN_V1"
+                        ? await loadCampaignNextActionPanel({ userId, blocks })
+                        : await loadTrafficToolPanel({ userId, blocks });  const neighbors = await adjacentLessons(lesson.courseSlug, lesson.slug);
   const path = `/aulas/${lesson.slug}`;
   const description = metaDescription(lesson.summary);
 
