@@ -83,7 +83,8 @@ export const sitesCourseSeed = {
           slug: "pagina-pronta-para-converter",
           title: "Sua página está pronta para converter?",
           summary: "Diagnostique o ponto de partida da página antes de planejar mudanças.",
-          publicPreview: null,
+          publicPreview:
+            "Você já sabe a jornada e a estrutura. Nesta aula você avalia clareza, oferta, ação, confiança e outros fundamentos — para priorizar o que importa antes de investir em design ou tráfego.",
           estimatedMinutes: 25,
           sortOrder: 2,
           accessType: "FREE" as const,

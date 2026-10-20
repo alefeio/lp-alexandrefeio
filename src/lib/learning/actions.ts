@@ -23,6 +23,8 @@ import { saveConversionJourneyForUser, type ConversionJourneyPanel } from "@/lib
 import { journeyMapResponseSchema } from "@/lib/learning/conversion-journey-map";
 import { saveDigitalPresenceForUser, type DigitalPresencePanel } from "@/lib/learning/digital-presence";
 import { digitalPresenceResponseSchema } from "@/lib/learning/digital-presence-decision";
+import { savePageReadinessForUser, type PageReadinessPanel } from "@/lib/learning/page-readiness";
+import { pageReadinessResponseSchema } from "@/lib/learning/conversion-page-readiness";
 import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinationPlanForUser, syncDestinationPlanProject, type DestinationPlanPanel } from "@/lib/learning/measurement";
 import { saveKeywordIntentForUser, type KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import type { KeywordPlanFormInput } from "@/lib/learning/keyword-intent";
@@ -45,7 +47,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -393,6 +395,28 @@ export async function saveDigitalPresenceDecision(
   return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
 }
 
+export async function saveConversionPageReadiness(
+  slug: string,
+  blockKey: string,
+  input: {
+    pageExists: string;
+    answers: Record<string, string>;
+    context?: {
+      offer?: string;
+      currentDestination?: string;
+      recommendedStructure?: string;
+      primaryAction?: string;
+    };
+    projectId?: string;
+  },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await savePageReadinessForUser(session.user.id, slug, blockKey, input);
+  if (!saved.ok) return saved;
+  return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
+}
+
 export async function syncCampaignBrief(slug: string, projectId: string): Promise<LearningActionResult> {
   const session = await getSession();
   if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
@@ -643,6 +667,23 @@ async function applyImported(
       });
       if (!(await prisma.lessonResult.findFirst({ where: { userId, lessonId, projectId: null } }))) {
         await prisma.lessonResult.create({ data: { userId, lessonId, projectId: null, payload: parsed.data.decision } });
+      }
+    }
+    if (rule.data.toolKey === "CONVERSION_PAGE_READINESS_V1") {
+      const parsed = pageReadinessResponseSchema.safeParse(response);
+      if (!parsed.success || parsed.data.kind !== "personal") continue;
+      await prisma.lessonResponse.create({
+        data: {
+          userId,
+          lessonId,
+          blockKey,
+          payload: { kind: "personal", projectId: null, readiness: parsed.data.readiness } as object,
+        },
+      });
+      if (!(await prisma.lessonResult.findFirst({ where: { userId, lessonId, projectId: null } }))) {
+        await prisma.lessonResult.create({
+          data: { userId, lessonId, projectId: null, payload: parsed.data.readiness as object },
+        });
       }
     }
   }

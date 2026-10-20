@@ -38,6 +38,7 @@ import type { TrafficToolPanel } from "@/lib/learning/tool";
 import { CampaignBriefTool } from "@/components/learning/CampaignBriefTool";
 import { ConversionJourneyMapTool } from "@/components/learning/ConversionJourneyMapTool";
 import { DigitalPresenceDecisionTool } from "@/components/learning/DigitalPresenceDecisionTool";
+import { ConversionPageReadinessTool } from "@/components/learning/ConversionPageReadinessTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { KeywordIntentTool } from "@/components/learning/KeywordIntentTool";
 import { MetaCampaignTool } from "@/components/learning/MetaCampaignTool";
@@ -49,6 +50,8 @@ import type { ConversionJourneyPanel } from "@/lib/learning/conversion-journey";
 import { journeyMapResponseSchema, type ConversionJourneyMap } from "@/lib/learning/conversion-journey-map";
 import type { DigitalPresencePanel } from "@/lib/learning/digital-presence";
 import { digitalPresenceResponseSchema, type DigitalPresenceDecision } from "@/lib/learning/digital-presence-decision";
+import type { PageReadinessPanel } from "@/lib/learning/page-readiness";
+import { pageReadinessResponseSchema, type ConversionPageReadiness } from "@/lib/learning/conversion-page-readiness";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import { LeadConversionTool } from "@/components/learning/LeadConversionTool";
@@ -76,6 +79,7 @@ type ToolPanel =
   | CampaignNextActionPanel
   | ConversionJourneyPanel
   | DigitalPresencePanel
+  | PageReadinessPanel
   | null;
 
 type Props = {
@@ -638,13 +642,32 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
                     return next;
                   });
                 }}
+                onAnonymousReadinessSaved={(readiness, blockKey) => {
+                  setSnapshot((current) => {
+                    const next = withCompleted(
+                      {
+                        ...current,
+                        lastBlockKey: advanceKey(blocks, current.lastBlockKey, blockKey),
+                        responses: {
+                          ...current.responses,
+                          [blockKey]: { kind: "personal", projectId: null, readiness },
+                        },
+                      },
+                      blocks,
+                      blockKey,
+                    );
+                    remember(lesson.slug, next);
+                    return next;
+                  });
+                }}
               />
               {!preview &&
               shouldOfferSaveProgress({ slug: lesson.slug, authenticated, completedBlockKeys: snapshot.completedBlockKeys }) &&
               (block.blockKey === "resultado-primeiro-mapa" ||
                 block.blockKey === "resultado-indicacao-canal" ||
                 block.blockKey === "tool-mapa-conversao" ||
-                block.blockKey === "tool-estrutura-digital") ? (
+                block.blockKey === "tool-estrutura-digital" ||
+                block.blockKey === "tool-prontidao-pagina") ? (
                 <aside className="mt-6 rounded-lg border border-border bg-surface px-5 py-4">
                   <p className="font-medium">Salve seu progresso na sua conta</p>
                   <p className="mt-2 text-sm leading-relaxed text-muted">Continue de qualquer dispositivo e use seus resultados nas próximas aulas.</p>
@@ -738,6 +761,7 @@ function BlockView(props: {
   onToolLinked: (snapshot: LessonSnapshot) => void;
   onAnonymousJourneySaved?: (map: ConversionJourneyMap, blockKey: string) => void;
   onAnonymousPresenceSaved?: (decision: DigitalPresenceDecision, blockKey: string) => void;
+  onAnonymousReadinessSaved?: (readiness: ConversionPageReadiness, blockKey: string) => void;
 }) {
   const { block, snapshot } = props;
   const done = snapshot.completedBlockKeys.includes(block.blockKey);
@@ -783,6 +807,7 @@ function BlockBody(props: {
   pending: boolean;
   onAnonymousJourneySaved?: (map: ConversionJourneyMap, blockKey: string) => void;
   onAnonymousPresenceSaved?: (decision: DigitalPresenceDecision, blockKey: string) => void;
+  onAnonymousReadinessSaved?: (readiness: ConversionPageReadiness, blockKey: string) => void;
   onCheckpoint: (blockKey: string, optionId: string) => void;
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
@@ -958,6 +983,20 @@ function BlockBody(props: {
           description={data.description}
           onSaved={(snapshot) => props.onToolLinked(snapshot)}
           onAnonymousSaved={props.onAnonymousPresenceSaved}
+        />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "CONVERSION_PAGE_READINESS_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "pageReadiness" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <ConversionPageReadinessTool
+          panel={panel}
+          description={data.description}
+          onSaved={(snapshot) => props.onToolLinked(snapshot)}
+          onAnonymousSaved={props.onAnonymousReadinessSaved}
         />
       </div>
     );
@@ -1293,6 +1332,9 @@ function savedKeys(blocks: ReaderBlock[], local: LocalLessonProgress) {
       keys.add(block.blockKey);
     }
     if (block.data.type === "TOOL" && block.data.toolKey === "DIGITAL_PRESENCE_DECISION_V1" && digitalPresenceResponseSchema.safeParse(saved).success) {
+      keys.add(block.blockKey);
+    }
+    if (block.data.type === "TOOL" && block.data.toolKey === "CONVERSION_PAGE_READINESS_V1" && pageReadinessResponseSchema.safeParse(saved).success) {
       keys.add(block.blockKey);
     }
   }

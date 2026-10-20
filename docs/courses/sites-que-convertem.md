@@ -4,15 +4,15 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | SCAFFOLDED (curso) / Aulas 1–2 COMPLETE |
+| CONTENT_STATUS | SCAFFOLDED (curso) / Aulas 1–3 COMPLETE (bloco FREE) |
 | PUBLIC_RELEASE | NOT_APPROVED |
 | COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course DRAFT · Aulas 1–2 conteúdo PUBLISHED (não descoberta enquanto o curso for DRAFT) |
+| Publication | Course DRAFT · Aulas 1–3 conteúdo PUBLISHED (não descoberta enquanto o curso for DRAFT) |
 | Commerce | NOT_FOR_SALE |
 | Catálogo público | não |
 | Sitemap / indexação | não |
 
-Curso e módulos permanecem DRAFT. As Aulas 1–2 têm conteúdo definitivo + Tools, mas não entram em catálogo/sitemap enquanto o Course estiver DRAFT.
+Curso e módulos permanecem DRAFT. As Aulas 1–3 (bloco FREE) têm conteúdo definitivo + Tools, mas não entram em catálogo/sitemap enquanto o Course estiver DRAFT.
 
 ## Proposta
 
@@ -55,8 +55,8 @@ Sem preço de bundle.
    Resultado: Meu mapa de conversão · Tool: `CONVERSION_JOURNEY_MAP_V1` · Seed: `seedSiteAjudaAVenderContent`
 2. **Site, landing page ou WhatsApp: o que seu negócio precisa?** (`site-landing-page-ou-whatsapp`) — 25 min — FREE · **conteúdo definitivo V1**  
    Resultado: Minha estrutura digital ideal · Tool: `DIGITAL_PRESENCE_DECISION_V1` · Seed: `seedSiteLandingWhatsappContent`
-3. **Sua página está pronta para converter?** (`pagina-pronta-para-converter`) — 25 min — FREE  
-   Resultado planejado: Diagnóstico de prontidão da página · Tool planejada: `CONVERSION_PAGE_READINESS_V1`
+3. **Sua página está pronta para converter?** (`pagina-pronta-para-converter`) — 25 min — FREE · **conteúdo definitivo V1**  
+   Resultado: Diagnóstico de prontidão da página · Tool: `CONVERSION_PAGE_READINESS_V1` · Seed: `seedSitePaginaProntaContent`
 
 ### Módulo 2 — Planeje antes de desenhar — R$ 62,90
 
