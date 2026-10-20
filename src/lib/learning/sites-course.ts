@@ -115,7 +115,7 @@ export const sitesCourseSeed = {
           sortOrder: 0,
           accessType: "PAID" as const,
           priceCents: 3490,
-          plannedResult: "Brief de conversão da landing page",
+          plannedResult: "Brief de conversão da minha landing page",
           plannedTool: "CONVERSION_PAGE_BRIEF_V1",
         },
         {

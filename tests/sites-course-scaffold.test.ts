@@ -66,7 +66,7 @@ test("aulas 1–3 FREE e 4–12 PAID com resultados do builder", () => {
   assert.deepEqual(
     lessons.slice(3).map((lesson) => lesson.plannedResult),
     [
-      "Brief de conversão da landing page",
+      "Brief de conversão da minha landing page",
       "Mapa de decisão do visitante",
       "Wireframe da minha landing page",
       "Copy aplicada à landing page",

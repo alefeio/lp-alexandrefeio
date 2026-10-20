@@ -4,10 +4,10 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–3 COMPLETE · Aulas 4–12 SCAFFOLDED |
+| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–4 COMPLETE · Aulas 5–12 SCAFFOLDED |
 | PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
 | COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course DRAFT · Aulas 1–3 FREE com conteúdo (internamente PUBLISHED) · Aulas 4–12 DRAFT |
+| Publication | Course DRAFT · Aulas 1–3 FREE e Aula 4 PAID com conteúdo (internamente PUBLISHED) · Aulas 5–12 DRAFT |
 | Commerce | NOT_FOR_SALE |
 | Catálogo público | não |
 | Sitemap / indexação | não (curso fora do público) |
@@ -59,11 +59,11 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
 3. **Sua página está pronta para converter?** (`pagina-pronta-para-converter`) — FREE · COMPLETE  
    Resultado: Diagnóstico de prontidão da página · Tool: `CONVERSION_PAGE_READINESS_V1`
 
-### Módulo 2 — Planeje antes de desenhar — R$ 62,90 — SCAFFOLDED
+### Módulo 2 — Planeje antes de desenhar — R$ 62,90 — Aula 4 COMPLETE · Aula 5 SCAFFOLDED
 
-4. **Defina oferta, público e ação principal** (`oferta-publico-acao-principal`) — PAID R$ 34,90  
-   Resultado: Brief de conversão da landing page · Tool: `CONVERSION_PAGE_BRIEF_V1`  
-   Alimenta diretamente `LandingPageProject` (oferta, público, problema, benefício, objetivo, CTAs, resultado, objeções, contexto de chegada).
+4. **Defina oferta, público e ação principal** (`oferta-publico-acao-principal`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+   Resultado: Brief de conversão da minha landing page · Tool: `CONVERSION_PAGE_BRIEF_V1`  
+   O `LandingPageProject` nasce nesta aula. A estratégia canônica fica em `draftDocument.strategy.brief`. O `LessonResult` guarda só o resumo. Status do projeto permanece `DRAFT`. Nenhuma seção é gerada.
 5. **Planeje a jornada do visitante** (`jornada-do-visitante`) — PAID R$ 34,90  
    Resultado: Mapa de decisão do visitante · Tool: `VISITOR_DECISION_JOURNEY_V1`
 

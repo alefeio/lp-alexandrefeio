@@ -28,9 +28,11 @@ import { seedLesson12Content } from "@/lib/learning/seed-lesson-12";
 import { seedSiteAjudaAVenderContent } from "@/lib/learning/seed-site-ajuda-a-vender";
 import { seedSiteLandingWhatsappContent } from "@/lib/learning/seed-site-landing-page-ou-whatsapp";
 import { seedSitePaginaProntaContent } from "@/lib/learning/seed-site-pagina-pronta-para-converter";
+import { seedSiteOfertaPublicoContent } from "@/lib/learning/seed-site-oferta-publico-acao-principal";
 import { SITE_LESSON_01_SLUG } from "@/lib/learning/site-ajuda-a-vender";
 import { SITE_LESSON_02_SLUG } from "@/lib/learning/site-landing-page-ou-whatsapp";
 import { SITE_LESSON_03_SLUG } from "@/lib/learning/site-pagina-pronta-para-converter";
+import { SITE_LESSON_04_SLUG } from "@/lib/learning/site-oferta-publico-acao-principal";
 import { sitesCourseSeed } from "@/lib/learning/sites-course";
 
 const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LESSON_05_SLUG, LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG, LESSON_09_SLUG, LESSON_10_SLUG, LESSON_11_SLUG, LESSON_12_SLUG]);
@@ -159,6 +161,7 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
   const siteLesson01 = await seedSiteAjudaAVenderContent(prisma, seedOptions);
   const siteLesson02 = await seedSiteLandingWhatsappContent(prisma, seedOptions);
   const siteLesson03 = await seedSitePaginaProntaContent(prisma, seedOptions);
+  const siteLesson04 = await seedSiteOfertaPublicoContent(prisma, seedOptions);
   return {
     course: course.slug,
     lessons,
@@ -179,12 +182,13 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
     siteLesson01,
     siteLesson02,
     siteLesson03,
+    siteLesson04,
   };
 }
 
 /**
  * Scaffold do segundo curso: DRAFT + NOT_FOR_SALE (release público suspenso).
- * Aulas 1–3 recebem conteúdo via seeds (PUBLISHED internamente). Aulas 4–12 ficam DRAFT sem corpo.
+ * Aulas 1–4 recebem conteúdo via seeds (PUBLISHED internamente). Aulas 5–12 ficam DRAFT sem corpo.
  * Idempotente por slug. Não cria Tool/LessonResult, LandingPageProject nem ativa AVAILABLE.
  */
 export async function deploySitesCourseScaffold() {
@@ -243,7 +247,10 @@ export async function deploySitesCourseScaffold() {
 
     for (const lessonSeed of moduleSeed.lessons) {
       const contentOwned =
-        lessonSeed.slug === SITE_LESSON_01_SLUG || lessonSeed.slug === SITE_LESSON_02_SLUG || lessonSeed.slug === SITE_LESSON_03_SLUG;
+        lessonSeed.slug === SITE_LESSON_01_SLUG ||
+        lessonSeed.slug === SITE_LESSON_02_SLUG ||
+        lessonSeed.slug === SITE_LESSON_03_SLUG ||
+        lessonSeed.slug === SITE_LESSON_04_SLUG;
       await prisma.lesson.upsert({
         where: { slug: lessonSeed.slug },
         create: {

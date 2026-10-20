@@ -267,6 +267,14 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 - `applyGuidedWireframe` só grava em rascunho vazio (`ONLY_IF_EMPTY`), com a revisão otimista da phase 1. `REPLACE_ALL` existe no contrato e permanece desligado. Tema, conversão, medição e mídia são preservados.
 - Gerar o plano não altera o projeto. O preview continua sem analytics.
 
+## Aula 4 — strategy.brief
+
+- `draftDocument.strategy` é opcional. `schemaVersion` permanece 1. Documentos antigos continuam válidos.
+- `strategy.brief` (`ConversionPageBriefV1`) é a fonte estratégica. `conversion` recebe só a configuração operacional compatível (`primaryAction`, `secondaryAction`, `businessOutcome`), no mesmo save atômico.
+- Intenção sem dados suficientes (WhatsApp sem telefone, formulário, URL ainda vazia) permanece no brief e não entra em `conversion`.
+- `buildWireframeContextFromLandingPageProject` adapta o brief para um contexto `PARTIAL`. Não chama o motor e não cria seções.
+- Concluir a aula não muda o status do projeto para `READY_TO_PREVIEW`.
+
 ## Implementation phases
 
 | Phase | Escopo |
@@ -282,7 +290,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico das aulas 4–12 acompanha as phases correspondentes; **Aula 4 não é produzida nesta tarefa**.
+Conteúdo pedagógico: Aulas 1–4 com conteúdo interno. Aulas 5–12 ainda não produzidas. Phase 4 (copy assist) não implementada.
 
 ## Consequences
 

@@ -7,6 +7,7 @@ import {
   LANDING_PAGE_LIMITS,
 } from "@/lib/landing-page/constants";
 import { landingPageActionSchema } from "@/lib/landing-page/actions";
+import { conversionPageBriefSchema } from "@/lib/landing-page/brief";
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida");
 
@@ -56,6 +57,12 @@ export const guidedWireframeOriginSchema = z
   })
   .strict();
 
+export const landingPageStrategySchema = z
+  .object({
+    brief: conversionPageBriefSchema.optional(),
+  })
+  .strict();
+
 export const landingPageMediaRefSchema = z
   .object({
     id: z.string().trim().min(1).max(64),
@@ -75,6 +82,7 @@ export const landingPageDocumentSchema = z
     measurement: landingPageMeasurementSchema,
     mediaRefs: z.array(landingPageMediaRefSchema).max(40),
     guidedWireframe: guidedWireframeOriginSchema.optional(),
+    strategy: landingPageStrategySchema.optional(),
   })
   .strict()
   .superRefine((doc, ctx) => {

@@ -6,6 +6,18 @@ export function normalizeLandingPageSlug(input: string): string {
   return input.trim().toLowerCase();
 }
 
+export function suggestLandingPageSlug(title: string): string {
+  const slug = title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, LANDING_PAGE_LIMITS.maxSlug)
+    .replace(/-+$/g, "");
+  return isValidLandingPageSlug(slug) ? slug : "";
+}
+
 export function isValidLandingPageSlug(input: string): boolean {
   const slug = normalizeLandingPageSlug(input);
   if (slug.length < 2 || slug.length > LANDING_PAGE_LIMITS.maxSlug) return false;

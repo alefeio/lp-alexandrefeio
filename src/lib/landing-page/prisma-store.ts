@@ -172,6 +172,14 @@ export function createPrismaLandingPageStore(): LandingPageStore {
       if (!row) return { ok: false, reason: "NOT_FOUND" };
       return { ok: true, record: toRecord(row) };
     },
+    async listForUser(userId) {
+      const rows = await prisma.landingPageProject.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        select: selectWithCount,
+      });
+      return rows.map((row) => toRecord(row));
+    },
   };
 }
 

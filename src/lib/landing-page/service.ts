@@ -1,3 +1,4 @@
+import { conversionOutcomeLabel, operationalActionFromIntent, parseConversionPageBrief } from "@/lib/landing-page/brief";
 import { createEmptyLandingPageDocument, parseLandingPageDocument } from "@/lib/landing-page/document";
 import { fail, ok, type LandingPageResult } from "@/lib/landing-page/errors";
 import { LANDING_PAGE_COURSE_SLUG, LANDING_PAGE_LIMITS } from "@/lib/landing-page/constants";
@@ -168,6 +169,57 @@ export async function updateLandingPageSlug(
     if (updated.reason === "TAKEN") return fail("SLUG_TAKEN");
     return fail("NOT_FOUND");
   }
+  return ok(mapRecord(updated.record));
+}
+
+export async function listLandingPageProjects(
+  store: LandingPageStore,
+  input: { userId: string },
+): Promise<LandingPageProjectView[]> {
+  const records = await store.listForUser(input.userId);
+  return records.map((record) => mapRecord(record));
+}
+
+export async function saveConversionPageBrief(
+  store: LandingPageStore,
+  input: {
+    userId: string;
+    landingPageProjectId: string;
+    expectedRevision: number;
+    brief: unknown;
+  },
+): Promise<LandingPageResult<LandingPageProjectView>> {
+  if (!Number.isInteger(input.expectedRevision) || input.expectedRevision < 1) return fail("INVALID_INPUT");
+  const brief = parseConversionPageBrief(input.brief);
+  if (!brief.ok) return fail("INVALID_INPUT");
+
+  const current = await store.findByIdForUser(input.landingPageProjectId, input.userId);
+  if (!current) return fail("NOT_FOUND");
+
+  const document = {
+    ...current.draftDocument,
+    strategy: { ...current.draftDocument.strategy, brief: brief.brief },
+    conversion: {
+      ...current.draftDocument.conversion,
+      primaryAction: operationalActionFromIntent(brief.brief.primaryAction),
+      secondaryAction: operationalActionFromIntent(brief.brief.secondaryAction),
+      businessOutcome: conversionOutcomeLabel(brief.brief),
+    },
+  };
+  const parsed = parseLandingPageDocument(document);
+  if (!parsed.ok) return fail("INVALID_DOCUMENT");
+
+  const updated = await store.updateDraftAtomic({
+    id: input.landingPageProjectId,
+    userId: input.userId,
+    expectedRevision: input.expectedRevision,
+    document: parsed.document,
+  });
+  if (!updated.ok) {
+    if (updated.reason === "CONFLICT") return fail("LANDING_PAGE_DRAFT_CONFLICT");
+    return fail("NOT_FOUND");
+  }
+  if (updated.record.status !== current.status) return fail("INVALID_DOCUMENT");
   return ok(mapRecord(updated.record));
 }
 

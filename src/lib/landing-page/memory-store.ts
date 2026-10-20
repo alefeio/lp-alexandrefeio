@@ -57,6 +57,9 @@ export function createMemoryLandingPageStore(seed?: {
       }
       return null;
     },
+    async listForUser(userId) {
+      return [...rows.values()].filter((row) => row.userId === userId).map((row) => clone(row));
+    },
     async create(input: CreateLandingPageRecordInput) {
       const now = new Date();
       const row: MemoryRow = {

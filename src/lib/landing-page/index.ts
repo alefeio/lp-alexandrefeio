@@ -19,10 +19,12 @@ export { mapLandingPageTheme, themeToCssVariables } from "@/lib/landing-page/the
 export { visibleLandingPageSections } from "@/lib/landing-page/order";
 export { consultoriaLandingFixture } from "@/lib/landing-page/fixtures";
 export { LandingPageError, landingPageMessage, type LandingPageCode } from "@/lib/landing-page/errors";
-export { isValidLandingPageSlug, normalizeLandingPageSlug } from "@/lib/landing-page/slug";
+export { isValidLandingPageSlug, normalizeLandingPageSlug, suggestLandingPageSlug } from "@/lib/landing-page/slug";
 export {
   createLandingPageProject,
   getLandingPageProject,
+  listLandingPageProjects,
+  saveConversionPageBrief,
   updateLandingPageDraft,
   updateLandingPageSlug,
   updateLandingPageTitle,
@@ -36,5 +38,7 @@ export { materializeWireframePlan } from "@/lib/landing-page/wireframe/materiali
 export { applyGuidedWireframe, type AppliedWireframe } from "@/lib/landing-page/wireframe/apply";
 export { wireframePlanSchema, type WireframePlanV1 } from "@/lib/landing-page/wireframe/plan";
 export type { WireframeCourseAdapter } from "@/lib/landing-page/wireframe/course-adapter";
+export { buildWireframeContextFromLandingPageProject } from "@/lib/landing-page/wireframe/from-brief";
+export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";
 export { createPrismaLandingPageStore } from "@/lib/landing-page/prisma-store";

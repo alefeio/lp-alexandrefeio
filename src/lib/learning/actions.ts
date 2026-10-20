@@ -25,6 +25,7 @@ import { saveDigitalPresenceForUser, type DigitalPresencePanel } from "@/lib/lea
 import { digitalPresenceResponseSchema } from "@/lib/learning/digital-presence-decision";
 import { savePageReadinessForUser, type PageReadinessPanel } from "@/lib/learning/page-readiness";
 import { pageReadinessResponseSchema } from "@/lib/learning/conversion-page-readiness";
+import { saveConversionBriefForUser, SITE_OFFER_BRIEF_SLUG, type ConversionBriefPanel } from "@/lib/learning/conversion-page-brief";
 import { addDestinationPreparationTask, loadDestinationPlanPanel, saveDestinationPlanForUser, syncDestinationPlanProject, type DestinationPlanPanel } from "@/lib/learning/measurement";
 import { saveKeywordIntentForUser, type KeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import type { KeywordPlanFormInput } from "@/lib/learning/keyword-intent";
@@ -47,7 +48,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number }
   | { ok: false; message: string };
 
 async function authorizedLesson(slug: string) {
@@ -393,6 +394,30 @@ export async function saveDigitalPresenceDecision(
   const saved = await saveDigitalPresenceForUser(session.user.id, slug, blockKey, input);
   if (!saved.ok) return saved;
   return { ok: true, snapshot: saved.snapshot, panel: saved.panel };
+}
+
+export async function saveConversionBrief(
+  blockKey: string,
+  input: {
+    mode: "create" | "select";
+    landingPageProjectId?: string;
+    expectedRevision?: number;
+    title?: string;
+    slugSuggestion?: string;
+    projectId?: string | null;
+    brief: unknown;
+  },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveConversionBriefForUser(session.user.id, SITE_OFFER_BRIEF_SLUG, blockKey, input);
+  if (!saved.ok) return { ok: false, message: saved.message };
+  return {
+    ok: true,
+    snapshot: saved.snapshot,
+    landingPageProjectId: saved.landingPageProjectId,
+    draftRevision: saved.draftRevision,
+  };
 }
 
 export async function saveConversionPageReadiness(

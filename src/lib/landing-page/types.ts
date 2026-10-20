@@ -50,4 +50,5 @@ export type LandingPageStore = {
     userId: string;
     slug: string;
   }): Promise<{ ok: true; record: LandingPageProjectRecord } | { ok: false; reason: "NOT_FOUND" | "TAKEN" | "LOCKED" }>;
+  listForUser(userId: string): Promise<LandingPageProjectRecord[]>;
 };

@@ -39,6 +39,7 @@ import { CampaignBriefTool } from "@/components/learning/CampaignBriefTool";
 import { ConversionJourneyMapTool } from "@/components/learning/ConversionJourneyMapTool";
 import { DigitalPresenceDecisionTool } from "@/components/learning/DigitalPresenceDecisionTool";
 import { ConversionPageReadinessTool } from "@/components/learning/ConversionPageReadinessTool";
+import { ConversionPageBriefTool } from "@/components/learning/ConversionPageBriefTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { KeywordIntentTool } from "@/components/learning/KeywordIntentTool";
 import { MetaCampaignTool } from "@/components/learning/MetaCampaignTool";
@@ -51,6 +52,7 @@ import { journeyMapResponseSchema, type ConversionJourneyMap } from "@/lib/learn
 import type { DigitalPresencePanel } from "@/lib/learning/digital-presence";
 import { digitalPresenceResponseSchema, type DigitalPresenceDecision } from "@/lib/learning/digital-presence-decision";
 import type { PageReadinessPanel } from "@/lib/learning/page-readiness";
+import type { ConversionBriefPanel } from "@/lib/learning/conversion-page-brief";
 import { pageReadinessResponseSchema, type ConversionPageReadiness } from "@/lib/learning/conversion-page-readiness";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
@@ -80,6 +82,7 @@ type ToolPanel =
   | ConversionJourneyPanel
   | DigitalPresencePanel
   | PageReadinessPanel
+  | ConversionBriefPanel
   | null;
 
 type Props = {
@@ -998,6 +1001,15 @@ function BlockBody(props: {
           onSaved={(snapshot) => props.onToolLinked(snapshot)}
           onAnonymousSaved={props.onAnonymousReadinessSaved}
         />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "CONVERSION_PAGE_BRIEF_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "conversion-brief" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <ConversionPageBriefTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

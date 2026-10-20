@@ -9,6 +9,7 @@ import {
 import { journeyMapResponseSchema } from "@/lib/learning/conversion-journey-map";
 import { digitalPresenceResponseSchema } from "@/lib/learning/digital-presence-decision";
 import { pageReadinessResponseSchema } from "@/lib/learning/conversion-page-readiness";
+import { conversionBriefResponseSchema } from "@/lib/landing-page/brief";
 
 const EMPTY_BRIEF_PROJECTS: ReadonlySet<string> = new Set();
 const EMPTY_PLAN_PROJECTS: ReadonlySet<string> = new Set();
@@ -143,6 +144,9 @@ export function isBlockComplete(
       }
       if (block.data.toolKey === "CONVERSION_PAGE_READINESS_V1") {
         return pageReadinessResponseSchema.safeParse(answer?.response).success;
+      }
+      if (block.data.toolKey === "CONVERSION_PAGE_BRIEF_V1") {
+        return conversionBriefResponseSchema.safeParse(answer?.response).success;
       }
       if (
         block.data.toolKey === "CAMPAIGN_BRIEF_V1" ||
