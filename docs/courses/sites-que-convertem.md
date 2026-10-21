@@ -4,10 +4,10 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–7 COMPLETE · Aulas 8–12 SCAFFOLDED |
+| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–8 COMPLETE · Aulas 9–12 SCAFFOLDED |
 | PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
 | COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–6 PAID com conteúdo (internamente PUBLISHED no seed) · Aulas 7–12 DRAFT |
+| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–8 PAID com conteúdo (internamente PUBLISHED no seed) · Aulas 9–12 DRAFT |
 | Commerce | NOT_FOR_SALE |
 | Catálogo público | não |
 | Sitemap / indexação | não (curso fora do público) |
@@ -77,10 +77,11 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
    Resultado: Copy da minha landing page · Tool: `LANDING_PAGE_COPY_ASSIST_V1`  
    Aula 6 deixa as seções em `PLACEHOLDER`. Aula 7 escreve e aprova a copy das seções principais (`HERO` e, quando existem, `PROBLEM`, `SOLUTION`, `BENEFITS`, `CTA`). A IA sugere por seção, no máximo 3 opções, e não grava sozinha. O aluno aplica como `DRAFT` e aprova. Fatos complementares ficam em `strategy.copyFacts`. Seções opcionais (`PROCESS`, `FAQ`, `TRUST`, `FORM`) não bloqueiam a conclusão quando faltam fatos. `CONTACT` e `FOOTER` não usam IA. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda o resumo, não a copy inteira.
 
-### Módulo 4 — Atenção e confiança — R$ 62,90 — SCAFFOLDED
+### Módulo 4 — Atenção e confiança — R$ 62,90 — Aula 8 COMPLETE · Aula 9 SCAFFOLDED
 
-8. **Use hierarquia visual para conduzir a atenção** (`hierarquia-visual-e-atencao`) — PAID R$ 34,90  
-   Resultado: Tema/direção visual aplicada · Tool: `LANDING_PAGE_THEME_V1` (design tokens)
+8. **Use hierarquia visual para conduzir a atenção** (`hierarquia-visual-e-atencao`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+   Resultado: Direção visual da minha landing page · Tool: `LANDING_PAGE_VISUAL_DIRECTION_V1`  
+   Aula 6 define a estrutura. Aula 7 define a mensagem. Aula 8 grava o tema, os ajustes visuais das seções e `strategy.visualDirection` no mesmo projeto, numa única revisão. O tema padrão pode ser confirmado sem personalização obrigatória. Contraste crítico não é salvo. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda o resumo e a impressão digital do tema, não a paleta inteira.
 9. **Construa confiança antes de pedir a ação** (`construa-confianca`) — PAID R$ 34,90  
    Resultado: Elementos de confiança na landing page · Tool: `LANDING_PAGE_TRUST_V1`
 

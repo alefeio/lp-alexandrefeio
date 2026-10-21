@@ -12,6 +12,7 @@ import { conversionPageBriefSchema } from "@/lib/landing-page/brief";
 import { visitorDecisionJourneySchema } from "@/lib/landing-page/decision-journey";
 import { copyFactsSchema } from "@/lib/landing-page/copy/facts-schema";
 import { defaultLandingPageTheme, landingPageThemeSchema } from "@/lib/landing-page/theme/schema";
+import { landingPageVisualDirectionSchema } from "@/lib/landing-page/theme/visual-direction";
 
 export { landingPageThemeSchema };
 
@@ -78,6 +79,7 @@ export const landingPageStrategySchema = z
     decisionJourney: visitorDecisionJourneySchema.optional(),
     wireframe: landingPageWireframeStateSchema.optional(),
     copyFacts: copyFactsSchema.optional(),
+    visualDirection: landingPageVisualDirectionSchema.optional(),
   })
   .strict();
 

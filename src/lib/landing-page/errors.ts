@@ -24,6 +24,7 @@ export const LANDING_PAGE_CODES = [
   "COPY_ASSIST_PROVIDER_ERROR",
   "COPY_ASSIST_INSUFFICIENT_CONTEXT",
   "LANDING_PAGE_THEME_CONTRAST",
+  "LANDING_PAGE_VISUAL_REVIEW",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -54,6 +55,7 @@ const MESSAGES: Record<LandingPageCode, string> = {
   COPY_ASSIST_PROVIDER_ERROR: "Não foi possível obter a sugestão agora.",
   COPY_ASSIST_INSUFFICIENT_CONTEXT: "Faltam informações da estratégia para sugerir este texto.",
   LANDING_PAGE_THEME_CONTRAST: "Essa combinação de cores deixa o texto difícil de ler.",
+  LANDING_PAGE_VISUAL_REVIEW: "A revisão visual mudou. Confira os avisos antes de salvar.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {

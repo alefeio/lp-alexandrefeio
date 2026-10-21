@@ -1,5 +1,4 @@
-import type { LandingPageSection } from "@/lib/landing-page/components";
-import { assessThemeContrast, MAX_FEATURED_WITHOUT_WARNING, PRIMARY_BACKGROUND_RUN_WARNING, type LandingPageThemeV1 } from "@/lib/landing-page/theme/schema";
+import { assessThemeContrast, MAX_FEATURED_WITHOUT_WARNING, PRIMARY_BACKGROUND_RUN_WARNING, type LandingPageThemeV1, type SectionVisualSettings } from "@/lib/landing-page/theme/schema";
 
 export const VISUAL_HIERARCHY_WARNINGS = [
   "NO_PRIMARY_CONTRAST",
@@ -10,7 +9,10 @@ export const VISUAL_HIERARCHY_WARNINGS = [
 
 export type VisualHierarchyWarning = (typeof VISUAL_HIERARCHY_WARNINGS)[number];
 
-export function evaluateVisualHierarchy(theme: LandingPageThemeV1, sections: LandingPageSection[]): VisualHierarchyWarning[] {
+export function evaluateVisualHierarchy(
+  theme: LandingPageThemeV1,
+  sections: Array<{ enabled: boolean; settings: Pick<SectionVisualSettings, "emphasis" | "alignment" | "backgroundRole"> }>,
+): VisualHierarchyWarning[] {
   const warnings: VisualHierarchyWarning[] = [];
   const contrast = assessThemeContrast(theme);
   if (contrast.checks.some((check) => check.pair === "PRIMARY_TEXT_PRIMARY" && check.level !== "GOOD")) {

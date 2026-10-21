@@ -43,6 +43,7 @@ import { ConversionPageBriefTool } from "@/components/learning/ConversionPageBri
 import { VisitorDecisionTool } from "@/components/learning/VisitorDecisionTool";
 import { LandingPageWireframeTool } from "@/components/learning/LandingPageWireframeTool";
 import { LandingPageCopyTool } from "@/components/learning/LandingPageCopyTool";
+import { LandingPageVisualDirectionTool } from "@/components/learning/LandingPageVisualDirectionTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { KeywordIntentTool } from "@/components/learning/KeywordIntentTool";
 import { MetaCampaignTool } from "@/components/learning/MetaCampaignTool";
@@ -59,6 +60,7 @@ import type { ConversionBriefPanel } from "@/lib/learning/conversion-page-brief"
 import type { VisitorDecisionPanel } from "@/lib/learning/visitor-decision";
 import type { WireframePanel } from "@/lib/learning/landing-page-wireframe";
 import type { CopyPanel } from "@/lib/learning/landing-page-copy";
+import type { VisualPanel } from "@/lib/learning/landing-page-visual";
 import { pageReadinessResponseSchema, type ConversionPageReadiness } from "@/lib/learning/conversion-page-readiness";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
@@ -92,6 +94,7 @@ type ToolPanel =
   | VisitorDecisionPanel
   | WireframePanel
   | CopyPanel
+  | VisualPanel
   | null;
 
 type Props = {
@@ -1046,6 +1049,15 @@ function BlockBody(props: {
       <div>
         <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
         <LandingPageCopyTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "LANDING_PAGE_VISUAL_DIRECTION_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "landing-visual" ? props.toolPanel : null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">{data.title}</h2>
+        <LandingPageVisualDirectionTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

@@ -13,6 +13,7 @@ import { conversionBriefResponseSchema } from "@/lib/landing-page/brief";
 import { visitorDecisionResponseSchema } from "@/lib/landing-page/decision-journey";
 import { wireframeStructureResponseSchema } from "@/lib/landing-page/wireframe/summary";
 import { copyLessonResponseSchema } from "@/lib/landing-page/copy/lesson-flow";
+import { visualLessonResponseSchema } from "@/lib/landing-page/theme/visual-direction";
 
 const EMPTY_BRIEF_PROJECTS: ReadonlySet<string> = new Set();
 const EMPTY_PLAN_PROJECTS: ReadonlySet<string> = new Set();
@@ -159,6 +160,9 @@ export function isBlockComplete(
       }
       if (block.data.toolKey === "LANDING_PAGE_COPY_ASSIST_V1") {
         return copyLessonResponseSchema.safeParse(answer?.response).success;
+      }
+      if (block.data.toolKey === "LANDING_PAGE_VISUAL_DIRECTION_V1") {
+        return visualLessonResponseSchema.safeParse(answer?.response).success;
       }
       if (
         block.data.toolKey === "CAMPAIGN_BRIEF_V1" ||

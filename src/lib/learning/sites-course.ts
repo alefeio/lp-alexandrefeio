@@ -177,14 +177,14 @@ export const sitesCourseSeed = {
         {
           slug: "hierarquia-visual-e-atencao",
           title: "Use hierarquia visual para conduzir a atenção",
-          summary: "Aplique tema e tokens de design seguros à landing page — sem editor gráfico livre.",
+          summary: "Defina o que o visitante percebe primeiro, com cores, contraste e destaque controlados.",
           publicPreview: null,
           estimatedMinutes: 30,
           sortOrder: 0,
           accessType: "PAID" as const,
           priceCents: 3490,
-          plannedResult: "Tema/direção visual aplicada",
-          plannedTool: "LANDING_PAGE_THEME_V1",
+          plannedResult: "Direção visual da minha landing page",
+          plannedTool: "LANDING_PAGE_VISUAL_DIRECTION_V1",
         },
         {
           slug: "construa-confianca",

@@ -78,7 +78,15 @@ export {
 } from "@/lib/landing-page/theme/schema";
 export { calculateContrastRatio } from "@/lib/landing-page/theme/color";
 export { evaluateVisualHierarchy } from "@/lib/landing-page/theme/hierarchy";
-export { updateLandingPageSectionVisualSettings, updateLandingPageTheme } from "@/lib/landing-page/theme/service";
+export { updateLandingPageSectionVisualSettings, updateLandingPageTheme, saveLandingPageVisualDirection } from "@/lib/landing-page/theme/service";
+export {
+  visualLessonResult,
+  visualLessonResponseSchema,
+  visualWarningMessage,
+  resolveStartingPoint,
+  withThemeColor,
+  LANDING_PAGE_VISUAL_TOOL,
+} from "@/lib/landing-page/theme/visual-direction";
 export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
 export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";

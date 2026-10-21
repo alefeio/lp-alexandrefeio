@@ -300,14 +300,14 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 2 | IMPLEMENTED — renderer controlado + preview autenticado do draft |
 | 3 | IMPLEMENTED — motor guiado de wireframe, sem IA |
 | 4 | IMPLEMENTED — copy assist por seção, fatos complementares, cobertura da aula e provider OpenAI ao vivo |
-| 5 | IMPLEMENTED CORE — tema controlado, contraste e ajustes visuais por seção, sem Aula 8 |
+| 5 | IMPLEMENTED CORE — tema controlado, contraste e ajustes visuais por seção |
 | 6 | Trust + public media |
 | 7 | Responsive review (desktop/mobile preview) |
 | 8 | CTA/form + measurement nativo |
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico: Aulas 1–7 com conteúdo interno. Aulas 8–12 ainda não produzidas. A Aula 7 usa o copy assist por seção. A landing page e o curso permanecem sem publicação pública.
+Conteúdo pedagógico: Aulas 1–8 com conteúdo interno. Aulas 9–12 ainda não produzidas. A Aula 8 confirma a direção visual no mesmo projeto. A landing page e o curso permanecem sem publicação pública.
 
 ## Phase 4 — copy assist core
 
@@ -339,7 +339,7 @@ Conteúdo pedagógico: Aulas 1–7 com conteúdo interno. Aulas 8–12 ainda nã
 
 ## Phase 5 — tema e sistema visual
 
-- Phase 5 core: IMPLEMENTED. A Aula 8 não foi produzida.
+- Phase 5 core: IMPLEMENTED. A Aula 8 usa esse núcleo e está completa no código.
 - `LandingPageThemeV1` guarda papéis de cor, tipografia, largura, espaçamento, densidade, raio e estilo de botão. `schemaVersion` do documento permanece 1. Um tema antigo, com `primaryColor` e `fontFamily: "sans" | "serif"`, ainda é lido e convertido.
 - Cores aceitam só hex normalizado (`#rrggbb`). `rgb()`, `hsl()`, `var()`, `url()`, `calc()` e `color-mix()` são recusados. Não há CSS, className nem fonte por URL.
 - Famílias internas: `SYSTEM_SANS`, `INTER` e `SERIF`. Nenhuma é a fonte da marca da plataforma. O tema padrão é neutro.
@@ -349,6 +349,16 @@ Conteúdo pedagógico: Aulas 1–7 com conteúdo interno. Aulas 8–12 ainda nã
 - `updateLandingPageTheme` e `updateLandingPageSectionVisualSettings` exigem posse e `expectedRevision`. Não mudam conteúdo, status da copy, ordem, estratégia, conversão nem medição. O projeto não vai para `PUBLISHED` nem `READY_TO_PUBLISH`.
 - `evaluateVisualHierarchy` devolve avisos determinísticos e não altera o documento. Muitas seções em destaque, fundo primário repetido e alinhamento central em toda a página geram aviso.
 - Mídia, upload e publicação continuam fora desta fase. O limitador de copy em memória permanece, com a troca durável marcada como `BEFORE_PUBLIC_RELEASE`.
+
+## Aula 8 — direção visual
+
+- Aula 8: COMPLETE no código. A Aula 9 não foi produzida. A Phase 6 de mídia e confiança não foi iniciada.
+- A ferramenta `LANDING_PAGE_VISUAL_DIRECTION_V1` usa o tema, o contraste, os presets e os avisos da Phase 5. Não chama IA e não cria outra landing page.
+- `saveLandingPageVisualDirection` grava tema, ajustes visuais das seções e `strategy.visualDirection` numa única atualização de revisão. Conteúdo, status da copy, ordem, brief, jornada, wireframe, fatos, conversão e medição permanecem.
+- `strategy.visualDirection` guarda a origem, a prioridade visual, as seções em destaque, os avisos revisados, a impressão digital do tema e o resumo visual das seções. Não duplica o tema.
+- O tema padrão pode ser confirmado. Contraste crítico bloqueia o salvamento. Avisos de hierarquia não bloqueiam.
+- O `LessonResult` “Direção visual da minha landing page” guarda identificador, versão, origem, prioridade, impressão digital, contagens e revisão. Não copia a paleta.
+- O projeto permanece `READY_TO_PREVIEW`. O limitador de copy em memória permanece, com a troca durável marcada como `BEFORE_PUBLIC_RELEASE`.
 
 ## Consequences
 

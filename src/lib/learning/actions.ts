@@ -42,6 +42,8 @@ import {
   suggestCopyForUser,
   type CopyPanel,
 } from "@/lib/learning/landing-page-copy";
+import { saveVisualDirectionForUser, SITE_VISUAL_SLUG } from "@/lib/learning/landing-page-visual";
+import type { VisualPageView } from "@/lib/landing-page/theme/visual-direction";
 import type { CopyIntent } from "@/lib/landing-page/copy/constants";
 import type { CopySuggestionResponseV1 } from "@/lib/landing-page/copy/schemas";
 import type { CopyCoverageV1, CopyWorkspace } from "@/lib/landing-page/copy/lesson-flow";
@@ -69,7 +71,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | WireframePanel | CopyPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number; proposal?: WireframeProposal; previewHref?: string; coverage?: CopyCoverageV1; suggestions?: CopySuggestionResponseV1 | null; workspace?: CopyWorkspace }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | WireframePanel | CopyPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number; proposal?: WireframeProposal; previewHref?: string; coverage?: CopyCoverageV1; suggestions?: CopySuggestionResponseV1 | null; workspace?: CopyWorkspace; visualPage?: VisualPageView }
   | { ok: false; message: string; code?: string };
 
 async function authorizedLesson(slug: string) {
@@ -589,6 +591,30 @@ export async function saveLandingPageCopyFactsAction(
     coverage: saved.coverage,
     suggestions: null,
     workspace: saved.workspace,
+  };
+}
+
+export async function saveLandingPageVisualDirectionAction(
+  blockKey: string,
+  input: {
+    landingPageProjectId: string;
+    expectedRevision: number;
+    theme: unknown;
+    sections: unknown;
+    direction: unknown;
+  },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveVisualDirectionForUser(session.user.id, SITE_VISUAL_SLUG, blockKey, input);
+  if (!saved.ok) return { ok: false, message: saved.message, code: saved.code };
+  return {
+    ok: true,
+    snapshot: saved.snapshot,
+    landingPageProjectId: saved.landingPageProjectId,
+    draftRevision: saved.draftRevision,
+    previewHref: saved.previewHref,
+    visualPage: saved.page,
   };
 }
 
