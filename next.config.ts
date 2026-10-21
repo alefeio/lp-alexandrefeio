@@ -8,6 +8,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["openai"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

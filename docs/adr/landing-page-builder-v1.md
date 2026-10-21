@@ -299,7 +299,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 1 | IMPLEMENTED — core model + schemas tipados + persistência draft |
 | 2 | IMPLEMENTED — renderer controlado + preview autenticado do draft |
 | 3 | IMPLEMENTED — motor guiado de wireframe, sem IA |
-| 4 | IMPLEMENTED CORE — assistência de redação por seção, sem provider ao vivo e sem Aula 7 |
+| 4 | IMPLEMENTED — copy assist por seção e provider OpenAI ao vivo, sem Aula 7 |
 | 5 | Theme / design tokens |
 | 6 | Trust + public media |
 | 7 | Responsive review (desktop/mobile preview) |
@@ -307,13 +307,13 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda não produzidas. O núcleo da Phase 4 está implementado, mas a Aula 7 não está pronta: não há provider de IA ao vivo.
+Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda não produzidas. O núcleo da Phase 4 e o provider OpenAI ao vivo estão implementados. A Aula 7 ainda não foi escrita.
 
 ## Phase 4 — copy assist core
 
 - A geração é por seção. Não existe geração da página inteira.
 - `LANDING_PAGE_COPY_PROMPT_V1` identifica o contrato do pedido. O domínio não conhece SDK nem credencial.
-- `LandingPageCopyProvider` é a abstração. O resolver atual devolve provider indisponível. Testes usam um provider falso. Nenhum adapter ao vivo está configurado.
+- `LandingPageCopyProvider` é a abstração. O resolver devolve o adapter OpenAI quando `OPENAI_API_KEY` existe no servidor. Sem chave, a geração responde indisponível. Não há fallback para o provider falso fora dos testes.
 - `buildCopyContextForSection` envia só fatos informados pelo aluno e necessários àquela seção. Esses fatos não são verificados externamente.
 - A política separa fato, reformulação permitida e afirmação proibida. Números, depoimentos, garantias, certificações, clientes e urgência que não estejam nos fatos são recusados. O detector não é universal; a revisão humana continua obrigatória.
 - Texto do aluno entra como dado, não como instrução. Um prompt livre não faz parte da API.
@@ -321,6 +321,19 @@ Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda nã
 - O preview mostra “Conteúdo provisório” e “Em revisão”. O modo público não mostra esses avisos.
 - Logs operacionais não carregam oferta, objeções, copy nem resposta do provider. Nada disso vai para analytics.
 - Limitações: não há fonte externa para decidir se um fato é verdadeiro; seções de processo, confiança e FAQ ficam sem texto inventado enquanto os fatos específicos não existirem.
+
+## Phase 4 — provider OpenAI
+
+- Phase 4 core: IMPLEMENTED. Phase 4 live provider: IMPLEMENTED. O smoke sintético passou.
+- Provider: OpenAI Responses API, SDK oficial `openai`, somente no servidor. Sem Assistants API e sem chamada no browser.
+- Modelo: `resolveCopyModel()`. Padrão `gpt-6-luna`. `OPENAI_COPY_MODEL` troca o modelo, por exemplo para `gpt-6-sol`, sem alterar código. Não há fallback automático de modelo.
+- Structured Outputs: `text.format.type = json_schema` com `strict: true`. A resposta ainda passa pelo schema interno e pelos guards factuais.
+- Cada chamada é stateless: `store: false`, sem conversation e sem tools. O esforço de raciocínio fica em `none`.
+- O contexto enviado é o de `buildCopyContextForSection`. Texto do aluno entra delimitado como dado.
+- Timeout do provider ao vivo: 25 segundos. Há no máximo uma nova tentativa para falha transitória de rede ou HTTP 5xx. Rate limit, recusa e erro de configuração não são repetidos.
+- Limite técnico por usuário: 10 gerações em 10 minutos, na memória do processo. Não é plano comercial nem limite distribuído.
+- A entrada autenticada `requestLandingPageCopySuggestions` exige sessão, posse da página e a política do curso. Com o curso em DRAFT, só o papel editorial ADMIN passa. Usuário comum não gera. A Aula 7 não tem UI.
+- Aprovação humana continua obrigatória. Gerar não grava o rascunho e não publica.
 
 ## Consequences
 

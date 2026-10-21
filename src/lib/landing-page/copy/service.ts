@@ -6,8 +6,8 @@ import type { LandingPageStore } from "@/lib/landing-page/types";
 import { COPY_PROVIDER_TIMEOUT_MS, COPY_VARIANT_MAX, LANDING_PAGE_COPY_PROMPT_V1, type CopyIntent, type CopyMissingFact } from "@/lib/landing-page/copy/constants";
 import { buildCopyContextForSection } from "@/lib/landing-page/copy/context";
 import { emitCopyAssistLog, type CopyAssistOperationalEvent } from "@/lib/landing-page/copy/log";
+import type { CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
 import { benefitCountAllowed, claimViolations, sectionPreconditions } from "@/lib/landing-page/copy/policy";
-import type { LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
 import { copySuggestionContentSchemas, copySuggestionResponseSchema, type CopySuggestionResponseV1 } from "@/lib/landing-page/copy/schemas";
 
 type Origin = "MANUAL" | "AI_ASSISTED";
@@ -67,11 +67,11 @@ function missingResponse(sectionId: string, sectionType: CopySuggestionResponseV
   };
 }
 
-function acceptSuggestions(raw: unknown, sectionType: string, sectionId: string, facts: Record<string, string>): CopySuggestionResponseV1 | null {
+function acceptSuggestions(raw: unknown, sectionType: string, sectionId: string, facts: Record<string, string>, variantCount: number): CopySuggestionResponseV1 | null {
   const parsed = copySuggestionResponseSchema.safeParse(raw);
   if (!parsed.success) return null;
   if (parsed.data.sectionType !== sectionType || parsed.data.sectionId !== sectionId) return null;
-  if (parsed.data.suggestions.length > COPY_VARIANT_MAX) return null;
+  if (parsed.data.suggestions.length > variantCount || parsed.data.suggestions.length > COPY_VARIANT_MAX) return null;
   const schema = copySuggestionContentSchemas[sectionType as keyof typeof copySuggestionContentSchemas];
   const suggestions = [];
   for (const suggestion of parsed.data.suggestions) {
@@ -122,38 +122,62 @@ export async function generateLandingPageCopySuggestions(
   }
 
   const requestId = crypto.randomUUID();
-  let providerResult: Awaited<ReturnType<LandingPageCopyProvider["generateCopySuggestion"]>>;
+  const variantCount = input.variantCount ?? COPY_VARIANT_MAX;
+  const logEvent = (status: CopyAssistOperationalEvent["status"], errorCode?: string, usage?: CopyProviderUsage) => {
+    const inputTokens = usage?.inputTokens;
+    const outputTokens = usage?.outputTokens;
+    emitCopyAssistLog({
+      requestId,
+      providerId: provider.id,
+      modelId: provider.modelId,
+      promptVersion: LANDING_PAGE_COPY_PROMPT_V1,
+      sectionType: built.context.sectionType,
+      latencyMs: Date.now() - started,
+      status,
+      ...(errorCode ? { errorCode } : {}),
+      ...(inputTokens !== undefined ? { inputTokens } : {}),
+      ...(outputTokens !== undefined ? { outputTokens } : {}),
+      ...(inputTokens !== undefined || outputTokens !== undefined ? { tokenUsage: (inputTokens ?? 0) + (outputTokens ?? 0) } : {}),
+    }, options?.log);
+  };
+  const ask = (repair: boolean, signal: AbortSignal) =>
+    provider.generateCopySuggestion({
+      promptVersion: LANDING_PAGE_COPY_PROMPT_V1,
+      context: built.context,
+      repair,
+      signal,
+      variantCount,
+    });
+  let providerResult: CopyProviderResult;
   try {
-    providerResult = await withTimeout(
-      (signal) => provider.generateCopySuggestion({ promptVersion: LANDING_PAGE_COPY_PROMPT_V1, context: built.context, repair: false, signal }),
-      options?.timeoutMs ?? COPY_PROVIDER_TIMEOUT_MS,
-    );
+    providerResult = await withTimeout((signal) => ask(false, signal), options?.timeoutMs ?? COPY_PROVIDER_TIMEOUT_MS);
   } catch {
-    emitCopyAssistLog({ requestId, providerId: provider.id, modelId: provider.modelId, promptVersion: LANDING_PAGE_COPY_PROMPT_V1, sectionType: built.context.sectionType, latencyMs: Date.now() - started, status: "error", errorCode: "COPY_ASSIST_PROVIDER_ERROR" }, options?.log);
+    logEvent("error", "COPY_ASSIST_PROVIDER_ERROR");
     return fail("COPY_ASSIST_PROVIDER_ERROR");
   }
   if (!providerResult.ok) {
-    emitCopyAssistLog({ requestId, providerId: provider.id, modelId: provider.modelId, promptVersion: LANDING_PAGE_COPY_PROMPT_V1, sectionType: built.context.sectionType, latencyMs: Date.now() - started, status: "error", errorCode: providerResult.code }, options?.log);
+    logEvent("error", providerResult.code);
     return fail(providerResult.code);
   }
 
-  let accepted = acceptSuggestions(providerResult.raw, built.context.sectionType, built.section.id, built.context.userProvidedFacts);
-  if (!accepted && providerResult.ok) {
+  let usage = providerResult.usage;
+  let accepted = acceptSuggestions(providerResult.raw, built.context.sectionType, built.section.id, built.context.userProvidedFacts, variantCount);
+  if (!accepted) {
     try {
-      const repaired = await withTimeout(
-        (signal) => provider.generateCopySuggestion({ promptVersion: LANDING_PAGE_COPY_PROMPT_V1, context: built.context, repair: true, signal }),
-        options?.timeoutMs ?? COPY_PROVIDER_TIMEOUT_MS,
-      );
-      if (repaired.ok) accepted = acceptSuggestions(repaired.raw, built.context.sectionType, built.section.id, built.context.userProvidedFacts);
+      const repaired = await withTimeout((signal) => ask(true, signal), options?.timeoutMs ?? COPY_PROVIDER_TIMEOUT_MS);
+      if (repaired.ok) {
+        usage = repaired.usage ?? usage;
+        accepted = acceptSuggestions(repaired.raw, built.context.sectionType, built.section.id, built.context.userProvidedFacts, variantCount);
+      }
     } catch {
       accepted = null;
     }
   }
   if (!accepted) {
-    emitCopyAssistLog({ requestId, providerId: provider.id, modelId: provider.modelId, promptVersion: LANDING_PAGE_COPY_PROMPT_V1, sectionType: built.context.sectionType, latencyMs: Date.now() - started, status: "error", errorCode: "COPY_ASSIST_INVALID_RESPONSE" }, options?.log);
+    logEvent("error", "COPY_ASSIST_INVALID_RESPONSE", usage);
     return fail("COPY_ASSIST_INVALID_RESPONSE");
   }
-  emitCopyAssistLog({ requestId, providerId: provider.id, modelId: provider.modelId, promptVersion: LANDING_PAGE_COPY_PROMPT_V1, sectionType: built.context.sectionType, latencyMs: Date.now() - started, status: "ok" }, options?.log);
+  logEvent("ok", undefined, usage);
   return ok(accepted);
 }
 

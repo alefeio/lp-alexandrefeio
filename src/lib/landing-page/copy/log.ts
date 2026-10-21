@@ -8,6 +8,8 @@ export type CopyAssistOperationalEvent = {
   status: "ok" | "error";
   errorCode?: string;
   tokenUsage?: number;
+  inputTokens?: number;
+  outputTokens?: number;
 };
 
 export function emitCopyAssistLog(

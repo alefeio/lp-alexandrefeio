@@ -186,13 +186,20 @@ test("contexto de copy é mínimo e a geração não grava", async () => {
 
 test("provider falso valida estrutura e recusa invenção", async () => {
   const { store, project } = await page();
-  const unavailable = await generateLandingPageCopySuggestions(store, {
-    userId: "user-a",
-    landingPageProjectId: project.id,
-    sectionId: "hero",
-  }, resolveLandingPageCopyProvider());
-  assert.equal(unavailable.ok, false);
-  if (!unavailable.ok) assert.equal(unavailable.code, "COPY_ASSIST_UNAVAILABLE");
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const unavailable = await generateLandingPageCopySuggestions(store, {
+      userId: "user-a",
+      landingPageProjectId: project.id,
+      sectionId: "hero",
+    }, resolveLandingPageCopyProvider());
+    assert.equal(unavailable.ok, false);
+    if (!unavailable.ok) assert.equal(unavailable.code, "COPY_ASSIST_UNAVAILABLE");
+  } finally {
+    if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousKey;
+  }
 
   const tooMany = await generateLandingPageCopySuggestions(store, {
     userId: "user-a",
