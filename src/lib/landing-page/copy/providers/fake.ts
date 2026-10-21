@@ -8,6 +8,13 @@ function clip(value: string | undefined, max: number): string | undefined {
   return next ? next : undefined;
 }
 
+function pairs(value: string | undefined) {
+  return (value ?? "").split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [title, description] = line.split(" — ");
+    return { title: title.trim(), description: (description ?? title).trim() };
+  });
+}
+
 function safeFor(context: LandingPageCopyContextV1) {
   const facts = context.userProvidedFacts;
   const base = {
@@ -18,6 +25,27 @@ function safeFor(context: LandingPageCopyContextV1) {
     warnings: [],
     missingFacts: [],
   };
+  if (context.sectionType === "PROCESS") {
+    const steps = pairs(facts.processSteps).map((step) => ({
+      title: clip(step.title, LANDING_PAGE_LIMITS.maxShortText),
+      description: clip(step.description, LANDING_PAGE_LIMITS.maxMediumText),
+    })).filter((step) => step.title && step.description);
+    return { ...base, suggestions: [{ id: "fake-process", content: { heading: clip(facts.offerName, LANDING_PAGE_LIMITS.maxHeadline), steps }, rationale: "Esta opção organiza as etapas informadas." }] };
+  }
+  if (context.sectionType === "TRUST") {
+    const items = pairs(facts.trustProofs).map((item) => ({
+      title: clip(item.title, LANDING_PAGE_LIMITS.maxShortText),
+      description: clip(item.description, LANDING_PAGE_LIMITS.maxMediumText),
+    })).filter((item) => item.title && item.description);
+    return { ...base, suggestions: [{ id: "fake-trust", content: { heading: "O que dá para mostrar", intro: clip(facts.offerName, LANDING_PAGE_LIMITS.maxMediumText), items }, rationale: "Esta opção organiza a prova informada." }] };
+  }
+  if (context.sectionType === "FAQ") {
+    const items = pairs(facts.objectionAnswers).map((item) => ({
+      question: clip(item.title, LANDING_PAGE_LIMITS.maxMediumText),
+      answer: clip(item.description, LANDING_PAGE_LIMITS.maxLongText),
+    })).filter((item) => item.question && item.answer);
+    return { ...base, suggestions: [{ id: "fake-faq", content: { heading: "Dúvidas", items }, rationale: "Esta opção usa as respostas informadas." }] };
+  }
   if (context.sectionType === "BENEFITS") {
     return {
       ...base,

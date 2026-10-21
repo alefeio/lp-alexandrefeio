@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–6 COMPLETE · Aulas 7–12 SCAFFOLDED |
+| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–7 COMPLETE · Aulas 8–12 SCAFFOLDED |
 | PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
 | COMMERCE_RELEASE | NOT_APPROVED |
 | Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–6 PAID com conteúdo (internamente PUBLISHED no seed) · Aulas 7–12 DRAFT |
@@ -68,14 +68,14 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
    Resultado: Mapa de decisão do visitante · Tool: `VISITOR_DECISION_JOURNEY_V1`  
    Cria `draftDocument.strategy.decisionJourney` no mesmo projeto. A navegação da aula é independente; a ferramenta exige o brief da Aula 4. `buildWireframeContextFromLandingPageProject` passa a montar o `WireframeContextV1`. A Aula 6 consome esse contexto. Esta aula não gera seções.
 
-### Módulo 3 — Estruture e comunique — R$ 71,90 — Aula 6 COMPLETE · Aula 7 SCAFFOLDED
+### Módulo 3 — Estruture e comunique — R$ 71,90 — Aulas 6–7 COMPLETE
 
 6. **Monte a estrutura da sua landing page** (`organize-as-secoes-da-pagina`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
    Resultado: Estrutura da minha landing page · Tool: `LANDING_PAGE_WIREFRAME_V1`  
-   Aula 4 grava `strategy.brief`. Aula 5 grava `strategy.decisionJourney`. Aula 6 grava `strategy.wireframe` e materializa `draftDocument.sections` com conteúdo provisório. O status passa a `READY_TO_PREVIEW`, que significa apenas que existe uma estrutura válida para visualizar. Não significa pronta para publicar.
-7. **Escreva uma mensagem que deixa sua oferta clara** (`mensagem-que-deixa-a-oferta-clara`) — PAID R$ 39,90  
-   Resultado: Copy aplicada à landing page · Tool: `LANDING_PAGE_COPY_ASSIST_V1`  
-   IA sugere; humano publica no projeto. Nunca inventar prova social ou fatos. Ainda não produzida.
+   Aula 4 grava `strategy.brief`. Aula 5 grava `strategy.decisionJourney`. Aula 6 grava `strategy.wireframe` e materializa `draftDocument.sections` com conteúdo provisório (`PLACEHOLDER`). O status passa a `READY_TO_PREVIEW`, que significa apenas que existe uma estrutura válida para visualizar. Não significa pronta para publicar.
+7. **Escreva uma mensagem que deixa sua oferta clara** (`mensagem-que-deixa-a-oferta-clara`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
+   Resultado: Copy da minha landing page · Tool: `LANDING_PAGE_COPY_ASSIST_V1`  
+   Aula 6 deixa as seções em `PLACEHOLDER`. Aula 7 escreve e aprova a copy das seções principais (`HERO` e, quando existem, `PROBLEM`, `SOLUTION`, `BENEFITS`, `CTA`). A IA sugere por seção, no máximo 3 opções, e não grava sozinha. O aluno aplica como `DRAFT` e aprova. Fatos complementares ficam em `strategy.copyFacts`. Seções opcionais (`PROCESS`, `FAQ`, `TRUST`, `FORM`) não bloqueiam a conclusão quando faltam fatos. `CONTACT` e `FOOTER` não usam IA. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda o resumo, não a copy inteira.
 
 ### Módulo 4 — Atenção e confiança — R$ 62,90 — SCAFFOLDED
 

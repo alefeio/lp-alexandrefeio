@@ -63,6 +63,8 @@ export { buildCopyContextForSection } from "@/lib/landing-page/copy/context";
 export { LANDING_PAGE_COPY_PROMPT_V1 } from "@/lib/landing-page/copy/constants";
 export { resolveLandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
 export { createFakeCopyProvider } from "@/lib/landing-page/copy/providers/fake";
+export { saveLandingPageCopyFacts } from "@/lib/landing-page/copy/facts";
+export { copyCoverage, copyLessonResult, copySetup, supportsCopyAssist, toCopyWorkspace } from "@/lib/landing-page/copy/lesson-flow";
 export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
 export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";

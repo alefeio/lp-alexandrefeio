@@ -1,5 +1,11 @@
 import { COPY_ASSIST_RATE_LIMIT } from "@/lib/landing-page/copy/config";
 
+/**
+ * Limite técnico por instância: 10 gerações por usuário a cada 10 minutos.
+ * BEFORE_PUBLIC_RELEASE: substituir por um limitador durável e distribuído.
+ * Aceitável enquanto o curso permanece DRAFT.
+ */
+
 const hits = new Map<string, number[]>();
 
 export function resetCopyAssistRateLimit(): void {

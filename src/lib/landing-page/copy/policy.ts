@@ -51,20 +51,30 @@ export function claimViolations(content: unknown, facts: Record<string, string>,
 }
 
 export function benefitCountAllowed(facts: Record<string, string>): number {
-  return facts.primaryBenefit?.trim() ? 1 : 0;
+  const extra = (facts.additionalBenefits ?? "").split("\n").map((item) => item.trim()).filter(Boolean).length;
+  return (facts.primaryBenefit?.trim() ? 1 : 0) + extra;
+}
+
+function linesOf(facts: Record<string, string>, key: string): number {
+  return (facts[key] ?? "").split("\n").map((item) => item.trim()).filter(Boolean).length;
 }
 
 export function sectionPreconditions(context: LandingPageCopyContextV1): CopyMissingFact[] {
   const facts = context.userProvidedFacts;
-  if (context.sectionType === "PROCESS") return ["PROCESS_STEPS"];
-  if (context.sectionType === "TRUST") return ["TRUST_PROOF"];
+  if (context.sectionType === "PROCESS") return linesOf(facts, "processSteps") > 0 ? [] : ["PROCESS_STEPS"];
+  if (context.sectionType === "TRUST") return linesOf(facts, "trustProofs") > 0 ? [] : ["TRUST_PROOF"];
   if (context.sectionType === "FAQ") {
-    const missing: CopyMissingFact[] = ["FAQ_ANSWER"];
-    if (/prazo/i.test(facts.objections ?? "")) missing.push("DELIVERY_TIME");
+    const missing: CopyMissingFact[] = [];
+    if (linesOf(facts, "objectionAnswers") === 0) missing.push("FAQ_ANSWER");
+    if (/prazo/i.test(facts.objections ?? "") && !/prazo/i.test(facts.objectionAnswers ?? "")) missing.push("DELIVERY_TIME");
     return missing;
   }
-  if (context.sectionType === "BENEFITS" && !facts.primaryBenefit) return ["PRIMARY_BENEFIT"];
+  if (context.sectionType === "BENEFITS" && benefitCountAllowed(facts) === 0) return ["PRIMARY_BENEFIT"];
   if (context.sectionType === "PROBLEM" && !facts.problemOrContext) return ["PROBLEM_CONTEXT"];
   if (!facts.offerName) return ["OFFER"];
   return [];
+}
+
+export function factLineCount(facts: Record<string, string>, key: string): number {
+  return linesOf(facts, key);
 }

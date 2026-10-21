@@ -10,6 +10,7 @@ import {
 import { landingPageActionSchema } from "@/lib/landing-page/actions";
 import { conversionPageBriefSchema } from "@/lib/landing-page/brief";
 import { visitorDecisionJourneySchema } from "@/lib/landing-page/decision-journey";
+import { copyFactsSchema } from "@/lib/landing-page/copy/facts-schema";
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida");
 
@@ -86,6 +87,7 @@ export const landingPageStrategySchema = z
     brief: conversionPageBriefSchema.optional(),
     decisionJourney: visitorDecisionJourneySchema.optional(),
     wireframe: landingPageWireframeStateSchema.optional(),
+    copyFacts: copyFactsSchema.optional(),
   })
   .strict();
 

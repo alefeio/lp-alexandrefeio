@@ -69,7 +69,7 @@ test("aulas 1–3 FREE e 4–12 PAID com resultados do builder", () => {
       "Brief de conversão da minha landing page",
       "Mapa de decisão do visitante",
       "Estrutura da minha landing page",
-      "Copy aplicada à landing page",
+      "Copy da minha landing page",
       "Tema/direção visual aplicada",
       "Elementos de confiança na landing page",
       "Página ajustada para publicação",

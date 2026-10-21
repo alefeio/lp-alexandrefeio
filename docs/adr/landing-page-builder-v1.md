@@ -299,7 +299,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 1 | IMPLEMENTED — core model + schemas tipados + persistência draft |
 | 2 | IMPLEMENTED — renderer controlado + preview autenticado do draft |
 | 3 | IMPLEMENTED — motor guiado de wireframe, sem IA |
-| 4 | IMPLEMENTED — copy assist por seção e provider OpenAI ao vivo, sem Aula 7 |
+| 4 | IMPLEMENTED — copy assist por seção, fatos complementares, cobertura da aula e provider OpenAI ao vivo |
 | 5 | Theme / design tokens |
 | 6 | Trust + public media |
 | 7 | Responsive review (desktop/mobile preview) |
@@ -307,7 +307,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda não produzidas. O núcleo da Phase 4 e o provider OpenAI ao vivo estão implementados. A Aula 7 ainda não foi escrita.
+Conteúdo pedagógico: Aulas 1–7 com conteúdo interno. Aulas 8–12 ainda não produzidas. A Aula 7 usa o copy assist por seção. A landing page e o curso permanecem sem publicação pública.
 
 ## Phase 4 — copy assist core
 
@@ -320,7 +320,9 @@ Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda nã
 - `generateLandingPageCopySuggestions` não grava o rascunho. `applyLandingPageCopy` valida de novo e marca `DRAFT`. `approveLandingPageSectionCopy` só promove `DRAFT` sem fatos pendentes para `APPROVED`. Editar uma seção aprovada volta para `DRAFT`.
 - O preview mostra “Conteúdo provisório” e “Em revisão”. O modo público não mostra esses avisos.
 - Logs operacionais não carregam oferta, objeções, copy nem resposta do provider. Nada disso vai para analytics.
-- Limitações: não há fonte externa para decidir se um fato é verdadeiro; seções de processo, confiança e FAQ ficam sem texto inventado enquanto os fatos específicos não existirem.
+- Limitações: não há fonte externa para decidir se um fato é verdadeiro. Processo, confiança e FAQ só recebem sugestão quando `strategy.copyFacts` traz etapas, provas ou respostas. Esses fatos são `USER_PROVIDED`, não prova verificada.
+- `CopyCoverageV1` mede seções principais aprovadas e seções opcionais revisadas, sem percentual. A conclusão da Aula 7 exige `HERO` aprovado e todas as seções principais presentes aprovadas, sem texto provisório. `PROCESS`, `FAQ`, `TRUST` e `FORM` não bloqueiam. `CONTACT` e `FOOTER` não usam IA.
+- O `LessonResult` “Copy da minha landing page” guarda identificador, versão, contagens e revisão. Não duplica a copy.
 
 ## Phase 4 — provider OpenAI
 
@@ -331,9 +333,9 @@ Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda nã
 - Cada chamada é stateless: `store: false`, sem conversation e sem tools. O esforço de raciocínio fica em `none`.
 - O contexto enviado é o de `buildCopyContextForSection`. Texto do aluno entra delimitado como dado.
 - Timeout do provider ao vivo: 25 segundos. Há no máximo uma nova tentativa para falha transitória de rede ou HTTP 5xx. Rate limit, recusa e erro de configuração não são repetidos.
-- Limite técnico por usuário: 10 gerações em 10 minutos, na memória do processo. Não é plano comercial nem limite distribuído.
-- A entrada autenticada `requestLandingPageCopySuggestions` exige sessão, posse da página e a política do curso. Com o curso em DRAFT, só o papel editorial ADMIN passa. Usuário comum não gera. A Aula 7 não tem UI.
-- Aprovação humana continua obrigatória. Gerar não grava o rascunho e não publica.
+- Limite técnico por usuário: 10 gerações em 10 minutos, na memória do processo. Não é plano comercial nem limite distribuído. BEFORE_PUBLIC_RELEASE: substituir o limitador em memória por um limitador durável e distribuído. Enquanto o curso permanece DRAFT, o limite atual é aceitável.
+- A entrada autenticada `requestLandingPageCopySuggestions` exige sessão, posse da página e a política do curso. Com o curso em DRAFT, só o papel editorial ADMIN passa por essa entrada. A Aula 7 usa outro caminho: aula publicada internamente, entitlement e posse da página. Usuário sem a aula não gera. A interface do aluno não mostra modelo, provedor nem versão do prompt.
+- Aprovação humana continua obrigatória. Gerar não grava o rascunho e não publica. Não existe geração da página inteira.
 
 ## Consequences
 

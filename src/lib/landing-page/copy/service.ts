@@ -7,7 +7,7 @@ import { COPY_PROVIDER_TIMEOUT_MS, COPY_VARIANT_MAX, LANDING_PAGE_COPY_PROMPT_V1
 import { buildCopyContextForSection } from "@/lib/landing-page/copy/context";
 import { emitCopyAssistLog, type CopyAssistOperationalEvent } from "@/lib/landing-page/copy/log";
 import type { CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
-import { benefitCountAllowed, claimViolations, sectionPreconditions } from "@/lib/landing-page/copy/policy";
+import { benefitCountAllowed, claimViolations, factLineCount, sectionPreconditions } from "@/lib/landing-page/copy/policy";
 import { copySuggestionContentSchemas, copySuggestionResponseSchema, type CopySuggestionResponseV1 } from "@/lib/landing-page/copy/schemas";
 
 type Origin = "MANUAL" | "AI_ASSISTED";
@@ -81,6 +81,9 @@ function acceptSuggestions(raw: unknown, sectionType: string, sectionId: string,
       const items = (suggestion.content as { items?: unknown[] }).items ?? [];
       if (items.length > benefitCountAllowed(facts)) return null;
     }
+    if (sectionType === "PROCESS" && ((suggestion.content as { steps?: unknown[] }).steps ?? []).length > factLineCount(facts, "processSteps")) return null;
+    if (sectionType === "TRUST" && ((suggestion.content as { items?: unknown[] }).items ?? []).length > factLineCount(facts, "trustProofs")) return null;
+    if (sectionType === "FAQ" && ((suggestion.content as { items?: unknown[] }).items ?? []).length > factLineCount(facts, "objectionAnswers")) return null;
     suggestions.push(suggestion);
   }
   return { ...parsed.data, suggestions };

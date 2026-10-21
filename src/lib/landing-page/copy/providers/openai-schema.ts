@@ -38,15 +38,16 @@ const CONTENT: Record<CopySuggestionSectionType, Record<string, unknown>> = {
   }),
   PROCESS: objectSchema({
     heading: nullableString,
-    note: nullableString,
+    steps: { type: "array", items: objectSchema({ title: { type: "string" }, description: { type: "string" } }) },
   }),
   TRUST: objectSchema({
     heading: nullableString,
-    note: nullableString,
+    intro: nullableString,
+    items: { type: "array", items: objectSchema({ title: { type: "string" }, description: { type: "string" } }) },
   }),
   FAQ: objectSchema({
     heading: nullableString,
-    note: nullableString,
+    items: { type: "array", items: objectSchema({ question: { type: "string" }, answer: { type: "string" } }) },
   }),
   CTA: objectSchema({
     heading: { type: "string" },

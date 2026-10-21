@@ -85,11 +85,36 @@ const formSuggestionSchema = z
   })
   .strict();
 
+const processSuggestionSchema = z
+  .object({
+    heading: plain(LANDING_PAGE_LIMITS.maxHeadline).optional(),
+    steps: z.array(z.object({ title: plain(LANDING_PAGE_LIMITS.maxShortText), description: plain(LANDING_PAGE_LIMITS.maxMediumText) }).strict()).min(1).max(LANDING_PAGE_LIMITS.maxProcessSteps),
+  })
+  .strict();
+
+const trustSuggestionSchema = z
+  .object({
+    heading: plain(LANDING_PAGE_LIMITS.maxHeadline).optional(),
+    intro: plain(LANDING_PAGE_LIMITS.maxMediumText).optional(),
+    items: z.array(z.object({ title: plain(LANDING_PAGE_LIMITS.maxShortText), description: plain(LANDING_PAGE_LIMITS.maxMediumText) }).strict()).min(1).max(8),
+  })
+  .strict();
+
+const faqSuggestionSchema = z
+  .object({
+    heading: plain(LANDING_PAGE_LIMITS.maxHeadline).optional(),
+    items: z.array(z.object({ question: plain(LANDING_PAGE_LIMITS.maxMediumText), answer: plain(LANDING_PAGE_LIMITS.maxLongText) }).strict()).min(1).max(8),
+  })
+  .strict();
+
 export const copySuggestionContentSchemas = {
   HERO: heroSuggestionSchema,
   PROBLEM: problemSuggestionSchema,
   SOLUTION: solutionSuggestionSchema,
   BENEFITS: benefitsSuggestionSchema,
+  PROCESS: processSuggestionSchema,
+  TRUST: trustSuggestionSchema,
+  FAQ: faqSuggestionSchema,
   CTA: ctaSuggestionSchema,
   FORM: formSuggestionSchema,
 } as const;
