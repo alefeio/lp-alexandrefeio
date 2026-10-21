@@ -17,6 +17,12 @@ export const LANDING_PAGE_CODES = [
   "ACTION_CHANGE_REQUIRES_CONFIRMATION",
   "LANDING_PAGE_CONTEXT_INSUFFICIENT",
   "LANDING_PAGE_SECTION_HAS_CONTENT",
+  "LANDING_PAGE_SECTION_INCOMPLETE",
+  "COPY_ASSIST_UNAVAILABLE",
+  "COPY_ASSIST_RATE_LIMITED",
+  "COPY_ASSIST_INVALID_RESPONSE",
+  "COPY_ASSIST_PROVIDER_ERROR",
+  "COPY_ASSIST_INSUFFICIENT_CONTEXT",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -40,6 +46,12 @@ const MESSAGES: Record<LandingPageCode, string> = {
   ACTION_CHANGE_REQUIRES_CONFIRMATION: "A ação principal vai mudar. Confirme antes de salvar.",
   LANDING_PAGE_CONTEXT_INSUFFICIENT: "Complete a estratégia antes de aplicar uma estrutura.",
   LANDING_PAGE_SECTION_HAS_CONTENT: "Esta seção já tem conteúdo e não pode ser removida por aqui.",
+  LANDING_PAGE_SECTION_INCOMPLETE: "Esta seção ainda tem informações obrigatórias em aberto.",
+  COPY_ASSIST_UNAVAILABLE: "A assistência de redação ainda não está disponível.",
+  COPY_ASSIST_RATE_LIMITED: "Muitas sugestões em pouco tempo. Tente de novo mais tarde.",
+  COPY_ASSIST_INVALID_RESPONSE: "A sugestão veio em um formato inválido e não foi aplicada.",
+  COPY_ASSIST_PROVIDER_ERROR: "Não foi possível obter a sugestão agora.",
+  COPY_ASSIST_INSUFFICIENT_CONTEXT: "Faltam informações da estratégia para sugerir este texto.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {

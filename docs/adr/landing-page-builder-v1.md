@@ -299,7 +299,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 1 | IMPLEMENTED — core model + schemas tipados + persistência draft |
 | 2 | IMPLEMENTED — renderer controlado + preview autenticado do draft |
 | 3 | IMPLEMENTED — motor guiado de wireframe, sem IA |
-| 4 | Copy assist (provider-agnostic + factual guards) |
+| 4 | IMPLEMENTED CORE — assistência de redação por seção, sem provider ao vivo e sem Aula 7 |
 | 5 | Theme / design tokens |
 | 6 | Trust + public media |
 | 7 | Responsive review (desktop/mobile preview) |
@@ -307,7 +307,20 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda não produzidas. Phase 4 (copy assist) não implementada.
+Conteúdo pedagógico: Aulas 1–6 com conteúdo interno. Aulas 7–12 ainda não produzidas. O núcleo da Phase 4 está implementado, mas a Aula 7 não está pronta: não há provider de IA ao vivo.
+
+## Phase 4 — copy assist core
+
+- A geração é por seção. Não existe geração da página inteira.
+- `LANDING_PAGE_COPY_PROMPT_V1` identifica o contrato do pedido. O domínio não conhece SDK nem credencial.
+- `LandingPageCopyProvider` é a abstração. O resolver atual devolve provider indisponível. Testes usam um provider falso. Nenhum adapter ao vivo está configurado.
+- `buildCopyContextForSection` envia só fatos informados pelo aluno e necessários àquela seção. Esses fatos não são verificados externamente.
+- A política separa fato, reformulação permitida e afirmação proibida. Números, depoimentos, garantias, certificações, clientes e urgência que não estejam nos fatos são recusados. O detector não é universal; a revisão humana continua obrigatória.
+- Texto do aluno entra como dado, não como instrução. Um prompt livre não faz parte da API.
+- `generateLandingPageCopySuggestions` não grava o rascunho. `applyLandingPageCopy` valida de novo e marca `DRAFT`. `approveLandingPageSectionCopy` só promove `DRAFT` sem fatos pendentes para `APPROVED`. Editar uma seção aprovada volta para `DRAFT`.
+- O preview mostra “Conteúdo provisório” e “Em revisão”. O modo público não mostra esses avisos.
+- Logs operacionais não carregam oferta, objeções, copy nem resposta do provider. Nada disso vai para analytics.
+- Limitações: não há fonte externa para decidir se um fato é verdadeiro; seções de processo, confiança e FAQ ficam sem texto inventado enquanto os fatos específicos não existirem.
 
 ## Consequences
 

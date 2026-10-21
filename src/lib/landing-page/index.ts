@@ -54,6 +54,15 @@ export {
   validateReviewedWireframePlan,
 } from "@/lib/landing-page/wireframe/review";
 export { wireframeStructureSummary } from "@/lib/landing-page/wireframe/summary";
+export {
+  applyLandingPageCopy,
+  approveLandingPageSectionCopy,
+  generateLandingPageCopySuggestions,
+} from "@/lib/landing-page/copy/service";
+export { buildCopyContextForSection } from "@/lib/landing-page/copy/context";
+export { LANDING_PAGE_COPY_PROMPT_V1 } from "@/lib/landing-page/copy/constants";
+export { resolveLandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
+export { createFakeCopyProvider } from "@/lib/landing-page/copy/providers/fake";
 export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
 export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";

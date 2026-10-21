@@ -23,6 +23,13 @@ const optionalText = (max: number) => z.string().trim().max(max).optional();
 
 const emptySettings = z.object({}).strict();
 
+export const copyMetaSchema = z
+  .object({
+    origin: z.enum(["MANUAL", "AI_ASSISTED"]),
+    unresolvedFacts: z.array(z.string().trim().min(1).max(40)).max(8),
+  })
+  .strict();
+
 export const landingPageContentStatusSchema = z.enum(LANDING_PAGE_CONTENT_STATUSES);
 
 const listItemSchema = z
@@ -268,6 +275,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: heroContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -280,6 +288,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: problemContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -292,6 +301,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: solutionContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -304,6 +314,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: benefitsContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -316,6 +327,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: processContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -328,6 +340,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: trustContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -340,6 +353,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: faqContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -352,6 +366,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: ctaContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -364,6 +379,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: formContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -376,6 +392,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: contactContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
   z
@@ -388,6 +405,7 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       content: footerContentSchema,
       settings: emptySettings,
       contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
     })
     .strict(),
 ]);
