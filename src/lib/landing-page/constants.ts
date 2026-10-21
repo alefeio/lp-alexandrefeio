@@ -55,6 +55,8 @@ export const LANDING_COMPONENT_TYPES = [
   "BENEFITS",
   "PROCESS",
   "TRUST",
+  "PORTFOLIO",
+  "TESTIMONIALS",
   "FAQ",
   "CTA",
   "FORM",

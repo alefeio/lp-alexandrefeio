@@ -301,7 +301,7 @@ test("aplicar no rascunho vazio preserva o documento e respeita revisão e dono"
   empty.theme = { ...empty.theme, colors: { ...empty.theme.colors, primary: "#123456" } };
   empty.conversion = { ...empty.conversion, businessOutcome: "pedido de contato" };
   empty.measurement = { enabled: false, events: ["page_view"] };
-  empty.mediaRefs = [{ id: "media-1", kind: "image" }];
+  empty.mediaRefs = [{ mediaId: "media-1", usage: "GENERAL" }];
   const seeded = await updateLandingPageDraft(store, {
     userId: "owner",
     landingPageProjectId: created.value.id,
@@ -324,7 +324,7 @@ test("aplicar no rascunho vazio preserva o documento e respeita revisão e dono"
   assert.equal(applied.value.project.draftDocument.theme.colors.primary, "#123456");
   assert.equal(applied.value.project.draftDocument.conversion.businessOutcome, "pedido de contato");
   assert.deepEqual(applied.value.project.draftDocument.measurement.events, ["page_view"]);
-  assert.equal(applied.value.project.draftDocument.mediaRefs[0]?.id, "media-1");
+  assert.equal(applied.value.project.draftDocument.mediaRefs[0]?.mediaId, "media-1");
   assert.equal(applied.value.project.draftDocument.schemaVersion, 1);
   assert.equal(applied.value.project.draftDocument.registryVersion, LANDING_COMPONENT_REGISTRY_V1);
   assert.ok(applied.value.project.draftDocument.sections.length > 0);

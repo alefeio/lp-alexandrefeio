@@ -93,6 +93,10 @@ function sectionContent(
         intro: WIREFRAME_PLACEHOLDERS.trustIntro,
         items: [],
       };
+    case "PORTFOLIO":
+      return { items: [] };
+    case "TESTIMONIALS":
+      return { proofRefs: [] };
     case "FAQ":
       return {
         heading: WIREFRAME_PLACEHOLDERS.faqHeading,

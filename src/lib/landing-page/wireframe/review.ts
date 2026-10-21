@@ -58,6 +58,8 @@ const TYPE_KEY: Record<LandingComponentType, WireframeSectionKey | null> = {
   BENEFITS: "benefits",
   PROCESS: "process",
   TRUST: "trust",
+  PORTFOLIO: null,
+  TESTIMONIALS: null,
   FAQ: "faq",
   FORM: "primary-form",
   CTA: "primary-cta",

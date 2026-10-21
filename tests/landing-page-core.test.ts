@@ -297,6 +297,8 @@ test("component registry V1 cobre os tipos MVP", () => {
     "BENEFITS",
     "PROCESS",
     "TRUST",
+    "PORTFOLIO",
+    "TESTIMONIALS",
     "FAQ",
     "CTA",
     "FORM",

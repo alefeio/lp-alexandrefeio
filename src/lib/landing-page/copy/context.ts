@@ -65,7 +65,9 @@ export function buildCopyContextForSection(input: {
 }): { ok: true; context: LandingPageCopyContextV1; section: LandingPageSection } | { ok: false; reason: "SECTION_NOT_FOUND" | "UNSUPPORTED_SECTION" | "INSUFFICIENT" } {
   const section = input.document.sections.find((item) => item.id === input.sectionId);
   if (!section) return { ok: false, reason: "SECTION_NOT_FOUND" };
-  if (section.type === "CONTACT" || section.type === "FOOTER") return { ok: false, reason: "UNSUPPORTED_SECTION" };
+  if (section.type === "CONTACT" || section.type === "FOOTER" || section.type === "PORTFOLIO" || section.type === "TESTIMONIALS") {
+    return { ok: false, reason: "UNSUPPORTED_SECTION" };
+  }
   if (!input.document.strategy?.brief?.offer.name) return { ok: false, reason: "INSUFFICIENT" };
   const all = { ...factsFromBrief(input.document), ...copyFactLines(input.document.strategy?.copyFacts) };
   const keys = keysFor(section.type);

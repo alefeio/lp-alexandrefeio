@@ -25,6 +25,13 @@ export const LANDING_PAGE_CODES = [
   "COPY_ASSIST_INSUFFICIENT_CONTEXT",
   "LANDING_PAGE_THEME_CONTRAST",
   "LANDING_PAGE_VISUAL_REVIEW",
+  "LANDING_PAGE_MEDIA_REJECTED",
+  "LANDING_PAGE_MEDIA_TOO_LARGE",
+  "LANDING_PAGE_MEDIA_LIMIT",
+  "LANDING_PAGE_MEDIA_RATE_LIMITED",
+  "LANDING_PAGE_MEDIA_STORAGE",
+  "LANDING_PAGE_MEDIA_IN_USE",
+  "LANDING_PAGE_TRUST_PROOF_IN_USE",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -56,6 +63,13 @@ const MESSAGES: Record<LandingPageCode, string> = {
   COPY_ASSIST_INSUFFICIENT_CONTEXT: "Faltam informações da estratégia para sugerir este texto.",
   LANDING_PAGE_THEME_CONTRAST: "Essa combinação de cores deixa o texto difícil de ler.",
   LANDING_PAGE_VISUAL_REVIEW: "A revisão visual mudou. Confira os avisos antes de salvar.",
+  LANDING_PAGE_MEDIA_REJECTED: "Esse arquivo não pode ser usado na landing page.",
+  LANDING_PAGE_MEDIA_TOO_LARGE: "Esse arquivo passa do tamanho aceito.",
+  LANDING_PAGE_MEDIA_LIMIT: "Esta landing page chegou ao limite de mídia.",
+  LANDING_PAGE_MEDIA_RATE_LIMITED: "Muitos envios em pouco tempo. Tente de novo mais tarde.",
+  LANDING_PAGE_MEDIA_STORAGE: "Não foi possível guardar ou remover o arquivo.",
+  LANDING_PAGE_MEDIA_IN_USE: "Essa mídia está em uso. Remova a referência antes de excluir.",
+  LANDING_PAGE_TRUST_PROOF_IN_USE: "Essa prova está em uso. Remova a referência antes de excluir.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {

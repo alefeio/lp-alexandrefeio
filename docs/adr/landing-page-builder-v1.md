@@ -174,7 +174,7 @@ Separar:
 | PRIVATE_CAMPAIGN_DATA | uploads de campanha (já existente) |
 | PUBLIC_LANDING_PAGE_MEDIA | imagens da landing (público via CDN/blob dedicado) |
 
-Não reutilizar automaticamente o store privado. Upload ainda **não implementado**.
+Não reutilizar automaticamente o store privado. O núcleo de upload público está na Phase 6. A publicação da página continua adiada.
 
 ## Forms
 
@@ -301,7 +301,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 3 | IMPLEMENTED — motor guiado de wireframe, sem IA |
 | 4 | IMPLEMENTED — copy assist por seção, fatos complementares, cobertura da aula e provider OpenAI ao vivo |
 | 5 | IMPLEMENTED CORE — tema controlado, contraste e ajustes visuais por seção |
-| 6 | Trust + public media |
+| 6 | IMPLEMENTED CORE — mídia pública, posse, upload e provas de confiança informadas pelo aluno |
 | 7 | Responsive review (desktop/mobile preview) |
 | 8 | CTA/form + measurement nativo |
 | 9 | Publish / snapshot / rota `/p/[slug]` |
@@ -352,13 +352,30 @@ Conteúdo pedagógico: Aulas 1–8 com conteúdo interno. Aulas 9–12 ainda nã
 
 ## Aula 8 — direção visual
 
-- Aula 8: COMPLETE no código. A Aula 9 não foi produzida. A Phase 6 de mídia e confiança não foi iniciada.
+- Aula 8: COMPLETE no código. A Aula 9 não foi produzida. A Phase 6 de mídia e confiança foi implementada depois, como núcleo, sem a aula.
 - A ferramenta `LANDING_PAGE_VISUAL_DIRECTION_V1` usa o tema, o contraste, os presets e os avisos da Phase 5. Não chama IA e não cria outra landing page.
 - `saveLandingPageVisualDirection` grava tema, ajustes visuais das seções e `strategy.visualDirection` numa única atualização de revisão. Conteúdo, status da copy, ordem, brief, jornada, wireframe, fatos, conversão e medição permanecem.
 - `strategy.visualDirection` guarda a origem, a prioridade visual, as seções em destaque, os avisos revisados, a impressão digital do tema e o resumo visual das seções. Não duplica o tema.
 - O tema padrão pode ser confirmado. Contraste crítico bloqueia o salvamento. Avisos de hierarquia não bloqueiam.
 - O `LessonResult` “Direção visual da minha landing page” guarda identificador, versão, origem, prioridade, impressão digital, contagens e revisão. Não copia a paleta.
 - O projeto permanece `READY_TO_PREVIEW`. O limitador de copy em memória permanece, com a troca durável marcada como `BEFORE_PUBLIC_RELEASE`.
+
+## Phase 6 — confiança e mídia pública
+
+- Phase 6 core: IMPLEMENTED. A Aula 9 não foi produzida e não está completa.
+- `LandingPageMedia` guarda a mídia da landing. A identidade é o registro e o `storageKey`, não a URL. O documento referencia `mediaId`.
+- O armazenamento é `PUBLIC_LANDING_PAGE_MEDIA`, com acesso público e prefixo opaco `landing-media/`. Não reutiliza o adapter privado de planilhas de campanha.
+- Formatos aceitos: JPEG, PNG e WebP, conferidos pelo tipo e pela assinatura. SVG, GIF, HTML, PDF e arquivo genérico são recusados. A extensão não autoriza o arquivo.
+- Logo até 5 MB. Demais imagens até 10 MB. No máximo 20 assets ativos por landing page. No máximo 20 inícios de upload por usuário a cada 10 minutos, na memória do processo.
+- BEFORE_PUBLIC_RELEASE: revisar o teto comercial de mídia. A retenção definitiva do arquivo continua em aberto. Um upload `UPLOADING` abandonado pode ser marcado `FAILED` por `expireAbandonedLandingPageUploads`. Não há cron. A exclusão futura do projeto precisa limpar a mídia antes: a chave estrangeira é `ON DELETE RESTRICT` e não apaga o arquivo sozinha.
+- JPEG remove segmentos APP1 e APP13. PNG remove chunks `eXIf`, `tEXt`, `zTXt` e `iTXt`. WebP com chunk EXIF é recusado. Não há pipeline de redimensionamento nem editor de corte.
+- A URL pública não leva e-mail, nome, título, oferta nem identificador previsível desnecessário. Operações de lista, leitura administrativa e exclusão continuam só do dono.
+- Excluir mídia referenciada devolve `LANDING_PAGE_MEDIA_IN_USE`. Se a remoção no armazenamento falha, o registro não vai para `DELETED`.
+- `HERO` aceita `mediaRef` opcional. A variante `split` mostra a imagem quando ela está pronta e, sem imagem, mantém o texto em duas colunas. `PORTFOLIO` e `TESTIMONIALS` entram no registry V1. O portfólio aceita até 12 itens. Depoimento sem confirmação não fica pronto e não vira card vazio.
+- As provas continuam em `strategy.copyFacts.trustProofs`. Tipos: `TESTIMONIAL`, `PORTFOLIO`, `CASE`, `CREDENTIAL`, `EXPERIENCE`, `PROCESS_EVIDENCE`, `BUSINESS_INFORMATION` e `OTHER`. `READY_FOR_DISPLAY` significa que o aluno confirmou o uso. Não existe status `VERIFIED` nem selo de verificação da plataforma.
+- Depoimento pronto exige texto, autor e `consentConfirmed`. A assistência de copy pode receber prova pronta como texto e continua sem escrever depoimento. Não recebe arquivo nem URL. Não há geração de imagem.
+- O preview do dono pode mostrar a mídia real, segue `noindex` e não mede analytics. A publicação pública e a rota `/p/[slug]` continuam fora. O curso permanece DRAFT e NOT_FOR_SALE.
+- O limitador de copy em memória permanece, com a troca durável marcada como `BEFORE_PUBLIC_RELEASE`.
 
 ## Consequences
 

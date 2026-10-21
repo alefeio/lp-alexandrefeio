@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LandingPageRenderer } from "@/components/landing-page/LandingPageRenderer";
+import type { LandingPageResolvedMedia } from "@/components/landing-page/LandingPageRenderer";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
 import { visibleLandingPageSections } from "@/lib/landing-page/order";
+import { createPrismaLandingPageMediaStore } from "@/lib/landing-page/media/prisma-store";
 import { createPrismaLandingPageStore } from "@/lib/landing-page/prisma-store";
 import { getLandingPageProject, type LandingPageProjectView } from "@/lib/landing-page/service";
 import type { LandingPageCode } from "@/lib/landing-page/errors";
@@ -60,6 +62,22 @@ export default async function LandingPagePreviewPage({
 
   const page = result.value;
   const visible = visibleLandingPageSections(page.draftDocument.sections);
+  let media: LandingPageResolvedMedia[] = [];
+  try {
+    const rows = await createPrismaLandingPageMediaStore().listForProjectOwner(page.id, session.user.id);
+    media = rows
+      .filter((row) => row.status === "READY" && row.publicUrl)
+      .map((row) => ({
+        id: row.id,
+        status: row.status,
+        publicUrl: row.publicUrl,
+        width: row.width,
+        height: row.height,
+        altText: row.altText,
+      }));
+  } catch {
+    media = [];
+  }
 
   return (
     <Container className="max-w-5xl">
@@ -76,7 +94,7 @@ export default async function LandingPagePreviewPage({
       </p>
       {visible.length === 0 ? <p className="mt-8 text-base">Sua landing page ainda não possui seções.</p> : null}
       <div className="mt-8 overflow-hidden rounded-xl border border-border">
-        <LandingPageRenderer document={page.draftDocument} mode="PREVIEW" />
+        <LandingPageRenderer document={page.draftDocument} mode="PREVIEW" media={media} />
       </div>
     </Container>
   );

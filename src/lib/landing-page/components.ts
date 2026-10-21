@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { landingPageActionSchema } from "@/lib/landing-page/actions";
+import { landingPageMediaPlacementSchema } from "@/lib/landing-page/media/placement";
+import { LANDING_PAGE_MEDIA_LIMITS } from "@/lib/landing-page/media/limits";
 import {
   LANDING_COMPONENT_TYPES,
   LANDING_PAGE_CONTENT_STATUSES,
@@ -66,6 +68,7 @@ const heroContentSchema = z
     primaryCta: landingPageActionSchema.optional(),
     secondaryCta: landingPageActionSchema.optional(),
     imageRef: z.string().trim().max(120).optional(),
+    mediaRef: landingPageMediaPlacementSchema.optional(),
   })
   .strict()
   .superRefine(rejectForbiddenKeys);
@@ -118,6 +121,7 @@ const trustContentSchema = z
           .strict(),
       )
       .max(LANDING_PAGE_LIMITS.maxTrustItems),
+    proofRefs: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   })
   .strict()
   .superRefine(rejectForbiddenKeys);
@@ -177,6 +181,7 @@ const footerContentSchema = z
   .object({
     brandText: optionalText(LANDING_PAGE_LIMITS.maxShortText),
     copyrightText: optionalText(LANDING_PAGE_LIMITS.maxMediumText),
+    mediaRef: landingPageMediaPlacementSchema.optional(),
     links: z
       .array(
         z
@@ -187,6 +192,32 @@ const footerContentSchema = z
           .strict(),
       )
       .max(LANDING_PAGE_LIMITS.maxFooterLinks),
+  })
+  .strict()
+  .superRefine(rejectForbiddenKeys);
+
+const portfolioItemSchema = z
+  .object({
+    mediaRef: landingPageMediaPlacementSchema,
+    title: optionalText(LANDING_PAGE_LIMITS.maxShortText),
+    description: optionalText(LANDING_PAGE_LIMITS.maxMediumText),
+  })
+  .strict();
+
+const portfolioContentSchema = z
+  .object({
+    heading: optionalText(LANDING_PAGE_LIMITS.maxHeadline),
+    description: optionalText(LANDING_PAGE_LIMITS.maxMediumText),
+    items: z.array(portfolioItemSchema).max(LANDING_PAGE_MEDIA_LIMITS.maxPortfolioItems),
+  })
+  .strict()
+  .superRefine(rejectForbiddenKeys);
+
+const testimonialsContentSchema = z
+  .object({
+    heading: optionalText(LANDING_PAGE_LIMITS.maxHeadline),
+    description: optionalText(LANDING_PAGE_LIMITS.maxMediumText),
+    proofRefs: z.array(z.string().trim().min(1).max(64)).max(12),
   })
   .strict()
   .superRefine(rejectForbiddenKeys);
@@ -226,6 +257,18 @@ export const COMPONENT_REGISTRY_V1 = {
     type: "TRUST" as const,
     variants: ["default"] as const,
     contentSchema: trustContentSchema,
+    settingsSchema: visualSettings,
+  },
+  PORTFOLIO: {
+    type: "PORTFOLIO" as const,
+    variants: ["default"] as const,
+    contentSchema: portfolioContentSchema,
+    settingsSchema: visualSettings,
+  },
+  TESTIMONIALS: {
+    type: "TESTIMONIALS" as const,
+    variants: ["default"] as const,
+    contentSchema: testimonialsContentSchema,
     settingsSchema: visualSettings,
   },
   FAQ: {
@@ -339,6 +382,32 @@ export const landingPageSectionSchema = z.discriminatedUnion("type", [
       order: sectionOrderSchema,
       enabled: z.boolean(),
       content: trustContentSchema,
+      settings: visualSettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("PORTFOLIO"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.PORTFOLIO.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: portfolioContentSchema,
+      settings: visualSettings,
+      contentStatus: landingPageContentStatusSchema.optional(),
+      copyMeta: copyMetaSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      id: sectionIdSchema,
+      type: z.literal("TESTIMONIALS"),
+      variant: z.enum(COMPONENT_REGISTRY_V1.TESTIMONIALS.variants),
+      order: sectionOrderSchema,
+      enabled: z.boolean(),
+      content: testimonialsContentSchema,
       settings: visualSettings,
       contentStatus: landingPageContentStatusSchema.optional(),
       copyMeta: copyMetaSchema.optional(),

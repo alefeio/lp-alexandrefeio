@@ -40,6 +40,8 @@ const SECTION_VARIANT: Record<LandingComponentType, string> = {
   BENEFITS: "grid",
   PROCESS: "numbered",
   TRUST: "default",
+  PORTFOLIO: "default",
+  TESTIMONIALS: "default",
   FAQ: "default",
   CTA: "banner",
   FORM: "default",

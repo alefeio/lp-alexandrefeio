@@ -47,6 +47,8 @@ export const WIREFRAME_PURPOSE: Record<string, string> = {
   BENEFITS: "Organizar o valor da oferta em pontos que você vai escrever.",
   PROCESS: "Mostrar como o trabalho acontece.",
   TRUST: "Reduzir insegurança antes do contato.",
+  PORTFOLIO: "Mostrar trabalhos reais informados pelo negócio.",
+  TESTIMONIALS: "Mostrar depoimentos que o negócio tem autorização para publicar.",
   FAQ: "Reservar espaço para as dúvidas reais.",
   FORM: "Capturar o contato combinado com a ação principal.",
   CTA: "Convidar para a ação principal perto do fim da página.",

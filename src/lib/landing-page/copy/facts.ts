@@ -68,9 +68,13 @@ export function copyFactLines(facts: CopyFactsV1 | undefined): Record<string, st
     lines.additionalBenefits = facts.additionalBenefits.map((item) => (item.description ? `${item.title} — ${item.description}` : item.title)).join("\n");
   }
   if (facts.trustProofs?.length) {
-    lines.trustProofs = facts.trustProofs
-      .map((item) => [item.title, item.description, item.factualDetails].filter(Boolean).join(" — "))
+    const trustProofs = facts.trustProofs
+      .filter((item) => item.status !== "DRAFT")
+      .filter((item) => item.type !== "TESTIMONIAL" || item.consentConfirmed === true || (!item.quote && !item.authorName && !item.status))
+      .map((item) => [item.title, item.description, item.factualDetails, item.quote, item.authorName, item.caseContext, item.whatWasDone, item.result].filter(Boolean).join(" — "))
+      .filter(Boolean)
       .join("\n");
+    if (trustProofs) lines.trustProofs = trustProofs;
   }
   if (facts.objectionAnswers?.length) {
     lines.objectionAnswers = facts.objectionAnswers.map((item) => `${item.objection} — ${item.answerFact}`).join("\n");

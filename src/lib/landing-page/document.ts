@@ -11,6 +11,7 @@ import { landingPageActionSchema } from "@/lib/landing-page/actions";
 import { conversionPageBriefSchema } from "@/lib/landing-page/brief";
 import { visitorDecisionJourneySchema } from "@/lib/landing-page/decision-journey";
 import { copyFactsSchema } from "@/lib/landing-page/copy/facts-schema";
+import { landingPageMediaPlacementSchema } from "@/lib/landing-page/media/placement";
 import { defaultLandingPageTheme, landingPageThemeSchema } from "@/lib/landing-page/theme/schema";
 import { landingPageVisualDirectionSchema } from "@/lib/landing-page/theme/visual-direction";
 
@@ -83,14 +84,13 @@ export const landingPageStrategySchema = z
   })
   .strict();
 
-export const landingPageMediaRefSchema = z
-  .object({
-    id: z.string().trim().min(1).max(64),
-    kind: z.enum(["image"]),
-    // Placeholder tipado — upload público ainda não existe.
-    publicPath: z.string().trim().max(300).optional(),
-  })
-  .strict();
+export const landingPageMediaRefSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if (typeof record.mediaId === "string") return value;
+  if (record.kind === "image" && typeof record.id === "string") return { mediaId: record.id, usage: "GENERAL" };
+  return value;
+}, landingPageMediaPlacementSchema);
 
 export const landingPageDocumentSchema = z
   .object({

@@ -32,6 +32,7 @@ model User {
   orders               Order[]
   entitlements         Entitlement[]
   landingPageProjects  LandingPageProject[]
+  landingPageMedia     LandingPageMedia[]
 
   @@unique([email])
   @@map("user")
@@ -781,6 +782,7 @@ model LandingPageProject {
   publishedPublicationId String?                  @unique
   publishedPublication   LandingPagePublication?  @relation("LandingPageActivePublication", fields: [publishedPublicationId], references: [id], onDelete: SetNull)
   publications           LandingPagePublication[] @relation("LandingPagePublicationHistory")
+  media                  LandingPageMedia[]
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 
@@ -788,6 +790,47 @@ model LandingPageProject {
   @@index([projectId])
   @@index([courseId])
   @@map("landing_page_project")
+}
+
+enum LandingPageMediaType {
+  LOGO
+  HERO_IMAGE
+  PORTFOLIO_IMAGE
+  TRUST_IMAGE
+  TESTIMONIAL_AVATAR
+  CREDENTIAL_IMAGE
+  GENERAL_IMAGE
+}
+
+enum LandingPageMediaStatus {
+  UPLOADING
+  READY
+  FAILED
+  DELETED
+}
+
+/// Mídia pública da landing page. Não guarda planilha, CSV nem dado de campanha.
+model LandingPageMedia {
+  id                   String                 @id
+  landingPageProjectId String
+  landingPageProject   LandingPageProject     @relation(fields: [landingPageProjectId], references: [id], onDelete: Restrict)
+  userId               String
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  type                 LandingPageMediaType
+  status               LandingPageMediaStatus @default(UPLOADING)
+  storageKey           String                 @unique
+  publicUrl            String?
+  mimeType             String
+  fileSize             Int
+  width                Int?
+  height               Int?
+  altText              String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@index([landingPageProjectId, status])
+  @@index([userId])
+  @@map("landing_page_media")
 }
 
 /// Snapshot imutável criado na publicação. Fundação Phase 1 — sem endpoint público ainda.
