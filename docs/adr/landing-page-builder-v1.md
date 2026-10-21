@@ -300,7 +300,7 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 2 | IMPLEMENTED — renderer controlado + preview autenticado do draft |
 | 3 | IMPLEMENTED — motor guiado de wireframe, sem IA |
 | 4 | IMPLEMENTED — copy assist por seção, fatos complementares, cobertura da aula e provider OpenAI ao vivo |
-| 5 | Theme / design tokens |
+| 5 | IMPLEMENTED CORE — tema controlado, contraste e ajustes visuais por seção, sem Aula 8 |
 | 6 | Trust + public media |
 | 7 | Responsive review (desktop/mobile preview) |
 | 8 | CTA/form + measurement nativo |
@@ -336,6 +336,19 @@ Conteúdo pedagógico: Aulas 1–7 com conteúdo interno. Aulas 8–12 ainda nã
 - Limite técnico por usuário: 10 gerações em 10 minutos, na memória do processo. Não é plano comercial nem limite distribuído. BEFORE_PUBLIC_RELEASE: substituir o limitador em memória por um limitador durável e distribuído. Enquanto o curso permanece DRAFT, o limite atual é aceitável.
 - A entrada autenticada `requestLandingPageCopySuggestions` exige sessão, posse da página e a política do curso. Com o curso em DRAFT, só o papel editorial ADMIN passa por essa entrada. A Aula 7 usa outro caminho: aula publicada internamente, entitlement e posse da página. Usuário sem a aula não gera. A interface do aluno não mostra modelo, provedor nem versão do prompt.
 - Aprovação humana continua obrigatória. Gerar não grava o rascunho e não publica. Não existe geração da página inteira.
+
+## Phase 5 — tema e sistema visual
+
+- Phase 5 core: IMPLEMENTED. A Aula 8 não foi produzida.
+- `LandingPageThemeV1` guarda papéis de cor, tipografia, largura, espaçamento, densidade, raio e estilo de botão. `schemaVersion` do documento permanece 1. Um tema antigo, com `primaryColor` e `fontFamily: "sans" | "serif"`, ainda é lido e convertido.
+- Cores aceitam só hex normalizado (`#rrggbb`). `rgb()`, `hsl()`, `var()`, `url()`, `calc()` e `color-mix()` são recusados. Não há CSS, className nem fonte por URL.
+- Famílias internas: `SYSTEM_SANS`, `INTER` e `SERIF`. Nenhuma é a fonte da marca da plataforma. O tema padrão é neutro.
+- Presets `CLARO`, `SOBRIO`, `CONTRASTE` e `EDITORIAL` só preenchem o tema. Depois disso a personalização continua aberta. Não há preset por setor e não há paleta gerada por IA.
+- O contraste é uma checagem parcial e determinística, não uma auditoria completa. Texto sobre fundo abaixo de 4.5 é bloqueado. Texto do botão sobre a cor principal, texto sobre superfície e texto atenuado abaixo de 3.0 também são bloqueados. Entre 3.0 e 4.5 esses papéis geram atenção, sem botão para ignorar a regra.
+- Cada seção pode referenciar `backgroundRole` (`DEFAULT`, `SURFACE`, `PRIMARY`, `ACCENT`), alinhamento `LEFT` ou `CENTER` e ênfase `NORMAL` ou `FEATURED`. A cor não é salva na seção. Variantes só existem quando o schema e o renderer já as desenham. `HERO` `split` não exige imagem.
+- `updateLandingPageTheme` e `updateLandingPageSectionVisualSettings` exigem posse e `expectedRevision`. Não mudam conteúdo, status da copy, ordem, estratégia, conversão nem medição. O projeto não vai para `PUBLISHED` nem `READY_TO_PUBLISH`.
+- `evaluateVisualHierarchy` devolve avisos determinísticos e não altera o documento. Muitas seções em destaque, fundo primário repetido e alinhamento central em toda a página geram aviso.
+- Mídia, upload e publicação continuam fora desta fase. O limitador de copy em memória permanece, com a troca durável marcada como `BEFORE_PUBLIC_RELEASE`.
 
 ## Consequences
 

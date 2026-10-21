@@ -230,7 +230,7 @@ test("aplicar materializa placeholders e a edição estrutural preserva conteúd
   const { store, page } = await readyPage();
   const proposal = proposeWireframeFromDocument(page.draftDocument);
   if (!proposal.ok || !proposal.value.reviewed) return;
-  const theme = page.draftDocument.theme.primaryColor;
+  const theme = page.draftDocument.theme.colors.primary;
   const applied = await applyReviewedWireframe(store, {
     userId: "user-a",
     landingPageProjectId: page.id,
@@ -248,7 +248,7 @@ test("aplicar materializa placeholders e a edição estrutural preserva conteúd
   assert.equal(applied.value.draftDocument.strategy?.wireframe?.planFingerprint, proposal.value.reviewed.planFingerprint);
   assert.equal(applied.value.draftDocument.strategy?.brief?.offer.name, "Móveis planejados sob medida");
   assert.equal(applied.value.draftDocument.strategy?.decisionJourney?.trustNeed, "HIGH");
-  assert.equal(applied.value.draftDocument.theme.primaryColor, theme);
+  assert.equal(applied.value.draftDocument.theme.colors.primary, theme);
   const serialized = JSON.stringify(applied.value.draftDocument.sections);
   assert.equal(/lorem|ipsum|depoimento|98%|garantia|clientes atendidos/i.test(serialized), false);
   assert.equal(serialized.includes(WIREFRAME_PLACEHOLDERS.heroHeadline), true);

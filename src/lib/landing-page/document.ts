@@ -11,19 +11,9 @@ import { landingPageActionSchema } from "@/lib/landing-page/actions";
 import { conversionPageBriefSchema } from "@/lib/landing-page/brief";
 import { visitorDecisionJourneySchema } from "@/lib/landing-page/decision-journey";
 import { copyFactsSchema } from "@/lib/landing-page/copy/facts-schema";
+import { defaultLandingPageTheme, landingPageThemeSchema } from "@/lib/landing-page/theme/schema";
 
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida");
-
-export const landingPageThemeSchema = z
-  .object({
-    fontFamily: z.enum(["sans", "serif"]),
-    primaryColor: hexColor,
-    backgroundColor: hexColor,
-    textColor: hexColor,
-    buttonRadius: z.enum(["none", "sm", "md", "lg"]),
-    contentWidth: z.enum(["narrow", "default", "wide"]),
-  })
-  .strict();
+export { landingPageThemeSchema };
 
 export const landingPageConversionSchema = z
   .object({
@@ -130,14 +120,7 @@ export function createEmptyLandingPageDocument(): LandingPageDocumentV1 {
     schemaVersion: LANDING_PAGE_DOCUMENT_SCHEMA_VERSION,
     registryVersion: LANDING_COMPONENT_REGISTRY_V1,
     sections: [],
-    theme: {
-      fontFamily: "sans",
-      primaryColor: "#0f172a",
-      backgroundColor: "#ffffff",
-      textColor: "#0f172a",
-      buttonRadius: "md",
-      contentWidth: "default",
-    },
+    theme: defaultLandingPageTheme(),
     conversion: {
       primaryAction: null,
       secondaryAction: null,

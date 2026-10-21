@@ -65,6 +65,20 @@ export { resolveLandingPageCopyProvider } from "@/lib/landing-page/copy/provider
 export { createFakeCopyProvider } from "@/lib/landing-page/copy/providers/fake";
 export { saveLandingPageCopyFacts } from "@/lib/landing-page/copy/facts";
 export { copyCoverage, copyLessonResult, copySetup, supportsCopyAssist, toCopyWorkspace } from "@/lib/landing-page/copy/lesson-flow";
+export {
+  assessThemeContrast,
+  defaultLandingPageTheme,
+  landingPageThemeSchema,
+  landingPageThemeV1Schema,
+  themeFromBrandColors,
+  themePreset,
+  THEME_PRESETS,
+  THEME_PRESET_IDS,
+  sectionVisualSettingsSchema,
+} from "@/lib/landing-page/theme/schema";
+export { calculateContrastRatio } from "@/lib/landing-page/theme/color";
+export { evaluateVisualHierarchy } from "@/lib/landing-page/theme/hierarchy";
+export { updateLandingPageSectionVisualSettings, updateLandingPageTheme } from "@/lib/landing-page/theme/service";
 export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
 export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";

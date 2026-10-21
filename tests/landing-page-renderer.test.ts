@@ -99,7 +99,7 @@ test("theme mapper só emite hex e tokens internos", () => {
   assert.match(serialized, /#1d4ed8/);
   assert.equal(serialized.includes("url("), false);
   assert.equal(serialized.includes("@import"), false);
-  assert.throws(() => mapLandingPageTheme({ ...consultoriaLandingFixture().theme, primaryColor: "red" as "#000000" }));
+  assert.throws(() => mapLandingPageTheme({ ...consultoriaLandingFixture().theme, colors: { ...consultoriaLandingFixture().theme.colors, primary: "red" } }));
 });
 
 test("schema e registry inválidos não passam para o renderer", () => {
@@ -108,7 +108,7 @@ test("schema e registry inválidos não passam para o renderer", () => {
   assert.equal(parseLandingPageDocument({ ...base, registryVersion: "NOPE" }).ok, false);
   const raw = { ...base, sections: [{ id: "x", type: "HERO", variant: "default", order: 0, enabled: true, content: { headline: "A", html: "<b>x</b>" }, settings: {} }] };
   assert.equal(landingPageDocumentSchema.safeParse(raw).success, false);
-  assert.equal(landingPageDocumentSchema.safeParse({ ...base, sections: [] , theme: { ...base.theme, primaryColor: "red" } }).success, false);
+  assert.equal(landingPageDocumentSchema.safeParse({ ...base, sections: [] , theme: { ...base.theme, colors: { ...base.theme.colors, primary: "red" } } }).success, false);
 
   const schemaMarkup = renderToStaticMarkup(
     createElement(LandingPageRenderer, { document: { ...base, schemaVersion: 9 }, mode: "PREVIEW" }),
@@ -131,7 +131,7 @@ test("texto longo quebra e layout responsivo está no markup", () => {
       order: 0,
       enabled: true,
       content: { headline: "A".repeat(120), subheadline: "B".repeat(200) },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "benefits",
@@ -140,7 +140,7 @@ test("texto longo quebra e layout responsivo está no markup", () => {
       order: 1,
       enabled: true,
       content: { heading: "Itens", items: [{ title: "Item", description: "C".repeat(80) }] },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
   ];
   const markup = renderToStaticMarkup(createElement(LandingPageRenderer, { document, mode: "PREVIEW" }));

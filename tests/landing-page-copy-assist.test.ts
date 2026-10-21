@@ -70,7 +70,7 @@ async function page() {
   });
   if (!saved.ok) throw new Error(saved.code);
   const document = structuredClone(saved.value.draftDocument);
-  document.theme = { ...document.theme, primaryColor: "#123456" };
+  document.theme = { ...document.theme, colors: { ...document.theme.colors, primary: "#123456" } };
   document.measurement = { enabled: false, events: ["page_view"] };
   document.sections = [
     section({
@@ -360,7 +360,7 @@ test("aplicar e aprovar copy preserva o projeto e o destino da ação", async ()
   }
   assert.equal(manual.value.draftDocument.sections.find((item) => item.id === "faq")?.contentStatus, "PLACEHOLDER");
   assert.equal(manual.value.draftDocument.strategy?.brief?.offer.name, "Móveis planejados");
-  assert.equal(manual.value.draftDocument.theme.primaryColor, "#123456");
+  assert.equal(manual.value.draftDocument.theme.colors.primary, "#123456");
   assert.deepEqual(manual.value.draftDocument.measurement.events, ["page_view"]);
   assert.equal(hero?.copyMeta?.origin, "MANUAL");
 

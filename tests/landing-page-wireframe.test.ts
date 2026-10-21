@@ -298,7 +298,7 @@ test("aplicar no rascunho vazio preserva o documento e respeita revisão e dono"
   if (!created.ok) return;
 
   const empty = createEmptyLandingPageDocument();
-  empty.theme = { ...empty.theme, primaryColor: "#123456" };
+  empty.theme = { ...empty.theme, colors: { ...empty.theme.colors, primary: "#123456" } };
   empty.conversion = { ...empty.conversion, businessOutcome: "pedido de contato" };
   empty.measurement = { enabled: false, events: ["page_view"] };
   empty.mediaRefs = [{ id: "media-1", kind: "image" }];
@@ -321,7 +321,7 @@ test("aplicar no rascunho vazio preserva o documento e respeita revisão e dono"
   assert.equal(applied.ok, true);
   if (!applied.ok) return;
   assert.equal(applied.value.project.draftRevision, seeded.value.draftRevision + 1);
-  assert.equal(applied.value.project.draftDocument.theme.primaryColor, "#123456");
+  assert.equal(applied.value.project.draftDocument.theme.colors.primary, "#123456");
   assert.equal(applied.value.project.draftDocument.conversion.businessOutcome, "pedido de contato");
   assert.deepEqual(applied.value.project.draftDocument.measurement.events, ["page_view"]);
   assert.equal(applied.value.project.draftDocument.mediaRefs[0]?.id, "media-1");

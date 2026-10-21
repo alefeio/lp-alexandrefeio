@@ -56,7 +56,7 @@ export function LandingPageFormBlock({
           <span className="break-words">{consentText || "Consentimento"}</span>
         </label>
       ) : null}
-      <button type="submit" disabled className="rounded-md px-4 py-2 text-sm font-medium opacity-70">
+      <button type="submit" disabled className="max-w-full break-words px-4 py-2 text-sm font-medium opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ backgroundColor: "var(--lp-button-bg)", color: "var(--lp-button-fg)", border: "var(--lp-button-border)", borderRadius: "var(--lp-button-radius)" }}>
         {submitLabel || "Enviar"}
       </button>
     </form>

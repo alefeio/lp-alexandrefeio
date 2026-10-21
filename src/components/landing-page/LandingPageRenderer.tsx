@@ -9,59 +9,63 @@ import type { LandingPageAction } from "@/lib/landing-page/actions";
 
 export type LandingPageRenderMode = "PREVIEW" | "PUBLIC";
 
-function SectionFrame({
-  section,
-  children,
-}: {
-  section: LandingPageSection;
-  children: ReactNode;
-}) {
+const buttonClass =
+  "inline-flex max-w-full break-words px-4 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+
+function buttonStyle(): CSSProperties {
+  return {
+    backgroundColor: "var(--lp-button-bg)",
+    color: "var(--lp-button-fg)",
+    border: "var(--lp-button-border)",
+    borderRadius: "var(--lp-button-radius)",
+  };
+}
+
+function sectionStyle(section: LandingPageSection): CSSProperties {
+  const role = section.settings.backgroundRole;
+  const background =
+    role === "SURFACE" ? "var(--lp-surface)" : role === "PRIMARY" ? "var(--lp-primary)" : role === "ACCENT" ? "var(--lp-accent)" : "transparent";
+  return {
+    backgroundColor: background,
+    color: role === "PRIMARY" ? "var(--lp-primary-text)" : "var(--lp-text)",
+    textAlign: section.settings.alignment === "CENTER" ? "center" : "left",
+    paddingBlock: section.settings.emphasis === "FEATURED" ? "calc(var(--lp-section-spacing) * 1.25)" : "var(--lp-section-spacing)",
+  };
+}
+
+function SectionFrame({ section, children }: { section: LandingPageSection; children: ReactNode }) {
   return (
     <section
       id={section.id}
       data-section-id={section.id}
       data-section-type={section.type}
-      className="w-full overflow-x-hidden px-4 py-10 sm:px-6 sm:py-14"
+      data-section-variant={section.variant}
+      data-background-role={section.settings.backgroundRole}
+      data-alignment={section.settings.alignment}
+      data-emphasis={section.settings.emphasis}
+      className="w-full overflow-x-hidden px-4 sm:px-6"
+      style={sectionStyle(section)}
     >
-      <div className="mx-auto w-full min-w-0" style={{ maxWidth: "var(--lp-content-width)" }}>
+      <div className="mx-auto w-full min-w-0" style={{ maxWidth: "min(100%, var(--lp-content-width))" }}>
         {children}
       </div>
     </section>
   );
 }
 
-function ActionControl({
-  action,
-  mode,
-}: {
-  action: LandingPageAction;
-  mode: LandingPageRenderMode;
-}) {
+function ActionControl({ action, mode }: { action: LandingPageAction; mode: LandingPageRenderMode }) {
   const resolved = resolveLandingPageAction(action);
-  const className = "inline-flex max-w-full break-words rounded-md px-4 py-2 text-sm font-medium";
-  const style: CSSProperties = {
-    backgroundColor: "var(--lp-primary)",
-    color: "var(--lp-background)",
-    borderRadius: "var(--lp-radius)",
-  };
   if (mode === "PREVIEW" || !resolved) {
     return (
-      <button
-        type="button"
-        className={className}
-        style={style}
-        data-preview-action="disabled"
-        aria-disabled="true"
-        data-action-kind={action.type}
-      >
+      <button type="button" className={buttonClass} style={buttonStyle()} data-preview-action="disabled" aria-disabled="true" data-action-kind={action.type}>
         {resolved?.label ?? "Continuar"}
       </button>
     );
   }
   return (
     <a
-      className={className}
-      style={style}
+      className={buttonClass}
+      style={buttonStyle()}
       href={resolved.href}
       data-action-kind={action.type}
       {...(resolved.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
@@ -69,6 +73,10 @@ function ActionControl({
       {resolved.label}
     </a>
   );
+}
+
+function headingStyle(): CSSProperties {
+  return { fontSize: "var(--lp-heading-size)", fontWeight: "var(--lp-heading-weight)" };
 }
 
 function HeroBlock({
@@ -82,32 +90,45 @@ function HeroBlock({
 }) {
   const { content } = section;
   const Heading = asHeading;
+  const split = section.variant === "split";
+  const actions = content.primaryCta || content.secondaryCta ? (
+    <div className={`mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap ${section.settings.alignment === "CENTER" && !split ? "sm:justify-center" : ""}`}>
+      {content.primaryCta ? <ActionControl action={content.primaryCta} mode={mode} /> : null}
+      {content.secondaryCta ? <ActionControl action={content.secondaryCta} mode={mode} /> : null}
+    </div>
+  ) : null;
   return (
     <SectionFrame section={section}>
-      {content.eyebrow ? <p className="break-words text-xs font-medium uppercase tracking-[0.14em]">{content.eyebrow}</p> : null}
-      <Heading className="mt-3 text-balance break-words text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-        {content.headline}
-      </Heading>
-      {content.subheadline ? <p className="mt-4 break-words text-base leading-relaxed sm:text-lg">{content.subheadline}</p> : null}
-      {content.primaryCta || content.secondaryCta ? (
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          {content.primaryCta ? <ActionControl action={content.primaryCta} mode={mode} /> : null}
-          {content.secondaryCta ? <ActionControl action={content.secondaryCta} mode={mode} /> : null}
+      <div className={split ? "grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2" : "min-w-0"}>
+        <div className="min-w-0">
+          {content.eyebrow ? <p className="break-words text-xs font-medium uppercase tracking-[0.14em]" style={{ color: "var(--lp-muted)" }}>{content.eyebrow}</p> : null}
+          <Heading className="mt-3 text-balance break-words leading-tight tracking-tight" style={headingStyle()}>
+            {content.headline}
+          </Heading>
         </div>
-      ) : null}
+        <div className="min-w-0">
+          {content.subheadline ? <p className="mt-4 break-words leading-relaxed">{content.subheadline}</p> : null}
+          {actions}
+        </div>
+      </div>
     </SectionFrame>
   );
 }
 
 function BenefitsBlock({ section }: { section: Extract<LandingPageSection, { type: "BENEFITS" }> }) {
+  const cards = section.variant === "grid";
   return (
     <SectionFrame section={section}>
-      {section.content.heading ? <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{section.content.heading}</h2> : null}
-      <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+      {section.content.heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2> : null}
+      <ul className={cards ? "mt-6 grid grid-cols-1 gap-4 md:grid-cols-2" : "mt-6 flex flex-col"} style={{ gap: "var(--lp-density)" }}>
         {section.content.items.map((item) => (
-          <li key={item.title} className="min-w-0 rounded-lg border border-current/15 p-4">
+          <li
+            key={item.title}
+            className="min-w-0 p-4"
+            style={cards ? { border: "1px solid var(--lp-border)", borderRadius: "var(--lp-card-radius)", background: "var(--lp-surface)" } : undefined}
+          >
             <h3 className="break-words text-lg font-medium">{item.title}</h3>
-            <p className="mt-2 break-words text-sm leading-relaxed">{item.description}</p>
+            <p className="mt-2 break-words text-sm leading-relaxed" style={{ color: "var(--lp-muted)" }}>{item.description}</p>
           </li>
         ))}
       </ul>
@@ -116,13 +137,14 @@ function BenefitsBlock({ section }: { section: Extract<LandingPageSection, { typ
 }
 
 function ProcessBlock({ section }: { section: Extract<LandingPageSection, { type: "PROCESS" }> }) {
+  const steps = section.variant === "numbered";
   return (
     <SectionFrame section={section}>
-      {section.content.heading ? <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{section.content.heading}</h2> : null}
-      <ol className="mt-6 flex flex-col gap-4 md:flex-row md:flex-wrap">
+      {section.content.heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2> : null}
+      <ol className={steps ? "mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2" : "mt-6 flex flex-col"} style={{ gap: "var(--lp-density)" }}>
         {section.content.steps.map((step, index) => (
-          <li key={`${step.title}-${index}`} className="min-w-0 flex-1 rounded-lg border border-current/15 p-4 md:min-w-48">
-            {section.variant === "numbered" ? <p className="text-xs font-medium">{index + 1}</p> : null}
+          <li key={`${step.title}-${index}`} className="min-w-0 p-4" style={{ border: "1px solid var(--lp-border)", borderRadius: "var(--lp-card-radius)" }}>
+            {steps ? <p className="text-xs font-medium">{index + 1}</p> : null}
             <h3 className="break-words text-lg font-medium">{step.title}</h3>
             <p className="mt-2 break-words text-sm leading-relaxed">{step.description}</p>
           </li>
@@ -137,7 +159,7 @@ function TrustBlock({ section }: { section: Extract<LandingPageSection, { type: 
   if (!heading && !intro && items.length === 0) return null;
   return (
     <SectionFrame section={section}>
-      {heading ? <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{heading}</h2> : null}
+      {heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{heading}</h2> : null}
       {intro ? <p className="mt-3 break-words text-base leading-relaxed">{intro}</p> : null}
       {items.length > 0 ? (
         <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -156,7 +178,7 @@ function TrustBlock({ section }: { section: Extract<LandingPageSection, { type: 
 function FaqBlock({ section }: { section: Extract<LandingPageSection, { type: "FAQ" }> }) {
   return (
     <SectionFrame section={section}>
-      {section.content.heading ? <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{section.content.heading}</h2> : null}
+      {section.content.heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2> : null}
       <div className="mt-6 space-y-3">
         {section.content.items.map((item) => (
           <details key={item.question} className="rounded-lg border border-current/15 p-4">
@@ -178,7 +200,7 @@ function CtaBlock({
 }) {
   return (
     <SectionFrame section={section}>
-      <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{section.content.heading}</h2>
+      <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2>
       {section.content.description ? <p className="mt-3 break-words text-base leading-relaxed">{section.content.description}</p> : null}
       <div className="mt-6">
         <ActionControl action={section.content.action} mode={mode} />
@@ -198,7 +220,7 @@ function ContactBlock({ section }: { section: Extract<LandingPageSection, { type
   if (!heading && rows.length === 0) return null;
   return (
     <SectionFrame section={section}>
-      {heading ? <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{heading}</h2> : null}
+      {heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{heading}</h2> : null}
       <dl className="mt-4 space-y-3">
         {rows.map((row) => (
           <div key={row.label}>
@@ -245,7 +267,7 @@ function NarrativeBlock({
   const items = section.content.items ?? [];
   return (
     <SectionFrame section={section}>
-      <h2 className="text-balance break-words text-2xl font-semibold tracking-tight">{section.content.heading}</h2>
+      <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2>
       {section.content.description ? (
         <p className="mt-3 break-words text-base leading-relaxed">{section.content.description}</p>
       ) : null}

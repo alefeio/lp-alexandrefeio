@@ -1,42 +1,91 @@
 import type { CSSProperties } from "react";
-import type { LandingPageDocumentV1 } from "@/lib/landing-page/document";
+import { isNormalizedHex } from "@/lib/landing-page/theme/color";
+import type { LandingPageThemeV1 } from "@/lib/landing-page/theme/schema";
 
-export type LandingPageTheme = LandingPageDocumentV1["theme"];
-
-const RADIUS: Record<LandingPageTheme["buttonRadius"], string> = {
-  none: "0px",
-  sm: "4px",
-  md: "8px",
-  lg: "16px",
+const WIDTH: Record<LandingPageThemeV1["layout"]["contentWidth"], string> = {
+  NARROW: "40rem",
+  STANDARD: "48rem",
+  WIDE: "64rem",
 };
 
-const WIDTH: Record<LandingPageTheme["contentWidth"], string> = {
-  narrow: "40rem",
-  default: "48rem",
-  wide: "64rem",
+const RADIUS: Record<LandingPageThemeV1["shape"]["buttonRadius"], string> = {
+  SQUARE: "0px",
+  SOFT: "8px",
+  ROUNDED: "16px",
 };
 
-const HEX = /^#[0-9a-fA-F]{6}$/;
+const SPACING: Record<LandingPageThemeV1["layout"]["sectionSpacing"], string> = {
+  COMPACT: "2.5rem",
+  COMFORTABLE: "3.5rem",
+  SPACIOUS: "5rem",
+};
 
-/** Tokens validados do documento viram variáveis internas. Sem CSS, url() ou var() do usuário. */
-export function mapLandingPageTheme(theme: LandingPageTheme): CSSProperties {
-  if (!HEX.test(theme.primaryColor) || !HEX.test(theme.backgroundColor) || !HEX.test(theme.textColor)) {
-    throw new Error("LANDING_PAGE_THEME_INVALID");
-  }
+const DENSITY: Record<LandingPageThemeV1["layout"]["contentDensity"], string> = {
+  COMPACT: "0.75rem",
+  BALANCED: "1.25rem",
+  AIRY: "2rem",
+};
 
-  const fontFamily =
-    theme.fontFamily === "serif" ? "Georgia, 'Times New Roman', serif" : "ui-sans-serif, system-ui, sans-serif";
+const HEADING: Record<LandingPageThemeV1["typography"]["headingScale"], string> = {
+  COMPACT: "clamp(1.5rem, 4vw, 2rem)",
+  BALANCED: "clamp(1.75rem, 5vw, 2.75rem)",
+  EXPRESSIVE: "clamp(2rem, 6vw, 3.5rem)",
+};
 
+const BODY: Record<LandingPageThemeV1["typography"]["bodyScale"], string> = {
+  COMPACT: "1rem",
+  BALANCED: "1.0625rem",
+  EXPRESSIVE: "1.125rem",
+};
+
+const FONT: Record<LandingPageThemeV1["typography"]["fontFamily"], string> = {
+  SYSTEM_SANS: "ui-sans-serif, system-ui, sans-serif",
+  INTER: "Inter, ui-sans-serif, system-ui, sans-serif",
+  SERIF: "Georgia, 'Times New Roman', serif",
+};
+
+/** Tokens já validados viram variáveis internas. Nenhuma string de CSS do aluno entra aqui. */
+export function mapLandingPageTheme(theme: LandingPageThemeV1): CSSProperties {
+  const colors = [
+    theme.colors.background,
+    theme.colors.surface,
+    theme.colors.text,
+    theme.colors.mutedText,
+    theme.colors.primary,
+    theme.colors.primaryText,
+    theme.colors.border,
+    theme.colors.accent ?? theme.colors.surface,
+  ];
+  if (colors.some((color) => !isNormalizedHex(color))) throw new Error("LANDING_PAGE_THEME_INVALID");
+  const solid = theme.buttons.style === "SOLID";
   return {
-    ["--lp-primary" as string]: theme.primaryColor,
-    ["--lp-background" as string]: theme.backgroundColor,
-    ["--lp-text" as string]: theme.textColor,
-    ["--lp-content-width" as string]: WIDTH[theme.contentWidth],
-    ["--lp-radius" as string]: RADIUS[theme.buttonRadius],
-    fontFamily,
-    backgroundColor: theme.backgroundColor,
-    color: theme.textColor,
+    ["--lp-background" as string]: theme.colors.background,
+    ["--lp-surface" as string]: theme.colors.surface,
+    ["--lp-text" as string]: theme.colors.text,
+    ["--lp-muted" as string]: theme.colors.mutedText,
+    ["--lp-primary" as string]: theme.colors.primary,
+    ["--lp-primary-text" as string]: theme.colors.primaryText,
+    ["--lp-border" as string]: theme.colors.border,
+    ["--lp-accent" as string]: theme.colors.accent ?? theme.colors.surface,
+    ["--lp-content-width" as string]: WIDTH[theme.layout.contentWidth],
+    ["--lp-button-radius" as string]: RADIUS[theme.shape.buttonRadius],
+    ["--lp-card-radius" as string]: RADIUS[theme.shape.cardRadius],
+    ["--lp-section-spacing" as string]: SPACING[theme.layout.sectionSpacing],
+    ["--lp-density" as string]: DENSITY[theme.layout.contentDensity],
+    ["--lp-heading-size" as string]: HEADING[theme.typography.headingScale],
+    ["--lp-body-size" as string]: BODY[theme.typography.bodyScale],
+    ["--lp-heading-weight" as string]: String(theme.typography.headingWeight),
+    ["--lp-body-weight" as string]: String(theme.typography.bodyWeight),
+    ["--lp-button-bg" as string]: solid ? theme.colors.primary : "transparent",
+    ["--lp-button-fg" as string]: solid ? theme.colors.primaryText : theme.colors.primary,
+    ["--lp-button-border" as string]: solid ? "1px solid transparent" : `1px solid ${theme.colors.primary}`,
+    fontFamily: FONT[theme.typography.fontFamily],
+    fontWeight: theme.typography.bodyWeight,
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text,
+    fontSize: BODY[theme.typography.bodyScale],
   };
 }
 
 export const themeToCssVariables = mapLandingPageTheme;
+export type { LandingPageThemeV1 as LandingPageTheme } from "@/lib/landing-page/theme/schema";

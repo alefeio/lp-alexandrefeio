@@ -7,12 +7,14 @@ const longCopy =
 export function consultoriaLandingFixture(): LandingPageDocumentV1 {
   const document = createEmptyLandingPageDocument();
   document.theme = {
-    fontFamily: "sans",
-    primaryColor: "#1d4ed8",
-    backgroundColor: "#f8fafc",
-    textColor: "#0f172a",
-    buttonRadius: "md",
-    contentWidth: "default",
+    ...document.theme,
+    colors: {
+      ...document.theme.colors,
+      background: "#f8fafc",
+      text: "#0f172a",
+      primary: "#1d4ed8",
+      primaryText: "#ffffff",
+    },
   };
   document.sections = [
     {
@@ -22,7 +24,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
       order: 9,
       enabled: false,
       content: { heading: "Oculto", items: [{ title: "Oculto", description: "Não deve aparecer." }] },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "benefits",
@@ -34,7 +36,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         heading: "O que você organiza",
         items: [{ title: "Oferta clara", description: longCopy }],
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "hero",
@@ -49,7 +51,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         primaryCta: { type: "WHATSAPP", phone: "5511999990000", message: "Olá" },
         secondaryCta: { type: "FORM_ANCHOR", sectionId: "formulario", label: "Pedir contato" },
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "process",
@@ -64,7 +66,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
           { title: "Estruturar", description: "Organizar a página." },
         ],
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "trust",
@@ -77,7 +79,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         intro: "Somente o que foi informado.",
         items: [{ title: "Processo", description: "Atendimento combinado antes do início." }],
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "faq",
@@ -89,7 +91,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         heading: "Perguntas",
         items: [{ question: "Preciso de site completo?", answer: "Não. Esta página é um exemplo." }],
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "cta",
@@ -102,7 +104,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         description: longCopy,
         action: { type: "EXTERNAL_URL", url: "https://exemplo.com/contato", label: "Ver site" },
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "formulario",
@@ -117,7 +119,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         consentText: "Aceito o uso destes dados para retorno do contato.",
         submitLabel: "Enviar",
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "contact",
@@ -130,7 +132,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         email: "contato@exemplo.com",
         whatsapp: "5511999990000",
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
     {
       id: "footer",
@@ -143,7 +145,7 @@ export function consultoriaLandingFixture(): LandingPageDocumentV1 {
         copyrightText: "Página de demonstração.",
         links: [{ label: "Início", action: { type: "INTERNAL_ROUTE", path: "/inicio", label: "Início" } }],
       },
-      settings: {},
+      settings: { backgroundRole: "DEFAULT", alignment: "LEFT", emphasis: "NORMAL" },
     },
   ];
   return landingPageDocumentSchema.parse(document);
