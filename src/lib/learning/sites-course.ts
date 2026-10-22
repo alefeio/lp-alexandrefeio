@@ -195,7 +195,7 @@ export const sitesCourseSeed = {
           sortOrder: 1,
           accessType: "PAID" as const,
           priceCents: 3490,
-          plannedResult: "Elementos de confiança na landing page",
+          plannedResult: "Plano de confiança da minha landing page",
           plannedTool: "LANDING_PAGE_TRUST_V1",
         },
       ],

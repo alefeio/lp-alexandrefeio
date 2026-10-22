@@ -87,6 +87,17 @@ export {
   withThemeColor,
   LANDING_PAGE_VISUAL_TOOL,
 } from "@/lib/landing-page/theme/visual-direction";
+export {
+  confirmedProcessProof,
+  landingPageMediaUploadsAvailable,
+  nextTrustActions,
+  saveLandingPageTrustPlan,
+  toTrustPageView,
+  trustInventorySummary,
+  trustLessonResponseSchema,
+  trustLessonResult,
+  LANDING_PAGE_TRUST_TOOL,
+} from "@/lib/landing-page/trust/plan";
 export { parseConversionPageBrief, conversionBriefLessonSummary, type ConversionPageBriefV1 } from "@/lib/landing-page/brief";
 export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";

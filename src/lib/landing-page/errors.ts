@@ -68,8 +68,8 @@ const MESSAGES: Record<LandingPageCode, string> = {
   LANDING_PAGE_MEDIA_LIMIT: "Esta landing page chegou ao limite de mídia.",
   LANDING_PAGE_MEDIA_RATE_LIMITED: "Muitos envios em pouco tempo. Tente de novo mais tarde.",
   LANDING_PAGE_MEDIA_STORAGE: "Não foi possível guardar ou remover o arquivo.",
-  LANDING_PAGE_MEDIA_IN_USE: "Essa mídia está em uso. Remova a referência antes de excluir.",
-  LANDING_PAGE_TRUST_PROOF_IN_USE: "Essa prova está em uso. Remova a referência antes de excluir.",
+  LANDING_PAGE_MEDIA_IN_USE: "Esta imagem está sendo usada na página. Remova-a da seção antes de excluir.",
+  LANDING_PAGE_TRUST_PROOF_IN_USE: "Esta prova está sendo usada na página. Remova-a da seção antes de excluir.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {

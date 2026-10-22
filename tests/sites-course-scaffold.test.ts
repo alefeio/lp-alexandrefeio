@@ -71,7 +71,7 @@ test("aulas 1–3 FREE e 4–12 PAID com resultados do builder", () => {
       "Estrutura da minha landing page",
       "Copy da minha landing page",
       "Direção visual da minha landing page",
-      "Elementos de confiança na landing page",
+      "Plano de confiança da minha landing page",
       "Página ajustada para publicação",
       "Mapa de mensuração aplicado ao projeto",
       "Landing page publicada",

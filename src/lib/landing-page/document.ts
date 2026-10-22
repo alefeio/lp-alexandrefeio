@@ -14,6 +14,7 @@ import { copyFactsSchema } from "@/lib/landing-page/copy/facts-schema";
 import { landingPageMediaPlacementSchema } from "@/lib/landing-page/media/placement";
 import { defaultLandingPageTheme, landingPageThemeSchema } from "@/lib/landing-page/theme/schema";
 import { landingPageVisualDirectionSchema } from "@/lib/landing-page/theme/visual-direction";
+import { landingPageTrustPlanSchema } from "@/lib/landing-page/trust/schema";
 
 export { landingPageThemeSchema };
 
@@ -81,6 +82,7 @@ export const landingPageStrategySchema = z
     wireframe: landingPageWireframeStateSchema.optional(),
     copyFacts: copyFactsSchema.optional(),
     visualDirection: landingPageVisualDirectionSchema.optional(),
+    trustPlan: landingPageTrustPlanSchema.optional(),
   })
   .strict();
 

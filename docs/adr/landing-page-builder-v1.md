@@ -352,7 +352,7 @@ Conteúdo pedagógico: Aulas 1–8 com conteúdo interno. Aulas 9–12 ainda nã
 
 ## Aula 8 — direção visual
 
-- Aula 8: COMPLETE no código. A Aula 9 não foi produzida. A Phase 6 de mídia e confiança foi implementada depois, como núcleo, sem a aula.
+- Aula 8: COMPLETE no código. A Aula 9 usa o núcleo de confiança e também está completa no código. A Aula 10 não foi produzida.
 - A ferramenta `LANDING_PAGE_VISUAL_DIRECTION_V1` usa o tema, o contraste, os presets e os avisos da Phase 5. Não chama IA e não cria outra landing page.
 - `saveLandingPageVisualDirection` grava tema, ajustes visuais das seções e `strategy.visualDirection` numa única atualização de revisão. Conteúdo, status da copy, ordem, brief, jornada, wireframe, fatos, conversão e medição permanecem.
 - `strategy.visualDirection` guarda a origem, a prioridade visual, as seções em destaque, os avisos revisados, a impressão digital do tema e o resumo visual das seções. Não duplica o tema.
@@ -362,7 +362,13 @@ Conteúdo pedagógico: Aulas 1–8 com conteúdo interno. Aulas 9–12 ainda nã
 
 ## Phase 6 — confiança e mídia pública
 
-- Phase 6 core: IMPLEMENTED. A Aula 9 não foi produzida e não está completa.
+- Phase 6 core: IMPLEMENTED. A Aula 9 usa esse núcleo e está completa no código. A Aula 10 não foi produzida.
+- O inventário da aula lê `strategy.copyFacts.trustProofs`. Não há segunda fonte de provas.
+- A seleção aceita só provas `READY_FOR_DISPLAY` do mesmo projeto. Depoimento exibido exige consentimento. Um negócio sem depoimento pode concluir com outra prova real.
+- O caminho sem provas prontas é válido. `strategy.trustPlan.decision` fica `NO_PROOF_YET` e `nextActions` lista passos reais, sem inventar prova.
+- `strategy.trustPlan` é o resumo da decisão. Não copia texto de depoimento, case, credencial nem URL de mídia.
+- O envio ao vivo do armazenamento público ainda não foi confirmado neste ambiente. `LIVE_MEDIA_STORE_READY=false`. A aula segue com o aviso de envio indisponível e não bloqueia o cadastro. BEFORE_PUBLIC_RELEASE: repetir o smoke sintético de upload, leitura e exclusão antes do release.
+- BEFORE_PUBLIC_RELEASE: o limitador de copy e o limitador de upload de mídia continuam em memória. A troca durável fica para antes do release público.
 - `LandingPageMedia` guarda a mídia da landing. A identidade é o registro e o `storageKey`, não a URL. O documento referencia `mediaId`.
 - O armazenamento é `PUBLIC_LANDING_PAGE_MEDIA`, com acesso público e prefixo opaco `landing-media/`. Não reutiliza o adapter privado de planilhas de campanha.
 - Formatos aceitos: JPEG, PNG e WebP, conferidos pelo tipo e pela assinatura. SVG, GIF, HTML, PDF e arquivo genérico são recusados. A extensão não autoriza o arquivo.

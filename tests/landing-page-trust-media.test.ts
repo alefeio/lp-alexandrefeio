@@ -343,7 +343,7 @@ test("provas de confiança, consentimento e avaliação sem nota", async () => {
   const samples = [
     { type: "TESTIMONIAL", title: "Depoimento da Ana", quote: "O prazo foi cumprido.", authorName: "Ana", consentConfirmed: false },
     { type: "PORTFOLIO", title: "Cozinha entregue", description: "O ambiente foi medido." },
-    { type: "CASE", title: "Reforma", caseContext: "Apartamento pequeno", whatWasDone: "Projeto e instalação", result: "O cliente informou que ficou dentro do combinado." },
+    { type: "CASE", title: "Reforma", caseContext: "Apartamento pequeno", whatWasDone: "Projeto e instalação", result: "O cliente informou que ficou dentro do combinado.", resultSource: "USER_PROVIDED" },
     { type: "CREDENTIAL", title: "Registro municipal", issuer: "Prefeitura" },
     { type: "EXPERIENCE", title: "Experiência", description: "O aluno informou 8 anos de oficina." },
     { type: "PROCESS_EVIDENCE", title: "Medição", description: "A visita acontece antes do orçamento." },
@@ -737,9 +737,11 @@ test("limites, privacidade e regressão do curso", async () => {
   assert.equal(sitemap.some((entry) => entry.url.includes("landing-media")), false);
   assert.equal(sitesCourseSeed.status, "DRAFT");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(existsSync("src/lib/learning/site-construa-confianca.ts"), false);
+  assert.equal(existsSync("src/lib/learning/site-construa-confianca.ts"), true);
+  assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), false);
   const lesson = sitesCourseSeed.modules.flatMap((module) => module.lessons).find((item) => item.slug === "construa-confianca");
   assert.equal(lesson?.plannedTool, "LANDING_PAGE_TRUST_V1");
+  assert.equal(lesson?.plannedResult, "Plano de confiança da minha landing page");
   assert.equal(readFileSync("src/lib/landing-page/copy/providers/openai.ts", "utf8").includes("images.generate"), false);
   assert.deepEqual(evaluateLandingPageTrust(createEmptyLandingPageDocument()).warnings, []);
 });
