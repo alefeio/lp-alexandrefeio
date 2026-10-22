@@ -76,7 +76,7 @@ export async function beginLandingPageMediaUpload(
   if ((await mediaStore.countActive(project.id)) >= LANDING_PAGE_MEDIA_LIMITS.maxAssetsPerProject) {
     return fail("LANDING_PAGE_MEDIA_LIMIT");
   }
-  if (!consumeLandingPageMediaRateLimit(input.userId, now)) return fail("LANDING_PAGE_MEDIA_RATE_LIMITED");
+  if (!(await consumeLandingPageMediaRateLimit(input.userId, now))) return fail("LANDING_PAGE_MEDIA_RATE_LIMITED");
   const record: LandingPageMediaRecord = {
     id: randomUUID(),
     landingPageProjectId: project.id,

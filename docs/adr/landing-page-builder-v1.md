@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 a PHASE 9 com núcleo implementado**. A publicação grava snapshot imutável. A Aula 12 usa esse núcleo. O runtime público fica desligado em produção até liberação explícita. O curso permanece DRAFT.
+Status: **ACCEPTED — PHASE 1 a PHASE 9 com núcleo implementado**. O hardening pré-lançamento adiciona limitador durável, proteção dos endpoints públicos e limpeza técnica de mídia órfã. O runtime público fica desligado em produção até o corte explícito. O curso permanece DRAFT.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -457,6 +457,18 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 - O progresso do curso continua o da engine existente: a última aula concluída pode levar o curso a 100%. Não há progresso paralelo.
 - O curso permanece DRAFT, fora do catálogo público e NOT_FOR_SALE. `catalog:deploy` não foi executado. `LANDING_PAGE_PUBLIC_RUNTIME_ENABLED` permanece ausente ou falso em produção. A rota pública continua `noindex` e fora do sitemap.
 - BEFORE_PUBLIC_RELEASE, consolidado depois da Aula 12: limitador distribuído de copy; limitador distribuído de upload de mídia; limitador distribuído de envio de formulário; decisão de proteção contra abuso do endpoint público de eventos; smoke do Vercel Blob ao vivo; retenção de mídia; limpeza de mídia órfã; retenção de leads; decisão de CAPTCHA ou proteção contra bot; retenção das métricas; revisão final de privacidade e jurídico; ligar o runtime público em produção; smoke público real; smoke responsivo no navegador; decisão de catálogo e commerce do curso.
+
+## PUBLIC RELEASE HARDENING
+
+- O limitador `DurableRateLimiter` usa baldes no Postgres (`namespace`, `hashedKey`, `windowBucket`), com incremento atômico e `expiresAt`. A implementação em memória existe só para o teste isolado. Não há Redis. Copy usa o id do usuário autenticado: 10 gerações a cada 10 minutos. Upload usa o mesmo tipo de chave: 20 inícios a cada 10 minutos. Formulário público usa publicação mais chave de abuso: 5 envios a cada 10 minutos. Evento público usa o mesmo recorte, com teto mais alto, 120 a cada 10 minutos. Estourar o evento descarta a contagem e não bloqueia o clique.
+- A chave de abuso é HMAC do endereço normalizado, do namespace e da janela, com `LANDING_PAGE_RATE_LIMIT_SECRET`. O endereço não é gravado. O resumo não vai para analytics, lead, sessão nem resposta. Sem segredo de pelo menos 32 caracteres, a rota pública de produção continua no escuro, mesmo que o flag esteja ligado. Não há segredo padrão.
+- O formulário público aceita só `application/json`, corpo até 8000 caracteres, honeypot genérico, idempotência e o limitador durável. `FORM_SUBMIT` continua só no servidor, depois do lead, e é recusado no endpoint genérico.
+- A limpeza `cleanupLandingPageMediaOrphans` tem `dryRun` verdadeiro por omissão. Mídia citada no rascunho ou em qualquer publicação histórica não é órfã. A janela de 24 horas é limpeza técnica de upload abandonado, não política de retenção. Falha ao apagar o arquivo não marca o registro como removido.
+- CAPTCHA não foi integrado. Com honeypot, limitador, validação e idempotência, `CAPTCHA_REQUIRED_AT_LAUNCH` fica `NOT_REQUIRED_FOR_MVP`.
+- Cabeçalhos: `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` sem câmera, microfone e geolocalização. `/p/[slug]` usa `X-Frame-Options: DENY` e `frame-ancestors 'none'`. Não há CSP de `img-src`, então a imagem do Blob e o destino `https://wa.me` continuam possíveis. O conteúdo público segue escapado pelo React. Não há `dangerouslySetInnerHTML` no renderer.
+- A página `/privacidade` ainda não descreve formulário de landing, acesso do dono ao lead, contagem agregada, mídia pública nem retenção em aberto. `PRIVACY_POLICY_UPDATE_REQUIRED=true`.
+- Open business decisions permanecem sem prazo escolhido: retenção de lead, de mídia e de métrica; cota comercial de geração; direito de hospedagem depois da compra; páginas por usuário; cota de armazenamento. `archivedAt` só registra um arquivamento futuro. Não há exclusão automática.
+- `LIVE_MEDIA_STORE_READY` só muda depois de um smoke sintético de upload, leitura e exclusão. O token do Blob não entra em cliente, log nem relatório. O runtime de produção permanece desligado. A rota continua `noindex`.
 
 ## Consequences
 

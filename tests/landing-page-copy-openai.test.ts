@@ -280,7 +280,7 @@ test("resposta da API ainda passa pelos guards e não grava o rascunho", async (
   assert.equal(again?.draftDocument.sections[0]?.contentStatus, "PLACEHOLDER");
 });
 
-test("acesso, limite e segredo ficam fora do client", () => {
+test("acesso, limite e segredo ficam fora do client", async () => {
   assert.equal(copyAssistAccessDecision({ role: "USER", courseStatus: "DRAFT", lessonStatus: "DRAFT", lessonInCourse: true, entitled: true }), false);
   assert.equal(copyAssistAccessDecision({ role: "ADMIN", courseStatus: "DRAFT", lessonStatus: "DRAFT", lessonInCourse: true, entitled: false }), true);
   assert.equal(copyAssistAccessDecision({ role: "USER", courseStatus: "PUBLISHED", lessonStatus: "PUBLISHED", lessonInCourse: true, entitled: false }), false);
@@ -289,10 +289,10 @@ test("acesso, limite e segredo ficam fora do client", () => {
   assert.equal(copyAssistAccessDecision({ role: "ADMIN", courseStatus: "DRAFT", lessonStatus: null, lessonInCourse: false, entitled: false }), false);
 
   resetCopyAssistRateLimit();
-  for (let index = 0; index < COPY_ASSIST_RATE_LIMIT.max; index += 1) assert.equal(consumeCopyAssistRateLimit("user-a", 1_000), true);
-  assert.equal(consumeCopyAssistRateLimit("user-a", 1_000), false);
-  assert.equal(consumeCopyAssistRateLimit("user-b", 1_000), true);
-  assert.equal(consumeCopyAssistRateLimit("user-a", 1_000 + COPY_ASSIST_RATE_LIMIT.windowMs), true);
+  for (let index = 0; index < COPY_ASSIST_RATE_LIMIT.max; index += 1) assert.equal(await consumeCopyAssistRateLimit("user-a", 1_000), true);
+  assert.equal(await consumeCopyAssistRateLimit("user-a", 1_000), false);
+  assert.equal(await consumeCopyAssistRateLimit("user-b", 1_000), true);
+  assert.equal(await consumeCopyAssistRateLimit("user-a", 1_000 + COPY_ASSIST_RATE_LIMIT.windowMs), true);
 
   const requestSource = readFileSync("src/lib/landing-page/copy/request.ts", "utf8");
   assert.equal(requestSource.includes("getSession"), true);

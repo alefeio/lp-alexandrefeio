@@ -4,7 +4,7 @@ import type { LandingPageAction } from "@/lib/landing-page/actions";
 import type { LandingPageDocumentV1 } from "@/lib/landing-page/document";
 import { experienceReviewEffectiveStatus } from "@/lib/landing-page/experience/review";
 import { LANDING_PAGE_MEASUREMENT_EVENTS, LANDING_PAGE_MEASUREMENT_LABELS } from "@/lib/landing-page/measurement/schema";
-import { landingPagePublicRuntimeEnabled } from "@/lib/landing-page/publication/gate";
+import { landingPagePublicRouteEnabled } from "@/lib/landing-page/publication/gate";
 import { evaluateLandingPagePublicationReadiness, type PublicationReadiness } from "@/lib/landing-page/publication/readiness";
 import { validatePublicationSnapshot, type PublicationMediaInput } from "@/lib/landing-page/publication/snapshot";
 import type { LandingPageProjectRecord } from "@/lib/landing-page/types";
@@ -223,8 +223,12 @@ export function publicationLessonCanComplete(input: { runtimeEnabled: boolean; a
 }
 
 /** O gate é lido no servidor. O cliente só recebe o boolean já resolvido. */
-export function publicationRuntimeForLesson(env?: { LANDING_PAGE_PUBLIC_RUNTIME_ENABLED?: string }): boolean {
-  return landingPagePublicRuntimeEnabled(env);
+export function publicationRuntimeForLesson(env?: {
+  NODE_ENV?: string;
+  LANDING_PAGE_PUBLIC_RUNTIME_ENABLED?: string;
+  LANDING_PAGE_RATE_LIMIT_SECRET?: string;
+}): boolean {
+  return landingPagePublicRouteEnabled(env);
 }
 
 export function publicationLessonResult(input: {

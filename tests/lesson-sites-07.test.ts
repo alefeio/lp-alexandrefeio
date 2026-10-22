@@ -279,8 +279,8 @@ test("gerar não grava, limita três opções e traduz falhas do provider", asyn
   assert.equal(limited.ok, false);
   if (!limited.ok) assert.equal(copyAssistUserMessage(limited.code), "Você fez várias gerações em pouco tempo. Aguarde alguns minutos e tente novamente.");
   resetCopyAssistRateLimit();
-  for (let index = 0; index < 10; index += 1) assert.equal(consumeCopyAssistRateLimit("user-limit"), true);
-  assert.equal(consumeCopyAssistRateLimit("user-limit"), false);
+  for (let index = 0; index < 10; index += 1) assert.equal(await consumeCopyAssistRateLimit("user-limit"), true);
+  assert.equal(await consumeCopyAssistRateLimit("user-limit"), false);
   resetCopyAssistRateLimit();
 });
 
@@ -602,7 +602,8 @@ test("sugestão inventada não entra e não existe geração da página inteira"
   assert.match(lesson, /applyLandingPageCopy/);
   assert.match(lesson, /approveLandingPageSectionCopy/);
   assert.match(lesson, /saveLandingPageCopyFacts/);
-  assert.match(limiter, /BEFORE_PUBLIC_RELEASE/);
+  assert.match(limiter, /bindDurableRateLimit/);
+  assert.equal(limiter.includes("new Map"), false);
   assert.equal(tool.includes("analytics"), false);
   const ignored = page.draftDocument satisfies LandingPageDocumentV1;
   assert.ok(ignored.sections.length > 0);

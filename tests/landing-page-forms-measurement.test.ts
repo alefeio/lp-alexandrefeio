@@ -523,7 +523,12 @@ test("plano de conversão e mensuração grava uma vez e as capacidades ficam no
   assert.match(metricSource, /sem fingerprint/);
   assert.equal(metricSource.includes("visitorId"), false);
   resetLandingPageFormRateLimit();
-  assert.equal(consumeLandingPageFormRateLimit("projeto-limite", 1_000), true);
+  const firstVisitor = await consumeLandingPageFormRateLimit({ publicationId: "publicacao-a", abuseKey: "visitante-a" }, 1_000);
+  const secondVisitor = await consumeLandingPageFormRateLimit({ publicationId: "publicacao-a", abuseKey: "visitante-b" }, 1_000);
+  const otherPublication = await consumeLandingPageFormRateLimit({ publicationId: "publicacao-b", abuseKey: "visitante-a" }, 1_000);
+  assert.equal(firstVisitor.allowed, true);
+  assert.equal(secondVisitor.allowed, true);
+  assert.equal(otherPublication.allowed, true);
   const parsed = landingPageDocumentSchema.safeParse(createEmptyLandingPageDocument());
   assert.equal(parsed.success, true);
   const preserved = await updateLandingPageDraft(store, {

@@ -1,25 +1,31 @@
+import { bindDurableRateLimit } from "@/lib/landing-page/rate-limit/resolve";
+import { LANDING_PAGE_RATE_POLICIES } from "@/lib/landing-page/rate-limit/policies";
+import type { DurableRateLimitResult } from "@/lib/landing-page/rate-limit/durable";
+
 /**
- * Limite técnico por instância: 5 envios por projeto a cada 10 minutos.
- * A chave é o projeto, não o IP. O IP não é persistido no lead.
- * BEFORE_PUBLIC_RELEASE: substituir por um limitador durável e distribuído.
- * Aceitável enquanto o runtime público de produção permanece desligado.
+ * 5 envios a cada 10 minutos por publicação e visitante.
+ * Visitantes diferentes não dividem o mesmo balde. O endereço não é gravado.
  */
 
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_SUBMISSIONS = 5;
-const hits = new Map<string, number[]>();
+const limiter = bindDurableRateLimit();
 
 export function resetLandingPageFormRateLimit(): void {
-  hits.clear();
+  limiter.reset();
 }
 
-export function consumeLandingPageFormRateLimit(projectId: string, now = Date.now()): boolean {
-  const recent = (hits.get(projectId) ?? []).filter((at) => now - at < WINDOW_MS);
-  if (recent.length >= MAX_SUBMISSIONS) {
-    hits.set(projectId, recent);
-    return false;
-  }
-  recent.push(now);
-  hits.set(projectId, recent);
-  return true;
+export function landingPageFormRateLimitKey(publicationId: string, abuseKey: string): string {
+  return `${publicationId}:${abuseKey}`;
+}
+
+export async function consumeLandingPageFormRateLimit(
+  input: { publicationId: string; abuseKey: string },
+  now = Date.now(),
+): Promise<DurableRateLimitResult> {
+  return limiter.consume({
+    namespace: LANDING_PAGE_RATE_POLICIES.form.namespace,
+    key: landingPageFormRateLimitKey(input.publicationId, input.abuseKey),
+    limit: LANDING_PAGE_RATE_POLICIES.form.limit,
+    windowSeconds: LANDING_PAGE_RATE_POLICIES.form.windowSeconds,
+    now,
+  });
 }

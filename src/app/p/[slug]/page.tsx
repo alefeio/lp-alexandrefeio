@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LandingPageRenderer } from "@/components/landing-page/LandingPageRenderer";
 import { PublicLandingInteractions } from "@/components/landing-page/PublicLandingInteractions";
-import { landingPagePublicRuntimeEnabled } from "@/lib/landing-page/publication/gate";
+import { landingPagePublicRouteEnabled } from "@/lib/landing-page/publication/gate";
 import { publicLandingMetadata } from "@/lib/landing-page/publication/metadata";
 import { createPrismaLandingPagePublicationStore } from "@/lib/landing-page/publication/prisma-store";
 import { documentFromPublicationSnapshot } from "@/lib/landing-page/publication/snapshot";
@@ -13,7 +13,7 @@ type PageProps = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  if (!landingPagePublicRuntimeEnabled()) return { robots: { index: false, follow: false } };
+  if (!landingPagePublicRouteEnabled()) return { robots: { index: false, follow: false } };
   const page = await createPrismaLandingPagePublicationStore().findActiveBySlug(slug);
   if (!page) return { robots: { index: false, follow: false } };
   return publicLandingMetadata(page.publication.snapshot, page.slug);
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PublicLandingPage({ params }: PageProps) {
   const { slug } = await params;
-  if (!landingPagePublicRuntimeEnabled()) notFound();
+  if (!landingPagePublicRouteEnabled()) notFound();
   const page = await createPrismaLandingPagePublicationStore().findActiveBySlug(slug);
   if (!page) notFound();
   const document = documentFromPublicationSnapshot(page.publication.snapshot);

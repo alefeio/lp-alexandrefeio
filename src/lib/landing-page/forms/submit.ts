@@ -4,10 +4,13 @@ import { landingPageFormContentSchema } from "@/lib/landing-page/forms/schema";
 import type { LandingPageLeadStore } from "@/lib/landing-page/leads/store";
 import { landingPageMetricDate, type LandingPageMetricStore } from "@/lib/landing-page/measurement/metrics";
 
+export type LandingPageFormRateDecision = boolean | { allowed: boolean; retryAfterSeconds?: number };
+
 export type LandingPageFormSubmission =
   | { ok: true; accepted: true; leadId: string; duplicate: boolean }
   | { ok: true; accepted: false; reason: "HONEYPOT" }
-  | { ok: false; code: "INVALID" | "RATE_LIMITED" | "UNAVAILABLE" };
+  | { ok: false; code: "INVALID" | "UNAVAILABLE" }
+  | { ok: false; code: "RATE_LIMITED"; retryAfterSeconds?: number };
 
 /**
  * Núcleo do envio. Não é rota HTTP.
@@ -19,7 +22,11 @@ export async function submitLandingPageForm(
   deps: {
     leads: LandingPageLeadStore;
     metrics: LandingPageMetricStore;
-    consumeRateLimit: (projectId: string, now: number) => boolean;
+    consumeRateLimit: (
+      projectId: string,
+      now: number,
+      publicationId?: string,
+    ) => LandingPageFormRateDecision | Promise<LandingPageFormRateDecision>;
     log?: (event: { code: "METRIC_WRITE_FAILED" }) => void;
     now?: Date;
     createId?: () => string;
@@ -52,7 +59,11 @@ export async function submitLandingPageForm(
   const previous = existing.find((lead) => lead.idempotencyKey === input.idempotencyKey);
   if (previous) return { ok: true, accepted: true, leadId: previous.id, duplicate: true };
 
-  if (!deps.consumeRateLimit(input.landingPageProjectId, now.getTime())) return { ok: false, code: "RATE_LIMITED" };
+  const decision = await deps.consumeRateLimit(input.landingPageProjectId, now.getTime(), input.publication.id);
+  const allowed = typeof decision === "boolean" ? decision : decision.allowed;
+  if (!allowed) {
+    return { ok: false, code: "RATE_LIMITED", ...(typeof decision === "boolean" ? {} : { retryAfterSeconds: decision.retryAfterSeconds }) };
+  }
 
   const saved = await deps.leads.insert({
     id: deps.createId?.() ?? crypto.randomUUID(),

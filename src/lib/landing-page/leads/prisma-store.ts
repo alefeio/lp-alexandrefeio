@@ -11,6 +11,7 @@ function toRecord(row: {
   status: LandingPageLeadStatus;
   idempotencyKey: string;
   createdAt: Date;
+  archivedAt: Date | null;
   updatedAt: Date;
 }): LandingPageLeadRecord {
   const data = row.submittedData && typeof row.submittedData === "object" && !Array.isArray(row.submittedData) ? row.submittedData : {};
@@ -56,7 +57,7 @@ export function createPrismaLandingPageLeadStore(): LandingPageLeadStore {
       return row ? toRecord(row) : null;
     },
     async archive(id) {
-      const row = await getPrisma().landingPageLead.update({ where: { id }, data: { status: "ARCHIVED" } }).catch(() => null);
+      const row = await getPrisma().landingPageLead.update({ where: { id }, data: { status: "ARCHIVED", archivedAt: new Date() } }).catch(() => null);
       return row ? toRecord(row) : null;
     },
   };

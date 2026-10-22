@@ -886,6 +886,7 @@ model LandingPageLead {
   status               LandingPageLeadStatus  @default(NEW)
   idempotencyKey       String
   createdAt            DateTime               @default(now())
+  archivedAt           DateTime?
   updatedAt            DateTime               @updatedAt
 
   @@unique([landingPageProjectId, idempotencyKey], map: "landing_page_lead_idempotency_key")
@@ -911,4 +912,19 @@ model LandingPageMetricDaily {
   @@unique([landingPageProjectId, publicationId, date, eventType], map: "landing_page_metric_daily_key")
   @@index([landingPageProjectId, date])
   @@map("landing_page_metric_daily")
+}
+
+/// Balde de abuso. Guarda só o resumo da chave e a janela, nunca o endereço nem a requisição.
+model LandingPageRateLimitBucket {
+  id           String   @id
+  namespace    String
+  hashedKey    String
+  windowBucket Int
+  count        Int      @default(0)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@unique([namespace, hashedKey, windowBucket], map: "landing_page_rate_limit_bucket_key")
+  @@index([expiresAt])
+  @@map("landing_page_rate_limit_bucket")
 }

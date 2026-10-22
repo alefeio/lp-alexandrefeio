@@ -15,17 +15,21 @@ export type PublicationLogEvent = {
   publicationId?: string;
   version?: number;
   code?: string;
+  operation?: string;
+  status?: number;
+  durationMs?: number;
+  errorClass?: string;
 };
 
-const LOG_KEYS = ["projectId", "publicationId", "version", "code"] as const;
+const LOG_KEYS = ["projectId", "publicationId", "version", "code", "operation", "status", "durationMs", "errorClass"] as const;
 
-/** Mantém no log só identificadores e o código. Texto, telefone e URL ficam de fora. */
+/** Mantém no log só identificadores, código e classe do erro. Texto, telefone, URL e payload ficam de fora. */
 export function publicationLogEvent(input: Record<string, unknown>): PublicationLogEvent {
   const event: PublicationLogEvent = {};
   for (const key of LOG_KEYS) {
     const value = input[key];
-    if (key === "version" && typeof value === "number") event.version = value;
-    else if (key !== "version" && typeof value === "string") event[key] = value;
+    if ((key === "version" || key === "status" || key === "durationMs") && typeof value === "number") event[key] = value;
+    else if (key !== "version" && key !== "status" && key !== "durationMs" && typeof value === "string") event[key] = value;
   }
   return event;
 }

@@ -1,24 +1,24 @@
-import { LANDING_PAGE_MEDIA_LIMITS } from "@/lib/landing-page/media/limits";
+import { bindDurableRateLimit } from "@/lib/landing-page/rate-limit/resolve";
+import { LANDING_PAGE_RATE_POLICIES } from "@/lib/landing-page/rate-limit/policies";
 
 /**
- * Limite técnico por instância: 20 inícios de upload por usuário a cada 10 minutos.
- * BEFORE_PUBLIC_RELEASE: substituir por um limitador durável. Aceitável enquanto o curso permanece DRAFT.
- * Uploads abandonados não têm cron. `expireAbandonedLandingPageUploads` marca UPLOADING antigo como FAILED.
+ * 20 inícios de upload por usuário autenticado a cada 10 minutos.
+ * Em produção o balde fica no Postgres.
  */
 
-const hits = new Map<string, number[]>();
+const limiter = bindDurableRateLimit();
 
 export function resetLandingPageMediaRateLimit(): void {
-  hits.clear();
+  limiter.reset();
 }
 
-export function consumeLandingPageMediaRateLimit(userId: string, now = Date.now()): boolean {
-  const recent = (hits.get(userId) ?? []).filter((at) => now - at < LANDING_PAGE_MEDIA_LIMITS.uploadWindowMs);
-  if (recent.length >= LANDING_PAGE_MEDIA_LIMITS.uploadMaxPerWindow) {
-    hits.set(userId, recent);
-    return false;
-  }
-  recent.push(now);
-  hits.set(userId, recent);
-  return true;
+export async function consumeLandingPageMediaRateLimit(userId: string, now = Date.now()): Promise<boolean> {
+  const decision = await limiter.consume({
+    namespace: LANDING_PAGE_RATE_POLICIES.mediaUpload.namespace,
+    key: userId,
+    limit: LANDING_PAGE_RATE_POLICIES.mediaUpload.limit,
+    windowSeconds: LANDING_PAGE_RATE_POLICIES.mediaUpload.windowSeconds,
+    now,
+  });
+  return decision.allowed;
 }

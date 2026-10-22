@@ -167,9 +167,14 @@ export function toTrustPageView(
   };
 }
 
+export function landingPageMediaStorageConfigured(env: Record<string, string | undefined> = process.env): boolean {
+  if (env.BLOB_READ_WRITE_TOKEN?.trim()) return true;
+  return Boolean(env.VERCEL_OIDC_TOKEN?.trim() && env.BLOB_STORE_ID?.trim());
+}
+
 export function landingPageMediaUploadsAvailable(env: Record<string, string | undefined> = process.env): boolean {
   if (env.LANDING_PAGE_MEDIA_UPLOADS === "off") return false;
-  return Boolean(env.BLOB_READ_WRITE_TOKEN || env.VERCEL_OIDC_TOKEN);
+  return landingPageMediaStorageConfigured(env);
 }
 
 export function confirmedProcessProof(stepCount: number): Pick<TrustProofV1, "type" | "title" | "description"> | null {

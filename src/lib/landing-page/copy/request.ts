@@ -55,7 +55,7 @@ export async function requestLandingPageCopySuggestions(input: unknown): Promise
   })) {
     return fail("FORBIDDEN");
   }
-  if (!consumeCopyAssistRateLimit(session.user.id)) return fail("COPY_ASSIST_RATE_LIMITED");
+  if (!(await consumeCopyAssistRateLimit(session.user.id))) return fail("COPY_ASSIST_RATE_LIMITED");
 
   const store = createPrismaLandingPageStore();
   const record = await store.findByIdForUser(parsed.data.landingPageProjectId, session.user.id);

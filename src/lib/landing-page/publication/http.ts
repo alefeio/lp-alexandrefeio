@@ -11,6 +11,8 @@ import { submitLandingPageForm } from "@/lib/landing-page/forms/submit";
 import { documentFromPublicationSnapshot, snapshotHasWhatsAppAction } from "@/lib/landing-page/publication/snapshot";
 import type { LandingPagePublicationStore } from "@/lib/landing-page/publication/store";
 import { publicationLogEvent, type PublicationLogEvent } from "@/lib/landing-page/publication/service";
+import type { DurableRateLimitResult } from "@/lib/landing-page/rate-limit/durable";
+import type { LandingPageFormRateDecision } from "@/lib/landing-page/forms/submit";
 
 export const PUBLIC_FORM_RATE_LIMIT_MESSAGE = "Muitas tentativas foram feitas em pouco tempo. Tente novamente em alguns minutos.";
 const PUBLIC_FORM_INVALID_MESSAGE = "Confira os campos e tente novamente.";
@@ -48,13 +50,21 @@ type PublicDeps = {
   publications: LandingPagePublicationStore;
   leads: LandingPageLeadStore;
   metrics: LandingPageMetricStore;
-  consumeRateLimit: (projectId: string, now: number) => boolean;
+  consumeRateLimit: (
+    projectId: string,
+    now: number,
+    publicationId?: string,
+  ) => LandingPageFormRateDecision | Promise<LandingPageFormRateDecision>;
+  consumeEventLimit?: (publicationId: string, now: number) => Promise<DurableRateLimitResult>;
   log?: (event: PublicationLogEvent) => void;
   now?: Date;
 };
 
-function json(body: unknown, status: number): Response {
-  return Response.json(body, { status, headers: { "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff" } });
+function json(body: unknown, status: number, extra?: Record<string, string>): Response {
+  return Response.json(body, {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff", ...extra },
+  });
 }
 
 async function readJson(request: Request): Promise<{ ok: true; value: unknown } | { ok: false; status: number }> {
@@ -106,13 +116,16 @@ export async function handlePublicLandingForm(
       },
     },
   );
-  if (!result.ok && result.code === "RATE_LIMITED") return json({ ok: false, message: PUBLIC_FORM_RATE_LIMIT_MESSAGE }, 429);
+  if (!result.ok && result.code === "RATE_LIMITED") {
+    const headers = result.retryAfterSeconds ? { "retry-after": String(result.retryAfterSeconds) } : undefined;
+    return json({ ok: false, message: PUBLIC_FORM_RATE_LIMIT_MESSAGE }, 429, headers);
+  }
   if (!result.ok) return json({ ok: false, message: PUBLIC_FORM_INVALID_MESSAGE }, 400);
   return json({ ok: true, accepted: true, successMessage }, 200);
 }
 
 export async function handlePublicLandingEvent(
-  deps: Pick<PublicDeps, "publications" | "metrics" | "log" | "now">,
+  deps: Pick<PublicDeps, "publications" | "metrics" | "log" | "now" | "consumeEventLimit">,
   request: Request,
   params: { slug: string },
 ): Promise<Response> {
@@ -127,6 +140,26 @@ export async function handlePublicLandingEvent(
   const requested = parsed.data.eventType === "WHATSAPP_CLICK" ? landingPageClickEvents("WHATSAPP") : [parsed.data.eventType];
   const events = requested.filter((event) => event !== "FORM_SUBMIT" && enabled.has(event));
   if (events.length === 0 || !enabled.has(parsed.data.eventType)) return json({ ok: false }, 400);
+  if (deps.consumeEventLimit) {
+    try {
+      const decision = await deps.consumeEventLimit(page.publication.id, deps.now?.getTime() ?? Date.now());
+      if (!decision.allowed) {
+        deps.log?.(publicationLogEvent({ projectId: page.projectId, publicationId: page.publication.id, code: "RATE_LIMITED", operation: "public-event", status: 429 }));
+        return json({ ok: false }, 429, decision.retryAfterSeconds ? { "retry-after": String(decision.retryAfterSeconds) } : undefined);
+      }
+    } catch (error) {
+      deps.log?.(
+        publicationLogEvent({
+          projectId: page.projectId,
+          publicationId: page.publication.id,
+          code: "RATE_LIMIT_UNAVAILABLE",
+          operation: "public-event",
+          errorClass: error instanceof Error ? error.name : "Error",
+        }),
+      );
+      return new Response(null, { status: 204, headers: { "x-content-type-options": "nosniff" } });
+    }
+  }
   try {
     await recordLandingPageMeasurementEvents({
       source: "PUBLIC",
@@ -136,8 +169,16 @@ export async function handlePublicLandingEvent(
       events,
       date: landingPageMetricDate(deps.now),
     });
-  } catch {
-    deps.log?.(publicationLogEvent({ projectId: page.projectId, publicationId: page.publication.id, code: "METRIC_WRITE_FAILED" }));
+  } catch (error) {
+    deps.log?.(
+      publicationLogEvent({
+        projectId: page.projectId,
+        publicationId: page.publication.id,
+        code: "METRIC_WRITE_FAILED",
+        operation: "public-event",
+        errorClass: error instanceof Error ? error.name : "Error",
+      }),
+    );
   }
   return new Response(null, { status: 204, headers: { "x-content-type-options": "nosniff" } });
 }

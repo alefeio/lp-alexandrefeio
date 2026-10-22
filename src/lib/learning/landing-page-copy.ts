@@ -200,7 +200,7 @@ export async function suggestCopyForUser(
 ): Promise<CopyToolSuccess | { ok: false; message: string; code?: string }> {
   const access = await lessonAccess(userId, slug, blockKey);
   if (!access.ok) return access;
-  if (!consumeCopyAssistRateLimit(userId)) return failure("COPY_ASSIST_RATE_LIMITED");
+  if (!(await consumeCopyAssistRateLimit(userId))) return failure("COPY_ASSIST_RATE_LIMITED");
   const generated = await generateLandingPageCopySuggestions(
     createPrismaLandingPageStore(),
     { userId, ...input },

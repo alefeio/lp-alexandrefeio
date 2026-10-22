@@ -32,22 +32,30 @@ export function landingPageMetricDate(now = new Date()): string {
 
 export function createMemoryLandingPageMetricStore(): LandingPageMetricStore {
   const rows = new Map<string, LandingPageMetricDailyRecord>();
+  let chain: Promise<unknown> = Promise.resolve();
 
   function key(input: LandingPageMetricIncrement): string {
     return `${input.landingPageProjectId}|${input.publicationId}|${input.date}|${input.eventType}`;
   }
 
   return {
-    async increment(input) {
-      const id = key(input);
-      const current = rows.get(id);
-      if (current) {
-        current.count += 1;
-        return current;
-      }
-      const created = { ...input, count: 1 };
-      rows.set(id, created);
-      return created;
+    increment(input) {
+      const run = chain.then(() => {
+        const id = key(input);
+        const current = rows.get(id);
+        if (current) {
+          current.count += 1;
+          return current;
+        }
+        const created = { ...input, count: 1 };
+        rows.set(id, created);
+        return created;
+      });
+      chain = run.then(
+        () => undefined,
+        () => undefined,
+      );
+      return run;
     },
     async listForProject(landingPageProjectId) {
       return [...rows.values()].filter((row) => row.landingPageProjectId === landingPageProjectId);
