@@ -4,9 +4,27 @@ import { LANDING_PAGE_LIMITS } from "@/lib/landing-page/constants";
 const FORBIDDEN_URL_PREFIX = /^(javascript|data|vbscript|file|blob):/i;
 
 export function sanitizeWhatsAppPhone(input: string): string | null {
+  if (/[<>]/.test(input)) return null;
   const digits = input.replace(/\D/g, "");
   if (digits.length < 10 || digits.length > 15) return null;
   return digits;
+}
+
+/** Gera https://wa.me a partir do telefone já normalizado. Não aceita URL informada pelo usuário. */
+export function buildSafeWhatsAppUrl(phone: string, message?: string): string | null {
+  const digits = sanitizeWhatsAppPhone(phone);
+  if (!digits) return null;
+  const text = message?.trim();
+  if (text && /[<>]/.test(text)) return null;
+  const href = text ? `https://wa.me/${digits}?text=${encodeURIComponent(text)}` : `https://wa.me/${digits}`;
+  try {
+    const url = new URL(href);
+    if (url.protocol !== "https:" || url.hostname !== "wa.me" || url.username || url.password) return null;
+    if (url.pathname !== `/${digits}`) return null;
+  } catch {
+    return null;
+  }
+  return href;
 }
 
 export const safeExternalUrlSchema = z
@@ -17,7 +35,7 @@ export const safeExternalUrlSchema = z
   .refine((value) => {
     try {
       const url = new URL(value);
-      return url.protocol === "http:" || url.protocol === "https:";
+      return url.protocol === "https:" && !url.username && !url.password;
     } catch {
       return false;
     }

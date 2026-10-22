@@ -15,7 +15,10 @@ import { landingPageMediaPlacementSchema } from "@/lib/landing-page/media/placem
 import { defaultLandingPageTheme, landingPageThemeSchema } from "@/lib/landing-page/theme/schema";
 import { landingPageVisualDirectionSchema } from "@/lib/landing-page/theme/visual-direction";
 import { landingPageExperienceReviewSchema, landingPageExperienceSummarySchema } from "@/lib/landing-page/experience/schema";
+import { landingPageMeasurementPlanSummarySchema, landingPageMeasurementSchema } from "@/lib/landing-page/measurement/schema";
 import { landingPageTrustPlanSchema } from "@/lib/landing-page/trust/schema";
+
+export { landingPageMeasurementSchema };
 
 export { landingPageThemeSchema };
 
@@ -24,24 +27,6 @@ export const landingPageConversionSchema = z
     primaryAction: landingPageActionSchema.nullable(),
     secondaryAction: landingPageActionSchema.nullable(),
     businessOutcome: z.string().trim().max(LANDING_PAGE_LIMITS.maxShortText).nullable(),
-  })
-  .strict();
-
-const measurementEventSchema = z.enum([
-  "page_view",
-  "cta_click",
-  "whatsapp_click",
-  "form_start",
-  "form_submit",
-  "booking_click",
-  "purchase_click",
-  "custom_conversion",
-]);
-
-export const landingPageMeasurementSchema = z
-  .object({
-    enabled: z.boolean(),
-    events: z.array(measurementEventSchema).max(20),
   })
   .strict();
 
@@ -85,6 +70,7 @@ export const landingPageStrategySchema = z
     visualDirection: landingPageVisualDirectionSchema.optional(),
     trustPlan: landingPageTrustPlanSchema.optional(),
     experienceReview: landingPageExperienceSummarySchema.optional(),
+    measurementPlan: landingPageMeasurementPlanSummarySchema.optional(),
   })
   .strict();
 
@@ -134,8 +120,9 @@ export function createEmptyLandingPageDocument(): LandingPageDocumentV1 {
       businessOutcome: null,
     },
     measurement: {
-      enabled: false,
-      events: [],
+      version: 1,
+      primaryConversionEvent: null,
+      enabledEvents: [],
     },
     mediaRefs: [],
   };

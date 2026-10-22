@@ -91,8 +91,9 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
 10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
     Resultado: Revisão de experiência da minha landing page · Tool: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`  
     A aula usa o núcleo da Phase 7. A revisão canônica fica em `draftDocument.experienceReview`. `strategy.experienceReview` guarda versão, status, viewports e contagens, sem o texto dos findings. A conclusão exige `READY_FOR_NEXT_STEP`. Salvar grava `reviewedDraftRevision` como a revisão seguinte do rascunho, então a própria gravação não deixa o status `STALE`. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` só é gravado quando a revisão está pronta.
-11. **Configure o que precisa ser medido** (`mensuracao-da-pagina`) — PAID R$ 39,90  
-    Resultado: Mapa de mensuração aplicado ao projeto · Tool: `LANDING_PAGE_MEASUREMENT_V1`
+11. **Configure o que precisa ser medido** (`mensuracao-da-pagina`) — PAID R$ 39,90 · NOT_FOR_SALE · SCAFFOLDED  
+    Resultado planejado: Mapa de mensuração aplicado ao projeto · Tool planejada: `LANDING_PAGE_MEASUREMENT_V1`  
+    O núcleo da Phase 8 já existe: ação, formulário, lead e contagem diária. A aula ainda não foi produzida. Não há rota pública nem publicação da landing.
 12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90  
     Resultado: Landing page publicada · Tool: `LANDING_PAGE_PUBLISH_V1`  
     Slug estável mantido; título e papel reframeados para publicação real.

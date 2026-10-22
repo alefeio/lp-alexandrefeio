@@ -13,6 +13,7 @@ import { sitesCourseIsPubliclyVisible, sitesCourseSeed } from "../src/lib/learni
 import { createEmptyLandingPageDocument, landingPageDocumentSchema, type LandingPageDocumentV1 } from "../src/lib/landing-page/document";
 import { experienceChecklistFor } from "../src/lib/landing-page/experience/checklist";
 import { evaluateLandingPageExperience } from "../src/lib/landing-page/experience/evaluate";
+import { EXPERIENCE_CAPABILITIES_V1 } from "../src/lib/landing-page/experience/schema";
 import {
   EXPERIENCE_DEFER_COPY,
   EXPERIENCE_RESULT_TITLE,
@@ -226,9 +227,10 @@ test("requisitos, viewports, findings e capacidades da revisão", async () => {
     content: { heading: "Mensagem", fields: ["name", "email"], consentEnabled: false },
     settings: visual,
   });
-  const formFinding = evaluateLandingPageExperience(parse(withForm)).find((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE");
+  const formFinding = evaluateLandingPageExperience(parse(withForm), { capabilities: { ...EXPERIENCE_CAPABILITIES_V1, formsFunctional: false } }).find((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE");
   assert.equal(formFinding?.severity, "INFO");
   assert.match(formFinding?.message ?? "", /etapa posterior/);
+  assert.equal(evaluateLandingPageExperience(parse(withForm)).some((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE"), false);
   const codes = evaluateLandingPageExperience(parse(withForm)).map((finding) => finding.code).join(" ");
   assert.equal(codes.includes("MEASUREMENT"), false);
   assert.equal(codes.includes("PUBLICATION"), false);

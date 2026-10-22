@@ -1,5 +1,5 @@
 import type { LandingPageAction } from "@/lib/landing-page/actions";
-import { sanitizeWhatsAppPhone } from "@/lib/landing-page/actions";
+import { buildSafeWhatsAppUrl, safeExternalUrlSchema } from "@/lib/landing-page/actions";
 
 const SAFE_ANCHOR = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -14,15 +14,15 @@ export function resolveLandingPageAction(action: LandingPageAction): ResolvedLan
 
   switch (action.type) {
     case "WHATSAPP": {
-      const phone = sanitizeWhatsAppPhone(action.phone);
-      if (!phone) return null;
-      const href = action.message
-        ? `https://wa.me/${phone}?text=${encodeURIComponent(action.message)}`
-        : `https://wa.me/${phone}`;
+      const href = buildSafeWhatsAppUrl(action.phone, action.message);
+      if (!href) return null;
       return { href, label, external: true };
     }
-    case "EXTERNAL_URL":
-      return { href: action.url, label, external: true };
+    case "EXTERNAL_URL": {
+      const url = safeExternalUrlSchema.safeParse(action.url);
+      if (!url.success) return null;
+      return { href: url.data, label, external: true };
+    }
     case "INTERNAL_ROUTE":
       return { href: action.path, label, external: false };
     case "FORM_ANCHOR": {

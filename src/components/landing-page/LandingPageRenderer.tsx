@@ -68,9 +68,12 @@ function ActionControl({ action, mode }: { action: LandingPageAction; mode: Land
   const resolved = resolveLandingPageAction(action);
   if (mode === "PREVIEW" || !resolved) {
     return (
-      <button type="button" className={buttonClass} style={buttonStyle()} data-preview-action="disabled" aria-disabled="true" data-action-kind={action.type}>
-        {resolved?.label ?? "Continuar"}
-      </button>
+      <>
+        <button type="button" className={buttonClass} style={buttonStyle()} data-preview-action="disabled" aria-disabled="true" data-action-kind={action.type}>
+          {resolved?.label ?? "Continuar"}
+        </button>
+        {resolved ? <p className="mt-2 break-words text-sm" data-preview-destination="configured">Destino configurado</p> : null}
+      </>
     );
   }
   return (
@@ -517,6 +520,7 @@ function renderSection(
             fields={section.content.fields}
             consentEnabled={section.content.consentEnabled}
             consentText={section.content.consentText}
+            mode={mode}
             submitLabel={section.content.submitLabel}
           />
         </SectionFrame>

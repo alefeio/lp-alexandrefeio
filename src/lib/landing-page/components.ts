@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { landingPageActionSchema } from "@/lib/landing-page/actions";
+import { landingPageFormContentSchema } from "@/lib/landing-page/forms/schema";
 import { landingPageMediaPlacementSchema } from "@/lib/landing-page/media/placement";
 import { LANDING_PAGE_MEDIA_LIMITS } from "@/lib/landing-page/media/limits";
 import {
@@ -152,19 +153,7 @@ const ctaContentSchema = z
   .strict()
   .superRefine(rejectForbiddenKeys);
 
-const formFieldSchema = z.enum(["name", "email", "phone", "message"]);
-
-const formContentSchema = z
-  .object({
-    heading: optionalText(LANDING_PAGE_LIMITS.maxHeadline),
-    intro: optionalText(LANDING_PAGE_LIMITS.maxMediumText),
-    fields: z.array(formFieldSchema).min(1).max(4),
-    consentEnabled: z.boolean().optional(),
-    consentText: optionalText(LANDING_PAGE_LIMITS.maxMediumText),
-    submitLabel: optionalText(LANDING_PAGE_LIMITS.maxShortText),
-  })
-  .strict()
-  .superRefine(rejectForbiddenKeys);
+const formContentSchema = landingPageFormContentSchema;
 
 const contactContentSchema = z
   .object({

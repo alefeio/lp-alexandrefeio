@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 a PHASE 7 com núcleo implementado**. Phases 8–10 ainda não implementadas. Aula 10 integrada ao núcleo de experiência.
+Status: **ACCEPTED — PHASE 1 a PHASE 8 com núcleo implementado**. A Aula 11 ainda não foi produzida. Aula 10 integrada ao núcleo de experiência.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -399,6 +399,27 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 - O contraste reutiliza `assessThemeContrast`. A hierarquia reutiliza `evaluateVisualHierarchy`.
 - A rota `/dev/landing-experience-fixture` só existe fora de produção, responde `noindex` e não entra no sitemap. Não cria `LandingPageProject`. O teste no navegador, com documento sintético, passou em 320, 375, 768 e 1280: sem overflow horizontal, CTA visível, texto longo quebrando, portfólio e depoimentos em coluna no celular e em grade no desktop. A pergunta da FAQ abre. O renderer usa container queries para a largura do canvas, não um renderer por aparelho.
 - BEFORE_PUBLIC_RELEASE, ainda em aberto: limitador distribuído de copy, limitador distribuído de upload, smoke do armazenamento público ao vivo, retenção de mídia e limpeza de arquivo órfão.
+
+## Phase 8 — ações, formulário e mensuração
+
+- Phase 8 core: IMPLEMENTED. A Aula 11 não foi produzida e continua SCAFFOLDED. Não há rota `/p/[slug]` nem envio público.
+- `LandingPageActionV1` reutiliza os tipos já gravados: `WHATSAPP`, `EXTERNAL_URL`, `INTERNAL_ROUTE` e `FORM_ANCHOR`. Não há ação `PHONE` nem `EMAIL`. O rótulo visível continua independente do destino.
+- O telefone de WhatsApp é normalizado para dígitos. A URL `https://wa.me` é gerada por `buildSafeWhatsAppUrl`. Link externo salvo só aceita `https`. `javascript:`, `data:`, `file:` e `vbscript:` continuam rejeitados.
+- `FORM_ANCHOR` aponta para o id de uma seção `FORM` da mesma página. A gravação recusa WhatsApp sem número, link sem URL https e formulário sem seção válida.
+- `LandingPageFormV1` aceita no máximo 8 campos dos tipos `NAME`, `EMAIL`, `PHONE`, `COMPANY` e `MESSAGE`. O formato antigo `name` / `email` / `phone` / `message` continua válido. Não há HTML, arquivo, senha, pagamento, data de nascimento nem CPF. E-mail e telefone não são obrigatórios juntos.
+- O envio fica na plataforma. Não há webhook, encaminhamento de e-mail, Zapier, CRM nem API externa. `submitLandingPageForm` é o núcleo, separado de qualquer adapter HTTP.
+- `LandingPageLead` guarda id, projeto, publicação opcional, seção, dados estruturados, status `NEW` ou `ARCHIVED` e chave de idempotência. Não guarda IP, user agent, cabeçalhos nem requisição bruta. Consulta e arquivamento são do dono do projeto. Não há exportação CSV nem e-mail a cada lead.
+- Honeypot preenchido não cria lead e não incrementa conversão. A chave de idempotência impede outro lead no retry. O limitador de envio é em memória, por projeto. BEFORE_PUBLIC_RELEASE: limitador distribuído de envio. CAPTCHA, se necessário, também fica para antes do release.
+- OPEN BUSINESS DECISION: política de retenção de leads. Não há exclusão automática. O dado do lead usa a proteção do banco e é privado do dono. Não há criptografia própria nesta fase.
+- `LandingPageMeasurementV1` vive em `draftDocument.measurement`. A fonte canônica é `enabledEvents`. O formato antigo `{ enabled, events }` ainda é lido: desligado vira lista vazia; eventos fora da V1 são descartados. A conversão principal não é escolhida sozinha.
+- Eventos da V1: `PAGE_VIEW`, `CTA_CLICK`, `WHATSAPP_CLICK`, `FORM_START` e `FORM_SUBMIT`. Um clique de WhatsApp pode contar os dois primeiros eventos da lista de clique, mas a conversão principal usa um só tipo. `FORM_SUBMIT` só incrementa depois que o lead foi gravado. Preview, editor e aula não gravam métrica.
+- `LandingPageMetricDaily` agrega por projeto, publicação, data e evento. Não há linha por visita, fingerprint, cookie persistente nem id de sessão. A passagem de início do formulário para envio é uma razão de contagens, não de pessoas. OPEN BUSINESS DECISION: retenção dessas contagens.
+- Se o lead foi salvo e a métrica falha, o envio continua aceito. O log operacional não recebe o payload. A prioridade é a ação de negócio.
+- Os eventos da landing do aluno não vão para o GTM, o GA4 nem o Meta da plataforma. Analytics educacional continua limitado a aula e ferramenta.
+- `strategy.measurementPlan` é só o resumo pedagógico. Ação, formulário e mensuração têm uma gravação conjunta quando entram na mesma decisão.
+- Alterar ação ou formulário deixa a revisão de experiência `STALE`. Gravar só a mensuração, sem mudar a página visível, mantém a revisão atual. O projeto continua `READY_TO_PREVIEW`.
+- Capacidades: `formsFunctional=true` significa que o núcleo de envio está pronto para um runtime público futuro. O preview continua sem enviar. `measurementAvailable=true`. `publicationAvailable=false`.
+- BEFORE_PUBLIC_RELEASE, além das dívidas anteriores: limitador distribuído de envio de formulário, política de retenção de leads, decisão de CAPTCHA e política de retenção das contagens.
 
 ## Consequences
 

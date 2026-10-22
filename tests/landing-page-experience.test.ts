@@ -206,7 +206,7 @@ test("contraste, ação, mídia, texto longo, destaque, formulário, confiança 
   assert.equal(formCodes.includes("FORM_MANY_FIELDS"), true);
   assert.equal(formCodes.includes("FORM_CONSENT_TEXT"), true);
   assert.equal(formCodes.includes("FORM_UNLABELED"), false);
-  assert.equal(formCodes.includes("FORM_PLATFORM_UNAVAILABLE"), true);
+  assert.equal(formCodes.includes("FORM_PLATFORM_UNAVAILABLE"), false);
   const formHtml = renderToStaticMarkup(createElement(LandingPageFormBlock, { sectionId: "form", fields: ["name", "email", "phone", "message"], heading: "Mensagem" }));
   assert.match(formHtml, /Nome/);
   assert.match(formHtml, /E-mail/);
@@ -439,7 +439,7 @@ test("salvar a revisão exige o dono, respeita a revisão e preserva o trabalho 
 
 test("códigos de ação e capacidades da plataforma", () => {
   assert.deepEqual([...EXPERIENCE_ACTION_CODES], ["REVIEW_COPY", "REVIEW_THEME", "REVIEW_TRUST", "CONFIGURE_ACTION", "REVIEW_FORM", "REVIEW_MEDIA"]);
-  assert.deepEqual(EXPERIENCE_CAPABILITIES_V1, { formsFunctional: false, publicationAvailable: false, measurementAvailable: false });
+  assert.deepEqual(EXPERIENCE_CAPABILITIES_V1, { formsFunctional: true, publicationAvailable: false, measurementAvailable: true });
   const placeholder = clean();
   const hero = placeholder.sections.find((section) => section.id === "hero");
   if (!hero || hero.type !== "HERO") throw new Error("hero");
@@ -455,7 +455,8 @@ test("códigos de ação e capacidades da plataforma", () => {
   form.sections.push({ id: "form", type: "FORM", variant: "default", order: 6, enabled: true, contentStatus: "APPROVED", content: { fields: ["name", "email", "phone", "message"] }, settings: visual });
   const parsedForm = parse(form);
   assert.equal(evaluateLandingPageExperience(parsedForm).find((finding) => finding.code === "FORM_MANY_FIELDS")?.actionCode, "REVIEW_FORM");
-  const platform = evaluateLandingPageExperience(parsedForm).find((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE");
+  assert.equal(evaluateLandingPageExperience(parsedForm).some((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE"), false);
+  const platform = evaluateLandingPageExperience(parsedForm, { capabilities: { ...EXPERIENCE_CAPABILITIES_V1, formsFunctional: false } }).find((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE");
   assert.equal(platform?.severity, "INFO");
   assert.equal(platform?.platformLimitation, true);
   assert.equal(evaluateLandingPageExperience(parsedForm, { capabilities: { ...EXPERIENCE_CAPABILITIES_V1, formsFunctional: true } }).some((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE"), false);
@@ -465,7 +466,7 @@ test("códigos de ação e capacidades da plataforma", () => {
   mediaHero.content.mediaRef = { mediaId: "foto", usage: "HERO" };
   assert.equal(evaluateLandingPageExperience(parse(heroMedia), { media: [] }).find((finding) => finding.code === "MEDIA_MISSING")?.actionCode, "REVIEW_MEDIA");
   const measured = clean();
-  measured.measurement = { enabled: true, events: ["page_view"] };
+  measured.measurement = { version: 1, primaryConversionEvent: null, enabledEvents: ["PAGE_VIEW"] };
   const measuredCodes = codes(measured).join(" ");
   assert.equal(measuredCodes.includes("PUBLICATION"), false);
   assert.equal(measuredCodes.includes("MEASUREMENT"), false);

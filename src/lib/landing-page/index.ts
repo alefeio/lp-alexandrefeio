@@ -10,10 +10,11 @@ export { COMPONENT_REGISTRY_V1, landingPageSectionSchema } from "@/lib/landing-p
 export {
   createEmptyLandingPageDocument,
   landingPageDocumentSchema,
+  landingPageMeasurementSchema,
   parseLandingPageDocument,
   type LandingPageDocumentV1,
 } from "@/lib/landing-page/document";
-export { landingPageActionSchema, sanitizeWhatsAppPhone } from "@/lib/landing-page/actions";
+export { buildSafeWhatsAppUrl, landingPageActionSchema, sanitizeWhatsAppPhone } from "@/lib/landing-page/actions";
 export { resolveLandingPageAction } from "@/lib/landing-page/action-resolver";
 export { mapLandingPageTheme, themeToCssVariables } from "@/lib/landing-page/theme";
 export { visibleLandingPageSections } from "@/lib/landing-page/order";
@@ -108,3 +109,17 @@ export { evaluateLandingPageExperience } from "@/lib/landing-page/experience/eva
 export { composeLandingPageExperienceReview, experienceReviewEffectiveStatus } from "@/lib/landing-page/experience/review";
 export { saveLandingPageExperienceReview } from "@/lib/landing-page/experience/service";
 export { experienceReviewFixture, landingExperienceFixtureEnabled } from "@/lib/landing-page/experience/fixture";
+export { validateLandingPageAction } from "@/lib/landing-page/action-validation";
+export { LANDING_PAGE_FORM_FIELD_TYPES, LANDING_PAGE_FORM_LIMITS, landingPageFormContentSchema, normalizeLandingPageFormField } from "@/lib/landing-page/forms/schema";
+export { validateLandingPageFormPayload } from "@/lib/landing-page/forms/payload";
+export { consumeLandingPageFormRateLimit, resetLandingPageFormRateLimit } from "@/lib/landing-page/forms/rate-limit";
+export { submitLandingPageForm } from "@/lib/landing-page/forms/submit";
+export { createMemoryLandingPageLeadStore } from "@/lib/landing-page/leads/store";
+export { archiveLandingPageLead, getLandingPageLead, listLandingPageLeads } from "@/lib/landing-page/leads/service";
+export { LANDING_PAGE_MEASUREMENT_EVENTS, LANDING_PAGE_MEASUREMENT_LABELS } from "@/lib/landing-page/measurement/schema";
+export { availableLandingPageMeasurementEvents, recommendLandingPageMeasurement } from "@/lib/landing-page/measurement/availability";
+export { validateLandingPageMeasurement } from "@/lib/landing-page/measurement/validate";
+export { buildLandingPageMeasurementSummary } from "@/lib/landing-page/measurement/summary";
+export { createMemoryLandingPageMetricStore, landingPageClickEvents, landingPageMetricDate, recordLandingPageMeasurementEvents } from "@/lib/landing-page/measurement/metrics";
+export { summarizeLandingPageMetrics } from "@/lib/landing-page/measurement/service";
+export { saveLandingPageConversionMeasurementPlan, updateLandingPageActionConfiguration, updateLandingPageFormConfiguration, updateLandingPageMeasurement } from "@/lib/landing-page/conversion/service";

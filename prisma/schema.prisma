@@ -783,6 +783,8 @@ model LandingPageProject {
   publishedPublication   LandingPagePublication?  @relation("LandingPageActivePublication", fields: [publishedPublicationId], references: [id], onDelete: SetNull)
   publications           LandingPagePublication[] @relation("LandingPagePublicationHistory")
   media                  LandingPageMedia[]
+  leads                  LandingPageLead[]
+  metricDaily            LandingPageMetricDaily[]
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 
@@ -844,8 +846,63 @@ model LandingPagePublication {
   publishedAt          DateTime           @default(now())
   createdAt            DateTime           @default(now())
   activeForProject     LandingPageProject? @relation("LandingPageActivePublication")
+  leads                LandingPageLead[]
+  metricDaily          LandingPageMetricDaily[]
 
   @@unique([landingPageProjectId, version])
   @@index([landingPageProjectId, publishedAt])
   @@map("landing_page_publication")
+}
+
+enum LandingPageLeadStatus {
+  NEW
+  ARCHIVED
+}
+
+enum LandingPageMetricEvent {
+  PAGE_VIEW
+  CTA_CLICK
+  WHATSAPP_CLICK
+  FORM_START
+  FORM_SUBMIT
+}
+
+/// Lead privado do dono da landing. Sem IP, user agent ou cabeçalhos.
+/// OPEN BUSINESS DECISION: política de retenção. Sem exclusão automática nesta fase.
+model LandingPageLead {
+  id                   String                 @id
+  landingPageProjectId String
+  landingPageProject   LandingPageProject     @relation(fields: [landingPageProjectId], references: [id], onDelete: Restrict)
+  publicationId        String?
+  publication          LandingPagePublication? @relation(fields: [publicationId], references: [id], onDelete: SetNull)
+  formSectionId        String
+  submittedData        Json
+  status               LandingPageLeadStatus  @default(NEW)
+  idempotencyKey       String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@unique([landingPageProjectId, idempotencyKey], map: "landing_page_lead_idempotency_key")
+  @@index([landingPageProjectId, createdAt])
+  @@index([publicationId])
+  @@index([landingPageProjectId, status])
+  @@map("landing_page_lead")
+}
+
+/// Contagem diária por publicação e evento. Sem payload de visitante.
+model LandingPageMetricDaily {
+  id                   String                 @id @default(cuid())
+  landingPageProjectId String
+  landingPageProject   LandingPageProject     @relation(fields: [landingPageProjectId], references: [id], onDelete: Restrict)
+  publicationId        String
+  publication          LandingPagePublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  date                 DateTime               @db.Date
+  eventType            LandingPageMetricEvent
+  count                Int                    @default(0)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@unique([landingPageProjectId, publicationId, date, eventType], map: "landing_page_metric_daily_key")
+  @@index([landingPageProjectId, date])
+  @@map("landing_page_metric_daily")
 }

@@ -117,9 +117,9 @@ export const landingPageExperienceSummarySchema = z
 export type LandingPageExperienceSummaryV1 = z.infer<typeof landingPageExperienceSummarySchema>;
 
 export const EXPERIENCE_CAPABILITIES_V1 = {
-  formsFunctional: false,
+  formsFunctional: true,
   publicationAvailable: false,
-  measurementAvailable: false,
+  measurementAvailable: true,
 } as const;
 
 export type ExperienceCapabilities = {

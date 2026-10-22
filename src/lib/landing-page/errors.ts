@@ -32,6 +32,10 @@ export const LANDING_PAGE_CODES = [
   "LANDING_PAGE_MEDIA_STORAGE",
   "LANDING_PAGE_MEDIA_IN_USE",
   "LANDING_PAGE_TRUST_PROOF_IN_USE",
+  "LANDING_PAGE_ACTION_INVALID",
+  "LANDING_PAGE_FORM_INVALID",
+  "LANDING_PAGE_MEASUREMENT_INVALID",
+  "LANDING_PAGE_FORM_RATE_LIMITED",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -70,6 +74,10 @@ const MESSAGES: Record<LandingPageCode, string> = {
   LANDING_PAGE_MEDIA_STORAGE: "Não foi possível guardar ou remover o arquivo.",
   LANDING_PAGE_MEDIA_IN_USE: "Esta imagem está sendo usada na página. Remova-a da seção antes de excluir.",
   LANDING_PAGE_TRUST_PROOF_IN_USE: "Esta prova está sendo usada na página. Remova-a da seção antes de excluir.",
+  LANDING_PAGE_ACTION_INVALID: "Não foi possível salvar essa ação.",
+  LANDING_PAGE_FORM_INVALID: "Não foi possível salvar esse formulário.",
+  LANDING_PAGE_MEASUREMENT_INVALID: "Não foi possível salvar a mensuração.",
+  LANDING_PAGE_FORM_RATE_LIMITED: "Muitos envios em pouco tempo. Tente de novo mais tarde.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {
