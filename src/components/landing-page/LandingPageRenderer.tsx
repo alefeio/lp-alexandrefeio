@@ -21,7 +21,7 @@ export type LandingPageResolvedMedia = {
 };
 
 const buttonClass =
-  "inline-flex max-w-full break-words px-4 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+  "inline-flex min-h-11 max-w-full items-center break-words px-4 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
 function buttonStyle(): CSSProperties {
   return {
@@ -54,7 +54,7 @@ function SectionFrame({ section, children }: { section: LandingPageSection; chil
       data-background-role={section.settings.backgroundRole}
       data-alignment={section.settings.alignment}
       data-emphasis={section.settings.emphasis}
-      className="w-full overflow-x-hidden px-4 sm:px-6"
+      className="w-full overflow-x-hidden px-4 @min-[640px]:px-6"
       style={sectionStyle(section)}
     >
       <div className="mx-auto w-full min-w-0" style={{ maxWidth: "min(100%, var(--lp-content-width))" }}>
@@ -159,7 +159,7 @@ function HeroBlock({
   const placement = content.mediaRef;
   const ready = placement ? readyMedia(placement, media) : null;
   const actions = content.primaryCta || content.secondaryCta ? (
-    <div className={`mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap ${section.settings.alignment === "CENTER" && !split ? "sm:justify-center" : ""}`}>
+    <div className={`mt-6 flex flex-col gap-3 @min-[640px]:flex-row @min-[640px]:flex-wrap ${section.settings.alignment === "CENTER" && !split ? "@min-[640px]:justify-center" : ""}`}>
       {content.primaryCta ? <ActionControl action={content.primaryCta} mode={mode} /> : null}
       {content.secondaryCta ? <ActionControl action={content.secondaryCta} mode={mode} /> : null}
     </div>
@@ -168,7 +168,7 @@ function HeroBlock({
   if (showImageColumn && placement) {
     return (
       <SectionFrame section={section}>
-        <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2" data-hero-layout="split-media">
+        <div className="grid min-w-0 grid-cols-1 gap-6 @min-[720px]:grid-cols-2" data-hero-layout="split-media">
           <div className="min-w-0">
             {content.eyebrow ? <p className="break-words text-xs font-medium uppercase tracking-[0.14em]" style={{ color: "var(--lp-muted)" }}>{content.eyebrow}</p> : null}
             <Heading className="mt-3 text-balance break-words leading-tight tracking-tight" style={headingStyle()}>{content.headline}</Heading>
@@ -184,7 +184,7 @@ function HeroBlock({
   }
   return (
     <SectionFrame section={section}>
-      <div className={split ? "grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2" : "min-w-0"} data-hero-layout={split ? "split-text" : "stacked"}>
+      <div className={split ? "grid min-w-0 grid-cols-1 gap-6 @min-[720px]:grid-cols-2" : "min-w-0"} data-hero-layout={split ? "split-text" : "stacked"}>
         <div className="min-w-0">
           {content.eyebrow ? <p className="break-words text-xs font-medium uppercase tracking-[0.14em]" style={{ color: "var(--lp-muted)" }}>{content.eyebrow}</p> : null}
           <Heading className="mt-3 text-balance break-words leading-tight tracking-tight" style={headingStyle()}>
@@ -206,7 +206,7 @@ function BenefitsBlock({ section }: { section: Extract<LandingPageSection, { typ
   return (
     <SectionFrame section={section}>
       {section.content.heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2> : null}
-      <ul className={cards ? "mt-6 grid grid-cols-1 gap-4 md:grid-cols-2" : "mt-6 flex flex-col"} style={{ gap: "var(--lp-density)" }}>
+      <ul className={cards ? "mt-6 grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2" : "mt-6 flex flex-col"} style={{ gap: "var(--lp-density)" }}>
         {section.content.items.map((item) => (
           <li
             key={item.title}
@@ -227,7 +227,7 @@ function ProcessBlock({ section }: { section: Extract<LandingPageSection, { type
   return (
     <SectionFrame section={section}>
       {section.content.heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2> : null}
-      <ol className={steps ? "mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2" : "mt-6 flex flex-col"} style={{ gap: "var(--lp-density)" }}>
+      <ol className={steps ? "mt-6 grid grid-cols-1 gap-4 @min-[640px]:grid-cols-2" : "mt-6 flex flex-col"} style={{ gap: "var(--lp-density)" }}>
         {section.content.steps.map((step, index) => (
           <li key={`${step.title}-${index}`} className="min-w-0 p-4" style={{ border: "1px solid var(--lp-border)", borderRadius: "var(--lp-card-radius)" }}>
             {steps ? <p className="text-xs font-medium">{index + 1}</p> : null}
@@ -263,7 +263,7 @@ function TrustBlock({
       {intro ? <p className="mt-3 break-words text-base leading-relaxed">{intro}</p> : null}
       {mode === "PREVIEW" && pending ? <p data-trust-pending="true" className="mt-3 text-sm">Há prova ainda não confirmada para exibição.</p> : null}
       {items.length > 0 ? (
-        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-6 grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2">
           {items.map((item) => (
             <li key={item.title} className="min-w-0">
               <h3 className="break-words text-lg font-medium">{item.title}</h3>
@@ -273,7 +273,7 @@ function TrustBlock({
         </ul>
       ) : null}
       {linked.length > 0 ? (
-        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-6 grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2">
           {linked.map((proof) => (
             <li key={proof.id} className="min-w-0">
               <h3 className="break-words text-lg font-medium">{proof.title}</h3>
@@ -368,7 +368,7 @@ function FooterBlock({
         {section.content.brandText ? <p className="break-words text-sm font-medium">{section.content.brandText}</p> : null}
         {section.content.copyrightText ? <p className="mt-2 break-words text-sm">{section.content.copyrightText}</p> : null}
         {section.content.links.length > 0 ? (
-          <ul className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <ul className="mt-4 flex flex-col gap-2 @min-[640px]:flex-row @min-[640px]:flex-wrap">
             {section.content.links.map((link) => (
               <li key={link.label}>
                 <ActionControl action={link.action} mode={mode} />
@@ -394,7 +394,7 @@ function NarrativeBlock({
         <p className="mt-3 break-words text-base leading-relaxed">{section.content.description}</p>
       ) : null}
       {items.length > 0 ? (
-        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-6 grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2">
           {items.map((item) => (
             <li key={item.title} className="min-w-0 rounded-lg border border-current/15 p-4">
               <h3 className="break-words text-lg font-medium">{item.title}</h3>
@@ -421,7 +421,7 @@ function PortfolioBlock({
       {section.content.heading ? <h2 className="text-balance break-words leading-tight" style={headingStyle()}>{section.content.heading}</h2> : null}
       {section.content.description ? <p className="mt-3 break-words text-base leading-relaxed">{section.content.description}</p> : null}
       {section.content.items.length > 0 ? (
-        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-6 grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2">
           {section.content.items.map((item) => (
             <li key={item.mediaRef.mediaId} className="min-w-0">
               <MediaFrame placement={item.mediaRef} media={media} mode={mode} />
@@ -457,7 +457,7 @@ function TestimonialsBlock({
       {section.content.description ? <p className="mt-3 break-words text-base leading-relaxed">{section.content.description}</p> : null}
       {ready.length === 0 && mode === "PREVIEW" ? <p data-trust-empty="testimonials" className="mt-3 text-sm">Nenhum depoimento confirmado.</p> : null}
       {ready.length > 0 ? (
-        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-6 grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2">
           {ready.map((proof) => (
             <li key={proof.id}>
               <article>
@@ -559,7 +559,7 @@ export function LandingPageRenderer({
   let heroCount = 0;
 
   return (
-    <div data-landing-canvas data-render-mode={mode} className="overflow-x-hidden" style={mapLandingPageTheme(parsed.document.theme)}>
+    <div data-landing-canvas data-render-mode={mode} className="@container overflow-x-hidden" style={mapLandingPageTheme(parsed.document.theme)}>
       {sections.map((section) => {
         const heroHeading = section.type === "HERO" ? (heroCount++ === 0 ? "h1" : "h2") : "h2";
         const previewBadge =

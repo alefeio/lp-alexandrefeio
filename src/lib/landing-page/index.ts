@@ -102,3 +102,9 @@ export { parseConversionPageBrief, conversionBriefLessonSummary, type Conversion
 export { parseVisitorDecisionJourney, visitorDecisionLessonSummary, type VisitorDecisionJourneyV1 } from "@/lib/landing-page/decision-journey";
 export { createMemoryLandingPageStore } from "@/lib/landing-page/memory-store";
 export { createPrismaLandingPageStore } from "@/lib/landing-page/prisma-store";
+export { EXPERIENCE_VIEWPORT_IDS, EXPERIENCE_VIEWPORT_WIDTH, EXPERIENCE_REQUIRED_VIEWPORTS } from "@/lib/landing-page/experience/viewports";
+export { EXPERIENCE_CAPABILITIES_V1, EXPERIENCE_ACTION_CODES, EXPERIENCE_FINDING_CATEGORIES, EXPERIENCE_SEVERITIES, EXPERIENCE_REVIEW_STATUSES } from "@/lib/landing-page/experience/schema";
+export { evaluateLandingPageExperience } from "@/lib/landing-page/experience/evaluate";
+export { composeLandingPageExperienceReview, experienceReviewEffectiveStatus } from "@/lib/landing-page/experience/review";
+export { saveLandingPageExperienceReview } from "@/lib/landing-page/experience/service";
+export { experienceReviewFixture, landingExperienceFixtureEnabled } from "@/lib/landing-page/experience/fixture";

@@ -33,8 +33,8 @@ test("documento válido renderiza todos os tipos V1 habilitados", () => {
   }
   assert.match(markup, /Consultoria para pequenos negócios/);
   assert.match(markup, /grid-cols-1/);
-  assert.match(markup, /md:grid-cols-2/);
-  assert.match(markup, /sm:flex-row/);
+  assert.match(markup, /@min-\[720px\]:grid-cols-2/);
+  assert.match(markup, /@min-\[640px\]:flex-row/);
   assert.equal(markup.includes("Oculto"), false);
   assert.equal(markup.includes("Alexandre Feio"), false);
   assert.equal(markup.includes("dangerouslySetInnerHTML"), false);

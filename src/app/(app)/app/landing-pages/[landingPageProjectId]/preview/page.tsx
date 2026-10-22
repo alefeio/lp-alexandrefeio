@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ExperienceReviewPanel } from "@/components/landing-page/ExperienceReviewPanel";
 import { LandingPageRenderer } from "@/components/landing-page/LandingPageRenderer";
 import type { LandingPageResolvedMedia } from "@/components/landing-page/LandingPageRenderer";
-import { Container } from "@/components/ui/Container";
+import { ResponsivePreviewFrame } from "@/components/landing-page/ResponsivePreviewFrame";
 import { requireSession } from "@/lib/auth/session";
 import { visibleLandingPageSections } from "@/lib/landing-page/order";
 import { createPrismaLandingPageMediaStore } from "@/lib/landing-page/media/prisma-store";
@@ -45,18 +46,18 @@ export default async function LandingPagePreviewPage({
     });
   } catch {
     return (
-      <Container className="max-w-3xl">
+      <div className="mx-auto w-full max-w-3xl px-5">
         <p role="alert">Não foi possível exibir esta landing page.</p>
-      </Container>
+      </div>
     );
   }
 
   if (!result.ok) {
     if (result.code === "NOT_FOUND") notFound();
     return (
-      <Container className="max-w-3xl">
+      <div className="mx-auto w-full max-w-3xl px-5">
         <p role="alert">{previewMessage(result.code)}</p>
-      </Container>
+      </div>
     );
   }
 
@@ -80,7 +81,7 @@ export default async function LandingPagePreviewPage({
   }
 
   return (
-    <Container className="max-w-5xl">
+    <div className="mx-auto w-full max-w-[1360px] px-5 py-8 sm:px-8">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Visualização da landing page</p>
       <p className="mt-3 text-2xl font-semibold tracking-tight">{page.title}</p>
       <p className="mt-2 text-sm text-muted">
@@ -92,10 +93,13 @@ export default async function LandingPagePreviewPage({
           Voltar
         </Link>
       </p>
+      <ExperienceReviewPanel document={page.draftDocument} draftRevision={page.draftRevision} />
       {visible.length === 0 ? <p className="mt-8 text-base">Sua landing page ainda não possui seções.</p> : null}
-      <div className="mt-8 overflow-hidden rounded-xl border border-border">
-        <LandingPageRenderer document={page.draftDocument} mode="PREVIEW" media={media} />
+      <div className="mt-8">
+        <ResponsivePreviewFrame sections={visible.map((section) => ({ id: section.id, type: section.type }))}>
+          <LandingPageRenderer document={page.draftDocument} mode="PREVIEW" media={media} />
+        </ResponsivePreviewFrame>
       </div>
-    </Container>
+    </div>
   );
 }

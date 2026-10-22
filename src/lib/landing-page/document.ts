@@ -14,6 +14,7 @@ import { copyFactsSchema } from "@/lib/landing-page/copy/facts-schema";
 import { landingPageMediaPlacementSchema } from "@/lib/landing-page/media/placement";
 import { defaultLandingPageTheme, landingPageThemeSchema } from "@/lib/landing-page/theme/schema";
 import { landingPageVisualDirectionSchema } from "@/lib/landing-page/theme/visual-direction";
+import { landingPageExperienceReviewSchema, landingPageExperienceSummarySchema } from "@/lib/landing-page/experience/schema";
 import { landingPageTrustPlanSchema } from "@/lib/landing-page/trust/schema";
 
 export { landingPageThemeSchema };
@@ -83,6 +84,7 @@ export const landingPageStrategySchema = z
     copyFacts: copyFactsSchema.optional(),
     visualDirection: landingPageVisualDirectionSchema.optional(),
     trustPlan: landingPageTrustPlanSchema.optional(),
+    experienceReview: landingPageExperienceSummarySchema.optional(),
   })
   .strict();
 
@@ -105,6 +107,7 @@ export const landingPageDocumentSchema = z
     mediaRefs: z.array(landingPageMediaRefSchema).max(40),
     guidedWireframe: guidedWireframeOriginSchema.optional(),
     strategy: landingPageStrategySchema.optional(),
+    experienceReview: landingPageExperienceReviewSchema.optional(),
   })
   .strict()
   .superRefine((doc, ctx) => {

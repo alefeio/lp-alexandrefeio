@@ -249,9 +249,9 @@ test("renderer aplica tokens, variantes e não recebe CSS cru", () => {
   assert.match(markup, /break-words/);
   assert.match(markup, /min\(100%, var\(--lp-content-width\)\)/);
   assert.match(markup, /grid-cols-1/);
-  assert.match(markup, /md:grid-cols-2/);
-  assert.match(markup, /sm:px-6/);
-  assert.match(markup, /sm:grid-cols-2/);
+  assert.match(markup, /@min-\[720px\]:grid-cols-2/);
+  assert.match(markup, /@min-\[640px\]:px-6/);
+  assert.match(markup, /@min-\[640px\]:grid-cols-2/);
   assert.match(markup, /focus-visible:outline/);
   assert.match(markup, /data-alignment="CENTER"/);
   assert.match(markup, /data-background-role="SURFACE"/);

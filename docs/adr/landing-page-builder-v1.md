@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1, PHASE 2 e PHASE 3 IMPLEMENTED**. Phases 4–10 ainda não implementadas.
+Status: **ACCEPTED — PHASE 1 a PHASE 7 com núcleo implementado**. Phases 8–10 ainda não implementadas. Aula 10 não produzida.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -302,12 +302,12 @@ Não decidir preços nesta ADR. Separar **curso/entitlement** de **hosting/publi
 | 4 | IMPLEMENTED — copy assist por seção, fatos complementares, cobertura da aula e provider OpenAI ao vivo |
 | 5 | IMPLEMENTED CORE — tema controlado, contraste e ajustes visuais por seção |
 | 6 | IMPLEMENTED CORE — mídia pública, posse, upload e provas de confiança informadas pelo aluno |
-| 7 | Responsive review (desktop/mobile preview) |
+| 7 | IMPLEMENTED CORE — revisão de experiência, presets de viewport e findings determinísticos |
 | 8 | CTA/form + measurement nativo |
 | 9 | Publish / snapshot / rota `/p/[slug]` |
 | 10 | Integração Aula 12 (revisão final + publicação) |
 
-Conteúdo pedagógico: Aulas 1–8 com conteúdo interno. Aulas 9–12 ainda não produzidas. A Aula 8 confirma a direção visual no mesmo projeto. A landing page e o curso permanecem sem publicação pública.
+Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda não produzidas. A Aula 9 confirma o plano de confiança no mesmo projeto. A landing page e o curso permanecem sem publicação pública.
 
 ## Phase 4 — copy assist core
 
@@ -382,6 +382,21 @@ Conteúdo pedagógico: Aulas 1–8 com conteúdo interno. Aulas 9–12 ainda nã
 - Depoimento pronto exige texto, autor e `consentConfirmed`. A assistência de copy pode receber prova pronta como texto e continua sem escrever depoimento. Não recebe arquivo nem URL. Não há geração de imagem.
 - O preview do dono pode mostrar a mídia real, segue `noindex` e não mede analytics. A publicação pública e a rota `/p/[slug]` continuam fora. O curso permanece DRAFT e NOT_FOR_SALE.
 - O limitador de copy em memória permanece, com a troca durável marcada como `BEFORE_PUBLIC_RELEASE`.
+
+## Phase 7 — revisão responsiva e experiência
+
+- Phase 7 core: IMPLEMENTED. A Aula 10 não foi produzida.
+- `LandingPageExperienceReviewV1` fica em `draftDocument.experienceReview`. `strategy.experienceReview` guarda só versão, status, revisão conferida, viewports e contagens. Não copia texto de finding nem observação do aluno.
+- Presets de viewport: `MOBILE_SMALL` 320, `MOBILE` 375, `TABLET` 768 e `DESKTOP` 1280. O preview autenticado usa o mesmo renderer. A largura só limita o canvas. Não há moldura de aparelho.
+- A conclusão pedagógica pede os quatro presets. `READY_FOR_NEXT_STEP` não significa pronto para publicar.
+- Findings têm categoria, severidade `INFO`, `ATTENTION` ou `BLOCKER`, origem `SYSTEM` ou `USER` e status `OPEN`, `RESOLVED`, `DEFERRED` ou `NOT_APPLICABLE`. Não há severidade `CRITICAL` e não há nota de experiência.
+- `evaluateLandingPageExperience` é determinístico e não grava. `saveLandingPageExperienceReview` reavalia, exige posse e `expectedRevision`, e faz uma atualização atômica. Um finding de sistema que continua válido volta a `OPEN`. `BLOCKER` não pode ser adiado.
+- `reviewedDraftRevision` acompanha a revisão gravada. Se `draftRevision` mudar depois, o status efetivo fica `STALE`.
+- Códigos de ação: `REVIEW_COPY`, `REVIEW_THEME`, `REVIEW_TRUST`, `CONFIGURE_ACTION`, `REVIEW_FORM` e `REVIEW_MEDIA`. O motor não monta URL de aula.
+- Capacidades desta fase: `formsFunctional=false`, `publicationAvailable=false`, `measurementAvailable=false`. Formulário sem envio é limitação da plataforma, não bloqueio do aluno.
+- O contraste reutiliza `assessThemeContrast`. A hierarquia reutiliza `evaluateVisualHierarchy`.
+- A rota `/dev/landing-experience-fixture` só existe fora de produção, responde `noindex` e não entra no sitemap. Não cria `LandingPageProject`. O teste no navegador, com documento sintético, passou em 320, 375, 768 e 1280: sem overflow horizontal, CTA visível, texto longo quebrando, portfólio e depoimentos em coluna no celular e em grade no desktop. A pergunta da FAQ abre. O renderer usa container queries para a largura do canvas, não um renderer por aparelho.
+- BEFORE_PUBLIC_RELEASE, ainda em aberto: limitador distribuído de copy, limitador distribuído de upload, smoke do armazenamento público ao vivo, retenção de mídia e limpeza de arquivo órfão.
 
 ## Consequences
 

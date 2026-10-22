@@ -43,9 +43,9 @@ export function LandingPageFormBlock({
               {label}
             </label>
             {field === "message" ? (
-              <textarea id={id} name={field} rows={4} readOnly className="mt-1 w-full max-w-full rounded-md border border-current/20 bg-transparent px-3 py-2" />
+              <textarea id={id} name={field} rows={4} readOnly className="mt-1 min-h-11 w-full max-w-full rounded-md border border-current/20 bg-transparent px-3 py-2" />
             ) : (
-              <input id={id} name={field} type={field === "email" ? "email" : "text"} readOnly className="mt-1 w-full max-w-full rounded-md border border-current/20 bg-transparent px-3 py-2" />
+              <input id={id} name={field} type={field === "email" ? "email" : "text"} readOnly className="mt-1 min-h-11 w-full max-w-full rounded-md border border-current/20 bg-transparent px-3 py-2" />
             )}
           </div>
         );
@@ -56,7 +56,7 @@ export function LandingPageFormBlock({
           <span className="break-words">{consentText || "Consentimento"}</span>
         </label>
       ) : null}
-      <button type="submit" disabled className="max-w-full break-words px-4 py-2 text-sm font-medium opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ backgroundColor: "var(--lp-button-bg)", color: "var(--lp-button-fg)", border: "var(--lp-button-border)", borderRadius: "var(--lp-button-radius)" }}>
+      <button type="submit" disabled className="inline-flex min-h-11 max-w-full items-center break-words px-4 py-2 text-sm font-medium opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ backgroundColor: "var(--lp-button-bg)", color: "var(--lp-button-fg)", border: "var(--lp-button-border)", borderRadius: "var(--lp-button-radius)" }}>
         {submitLabel || "Enviar"}
       </button>
     </form>

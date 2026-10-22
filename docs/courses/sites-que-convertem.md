@@ -88,8 +88,9 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
 
 ### Módulo 5 — Publique, meça e melhore — R$ 103,90 — SCAFFOLDED
 
-10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90  
-    Resultado: Página ajustada para publicação · Tool: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`
+10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90 · SCAFFOLDED  
+    Resultado planejado: Página ajustada para publicação · Tool planejada: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`  
+    O núcleo da Phase 7 já existe: presets de viewport, revisão de experiência e findings no rascunho. Esta aula ainda não foi produzida.
 11. **Configure o que precisa ser medido** (`mensuracao-da-pagina`) — PAID R$ 39,90  
     Resultado: Mapa de mensuração aplicado ao projeto · Tool: `LANDING_PAGE_MEASUREMENT_V1`
 12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90  

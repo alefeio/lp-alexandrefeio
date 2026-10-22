@@ -514,7 +514,7 @@ test("renderer usa só mídia resolvida e não inventa depoimento", () => {
   assert.match(preview, /alt="Fachada da oficina"/);
   assert.match(preview, /src="https:\/\/media\.example\.test\/landing-media\/abc"/);
   assert.match(preview, /grid-cols-1/);
-  assert.match(preview, /md:grid-cols-2/);
+  assert.match(preview, /@min-\[720px\]:grid-cols-2/);
   assert.match(preview, /data-section-type="PORTFOLIO"/);
   assert.match(preview, /Nenhum depoimento confirmado/);
   assert.equal(preview.includes("evil.test"), false);
