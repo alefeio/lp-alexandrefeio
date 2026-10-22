@@ -74,7 +74,7 @@ test("aulas 1–3 FREE e 4–12 PAID com resultados do builder", () => {
       "Plano de confiança da minha landing page",
       "Revisão de experiência da minha landing page",
       "Plano de mensuração da minha landing page",
-      "Landing page publicada",
+      "Publicação da minha landing page",
     ],
   );
   assert.deepEqual(
@@ -88,7 +88,7 @@ test("aulas 1–3 FREE e 4–12 PAID com resultados do builder", () => {
       "LANDING_PAGE_TRUST_V1",
       "LANDING_PAGE_EXPERIENCE_REVIEW_V1",
       "LANDING_PAGE_MEASUREMENT_PLAN_V1",
-      "LANDING_PAGE_PUBLISH_V1",
+      "LANDING_PAGE_PUBLICATION_V1",
     ],
   );
   assert.equal(lessons[11]!.title, "Revise e publique sua landing page");

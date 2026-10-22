@@ -67,6 +67,8 @@ import type { VisualPanel } from "@/lib/learning/landing-page-visual";
 import type { TrustPanel } from "@/lib/learning/landing-page-trust";
 import type { ExperiencePanel } from "@/lib/landing-page/experience/lesson-flow";
 import type { MeasurementPanel } from "@/lib/landing-page/measurement/lesson-flow";
+import type { PublicationPanel } from "@/lib/landing-page/publication/lesson-flow";
+import { LandingPagePublicationTool } from "@/components/learning/LandingPagePublicationTool";
 import { pageReadinessResponseSchema, type ConversionPageReadiness } from "@/lib/learning/conversion-page-readiness";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
@@ -104,6 +106,7 @@ type ToolPanel =
   | TrustPanel
   | ExperiencePanel
   | MeasurementPanel
+  | PublicationPanel
   | null;
 
 type Props = {
@@ -1094,6 +1097,15 @@ function BlockBody(props: {
       <div className="min-w-0 space-y-4 overflow-x-hidden rounded-lg border border-border bg-surface p-4 md:p-6" data-tool="LANDING_PAGE_MEASUREMENT_PLAN_V1">
         <h3 className="text-lg font-semibold">{data.title}</h3>
         <LandingPageMeasurementTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "LANDING_PAGE_PUBLICATION_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "landing-publication" ? props.toolPanel : null;
+    return (
+      <div className="min-w-0 space-y-4 overflow-x-hidden rounded-lg border border-border bg-surface p-4 md:p-6" data-tool="LANDING_PAGE_PUBLICATION_V1">
+        <h3 className="text-lg font-semibold">{data.title}</h3>
+        <LandingPagePublicationTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }

@@ -1,7 +1,7 @@
 /**
  * Scaffold editorial do segundo curso.
  * Release público SUSPENSO até o reframe Landing Page Builder: Course DRAFT + NOT_FOR_SALE.
- * Aulas 1–3 completas internamente; 4–11 constroem o LandingPageProject. A Aula 12 continua planejada.
+ * Aulas 1–3 completas internamente; 4–12 constroem e publicam o mesmo LandingPageProject. O curso permanece DRAFT.
  */
 
 export const SITES_COURSE_SLUG = "sites-que-convertem";
@@ -235,14 +235,15 @@ export const sitesCourseSeed = {
         {
           slug: "revisao-antes-do-trafego",
           title: "Revise e publique sua landing page",
-          summary: "Faça a revisão final, valide e publique a landing page com URL pública e snapshot estável.",
-          publicPreview: null,
+          summary: "Faça a revisão final, corrija o que impede a publicação e coloque sua landing page no ar.",
+          publicPreview:
+            "Você não chegou até aqui apenas para terminar um curso. Você chegou até aqui para colocar uma página real no ar.",
           estimatedMinutes: 35,
           sortOrder: 2,
           accessType: "PAID" as const,
           priceCents: 3990,
-          plannedResult: "Landing page publicada",
-          plannedTool: "LANDING_PAGE_PUBLISH_V1",
+          plannedResult: "Publicação da minha landing page",
+          plannedTool: "LANDING_PAGE_PUBLICATION_V1",
         },
       ],
     },

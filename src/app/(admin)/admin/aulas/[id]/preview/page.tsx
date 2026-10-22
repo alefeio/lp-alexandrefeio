@@ -20,6 +20,7 @@ import { visualPreviewState } from "@/lib/learning/landing-page-visual";
 import { trustPreviewState } from "@/lib/learning/landing-page-trust";
 import { experiencePreviewState } from "@/lib/landing-page/experience/lesson-flow";
 import { measurementPreviewState } from "@/lib/landing-page/measurement/lesson-flow";
+import { publicationPreviewState } from "@/lib/landing-page/publication/lesson-flow";
 import { destinationPlanPreviewState } from "@/lib/learning/measurement";
 import { keywordIntentPreviewState } from "@/lib/learning/keyword-plan";
 import { leadConversionPreviewState } from "@/lib/learning/lead-conversion-plan";
@@ -118,6 +119,7 @@ function previewToolPanel(blocks: ReaderBlock[]) {
   if (toolKey === "LANDING_PAGE_TRUST_V1") return trustPreviewState();
   if (toolKey === "LANDING_PAGE_EXPERIENCE_REVIEW_V1") return experiencePreviewState();
   if (toolKey === "LANDING_PAGE_MEASUREMENT_PLAN_V1") return measurementPreviewState();
+  if (toolKey === "LANDING_PAGE_PUBLICATION_V1") return publicationPreviewState();
   if (toolKey === "CAMPAIGN_BRIEF_V1") return campaignBriefPreviewState();
   if (toolKey === "DESTINATION_MEASUREMENT_PLAN_V1") return destinationPlanPreviewState();
   if (toolKey === "SEARCH_CAMPAIGN_BLUEPRINT_V1") return searchBlueprintPreviewState();

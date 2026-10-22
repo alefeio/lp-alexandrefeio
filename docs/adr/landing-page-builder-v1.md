@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 a PHASE 9 com núcleo implementado**. A publicação grava snapshot imutável. O runtime público fica desligado em produção até liberação explícita. A Aula 12 não foi produzida.
+Status: **ACCEPTED — PHASE 1 a PHASE 9 com núcleo implementado**. A publicação grava snapshot imutável. A Aula 12 usa esse núcleo. O runtime público fica desligado em produção até liberação explícita. O curso permanece DRAFT.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -433,7 +433,7 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 
 ## Phase 9 — publicação e runtime público
 
-- Phase 9 core: IMPLEMENTED. A Aula 12 não foi produzida e o curso permanece DRAFT e NOT_FOR_SALE.
+- Phase 9 core: IMPLEMENTED. A Aula 12 usa esse núcleo. O curso permanece DRAFT e NOT_FOR_SALE.
 - `LandingPagePublicationSnapshotV1` guarda só o necessário para renderizar e operar a página: tema, seções, ações, formulário, mensuração, mídia pública e provas selecionadas. Não entra `strategy`, `experienceReview`, `copyFacts`, findings, `LessonResult`, lead, prompt nem estado do editor.
 - `validatePublicationSnapshot` rejeita campo interno. `buildLandingPagePublicationSnapshot` não grava banco. O hash é determinístico.
 - A linha de `LandingPagePublication` não recebe atualização de conteúdo. Nova versão pública só nasce em nova publicação. `publishedPublicationId` é a versão ativa. A versão é única por projeto e cresce sempre.
@@ -447,6 +447,16 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 - O slug antigo `mensuracao-da-pagina` é reconciliado no futuro `catalog:deploy`: só o legado vira o slug canônico; se os dois existirem, o deploy falha e não apaga linha. Este comando não foi executado.
 - `publicationAvailable=true`. `LIVE_MEDIA_STORE_READY=false`. Página sem mídia publica. Mídia inválida bloqueia.
 - BEFORE_PUBLIC_RELEASE, ainda em aberto: limitador distribuído de copy, de upload e de envio; proteção adicional do endpoint de eventos, se necessária; smoke do Blob ao vivo; retenção de mídia; limpeza de arquivo órfão; retenção de leads; decisão de CAPTCHA; retenção das contagens; decisão do gate de produção; revisão legal e de privacidade dos formulários públicos.
+
+## Aula 12 — revisão e publicação
+
+- A aula `revisao-antes-do-trafego` é a última do curso. Ela não duplica a avaliação de prontidão nem o serviço de publicação. Bloqueios levam de volta às aulas 7–11. Avisos pedem reconhecimento e não podem incluir um código de bloqueio.
+- A conclusão pedagógica exige publicação ativa, snapshot válido, runtime público ligado naquele ambiente e resolução da rota pelo slug ativo. Uma linha gravada com o gate desligado não conclui a aula e não produz a mensagem de página no ar.
+- O aluno vê a diferença entre rascunho e versão publicada, o aviso de alterações ainda não publicadas e o histórico sem o JSON do snapshot. Versão idêntica não cria outra linha. Restaurar uma versão cria uma versão nova baseada nela.
+- O `LessonResult` “Publicação da minha landing page” guarda identificadores, versão, slug, caminho, tipo da ação, evento de conversão, contagens de aviso e a revisão de origem. Não guarda snapshot, telefone, URL externa, prova nem lead. O host é derivado, não gravado.
+- O progresso do curso continua o da engine existente: a última aula concluída pode levar o curso a 100%. Não há progresso paralelo.
+- O curso permanece DRAFT, fora do catálogo público e NOT_FOR_SALE. `catalog:deploy` não foi executado. `LANDING_PAGE_PUBLIC_RUNTIME_ENABLED` permanece ausente ou falso em produção. A rota pública continua `noindex` e fora do sitemap.
+- BEFORE_PUBLIC_RELEASE, consolidado depois da Aula 12: limitador distribuído de copy; limitador distribuído de upload de mídia; limitador distribuído de envio de formulário; decisão de proteção contra abuso do endpoint público de eventos; smoke do Vercel Blob ao vivo; retenção de mídia; limpeza de mídia órfã; retenção de leads; decisão de CAPTCHA ou proteção contra bot; retenção das métricas; revisão final de privacidade e jurídico; ligar o runtime público em produção; smoke público real; smoke responsivo no navegador; decisão de catálogo e commerce do curso.
 
 ## Consequences
 

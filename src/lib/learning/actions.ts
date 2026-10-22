@@ -55,8 +55,15 @@ import {
 } from "@/lib/learning/landing-page-trust";
 import { saveExperienceReviewForUser, SITE_EXPERIENCE_SLUG } from "@/lib/learning/landing-page-experience";
 import { saveMeasurementPlanForUser, SITE_MEASUREMENT_SLUG } from "@/lib/learning/landing-page-measurement";
+import {
+  hidePublicationForUser,
+  restorePublicationForUser,
+  savePublicationForUser,
+  SITE_PUBLICATION_SLUG,
+} from "@/lib/learning/landing-page-publication";
 import type { ExperiencePageView } from "@/lib/landing-page/experience/lesson-flow";
 import type { MeasurementPageView } from "@/lib/landing-page/measurement/lesson-flow";
+import type { PublicationPageView } from "@/lib/landing-page/publication/lesson-flow";
 import type { ExperienceReviewInput } from "@/lib/landing-page/experience/review";
 import type { TrustPageView } from "@/lib/landing-page/trust/plan";
 import type { VisualPageView } from "@/lib/landing-page/theme/visual-direction";
@@ -87,7 +94,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | WireframePanel | CopyPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number; proposal?: WireframeProposal; previewHref?: string; coverage?: CopyCoverageV1; suggestions?: CopySuggestionResponseV1 | null; workspace?: CopyWorkspace; visualPage?: VisualPageView; trustPage?: TrustPageView; experiencePage?: ExperiencePageView; measurementPage?: MeasurementPageView; completed?: boolean; mediaId?: string; pathname?: string }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | WireframePanel | CopyPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number; proposal?: WireframeProposal; previewHref?: string; coverage?: CopyCoverageV1; suggestions?: CopySuggestionResponseV1 | null; workspace?: CopyWorkspace; visualPage?: VisualPageView; trustPage?: TrustPageView; experiencePage?: ExperiencePageView; measurementPage?: MeasurementPageView; publicationPage?: PublicationPageView; completed?: boolean; notice?: string; mediaId?: string; pathname?: string }
   | { ok: false; message: string; code?: string };
 
 async function authorizedLesson(slug: string) {
@@ -759,6 +766,50 @@ export async function saveLandingPageMeasurementPlanAction(
     measurementPage: saved.page,
     completed: saved.completed,
   };
+}
+
+export async function saveLandingPagePublicationAction(
+  blockKey: string,
+  input: { landingPageProjectId: string; expectedDraftRevision: number; acknowledgedWarningCodes?: string[] },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await savePublicationForUser(session.user.id, SITE_PUBLICATION_SLUG, blockKey, input);
+  if (!saved.ok) return { ok: false, message: saved.message, code: saved.code };
+  return {
+    ok: true,
+    snapshot: saved.snapshot,
+    landingPageProjectId: input.landingPageProjectId,
+    publicationPage: saved.page,
+    completed: saved.completed,
+    notice: saved.notice,
+  };
+}
+
+export async function restoreLandingPageVersionAction(
+  blockKey: string,
+  input: { landingPageProjectId: string; publicationId: string },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await restorePublicationForUser(session.user.id, SITE_PUBLICATION_SLUG, blockKey, input);
+  if (!saved.ok) return saved;
+  const lesson = await getPrisma().lesson.findUnique({ where: { slug: SITE_PUBLICATION_SLUG }, select: { id: true } });
+  if (!lesson) return { ok: false, message: "Aula inválida." };
+  return { ok: true, snapshot: await recomputeProgress(session.user.id, lesson.id), publicationPage: saved.page, notice: saved.notice };
+}
+
+export async function hideLandingPageAction(
+  blockKey: string,
+  input: { landingPageProjectId: string },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await hidePublicationForUser(session.user.id, SITE_PUBLICATION_SLUG, blockKey, input);
+  if (!saved.ok) return saved;
+  const lesson = await getPrisma().lesson.findUnique({ where: { slug: SITE_PUBLICATION_SLUG }, select: { id: true } });
+  if (!lesson) return { ok: false, message: "Aula inválida." };
+  return { ok: true, snapshot: await recomputeProgress(session.user.id, lesson.id), publicationPage: saved.page, notice: saved.notice };
 }
 
 export async function saveConversionPageReadiness(

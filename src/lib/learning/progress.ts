@@ -17,6 +17,7 @@ import { visualLessonResponseSchema } from "@/lib/landing-page/theme/visual-dire
 import { trustLessonResponseSchema } from "@/lib/landing-page/trust/plan";
 import { experienceLessonResponseSchema } from "@/lib/landing-page/experience/lesson-flow";
 import { measurementLessonResponseSchema } from "@/lib/landing-page/measurement/lesson-flow";
+import { publicationLessonResponseSchema } from "@/lib/landing-page/publication/lesson-flow";
 
 const EMPTY_BRIEF_PROJECTS: ReadonlySet<string> = new Set();
 const EMPTY_PLAN_PROJECTS: ReadonlySet<string> = new Set();
@@ -175,6 +176,9 @@ export function isBlockComplete(
       }
       if (block.data.toolKey === "LANDING_PAGE_MEASUREMENT_PLAN_V1") {
         return measurementLessonResponseSchema.safeParse(answer?.response).success;
+      }
+      if (block.data.toolKey === "LANDING_PAGE_PUBLICATION_V1") {
+        return publicationLessonResponseSchema.safeParse(answer?.response).success;
       }
       if (
         block.data.toolKey === "CAMPAIGN_BRIEF_V1" ||

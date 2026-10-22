@@ -129,7 +129,7 @@ const SITES_COPY: CourseSalesCopy = {
     "Wireframe e copy reais",
     "Tema e confiança",
     "Mensuração nativa",
-    "Landing page publicada",
+    "Publicação da sua landing page",
   ],
   resultsTitle: "O que você constrói ao longo da formação",
   results: sitesCourseLessons().map((lesson) => lesson.plannedResult),

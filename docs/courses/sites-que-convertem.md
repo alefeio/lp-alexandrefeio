@@ -4,10 +4,10 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–11 COMPLETE · Aula 12 SCAFFOLDED |
+| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–12 COMPLETE |
 | PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
 | COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–11 PAID com conteúdo (internamente PUBLISHED no seed) · Aula 12 DRAFT |
+| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–12 PAID com conteúdo (internamente PUBLISHED no seed) |
 | Commerce | NOT_FOR_SALE |
 | Catálogo público | não |
 | Sitemap / indexação | não (curso fora do público) |
@@ -86,17 +86,17 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
    Resultado: Plano de confiança da minha landing page · Tool: `LANDING_PAGE_TRUST_V1`  
    A aula usa o núcleo da Phase 6. As provas continuam em `strategy.copyFacts.trustProofs` e a mídia em `LandingPageMedia`. `strategy.trustPlan` guarda só a decisão pedagógica: versão, tipos revisados, ids selecionados, uso das seções, tipos ausentes e próximos passos. Não duplica o texto das provas. O aluno pode concluir sem provas prontas. Depoimento sem autorização não fica pronto. Não há nota de confiança nem selo de verificado. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda contagens, não o conteúdo.
 
-### Módulo 5 — Publique, meça e melhore — R$ 103,90 — Aulas 10–11 COMPLETE · Aula 12 SCAFFOLDED
+### Módulo 5 — Publique, meça e melhore — R$ 103,90 — Aulas 10–12 COMPLETE
 
 10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
     Resultado: Revisão de experiência da minha landing page · Tool: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`  
     A aula usa o núcleo da Phase 7. A revisão canônica fica em `draftDocument.experienceReview`. `strategy.experienceReview` guarda versão, status, viewports e contagens, sem o texto dos findings. A conclusão exige `READY_FOR_NEXT_STEP`. Salvar grava `reviewedDraftRevision` como a revisão seguinte do rascunho, então a própria gravação não deixa o status `STALE`. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` só é gravado quando a revisão está pronta.
 11. **Configure o que precisa ser medido** (`configure-o-que-precisa-ser-medido`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
     Resultado: Plano de mensuração da minha landing page · Tool: `LANDING_PAGE_MEASUREMENT_PLAN_V1`  
-    Aula 10 grava a revisão de experiência. Aula 11 confirma a ação e o plano de mensuração no mesmo `LandingPageProject`. A ação fica em `draftDocument.conversion`, o formulário na seção `FORM`, a mensuração em `draftDocument.measurement` e o resumo em `strategy.measurementPlan`, com `confirmed: true` só depois da confirmação do aluno. Gravar só os eventos não deixa a revisão de experiência `STALE`. Mudar ação ou formulário deixa. A aula pode concluir mesmo assim. A publicação exige revisão atual. O núcleo de publicação existe; a Aula 12 não foi produzida. O `LessonResult` guarda tipos, contagens e status, sem telefone, URL, respostas ou lead. Preview e simulação não gravam métrica nem lead. O projeto permanece `READY_TO_PREVIEW` até a publicação. O reconciliador do slug `mensuracao-da-pagina` só roda num futuro `catalog:deploy` e não apaga as duas linhas se elas coexistirem. `catalog:deploy` não foi executado nesta etapa.
-12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90  
-    Resultado: Landing page publicada · Tool: `LANDING_PAGE_PUBLISH_V1`  
-    Slug estável mantido; título e papel reframeados para publicação real.
+    Aula 10 grava a revisão de experiência. Aula 11 confirma a ação e o plano de mensuração no mesmo `LandingPageProject`. A ação fica em `draftDocument.conversion`, o formulário na seção `FORM`, a mensuração em `draftDocument.measurement` e o resumo em `strategy.measurementPlan`, com `confirmed: true` só depois da confirmação do aluno. Gravar só os eventos não deixa a revisão de experiência `STALE`. Mudar ação ou formulário deixa. A aula pode concluir mesmo assim. A publicação exige revisão atual. O `LessonResult` guarda tipos, contagens e status, sem telefone, URL, respostas ou lead. Preview e simulação não gravam métrica nem lead. O projeto permanece `READY_TO_PREVIEW` até a publicação. O reconciliador do slug `mensuracao-da-pagina` só roda num futuro `catalog:deploy` e não apaga as duas linhas se elas coexistirem. `catalog:deploy` não foi executado nesta etapa.
+12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
+    Resultado: Publicação da minha landing page · Tool: `LANDING_PAGE_PUBLICATION_V1`  
+    Sequência final do mesmo `LandingPageProject`: 4 estratégia, 5 jornada, 6 estrutura, 7 copy, 8 visual, 9 confiança, 10 experiência, 11 mensuração, 12 publicação. A aula usa `evaluateLandingPagePublicationReadiness` e `publishLandingPage`. Bloqueio vira “Precisa corrigir” e não pode ser ignorado. Aviso vira “Vale revisar” e pede reconhecimento. Revisão de experiência desatualizada volta para a Aula 10. A revisão final continua em modo preview, sem ação, lead ou métrica. O `LessonResult` só é gravado quando existe publicação ativa, snapshot válido e o runtime público daquele ambiente consegue servir `/p/[slug]`. Com `LANDING_PAGE_PUBLIC_RUNTIME_ENABLED` desligado, uma linha de publicação não conclui a aula e a interface não diz que a página está no ar. O resultado guarda slug e caminho, não a URL absoluta, o snapshot, telefone, URL externa nem lead. O curso permanece DRAFT, NOT PUBLIC e NOT_FOR_SALE. `catalog:deploy` não foi executado.
 
 ## Resultado macro
 
@@ -106,4 +106,4 @@ Relação opcional com `Project` genérico (1 Project → N landing pages).
 
 ## Deploy
 
-`deploySitesCourseScaffold` + seeds das aulas 1–11 quando `catalog:deploy` for executado. O comando não foi executado nesta etapa. Course permanece DRAFT até decisão explícita de release. A Aula 12 continua sem conteúdo.
+`deploySitesCourseScaffold` + seeds das aulas 1–12 quando `catalog:deploy` for executado. O comando não foi executado nesta etapa. Course permanece DRAFT até a decisão de release. A Aula 12 está completa no código, mas o runtime público de produção continua desligado.

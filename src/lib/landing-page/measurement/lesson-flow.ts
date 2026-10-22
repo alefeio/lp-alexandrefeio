@@ -176,7 +176,7 @@ export function measurementExperienceNotice(status: ExperienceReviewStatus): str
   return status === "STALE" ? MEASUREMENT_STALE_NOTICE : null;
 }
 
-/** A publicação futura usa este status. A rota pública ainda não existe. */
+/** A publicação exige revisão atual. A rota pública continua noindex e desligada em produção. */
 export function futurePublicationBlockedByStaleExperienceReview(document: LandingPageDocumentV1, draftRevision: number): boolean {
   return experienceReviewEffectiveStatus(document, draftRevision) === "STALE";
 }
