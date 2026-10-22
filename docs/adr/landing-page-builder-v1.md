@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 a PHASE 8 com núcleo implementado**. A Aula 11 ainda não foi produzida. Aula 10 integrada ao núcleo de experiência.
+Status: **ACCEPTED — PHASE 1 a PHASE 8 com núcleo implementado**. A Aula 11 integra o plano de mensuração. A publicação continua adiada. Aula 10 integrada ao núcleo de experiência.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -402,7 +402,7 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 
 ## Phase 8 — ações, formulário e mensuração
 
-- Phase 8 core: IMPLEMENTED. A Aula 11 não foi produzida e continua SCAFFOLDED. Não há rota `/p/[slug]` nem envio público.
+- Phase 8 core: IMPLEMENTED. A Aula 11 usa esse núcleo. Não há rota `/p/[slug]` nem envio público.
 - `LandingPageActionV1` reutiliza os tipos já gravados: `WHATSAPP`, `EXTERNAL_URL`, `INTERNAL_ROUTE` e `FORM_ANCHOR`. Não há ação `PHONE` nem `EMAIL`. O rótulo visível continua independente do destino.
 - O telefone de WhatsApp é normalizado para dígitos. A URL `https://wa.me` é gerada por `buildSafeWhatsAppUrl`. Link externo salvo só aceita `https`. `javascript:`, `data:`, `file:` e `vbscript:` continuam rejeitados.
 - `FORM_ANCHOR` aponta para o id de uma seção `FORM` da mesma página. A gravação recusa WhatsApp sem número, link sem URL https e formulário sem seção válida.
@@ -420,6 +420,16 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 - Alterar ação ou formulário deixa a revisão de experiência `STALE`. Gravar só a mensuração, sem mudar a página visível, mantém a revisão atual. O projeto continua `READY_TO_PREVIEW`.
 - Capacidades: `formsFunctional=true` significa que o núcleo de envio está pronto para um runtime público futuro. O preview continua sem enviar. `measurementAvailable=true`. `publicationAvailable=false`.
 - BEFORE_PUBLIC_RELEASE, além das dívidas anteriores: limitador distribuído de envio de formulário, política de retenção de leads, decisão de CAPTCHA e política de retenção das contagens.
+
+## Aula 11 — plano de mensuração
+
+- A aula `configure-o-que-precisa-ser-medido` confirma o plano. Ela não duplica schemas de ação, formulário ou mensuração, nem o validador, nem o resumo.
+- `strategy.measurementPlan` recebe `confirmed: true` somente quando a aula confirma. Um plano antigo, sem esse campo, continua válido. A fonte canônica segue em `draftDocument.measurement`. Ação, formulário e leads não são copiados para o resumo.
+- Alterar só `enabledEvents` e `primaryConversionEvent` não deixa `experienceReview` em `STALE`. Alterar ação, campos ou copy do formulário deixa. A aula pode ser concluída com a revisão desatualizada. `futurePublicationBlockedByStaleExperienceReview` deixa a publicação futura detectar esse estado. A publicação em si não foi implementada. Não existe `READY_TO_PUBLISH` nem `/p/[slug]`.
+- O `LessonResult` guarda o id do projeto, a versão, o tipo da ação, os eventos, a conversão principal, a presença e a quantidade de campos, o status efetivo da revisão, a confirmação, a revisão do rascunho e o instante. Não guarda telefone, URL externa, valores do formulário nem lead.
+- A simulação da aula e o preview não gravam `LandingPageMetricDaily` nem `LandingPageLead`. Não há GA4, GTM nem Meta Pixel na landing do aluno.
+- O projeto permanece `READY_TO_PREVIEW`. O curso permanece DRAFT e NOT_FOR_SALE.
+- BEFORE_PUBLIC_RELEASE continua em aberto: limitador distribuído de copy, limitador distribuído de upload, limitador distribuído de envio, smoke do Blob ao vivo, retenção de mídia, limpeza de arquivo órfão, retenção de leads, decisão de CAPTCHA e retenção das contagens.
 
 ## Consequences
 

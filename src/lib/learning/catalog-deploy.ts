@@ -35,6 +35,7 @@ import { seedSiteMensagemOfertaContent } from "@/lib/learning/seed-site-mensagem
 import { seedSiteHierarquiaVisualContent } from "@/lib/learning/seed-site-hierarquia-visual-e-atencao";
 import { seedSiteConstruaConfiancaContent } from "@/lib/learning/seed-site-construa-confianca";
 import { seedSitePaginaMobileExperienciaContent } from "@/lib/learning/seed-site-pagina-mobile-e-experiencia";
+import { seedSiteConfigureOQuePrecisaSerMedidoContent } from "@/lib/learning/seed-site-configure-o-que-precisa-ser-medido";
 import { SITE_LESSON_01_SLUG } from "@/lib/learning/site-ajuda-a-vender";
 import { SITE_LESSON_02_SLUG } from "@/lib/learning/site-landing-page-ou-whatsapp";
 import { SITE_LESSON_03_SLUG } from "@/lib/learning/site-pagina-pronta-para-converter";
@@ -176,6 +177,7 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
   const siteLesson08 = await seedSiteHierarquiaVisualContent(prisma, seedOptions);
   const siteLesson09 = await seedSiteConstruaConfiancaContent(prisma, seedOptions);
   const siteLesson10 = await seedSitePaginaMobileExperienciaContent(prisma, seedOptions);
+  const siteLesson11 = await seedSiteConfigureOQuePrecisaSerMedidoContent(prisma, seedOptions);
   return {
     course: course.slug,
     lessons,
@@ -203,12 +205,13 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
     siteLesson08,
     siteLesson09,
     siteLesson10,
+    siteLesson11,
   };
 }
 
 /**
  * Scaffold do segundo curso: DRAFT + NOT_FOR_SALE (release público suspenso).
- * Aulas 1–10 recebem conteúdo via seeds (PUBLISHED internamente). Aulas 11–12 ficam DRAFT sem corpo.
+ * Aulas 1–11 recebem conteúdo via seeds (PUBLISHED internamente). A Aula 12 fica DRAFT sem corpo.
  * Idempotente por slug. Não cria Tool/LessonResult, LandingPageProject nem ativa AVAILABLE.
  */
 export async function deploySitesCourseScaffold() {

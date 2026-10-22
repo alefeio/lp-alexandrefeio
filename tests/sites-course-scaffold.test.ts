@@ -50,7 +50,7 @@ test("scaffold tem 5 módulos e 12 aulas na ordem correta", () => {
       "hierarquia-visual-e-atencao",
       "construa-confianca",
       "pagina-mobile-e-experiencia",
-      "mensuracao-da-pagina",
+      "configure-o-que-precisa-ser-medido",
       "revisao-antes-do-trafego",
     ],
   );
@@ -73,7 +73,7 @@ test("aulas 1–3 FREE e 4–12 PAID com resultados do builder", () => {
       "Direção visual da minha landing page",
       "Plano de confiança da minha landing page",
       "Revisão de experiência da minha landing page",
-      "Mapa de mensuração aplicado ao projeto",
+      "Plano de mensuração da minha landing page",
       "Landing page publicada",
     ],
   );
@@ -87,7 +87,7 @@ test("aulas 1–3 FREE e 4–12 PAID com resultados do builder", () => {
       "LANDING_PAGE_VISUAL_DIRECTION_V1",
       "LANDING_PAGE_TRUST_V1",
       "LANDING_PAGE_EXPERIENCE_REVIEW_V1",
-      "LANDING_PAGE_MEASUREMENT_V1",
+      "LANDING_PAGE_MEASUREMENT_PLAN_V1",
       "LANDING_PAGE_PUBLISH_V1",
     ],
   );

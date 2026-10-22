@@ -27,6 +27,7 @@ import { loadCopyPanel } from "@/lib/learning/landing-page-copy";
 import { loadVisualPanel } from "@/lib/learning/landing-page-visual";
 import { loadTrustPanel } from "@/lib/learning/landing-page-trust";
 import { loadExperiencePanel } from "@/lib/learning/landing-page-experience";
+import { loadMeasurementPanel } from "@/lib/learning/landing-page-measurement";
 import { loadDestinationPlanPanel } from "@/lib/learning/measurement";
 import { loadKeywordIntentPanel } from "@/lib/learning/keyword-plan";
 import { loadLeadConversionPanel } from "@/lib/learning/lead-conversion-plan";
@@ -188,6 +189,8 @@ async function FullLesson({
                       ? await loadTrustPanel({ userId, blocks })
                       : toolKey === "LANDING_PAGE_EXPERIENCE_REVIEW_V1"
                         ? await loadExperiencePanel({ userId, blocks })
+                        : toolKey === "LANDING_PAGE_MEASUREMENT_PLAN_V1"
+                          ? await loadMeasurementPanel({ userId, blocks })
           : toolKey === "CAMPAIGN_BRIEF_V1"
           ? await loadCampaignBriefPanel({ userId, blocks })
           : toolKey === "DESTINATION_MEASUREMENT_PLAN_V1"

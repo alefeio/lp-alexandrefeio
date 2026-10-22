@@ -1,7 +1,7 @@
 /**
  * Scaffold editorial do segundo curso.
  * Release público SUSPENSO até o reframe Landing Page Builder: Course DRAFT + NOT_FOR_SALE.
- * Aulas 1–3 completas internamente; 4–12 planejadas para construir LandingPageProject até publicação.
+ * Aulas 1–3 completas internamente; 4–11 constroem o LandingPageProject. A Aula 12 continua planejada.
  */
 
 export const SITES_COURSE_SLUG = "sites-que-convertem";
@@ -220,16 +220,17 @@ export const sitesCourseSeed = {
           plannedTool: "LANDING_PAGE_EXPERIENCE_REVIEW_V1",
         },
         {
-          slug: "mensuracao-da-pagina",
+          slug: "configure-o-que-precisa-ser-medido",
           title: "Configure o que precisa ser medido",
-          summary: "Configure conversões e eventos nativos da landing page — sem JavaScript arbitrário.",
-          publicPreview: null,
-          estimatedMinutes: 35,
+          summary: "Defina qual ação representa resultado e quais sinais acompanhar, antes de escolher uma ferramenta externa.",
+          publicPreview:
+            "Publicar uma página sem definir o que observar pode fazer você receber números sem saber o que eles significam. Nesta aula você escolhe a conversão principal.",
+          estimatedMinutes: 30,
           sortOrder: 1,
           accessType: "PAID" as const,
           priceCents: 3990,
-          plannedResult: "Mapa de mensuração aplicado ao projeto",
-          plannedTool: "LANDING_PAGE_MEASUREMENT_V1",
+          plannedResult: "Plano de mensuração da minha landing page",
+          plannedTool: "LANDING_PAGE_MEASUREMENT_PLAN_V1",
         },
         {
           slug: "revisao-antes-do-trafego",

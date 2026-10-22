@@ -74,6 +74,8 @@ export const landingPageMeasurementPlanSummarySchema = z
     primaryConversionEvent: eventSchema.nullable(),
     enabledEvents: z.array(eventSchema).max(LANDING_PAGE_MEASUREMENT_EVENTS.length),
     formPresent: z.boolean(),
+    /** Presente só depois que a aula confirma o plano. Planos antigos seguem sem o campo. */
+    confirmed: z.literal(true).optional(),
   })
   .strict();
 

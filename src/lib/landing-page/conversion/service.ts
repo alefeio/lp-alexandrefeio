@@ -35,17 +35,18 @@ async function commitDraft(
   return ok(updated.record);
 }
 
-function applyMeasurement(document: LandingPageDocumentV1, measurement: LandingPageMeasurementV1): void {
+function applyMeasurement(document: LandingPageDocumentV1, measurement: LandingPageMeasurementV1, confirmed = false): void {
   document.measurement = measurement;
+  const plan = {
+    version: 1 as const,
+    primaryActionType: document.conversion.primaryAction?.type ?? null,
+    primaryConversionEvent: measurement.primaryConversionEvent,
+    enabledEvents: measurement.enabledEvents,
+    formPresent: landingPageHasEnabledForm(document),
+  };
   document.strategy = {
     ...document.strategy,
-    measurementPlan: {
-      version: 1,
-      primaryActionType: document.conversion.primaryAction?.type ?? null,
-      primaryConversionEvent: measurement.primaryConversionEvent,
-      enabledEvents: measurement.enabledEvents,
-      formPresent: landingPageHasEnabledForm(document),
-    },
+    measurementPlan: confirmed ? { ...plan, confirmed: true as const } : plan,
   };
 }
 
@@ -106,14 +107,14 @@ export async function updateLandingPageFormConfiguration(
 
 export async function updateLandingPageMeasurement(
   store: LandingPageStore,
-  input: SaveTarget & { measurement: unknown },
+  input: SaveTarget & { measurement: unknown; confirmed?: boolean },
 ): Promise<LandingPageResult<LandingPageProjectRecord>> {
   const project = await store.findByIdForUser(input.landingPageProjectId, input.userId);
   if (!project || project.draftRevision !== input.expectedRevision) return fail(project ? "LANDING_PAGE_DRAFT_CONFLICT" : "NOT_FOUND");
   const document = structuredClone(project.draftDocument);
   const validated = validateLandingPageMeasurement(document, input.measurement);
   if (!validated.valid || !validated.measurement) return fail("LANDING_PAGE_MEASUREMENT_INVALID");
-  applyMeasurement(document, validated.measurement);
+  applyMeasurement(document, validated.measurement, input.confirmed === true);
   return commitDraft(store, project, document, input.expectedRevision, true);
 }
 
@@ -124,6 +125,7 @@ export async function saveLandingPageConversionMeasurementPlan(
     action?: { action: unknown; target: { kind: "PRIMARY" } | { kind: "SECTION"; sectionId: string } };
     form?: { sectionId: string; content: unknown };
     measurement?: unknown;
+    confirmed?: boolean;
   },
 ): Promise<LandingPageResult<LandingPageProjectRecord>> {
   if (!input.action && !input.form && !input.measurement) return fail("INVALID_INPUT");
@@ -141,7 +143,7 @@ export async function saveLandingPageConversionMeasurementPlan(
   if (input.measurement) {
     const validated = validateLandingPageMeasurement(document, input.measurement);
     if (!validated.valid || !validated.measurement) return fail("LANDING_PAGE_MEASUREMENT_INVALID");
-    applyMeasurement(document, validated.measurement);
+    applyMeasurement(document, validated.measurement, input.confirmed === true);
   }
   return commitDraft(store, project, document, input.expectedRevision, !input.action && !input.form);
 }

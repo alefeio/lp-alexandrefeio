@@ -70,7 +70,8 @@ export function assessLesson(lesson: ReadyLesson, blocks: ReadyBlock[]): Assessm
           data.toolKey === "LANDING_PAGE_COPY_ASSIST_V1" ||
           data.toolKey === "LANDING_PAGE_VISUAL_DIRECTION_V1" ||
           data.toolKey === "LANDING_PAGE_TRUST_V1" ||
-          data.toolKey === "LANDING_PAGE_EXPERIENCE_REVIEW_V1")),
+          data.toolKey === "LANDING_PAGE_EXPERIENCE_REVIEW_V1" ||
+          data.toolKey === "LANDING_PAGE_MEASUREMENT_PLAN_V1")),
   );
   if (lesson.accessType === "PAID" && !hasPracticalResult) {
     issues.push("A aula paga precisa de um bloco de resultado.");

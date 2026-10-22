@@ -46,6 +46,7 @@ import { LandingPageCopyTool } from "@/components/learning/LandingPageCopyTool";
 import { LandingPageVisualDirectionTool } from "@/components/learning/LandingPageVisualDirectionTool";
 import { LandingPageTrustTool } from "@/components/learning/LandingPageTrustTool";
 import { LandingPageExperienceTool } from "@/components/learning/LandingPageExperienceTool";
+import { LandingPageMeasurementTool } from "@/components/learning/LandingPageMeasurementTool";
 import { DestinationPlanTool } from "@/components/learning/DestinationPlanTool";
 import { KeywordIntentTool } from "@/components/learning/KeywordIntentTool";
 import { MetaCampaignTool } from "@/components/learning/MetaCampaignTool";
@@ -65,6 +66,7 @@ import type { CopyPanel } from "@/lib/learning/landing-page-copy";
 import type { VisualPanel } from "@/lib/learning/landing-page-visual";
 import type { TrustPanel } from "@/lib/learning/landing-page-trust";
 import type { ExperiencePanel } from "@/lib/landing-page/experience/lesson-flow";
+import type { MeasurementPanel } from "@/lib/landing-page/measurement/lesson-flow";
 import { pageReadinessResponseSchema, type ConversionPageReadiness } from "@/lib/learning/conversion-page-readiness";
 import type { DestinationPlanPanel } from "@/lib/learning/measurement";
 import type { KeywordIntentPanel } from "@/lib/learning/keyword-plan";
@@ -101,6 +103,7 @@ type ToolPanel =
   | VisualPanel
   | TrustPanel
   | ExperiencePanel
+  | MeasurementPanel
   | null;
 
 type Props = {
@@ -1082,6 +1085,15 @@ function BlockBody(props: {
       <div className="space-y-4 rounded-lg border border-border bg-surface p-4 md:p-6" data-tool="LANDING_PAGE_EXPERIENCE_REVIEW_V1">
         <h3 className="text-lg font-semibold">{data.title}</h3>
         <LandingPageExperienceTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
+      </div>
+    );
+  }
+  if (data.type === "TOOL" && data.toolKey === "LANDING_PAGE_MEASUREMENT_PLAN_V1") {
+    const panel = props.toolPanel && "kind" in props.toolPanel && props.toolPanel.kind === "landing-measurement" ? props.toolPanel : null;
+    return (
+      <div className="min-w-0 space-y-4 overflow-x-hidden rounded-lg border border-border bg-surface p-4 md:p-6" data-tool="LANDING_PAGE_MEASUREMENT_PLAN_V1">
+        <h3 className="text-lg font-semibold">{data.title}</h3>
+        <LandingPageMeasurementTool panel={panel} description={data.description} onSaved={(snapshot) => props.onToolLinked(snapshot)} />
       </div>
     );
   }
