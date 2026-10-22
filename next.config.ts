@@ -10,7 +10,17 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["openai"],
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        source: "/p/:path*",
+        headers: [
+          ...securityHeaders,
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
+      },
+    ];
   },
 };
 

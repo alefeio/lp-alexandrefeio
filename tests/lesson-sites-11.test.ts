@@ -152,7 +152,8 @@ test("aula 11 tem 33 blocos, 4 checkpoints, ferramenta e transição", () => {
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(sitesCourseIsPubliclyVisible(), false);
   assert.equal((TOOL_KEYS as readonly string[]).includes("LANDING_PAGE_MEASUREMENT_PLAN_V1"), true);
-  assert.equal(existsSync("src/app/p"), false);
+  assert.equal(existsSync("src/app/p/[slug]/page.tsx"), true);
+  assert.match(readFileSync("src/lib/landing-page/publication/gate.ts", "utf8"), /LANDING_PAGE_PUBLIC_RUNTIME_ENABLED/);
   assert.equal(existsSync("src/lib/learning/site-revisao-antes-do-trafego.ts"), false);
 });
 

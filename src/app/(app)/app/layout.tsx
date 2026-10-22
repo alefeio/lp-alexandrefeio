@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { PlatformShell } from "@/components/analytics/PlatformShell";
 import { SignOutButton } from "@/components/auth/AuthForms";
 import { Container } from "@/components/ui/Container";
 import { Wordmark } from "@/components/ui/Wordmark";
@@ -16,6 +17,7 @@ export default async function StudentLayout({ children }: { children: ReactNode 
   await requireSession();
 
   return (
+    <PlatformShell>
     <div className="flex min-h-[100dvh] flex-col">
       <header className="border-b border-border">
         <Container className="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
@@ -43,5 +45,6 @@ export default async function StudentLayout({ children }: { children: ReactNode 
         {children}
       </main>
     </div>
+    </PlatformShell>
   );
 }

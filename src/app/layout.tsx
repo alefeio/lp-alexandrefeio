@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AttributionCapture } from "@/components/analytics/AttributionCapture";
-import { GoogleTagManager } from "@/components/analytics/GoogleTagManager";
-import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { siteConfig } from "@/data/site-config";
 import "./globals.css";
 
@@ -17,8 +14,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
   display: "swap",
 });
-
-const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -62,16 +57,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-background font-sans text-foreground">
-        {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
-        <ConsentProvider>
-          <AttributionCapture />
-          <a href="#conteudo" className="skip-link">
-            Ir para o conteúdo
-          </a>
-          {children}
-        </ConsentProvider>
-      </body>
+      <body className="min-h-full bg-background font-sans text-foreground">{children}</body>
     </html>
   );
 }

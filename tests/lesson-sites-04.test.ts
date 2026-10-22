@@ -298,7 +298,8 @@ test("dados estratégicos não entram em analytics, log, sitemap ou rota públic
   assert.equal(/console\.(log|info|debug)/.test(source), false);
   assert.equal(source.includes("gtag"), false);
   assert.equal(source.includes("track("), false);
-  assert.equal(existsSync("src/app/p"), false);
+  assert.equal(existsSync("src/app/p/[slug]/page.tsx"), true);
+  assert.equal(readFileSync("src/app/p/[slug]/page.tsx", "utf8").includes("draftDocument"), false);
   const robots = readFileSync("src/app/robots.ts", "utf8");
   assert.match(robots, /\/app/);
   assert.equal(readFileSync("src/app/sitemap.ts", "utf8").includes("oferta-publico-acao-principal"), false);

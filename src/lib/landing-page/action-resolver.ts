@@ -1,5 +1,6 @@
 import type { LandingPageAction } from "@/lib/landing-page/actions";
 import { buildSafeWhatsAppUrl, safeExternalUrlSchema } from "@/lib/landing-page/actions";
+import { isPublicInternalRouteAllowed } from "@/lib/landing-page/publication/internal-route";
 
 const SAFE_ANCHOR = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -24,6 +25,7 @@ export function resolveLandingPageAction(action: LandingPageAction): ResolvedLan
       return { href: url.data, label, external: true };
     }
     case "INTERNAL_ROUTE":
+      if (!isPublicInternalRouteAllowed(action.path)) return null;
       return { href: action.path, label, external: false };
     case "FORM_ANCHOR": {
       const id = action.sectionId ?? "formulario";

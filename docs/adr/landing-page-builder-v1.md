@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 a PHASE 8 com núcleo implementado**. A Aula 11 integra o plano de mensuração. A publicação continua adiada. Aula 10 integrada ao núcleo de experiência.
+Status: **ACCEPTED — PHASE 1 a PHASE 9 com núcleo implementado**. A publicação grava snapshot imutável. O runtime público fica desligado em produção até liberação explícita. A Aula 12 não foi produzida.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -425,11 +425,28 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 
 - A aula `configure-o-que-precisa-ser-medido` confirma o plano. Ela não duplica schemas de ação, formulário ou mensuração, nem o validador, nem o resumo.
 - `strategy.measurementPlan` recebe `confirmed: true` somente quando a aula confirma. Um plano antigo, sem esse campo, continua válido. A fonte canônica segue em `draftDocument.measurement`. Ação, formulário e leads não são copiados para o resumo.
-- Alterar só `enabledEvents` e `primaryConversionEvent` não deixa `experienceReview` em `STALE`. Alterar ação, campos ou copy do formulário deixa. A aula pode ser concluída com a revisão desatualizada. `futurePublicationBlockedByStaleExperienceReview` deixa a publicação futura detectar esse estado. A publicação em si não foi implementada. Não existe `READY_TO_PUBLISH` nem `/p/[slug]`.
+- Alterar só `enabledEvents` e `primaryConversionEvent` não deixa `experienceReview` em `STALE`. Alterar ação, campos ou copy do formulário deixa. A aula pode ser concluída com a revisão desatualizada. `futurePublicationBlockedByStaleExperienceReview` deixa a publicação detectar esse estado. Não existe `READY_TO_PUBLISH`. A rota `/p/[slug]` chega na Phase 9 e permanece noindex, fora do sitemap e desligada em produção.
 - O `LessonResult` guarda o id do projeto, a versão, o tipo da ação, os eventos, a conversão principal, a presença e a quantidade de campos, o status efetivo da revisão, a confirmação, a revisão do rascunho e o instante. Não guarda telefone, URL externa, valores do formulário nem lead.
 - A simulação da aula e o preview não gravam `LandingPageMetricDaily` nem `LandingPageLead`. Não há GA4, GTM nem Meta Pixel na landing do aluno.
 - O projeto permanece `READY_TO_PREVIEW`. O curso permanece DRAFT e NOT_FOR_SALE.
 - BEFORE_PUBLIC_RELEASE continua em aberto: limitador distribuído de copy, limitador distribuído de upload, limitador distribuído de envio, smoke do Blob ao vivo, retenção de mídia, limpeza de arquivo órfão, retenção de leads, decisão de CAPTCHA e retenção das contagens.
+
+## Phase 9 — publicação e runtime público
+
+- Phase 9 core: IMPLEMENTED. A Aula 12 não foi produzida e o curso permanece DRAFT e NOT_FOR_SALE.
+- `LandingPagePublicationSnapshotV1` guarda só o necessário para renderizar e operar a página: tema, seções, ações, formulário, mensuração, mídia pública e provas selecionadas. Não entra `strategy`, `experienceReview`, `copyFacts`, findings, `LessonResult`, lead, prompt nem estado do editor.
+- `validatePublicationSnapshot` rejeita campo interno. `buildLandingPagePublicationSnapshot` não grava banco. O hash é determinístico.
+- A linha de `LandingPagePublication` não recebe atualização de conteúdo. Nova versão pública só nasce em nova publicação. `publishedPublicationId` é a versão ativa. A versão é única por projeto e cresce sempre.
+- A publicação exige revisão efetiva `READY_FOR_NEXT_STEP`. Revisão `STALE` bloqueia. Página sem prova e página sem mídia podem ser publicadas. Mídia referenciada precisa estar pronta. Depoimento exibido precisa de consentimento.
+- Rollback cria uma versão nova com o snapshot da versão escolhida e `rollbackSourcePublicationId`. A linha antiga permanece. Despublicar zera o ponteiro ativo e não apaga histórico, lead, métrica nem mídia. O slug continua travado.
+- A rota `/p/[slug]` lê a publicação ativa. Sem versão ativa, responde 404. Não renderiza rascunho. O renderer em modo `PUBLIC` liga as ações. O preview continua sem ação, sem lead e sem métrica.
+- WhatsApp usa `buildSafeWhatsAppUrl`. Link externo continua `https`. Rota interna não abre `/admin`, `/app`, `/diretor` nem API. O formulário público valida o schema do snapshot, grava `publicationId` e só então conta `FORM_SUBMIT`.
+- `PAGE_VIEW`, clique e `FORM_START` saem do cliente, uma vez por carregamento. `FORM_SUBMIT` não é aceito no endpoint genérico de eventos. Não há tabela de evento bruto nem fingerprint.
+- `LANDING_PAGE_PUBLIC_RUNTIME_ENABLED` é variável de servidor. Sem o valor `true`, `/p` responde 404. Em produção, a ausência da variável deixa o runtime desligado. Não há `NEXT_PUBLIC_` para esse gate.
+- Toda publicação desta V1 sai com `noindex`. `/p/[slug]` não entra no sitemap. O layout raiz não injeta o GTM nem o pixel da plataforma nessa rota.
+- O slug antigo `mensuracao-da-pagina` é reconciliado no futuro `catalog:deploy`: só o legado vira o slug canônico; se os dois existirem, o deploy falha e não apaga linha. Este comando não foi executado.
+- `publicationAvailable=true`. `LIVE_MEDIA_STORE_READY=false`. Página sem mídia publica. Mídia inválida bloqueia.
+- BEFORE_PUBLIC_RELEASE, ainda em aberto: limitador distribuído de copy, de upload e de envio; proteção adicional do endpoint de eventos, se necessária; smoke do Blob ao vivo; retenção de mídia; limpeza de arquivo órfão; retenção de leads; decisão de CAPTCHA; retenção das contagens; decisão do gate de produção; revisão legal e de privacidade dos formulários públicos.
 
 ## Consequences
 

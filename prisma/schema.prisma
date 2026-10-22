@@ -835,19 +835,25 @@ model LandingPageMedia {
   @@map("landing_page_media")
 }
 
-/// Snapshot imutável criado na publicação. Fundação Phase 1 — sem endpoint público ainda.
+/// Snapshot imutável. O conteúdo não é atualizado; nova versão cria outra linha.
 model LandingPagePublication {
-  id                   String             @id @default(cuid())
-  landingPageProjectId String
-  landingPageProject   LandingPageProject @relation("LandingPagePublicationHistory", fields: [landingPageProjectId], references: [id], onDelete: Restrict)
-  version              Int
-  snapshot             Json
-  publishedSlug        String
-  publishedAt          DateTime           @default(now())
-  createdAt            DateTime           @default(now())
-  activeForProject     LandingPageProject? @relation("LandingPageActivePublication")
-  leads                LandingPageLead[]
-  metricDaily          LandingPageMetricDaily[]
+  id                          String                   @id @default(cuid())
+  landingPageProjectId        String
+  landingPageProject          LandingPageProject       @relation("LandingPagePublicationHistory", fields: [landingPageProjectId], references: [id], onDelete: Restrict)
+  version                     Int
+  snapshot                    Json
+  snapshotHash                String                   @default("")
+  snapshotSchemaVersion       Int                      @default(1)
+  sourceDraftRevision         Int?
+  rollbackSourcePublicationId String?
+  rollbackSource              LandingPagePublication?  @relation("LandingPagePublicationRollback", fields: [rollbackSourcePublicationId], references: [id], onDelete: Restrict)
+  rollbacks                   LandingPagePublication[] @relation("LandingPagePublicationRollback")
+  publishedSlug               String
+  publishedAt                 DateTime                 @default(now())
+  createdAt                   DateTime                 @default(now())
+  activeForProject            LandingPageProject?      @relation("LandingPageActivePublication")
+  leads                       LandingPageLead[]
+  metricDaily                 LandingPageMetricDaily[]
 
   @@unique([landingPageProjectId, version])
   @@index([landingPageProjectId, publishedAt])

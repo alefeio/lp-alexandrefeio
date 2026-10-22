@@ -211,12 +211,14 @@ export async function deleteLandingPageMedia(
   mediaStore: LandingPageMediaStore,
   storage: LandingPageMediaStorage,
   input: { userId: string; mediaId: string },
+  publications?: { referencesMedia(projectId: string, mediaId: string): Promise<boolean> },
 ): Promise<LandingPageResult<LandingPageMediaRecord>> {
   const current = await mediaStore.findById(input.mediaId);
   if (!current || current.userId !== input.userId || current.status === "DELETED") return fail("NOT_FOUND");
   const project = await ownedProject(store, current.landingPageProjectId, input.userId);
   if (!project) return fail("NOT_FOUND");
   if (landingPageReferencesMedia(project.draftDocument, current.id)) return fail("LANDING_PAGE_MEDIA_IN_USE");
+  if (await publications?.referencesMedia(project.id, current.id)) return fail("LANDING_PAGE_MEDIA_IN_USE");
   try {
     await storage.delete(current.storageKey);
   } catch {

@@ -36,6 +36,7 @@ import { seedSiteHierarquiaVisualContent } from "@/lib/learning/seed-site-hierar
 import { seedSiteConstruaConfiancaContent } from "@/lib/learning/seed-site-construa-confianca";
 import { seedSitePaginaMobileExperienciaContent } from "@/lib/learning/seed-site-pagina-mobile-e-experiencia";
 import { seedSiteConfigureOQuePrecisaSerMedidoContent } from "@/lib/learning/seed-site-configure-o-que-precisa-ser-medido";
+import { reconcileSiteLesson11Slug } from "@/lib/learning/site-lesson-11-slug";
 import { SITE_LESSON_01_SLUG } from "@/lib/learning/site-ajuda-a-vender";
 import { SITE_LESSON_02_SLUG } from "@/lib/learning/site-landing-page-ou-whatsapp";
 import { SITE_LESSON_03_SLUG } from "@/lib/learning/site-pagina-pronta-para-converter";
@@ -267,6 +268,16 @@ export async function deploySitesCourseScaffold() {
       },
     });
     modules += 1;
+
+    await reconcileSiteLesson11Slug(
+      {
+        findLessons: (moduleId) => prisma.lesson.findMany({ where: { moduleId }, select: { id: true, slug: true, moduleId: true } }),
+        renameLesson: async (id, slug) => {
+          await prisma.lesson.update({ where: { id }, data: { slug } });
+        },
+      },
+      moduleRow.id,
+    );
 
     for (const lessonSeed of moduleSeed.lessons) {
       const contentOwned =

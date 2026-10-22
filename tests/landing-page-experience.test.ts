@@ -439,7 +439,7 @@ test("salvar a revisão exige o dono, respeita a revisão e preserva o trabalho 
 
 test("códigos de ação e capacidades da plataforma", () => {
   assert.deepEqual([...EXPERIENCE_ACTION_CODES], ["REVIEW_COPY", "REVIEW_THEME", "REVIEW_TRUST", "CONFIGURE_ACTION", "REVIEW_FORM", "REVIEW_MEDIA"]);
-  assert.deepEqual(EXPERIENCE_CAPABILITIES_V1, { formsFunctional: true, publicationAvailable: false, measurementAvailable: true });
+  assert.deepEqual(EXPERIENCE_CAPABILITIES_V1, { formsFunctional: true, publicationAvailable: true, measurementAvailable: true });
   const placeholder = clean();
   const hero = placeholder.sections.find((section) => section.id === "hero");
   if (!hero || hero.type !== "HERO") throw new Error("hero");
@@ -497,7 +497,8 @@ test("fixture, privacidade e regressão do curso", () => {
   const urls = buildPublicSitemap("https://alexandrefeio.com.br", { courses: [], lessons: [] }).map((entry) => entry.url);
   assert.equal(urls.some((url) => url.includes("landing-experience-fixture")), false);
   assert.equal(urls.some((url) => url.includes("/p/")), false);
-  assert.equal(existsSync("src/app/p"), false);
+  assert.equal(existsSync("src/app/p/[slug]/page.tsx"), true);
+  assert.equal(readFileSync("src/app/layout.tsx", "utf8").includes("GoogleTagManager"), false);
   assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), true);
   assert.equal(existsSync("src/lib/learning/site-mensuracao-da-pagina.ts"), false);
   assert.equal(existsSync("src/lib/learning/site-construa-confianca.ts"), true);

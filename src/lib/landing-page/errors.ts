@@ -36,6 +36,10 @@ export const LANDING_PAGE_CODES = [
   "LANDING_PAGE_FORM_INVALID",
   "LANDING_PAGE_MEASUREMENT_INVALID",
   "LANDING_PAGE_FORM_RATE_LIMITED",
+  "LANDING_PAGE_NOT_READY",
+  "LANDING_PAGE_NO_PUBLIC_CHANGES",
+  "LANDING_PAGE_PUBLICATION_INVALID",
+  "LANDING_PAGE_ROLLBACK_UNAVAILABLE",
 ] as const;
 
 export type LandingPageCode = (typeof LANDING_PAGE_CODES)[number];
@@ -78,6 +82,10 @@ const MESSAGES: Record<LandingPageCode, string> = {
   LANDING_PAGE_FORM_INVALID: "Não foi possível salvar esse formulário.",
   LANDING_PAGE_MEASUREMENT_INVALID: "Não foi possível salvar a mensuração.",
   LANDING_PAGE_FORM_RATE_LIMITED: "Muitos envios em pouco tempo. Tente de novo mais tarde.",
+  LANDING_PAGE_NOT_READY: "A página ainda não pode ser publicada.",
+  LANDING_PAGE_NO_PUBLIC_CHANGES: "A página pública já está com este conteúdo.",
+  LANDING_PAGE_PUBLICATION_INVALID: "Não foi possível preparar a versão pública.",
+  LANDING_PAGE_ROLLBACK_UNAVAILABLE: "Essa versão não pode voltar ao ar porque um arquivo usado nela não está mais disponível.",
 };
 
 export function landingPageMessage(code: LandingPageCode): string {

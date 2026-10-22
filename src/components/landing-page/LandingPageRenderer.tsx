@@ -489,6 +489,7 @@ function renderSection(
   heroHeading: "h1" | "h2",
   media: LandingPageResolvedMedia[],
   proofs: TrustProofV1[],
+  publicSlug?: string,
 ): ReactNode {
   switch (section.type) {
     case "HERO":
@@ -522,6 +523,8 @@ function renderSection(
             consentText={section.content.consentText}
             mode={mode}
             submitLabel={section.content.submitLabel}
+            successMessage={section.content.successMessage}
+            publicSlug={publicSlug}
           />
         </SectionFrame>
       );
@@ -540,10 +543,14 @@ export function LandingPageRenderer({
   document,
   mode,
   media = [],
+  proofs: proofOverride,
+  publicSlug,
 }: {
   document: unknown;
   mode: LandingPageRenderMode;
   media?: LandingPageResolvedMedia[];
+  proofs?: TrustProofV1[];
+  publicSlug?: string;
 }) {
   const parsed = parseLandingPageDocument(document);
   if (!parsed.ok) {
@@ -559,7 +566,7 @@ export function LandingPageRenderer({
   }
 
   const sections = visibleLandingPageSections(parsed.document.sections);
-  const proofs = parsed.document.strategy?.copyFacts?.trustProofs ?? [];
+  const proofs = proofOverride ?? parsed.document.strategy?.copyFacts?.trustProofs ?? [];
   let heroCount = 0;
 
   return (
@@ -583,7 +590,7 @@ export function LandingPageRenderer({
                 {previewBadge}
               </p>
             ) : null}
-            {renderSection(section, mode, heroHeading, media, proofs)}
+            {renderSection(section, mode, heroHeading, media, proofs, publicSlug)}
           </div>
         );
       })}

@@ -498,11 +498,12 @@ test("plano de conversão e mensuração grava uma vez e as capacidades ficam no
   assert.equal(saved.value.draftDocument.conversion.primaryAction?.type, "FORM_ANCHOR");
   assert.equal(experienceReviewEffectiveStatus(saved.value.draftDocument, saved.value.draftRevision), "STALE");
   assert.equal(saved.value.status, "READY_TO_PREVIEW");
-  assert.deepEqual(EXPERIENCE_CAPABILITIES_V1, { formsFunctional: true, publicationAvailable: false, measurementAvailable: true });
+  assert.deepEqual(EXPERIENCE_CAPABILITIES_V1, { formsFunctional: true, publicationAvailable: true, measurementAvailable: true });
   const withForm = pageDocument();
   assert.equal(evaluateLandingPageExperience(withForm).some((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE"), false);
   assert.equal(evaluateLandingPageExperience(withForm, { capabilities: { formsFunctional: false, publicationAvailable: false, measurementAvailable: true } }).some((finding) => finding.code === "FORM_PLATFORM_UNAVAILABLE"), true);
-  assert.equal(existsSync("src/app/p"), false);
+  assert.equal(existsSync("src/app/p/[slug]/page.tsx"), true);
+  assert.match(readFileSync("src/app/p/layout.tsx", "utf8"), /index: false/);
   assert.equal(existsSync("src/lib/learning/site-mensuracao-da-pagina.ts"), false);
   assert.equal((TOOL_KEYS as readonly string[]).includes("LANDING_PAGE_MEASUREMENT_V1"), false);
   assert.equal(sitesCourseSeed.status, "DRAFT");
