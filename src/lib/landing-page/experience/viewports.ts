@@ -12,8 +12,8 @@ export const EXPERIENCE_VIEWPORT_WIDTH: Record<ExperienceViewportId, number> = {
 export const EXPERIENCE_VIEWPORT_LABEL: Record<ExperienceViewportId, string> = {
   MOBILE_SMALL: "320 px",
   MOBILE: "375 px",
-  TABLET: "Tablet",
-  DESKTOP: "Desktop",
+  TABLET: "768 px",
+  DESKTOP: "1280 px",
 };
 
 export const EXPERIENCE_VIEWPORT_CONTROL: Record<ExperienceViewportId, string> = {

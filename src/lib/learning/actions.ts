@@ -53,6 +53,9 @@ import {
   saveTrustProofForUser,
   SITE_TRUST_SLUG,
 } from "@/lib/learning/landing-page-trust";
+import { saveExperienceReviewForUser, SITE_EXPERIENCE_SLUG } from "@/lib/learning/landing-page-experience";
+import type { ExperiencePageView } from "@/lib/landing-page/experience/lesson-flow";
+import type { ExperienceReviewInput } from "@/lib/landing-page/experience/review";
 import type { TrustPageView } from "@/lib/landing-page/trust/plan";
 import type { VisualPageView } from "@/lib/landing-page/theme/visual-direction";
 import type { CopyIntent } from "@/lib/landing-page/copy/constants";
@@ -82,7 +85,7 @@ import type { SearchBlueprintFormInput } from "@/lib/learning/search-blueprint";
 import { linkTrafficReadiness, loadTrafficToolPanel, type TrafficToolPanel } from "@/lib/learning/tool";
 
 export type LearningActionResult =
-  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | WireframePanel | CopyPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number; proposal?: WireframeProposal; previewHref?: string; coverage?: CopyCoverageV1; suggestions?: CopySuggestionResponseV1 | null; workspace?: CopyWorkspace; visualPage?: VisualPageView; trustPage?: TrustPageView; mediaId?: string; pathname?: string }
+  | { ok: true; snapshot: LessonSnapshot; explanation?: string; correct?: boolean; panel?: TrafficToolPanel | CampaignBriefPanel | DestinationPlanPanel | SearchBlueprintPanel | KeywordIntentPanel | ResponsiveAdPanel | MetaCampaignPanel | LeadConversionPanel | CampaignDiagnosisPanel | CampaignNextActionPanel | ConversionJourneyPanel | DigitalPresencePanel | PageReadinessPanel | ConversionBriefPanel | VisitorDecisionPanel | WireframePanel | CopyPanel | null; view?: DiagnosisView | NextActionView; overrideWarned?: boolean; landingPageProjectId?: string; draftRevision?: number; proposal?: WireframeProposal; previewHref?: string; coverage?: CopyCoverageV1; suggestions?: CopySuggestionResponseV1 | null; workspace?: CopyWorkspace; visualPage?: VisualPageView; trustPage?: TrustPageView; experiencePage?: ExperiencePageView; completed?: boolean; mediaId?: string; pathname?: string }
   | { ok: false; message: string; code?: string };
 
 async function authorizedLesson(slug: string) {
@@ -710,6 +713,24 @@ export async function saveLandingPageTrustPlanAction(
     draftRevision: saved.draftRevision,
     previewHref: saved.previewHref,
     trustPage: saved.page,
+  };
+}
+
+export async function saveLandingPageExperienceReviewAction(
+  blockKey: string,
+  input: { landingPageProjectId: string; expectedRevision: number; review: ExperienceReviewInput; intent: "save" | "complete" },
+): Promise<LearningActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  const saved = await saveExperienceReviewForUser(session.user.id, SITE_EXPERIENCE_SLUG, blockKey, input);
+  if (!saved.ok) return { ok: false, message: saved.message, code: saved.code };
+  return {
+    ok: true,
+    snapshot: saved.snapshot,
+    landingPageProjectId: input.landingPageProjectId,
+    draftRevision: saved.draftRevision,
+    experiencePage: saved.page,
+    completed: saved.completed,
   };
 }
 

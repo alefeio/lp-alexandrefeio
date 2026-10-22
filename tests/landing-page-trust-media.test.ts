@@ -738,7 +738,7 @@ test("limites, privacidade e regressão do curso", async () => {
   assert.equal(sitesCourseSeed.status, "DRAFT");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(existsSync("src/lib/learning/site-construa-confianca.ts"), true);
-  assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), false);
+  assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), true);
   const lesson = sitesCourseSeed.modules.flatMap((module) => module.lessons).find((item) => item.slug === "construa-confianca");
   assert.equal(lesson?.plannedTool, "LANDING_PAGE_TRUST_V1");
   assert.equal(lesson?.plannedResult, "Plano de confiança da minha landing page");

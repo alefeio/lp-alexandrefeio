@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { ResponsivePreviewToolbar } from "@/components/landing-page/ResponsivePreviewToolbar";
+import { sectionTypeLabel } from "@/lib/landing-page/experience/lesson-flow";
 import { EXPERIENCE_VIEWPORT_LABEL, EXPERIENCE_VIEWPORT_WIDTH, type ExperienceViewportId } from "@/lib/landing-page/experience/viewports";
 
 export function ResponsivePreviewFrame({
@@ -36,7 +37,7 @@ export function ResponsivePreviewFrame({
         <ol className="mt-3 flex flex-wrap gap-2 text-xs text-muted" data-preview-section-labels="true">
           {sections.map((section) => (
             <li key={section.id} className="rounded-md border border-border px-2 py-1">
-              {section.type}
+              {sectionTypeLabel(section.type)}
             </li>
           ))}
         </ol>

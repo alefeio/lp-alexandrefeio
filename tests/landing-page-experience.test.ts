@@ -497,7 +497,8 @@ test("fixture, privacidade e regressão do curso", () => {
   assert.equal(urls.some((url) => url.includes("landing-experience-fixture")), false);
   assert.equal(urls.some((url) => url.includes("/p/")), false);
   assert.equal(existsSync("src/app/p"), false);
-  assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), false);
+  assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), true);
+  assert.equal(existsSync("src/lib/learning/site-mensuracao-da-pagina.ts"), false);
   assert.equal(existsSync("src/lib/learning/site-construa-confianca.ts"), true);
   assert.equal(sitesCourseSeed.status, "DRAFT");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");

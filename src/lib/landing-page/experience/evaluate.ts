@@ -95,7 +95,7 @@ export function evaluateLandingPageExperience(
         severity: "BLOCKER",
         scope: "SECTION",
         sectionId: section.id,
-        message: "Uma seção principal ainda está com conteúdo provisório.",
+        message: "Esta seção ainda possui conteúdo provisório.",
         recommendation: "Escreva e aprove o texto desta seção antes de seguir.",
         actionCode: "REVIEW_COPY",
       });
@@ -106,7 +106,7 @@ export function evaluateLandingPageExperience(
         severity: "ATTENTION",
         scope: "SECTION",
         sectionId: section.id,
-        message: "Uma seção principal ainda está em rascunho.",
+        message: "Este texto ainda está em revisão.",
         recommendation: "Releia o texto e aprove quando ele representar a oferta.",
         actionCode: "REVIEW_COPY",
       });
@@ -211,8 +211,8 @@ export function evaluateLandingPageExperience(
           severity: "INFO",
           scope: "SECTION",
           sectionId: section.id,
-          message: "O envio do formulário ainda não está disponível nesta etapa.",
-          recommendation: "Revise os campos agora. O envio entra numa etapa seguinte.",
+          message: "O envio real será configurado em uma etapa posterior.",
+          recommendation: "Revise rótulos, quantidade de campos e o texto de consentimento. O envio ainda não funciona.",
           actionCode: "REVIEW_FORM",
           platformLimitation: true,
         });

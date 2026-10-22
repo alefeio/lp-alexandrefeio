@@ -210,13 +210,13 @@ export const sitesCourseSeed = {
         {
           slug: "pagina-mobile-e-experiencia",
           title: "Prepare sua página para o celular e uma boa experiência",
-          summary: "Revise a landing page em preview desktop e mobile antes da publicação.",
+          summary: "Revise se a pessoa consegue entender, ler e agir na landing page em larguras diferentes.",
           publicPreview: null,
           estimatedMinutes: 30,
           sortOrder: 0,
           accessType: "PAID" as const,
           priceCents: 3490,
-          plannedResult: "Página ajustada para publicação",
+          plannedResult: "Revisão de experiência da minha landing page",
           plannedTool: "LANDING_PAGE_EXPERIENCE_REVIEW_V1",
         },
         {

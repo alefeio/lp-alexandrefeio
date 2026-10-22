@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 a PHASE 7 com núcleo implementado**. Phases 8–10 ainda não implementadas. Aula 10 não produzida.
+Status: **ACCEPTED — PHASE 1 a PHASE 7 com núcleo implementado**. Phases 8–10 ainda não implementadas. Aula 10 integrada ao núcleo de experiência.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -352,7 +352,7 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 
 ## Aula 8 — direção visual
 
-- Aula 8: COMPLETE no código. A Aula 9 usa o núcleo de confiança e também está completa no código. A Aula 10 não foi produzida.
+- Aula 8: COMPLETE no código. A Aula 9 usa o núcleo de confiança e também está completa no código. A Aula 10 usa o núcleo de experiência e também está completa no código.
 - A ferramenta `LANDING_PAGE_VISUAL_DIRECTION_V1` usa o tema, o contraste, os presets e os avisos da Phase 5. Não chama IA e não cria outra landing page.
 - `saveLandingPageVisualDirection` grava tema, ajustes visuais das seções e `strategy.visualDirection` numa única atualização de revisão. Conteúdo, status da copy, ordem, brief, jornada, wireframe, fatos, conversão e medição permanecem.
 - `strategy.visualDirection` guarda a origem, a prioridade visual, as seções em destaque, os avisos revisados, a impressão digital do tema e o resumo visual das seções. Não duplica o tema.
@@ -362,7 +362,7 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 
 ## Phase 6 — confiança e mídia pública
 
-- Phase 6 core: IMPLEMENTED. A Aula 9 usa esse núcleo e está completa no código. A Aula 10 não foi produzida.
+- Phase 6 core: IMPLEMENTED. A Aula 9 usa esse núcleo e está completa no código. A Aula 10 não reabre esse núcleo.
 - O inventário da aula lê `strategy.copyFacts.trustProofs`. Não há segunda fonte de provas.
 - A seleção aceita só provas `READY_FOR_DISPLAY` do mesmo projeto. Depoimento exibido exige consentimento. Um negócio sem depoimento pode concluir com outra prova real.
 - O caminho sem provas prontas é válido. `strategy.trustPlan.decision` fica `NO_PROOF_YET` e `nextActions` lista passos reais, sem inventar prova.
@@ -385,13 +385,15 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 
 ## Phase 7 — revisão responsiva e experiência
 
-- Phase 7 core: IMPLEMENTED. A Aula 10 não foi produzida.
+- Phase 7 core: IMPLEMENTED. A Aula 10 usa esse núcleo: não duplica a avaliação, os presets, o motor de findings nem a gravação.
 - `LandingPageExperienceReviewV1` fica em `draftDocument.experienceReview`. `strategy.experienceReview` guarda só versão, status, revisão conferida, viewports e contagens. Não copia texto de finding nem observação do aluno.
 - Presets de viewport: `MOBILE_SMALL` 320, `MOBILE` 375, `TABLET` 768 e `DESKTOP` 1280. O preview autenticado usa o mesmo renderer. A largura só limita o canvas. Não há moldura de aparelho.
 - A conclusão pedagógica pede os quatro presets. `READY_FOR_NEXT_STEP` não significa pronto para publicar.
 - Findings têm categoria, severidade `INFO`, `ATTENTION` ou `BLOCKER`, origem `SYSTEM` ou `USER` e status `OPEN`, `RESOLVED`, `DEFERRED` ou `NOT_APPLICABLE`. Não há severidade `CRITICAL` e não há nota de experiência.
 - `evaluateLandingPageExperience` é determinístico e não grava. `saveLandingPageExperienceReview` reavalia, exige posse e `expectedRevision`, e faz uma atualização atômica. Um finding de sistema que continua válido volta a `OPEN`. `BLOCKER` não pode ser adiado.
-- `reviewedDraftRevision` acompanha a revisão gravada. Se `draftRevision` mudar depois, o status efetivo fica `STALE`.
+- `saveLandingPageExperienceReview` grava `reviewedDraftRevision` como `expectedRevision + 1`, a mesma revisão que o rascunho passa a ter. A gravação em si não deixa a revisão `STALE`. Se `draftRevision` mudar depois, o status efetivo fica `STALE` e a aula pede nova revisão. O status `STALE` não é gravado.
+- O `LessonResult` da Aula 10 só é gravado quando o status efetivo é `READY_FOR_NEXT_STEP`. Uma revisão incompleta permanece no rascunho. O projeto continua `READY_TO_PREVIEW`.
+- `strategy.experienceReview` pode incluir `deferredCount` e `userFindingCount`. O texto dos findings e as observações do aluno ficam só na revisão canônica.
 - Códigos de ação: `REVIEW_COPY`, `REVIEW_THEME`, `REVIEW_TRUST`, `CONFIGURE_ACTION`, `REVIEW_FORM` e `REVIEW_MEDIA`. O motor não monta URL de aula.
 - Capacidades desta fase: `formsFunctional=false`, `publicationAvailable=false`, `measurementAvailable=false`. Formulário sem envio é limitação da plataforma, não bloqueio do aluno.
 - O contraste reutiliza `assessThemeContrast`. A hierarquia reutiliza `evaluateVisualHierarchy`.

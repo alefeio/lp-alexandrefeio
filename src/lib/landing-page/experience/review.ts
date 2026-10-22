@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { LandingPageDocumentV1 } from "@/lib/landing-page/document";
 import { experienceChecklistFor, requiredViewportsReviewed } from "@/lib/landing-page/experience/checklist";
 import { evaluateLandingPageExperience, type ExperienceMediaInput } from "@/lib/landing-page/experience/evaluate";
@@ -57,7 +56,7 @@ export function composeLandingPageExperienceReview(
   const userFindings: ExperienceFindingV1[] = [];
   for (const raw of input.userFindings) {
     const parsed = experienceFindingSchema.safeParse({
-      id: raw.id ?? `user:${randomUUID()}`,
+      id: raw.id ?? `user:${crypto.randomUUID()}`,
       code: "USER_NOTE",
       category: raw.category,
       severity: raw.severity,
@@ -71,7 +70,7 @@ export function composeLandingPageExperienceReview(
       ...(raw.deferReason ? { deferReason: raw.deferReason } : {}),
     });
     if (!parsed.success) return { ok: false };
-    if (parsed.data.severity === "BLOCKER" && parsed.data.status === "DEFERRED") return { ok: false };
+    if (parsed.data.severity === "BLOCKER") return { ok: false };
     userFindings.push(parsed.data);
   }
   const known = new Set([...findings, ...userFindings].map((finding) => finding.id));
@@ -114,6 +113,8 @@ export function composeLandingPageExperienceReview(
     reviewedViewports: viewports,
     openBlockerCount,
     openAttentionCount,
+    deferredCount,
+    userFindingCount: userFindings.length,
   });
   if (!review.success || !strategySummary.success) return { ok: false };
   return { ok: true, review: review.data, summary: strategySummary.data };

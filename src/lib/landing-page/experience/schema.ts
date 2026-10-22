@@ -93,7 +93,7 @@ export const landingPageExperienceReviewSchema = z
     version: z.literal(1),
     reviewedDraftRevision: z.number().int().positive(),
     reviewedViewports: z.array(z.enum(EXPERIENCE_VIEWPORT_IDS)).max(4),
-    checklist: z.array(experienceChecklistItemSchema).max(12),
+    checklist: z.array(experienceChecklistItemSchema).max(24),
     findings: z.array(experienceFindingSchema).max(80),
     summary: experienceReviewSummarySchema,
   })
@@ -109,6 +109,8 @@ export const landingPageExperienceSummarySchema = z
     reviewedViewports: z.array(z.enum(EXPERIENCE_VIEWPORT_IDS)).max(4),
     openBlockerCount: z.number().int().nonnegative(),
     openAttentionCount: z.number().int().nonnegative(),
+    deferredCount: z.number().int().nonnegative().optional(),
+    userFindingCount: z.number().int().nonnegative().optional(),
   })
   .strict();
 

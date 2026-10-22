@@ -4,10 +4,10 @@
 
 | Campo | Valor |
 | --- | --- |
-| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–9 COMPLETE · Aulas 10–12 SCAFFOLDED |
+| CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–10 COMPLETE · Aulas 11–12 SCAFFOLDED |
 | PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
 | COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–9 PAID com conteúdo (internamente PUBLISHED no seed) · Aulas 10–12 DRAFT |
+| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–10 PAID com conteúdo (internamente PUBLISHED no seed) · Aulas 11–12 DRAFT |
 | Commerce | NOT_FOR_SALE |
 | Catálogo público | não |
 | Sitemap / indexação | não (curso fora do público) |
@@ -86,11 +86,11 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
    Resultado: Plano de confiança da minha landing page · Tool: `LANDING_PAGE_TRUST_V1`  
    A aula usa o núcleo da Phase 6. As provas continuam em `strategy.copyFacts.trustProofs` e a mídia em `LandingPageMedia`. `strategy.trustPlan` guarda só a decisão pedagógica: versão, tipos revisados, ids selecionados, uso das seções, tipos ausentes e próximos passos. Não duplica o texto das provas. O aluno pode concluir sem provas prontas. Depoimento sem autorização não fica pronto. Não há nota de confiança nem selo de verificado. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda contagens, não o conteúdo.
 
-### Módulo 5 — Publique, meça e melhore — R$ 103,90 — SCAFFOLDED
+### Módulo 5 — Publique, meça e melhore — R$ 103,90 — Aula 10 COMPLETE · Aulas 11–12 SCAFFOLDED
 
-10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90 · SCAFFOLDED  
-    Resultado planejado: Página ajustada para publicação · Tool planejada: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`  
-    O núcleo da Phase 7 já existe: presets de viewport, revisão de experiência e findings no rascunho. Esta aula ainda não foi produzida.
+10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+    Resultado: Revisão de experiência da minha landing page · Tool: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`  
+    A aula usa o núcleo da Phase 7. A revisão canônica fica em `draftDocument.experienceReview`. `strategy.experienceReview` guarda versão, status, viewports e contagens, sem o texto dos findings. A conclusão exige `READY_FOR_NEXT_STEP`. Salvar grava `reviewedDraftRevision` como a revisão seguinte do rascunho, então a própria gravação não deixa o status `STALE`. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` só é gravado quando a revisão está pronta.
 11. **Configure o que precisa ser medido** (`mensuracao-da-pagina`) — PAID R$ 39,90  
     Resultado: Mapa de mensuração aplicado ao projeto · Tool: `LANDING_PAGE_MEASUREMENT_V1`
 12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90  
@@ -105,4 +105,4 @@ Relação opcional com `Project` genérico (1 Project → N landing pages).
 
 ## Deploy
 
-`deploySitesCourseScaffold` + seeds das aulas 1–9 quando `catalog:deploy` for executado. O comando não foi executado nesta etapa. Course permanece DRAFT até decisão explícita de release.
+`deploySitesCourseScaffold` + seeds das aulas 1–10 quando `catalog:deploy` for executado. O comando não foi executado nesta etapa. Course permanece DRAFT até decisão explícita de release.

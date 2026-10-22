@@ -1,9 +1,9 @@
 import type { ExperienceFindingV1 } from "@/lib/landing-page/experience/schema";
 
 const SEVERITY_LABEL = {
-  INFO: "Informação",
-  ATTENTION: "Atenção",
-  BLOCKER: "Bloqueio",
+  INFO: "Observação",
+  ATTENTION: "Precisa de atenção",
+  BLOCKER: "Precisa ser resolvido",
 } as const;
 
 export function FindingCard({ finding }: { finding: ExperienceFindingV1 }) {
@@ -17,8 +17,8 @@ export function FindingCard({ finding }: { finding: ExperienceFindingV1 }) {
       data-finding-status={finding.status}
     >
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted">{SEVERITY_LABEL[finding.severity]}</p>
-      <p className="mt-2 text-sm">{finding.message}</p>
-      <p className="mt-1 text-sm text-muted">{finding.recommendation}</p>
+      <p className="mt-2 break-words text-sm">{finding.message}</p>
+      <p className="mt-1 break-words text-sm text-muted">{finding.recommendation}</p>
     </article>
   );
 }
