@@ -18,6 +18,11 @@ function sameOrigin(request: Request): boolean {
   }
 }
 
+/**
+ * LEGACY / UNUSED_FOR_LANDING_PAGE.
+ * O envio atual da landing page passa pelo servidor e pela APIMG.
+ * Planilhas de campanha não usam esta rota.
+ */
 export async function POST(request: Request) {
   if (!sameOrigin(request)) {
     return NextResponse.json({ error: landingPageMessage("NOT_FOUND") }, { status: 400 });

@@ -420,12 +420,18 @@ test("configuração de release não imprime segredo e produção sem segredo fi
   assert.equal(landingPagePublicRuntimeEnabled({}), false);
   assert.equal(LIVE_MEDIA_STORE_READY, false);
   const report = evaluateLandingPagePublicReleaseReadiness({
-    env: { NODE_ENV: "production", LANDING_PAGE_PUBLIC_RUNTIME_ENABLED: "true", LANDING_PAGE_RATE_LIMIT_SECRET: secret, BLOB_READ_WRITE_TOKEN: "blob-token-hidden" },
+    env: {
+      NODE_ENV: "production",
+      LANDING_PAGE_PUBLIC_RUNTIME_ENABLED: "true",
+      LANDING_PAGE_RATE_LIMIT_SECRET: secret,
+      APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload",
+      APIMG_API_KEY: "apimg-key-hidden",
+    },
     liveMediaStoreReady: false,
   });
   assert.equal(report.status, "BLOCKED");
   assert.equal(JSON.stringify(report).includes(secret), false);
-  assert.equal(JSON.stringify(report).includes("blob-token-hidden"), false);
+  assert.equal(JSON.stringify(report).includes("apimg-key-hidden"), false);
   assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.kind, "POLICY_BLOCKER");
   assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "BLOCKED");
   assert.equal(CAPTCHA_REQUIRED_AT_LAUNCH, "NOT_REQUIRED_FOR_MVP");

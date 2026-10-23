@@ -443,8 +443,9 @@ test("mídia, cópia aprovada e preview seguro", async () => {
     assert.equal(removed.code, "LANDING_PAGE_MEDIA_IN_USE");
     assert.equal(removed.message, landingPageMessage("LANDING_PAGE_MEDIA_IN_USE"));
   }
-  assert.equal(landingPageMediaUploadsAvailable({ LANDING_PAGE_MEDIA_UPLOADS: "off" }), false);
-  assert.equal(landingPageMediaUploadsAvailable({ BLOB_READ_WRITE_TOKEN: "presente" }), true);
+  assert.equal(landingPageMediaUploadsAvailable({ LANDING_PAGE_MEDIA_UPLOADS: "off", APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "presente" }), false);
+  assert.equal(landingPageMediaUploadsAvailable({ BLOB_READ_WRITE_TOKEN: "presente" }), false);
+  assert.equal(landingPageMediaUploadsAvailable({ APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "presente" }), true);
   const editor = renderToStaticMarkup(createElement(LandingPageTrustEditor, { page: view(saved.value, [{ id: mediaId, status: "READY", altText: "Projeto de cozinha planejada concluído", referenced: true }]), uploadsAvailable: false }));
   assert.match(editor, /O envio de imagens está temporariamente indisponível/);
   assert.match(editor, /Você já possui/);

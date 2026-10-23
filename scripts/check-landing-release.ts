@@ -5,15 +5,15 @@ const report = evaluateLandingPagePublicReleaseReadiness({
     NODE_ENV: process.env.NODE_ENV,
     LANDING_PAGE_PUBLIC_RUNTIME_ENABLED: process.env.LANDING_PAGE_PUBLIC_RUNTIME_ENABLED,
     LANDING_PAGE_RATE_LIMIT_SECRET: process.env.LANDING_PAGE_RATE_LIMIT_SECRET,
-    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
-    VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN,
+    APIMG_UPLOAD_URL: process.env.APIMG_UPLOAD_URL,
+    APIMG_API_KEY: process.env.APIMG_API_KEY,
   },
 });
 
 const secret = process.env.LANDING_PAGE_RATE_LIMIT_SECRET ?? "";
-const blob = process.env.BLOB_READ_WRITE_TOKEN ?? "";
+const apimgKey = process.env.APIMG_API_KEY ?? "";
 const text = JSON.stringify({ status: report.status, checks: report.checks.map((item) => ({ id: item.id, status: item.status, kind: item.kind })) });
-if ((secret && text.includes(secret)) || (blob && text.includes(blob))) {
+if ((secret && text.includes(secret)) || (apimgKey && text.includes(apimgKey))) {
   console.error("release check leaked a secret");
   process.exit(1);
 }

@@ -58,14 +58,11 @@ export function LandingPageTrustTool({
       return { ok: false, message: started.ok ? TRUST_MEDIA_UNAVAILABLE : started.message };
     }
     try {
-      const { uploadPresigned } = await import("@vercel/blob/client");
-      await uploadPresigned(started.pathname, file, {
-        access: "public",
-        handleUploadUrl: "/api/landing-pages/media/upload",
-        clientPayload: JSON.stringify({ mediaId: started.mediaId }),
-        contentType: file.type,
-        multipart: false,
-      });
+      const body = new FormData();
+      body.set("mediaId", started.mediaId);
+      body.set("file", file);
+      const response = await fetch("/api/landing-pages/media/complete", { method: "POST", body });
+      if (!response.ok) return { ok: false, message: "Falha" };
       const completed = await completeLandingPageTrustMediaAction(panel.blockKey, started.mediaId);
       if (!completed.ok || !completed.trustPage) return { ok: false, message: completed.ok ? "Falha" : completed.message };
       replace(completed.trustPage);

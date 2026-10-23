@@ -127,6 +127,7 @@ export async function completeLandingPageMediaUpload(
     const stored = await storage.put(current.storageKey, inspected.bytes, inspected.mimeType);
     current.status = "READY";
     current.publicUrl = stored.url;
+    if (stored.storageKey) current.storageKey = stored.storageKey;
     current.mimeType = inspected.mimeType;
     current.fileSize = inspected.bytes.byteLength;
     current.width = inspected.width;

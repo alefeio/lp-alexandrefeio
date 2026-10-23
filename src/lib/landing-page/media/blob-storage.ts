@@ -26,9 +26,9 @@ async function readLimited(stream: ReadableStream<Uint8Array>): Promise<Uint8Arr
 }
 
 /**
- * PUBLIC_LANDING_PAGE_MEDIA.
- * Acesso público e prefixo opaco `landing-media/`.
- * Não usa o adapter privado de planilhas de campanha.
+ * LEGACY / UNUSED_FOR_LANDING_PAGE.
+ * A mídia pública da landing page não usa mais este adapter.
+ * Planilhas de campanha continuam no adapter privado separado.
  */
 export function createPublicLandingPageMediaStorage(): LandingPageMediaStorage {
   return {

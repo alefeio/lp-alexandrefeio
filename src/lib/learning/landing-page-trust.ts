@@ -10,7 +10,7 @@ import { SITE_COPY_SLUG } from "@/lib/learning/landing-page-copy";
 import { SITE_WIREFRAME_SLUG } from "@/lib/learning/landing-page-wireframe";
 import { landingPageMessage } from "@/lib/landing-page/errors";
 import { createPrismaLandingPageMediaStore } from "@/lib/landing-page/media/prisma-store";
-import { createPublicLandingPageMediaStorage } from "@/lib/landing-page/media/blob-storage";
+import { createLandingPageMediaStorage } from "@/lib/landing-page/media/storage-provider";
 import { beginLandingPageMediaUpload, deleteLandingPageMedia, finalizeLandingPageMediaUpload } from "@/lib/landing-page/media/service";
 import { createPrismaLandingPageStore } from "@/lib/landing-page/prisma-store";
 import { listLandingPageProjects } from "@/lib/landing-page/service";
@@ -195,7 +195,7 @@ export async function removeTrustMediaForUser(
   const saved = await deleteLandingPageMedia(
     createPrismaLandingPageStore(),
     createPrismaLandingPageMediaStore(),
-    createPublicLandingPageMediaStorage(),
+    createLandingPageMediaStorage(),
     { userId, mediaId: input.mediaId },
   );
   if (!saved.ok) return { ok: false as const, message: landingPageMessage(saved.code), code: saved.code };
@@ -237,7 +237,7 @@ export async function completeTrustMediaUploadForUser(
   const finished = await finalizeLandingPageMediaUpload(
     createPrismaLandingPageStore(),
     createPrismaLandingPageMediaStore(),
-    createPublicLandingPageMediaStorage(),
+    createLandingPageMediaStorage(),
     { userId, mediaId: input.mediaId },
   );
   if (!finished.ok) return { ok: false as const, message: landingPageMessage(finished.code), code: finished.code };

@@ -1,7 +1,7 @@
 import { siteConfig } from "@/data/site-config";
 import { LIVE_MEDIA_STORE_READY, landingPagePublicRuntimeEnabled } from "@/lib/landing-page/publication/gate";
 import { landingPageRateLimitSecret } from "@/lib/landing-page/rate-limit/secret";
-import { landingPageMediaStorageConfigured } from "@/lib/landing-page/trust/plan";
+import { readApimgLandingMediaConfig } from "@/lib/landing-page/media/apimg-storage";
 
 export const CAPTCHA_REQUIRED_AT_LAUNCH = "NOT_REQUIRED_FOR_MVP" as const;
 export const LEAD_RETENTION_POLICY = "OPEN_DECISION" as const;
@@ -30,8 +30,8 @@ type ReadinessEnv = {
   NODE_ENV?: string;
   LANDING_PAGE_PUBLIC_RUNTIME_ENABLED?: string;
   LANDING_PAGE_RATE_LIMIT_SECRET?: string;
-  BLOB_READ_WRITE_TOKEN?: string;
-  VERCEL_OIDC_TOKEN?: string;
+  APIMG_UPLOAD_URL?: string;
+  APIMG_API_KEY?: string;
 };
 
 function check(id: string, pass: boolean, kind: ReleaseCheck["kind"]): ReleaseCheck {
@@ -41,7 +41,7 @@ function check(id: string, pass: boolean, kind: ReleaseCheck["kind"]): ReleaseCh
 /** Configuração de produção, sem devolver segredo, token ou endereço de banco. */
 export function evaluateLandingPageProductionReadinessConfig(env: ReadinessEnv = process.env as ReadinessEnv): LandingPagePublicReleaseReadinessV1 {
   const secretReady = landingPageRateLimitSecret(env) !== null;
-  const mediaConfigured = landingPageMediaStorageConfigured(env);
+  const mediaConfigured = readApimgLandingMediaConfig(env) !== null;
   const runtimeOn = landingPagePublicRuntimeEnabled(env);
   const productionSafe = env.NODE_ENV !== "production" || !runtimeOn || secretReady;
   const hostReady = siteConfig.url === "https://alexandrefeio.com.br";
@@ -76,7 +76,7 @@ export function evaluateLandingPagePublicReleaseReadiness(input?: {
     check("DURABLE_FORM_RATE_LIMIT", true, "TECHNICAL_BLOCKER"),
     check("PUBLIC_EVENT_PROTECTION", true, "TECHNICAL_BLOCKER"),
     check("LIVE_MEDIA_STORAGE", liveMedia, "TECHNICAL_BLOCKER"),
-    check("MEDIA_ORPHAN_CLEANUP", true, "TECHNICAL_BLOCKER"),
+    check("MEDIA_ORPHAN_CLEANUP", false, "TECHNICAL_BLOCKER"),
     check("FORM_SECURITY", true, "TECHNICAL_BLOCKER"),
     check("PUBLIC_EVENT_SECURITY", true, "TECHNICAL_BLOCKER"),
     check("PRIVACY_BOUNDARY", true, "TECHNICAL_BLOCKER"),

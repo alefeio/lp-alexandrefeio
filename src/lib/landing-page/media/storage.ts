@@ -4,7 +4,7 @@ export type StoredLandingPageObject = {
 };
 
 export interface LandingPageMediaStorage {
-  put(pathname: string, body: Uint8Array, contentType: string): Promise<{ url: string }>;
+  put(pathname: string, body: Uint8Array, contentType: string): Promise<{ url: string; storageKey?: string }>;
   get(pathname: string): Promise<StoredLandingPageObject | null>;
   delete(pathname: string): Promise<void>;
 }

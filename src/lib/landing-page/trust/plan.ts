@@ -168,12 +168,19 @@ export function toTrustPageView(
 }
 
 export function landingPageMediaStorageConfigured(env: Record<string, string | undefined> = process.env): boolean {
-  if (env.BLOB_READ_WRITE_TOKEN?.trim()) return true;
-  return Boolean(env.VERCEL_OIDC_TOKEN?.trim() && env.BLOB_STORE_ID?.trim());
+  if (env.LANDING_PAGE_MEDIA_UPLOADS === "off") return false;
+  const uploadUrl = env.APIMG_UPLOAD_URL?.trim() ?? "";
+  const apiKey = env.APIMG_API_KEY?.trim() ?? "";
+  if (!uploadUrl || !apiKey) return false;
+  try {
+    const url = new URL(uploadUrl);
+    return url.protocol === "https:" && url.hostname === "apimg.com.br" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
 }
 
 export function landingPageMediaUploadsAvailable(env: Record<string, string | undefined> = process.env): boolean {
-  if (env.LANDING_PAGE_MEDIA_UPLOADS === "off") return false;
   return landingPageMediaStorageConfigured(env);
 }
 
