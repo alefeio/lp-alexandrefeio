@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { readApimgLandingMediaConfig } from "@/lib/landing-page/media/apimg-config";
 import { parseLandingPageDocument, type LandingPageDocumentV1 } from "@/lib/landing-page/document";
 import { fail, ok, type LandingPageResult } from "@/lib/landing-page/errors";
 import type { LandingPageMediaStore } from "@/lib/landing-page/media/record";
@@ -169,15 +170,7 @@ export function toTrustPageView(
 
 export function landingPageMediaStorageConfigured(env: Record<string, string | undefined> = process.env): boolean {
   if (env.LANDING_PAGE_MEDIA_UPLOADS === "off") return false;
-  const uploadUrl = env.APIMG_UPLOAD_URL?.trim() ?? "";
-  const apiKey = env.APIMG_API_KEY?.trim() ?? "";
-  if (!uploadUrl || !apiKey) return false;
-  try {
-    const url = new URL(uploadUrl);
-    return url.protocol === "https:" && url.hostname === "apimg.com.br" && !url.username && !url.password;
-  } catch {
-    return false;
-  }
+  return readApimgLandingMediaConfig(env) !== null;
 }
 
 export function landingPageMediaUploadsAvailable(env: Record<string, string | undefined> = process.env): boolean {

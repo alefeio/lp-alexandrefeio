@@ -1,4 +1,7 @@
+import { readApimgLandingMediaConfig, type ApimgLandingMediaEnv } from "@/lib/landing-page/media/apimg-config";
 import type { LandingPageMediaStorage } from "@/lib/landing-page/media/storage";
+
+export { readApimgLandingMediaConfig } from "@/lib/landing-page/media/apimg-config";
 
 /** Contrato observado no CadastroCursos. A pasta lógica não entra no POST. */
 export const APIMG_UPLOAD_TIMEOUT_MS = 30_000;
@@ -8,24 +11,12 @@ export const APIMG_PHYSICAL_DELETE_SUPPORTED = false;
 
 export const LANDING_PAGE_MEDIA_STORAGE_PROVIDER = "APIMG" as const;
 
-type ApimgEnv = {
-  APIMG_UPLOAD_URL?: string;
-  APIMG_API_KEY?: string;
+export type ApimgUploadResult = {
+  url: string;
+  storageKey: string;
+  format: string;
+  bytes: number;
 };
-
-export function readApimgLandingMediaConfig(env?: ApimgEnv): { uploadUrl: string; apiKey: string } | null {
-  const source = env ?? (process.env as ApimgEnv);
-  const uploadUrl = source.APIMG_UPLOAD_URL?.trim() ?? "";
-  const apiKey = source.APIMG_API_KEY?.trim() ?? "";
-  if (!uploadUrl || !apiKey) return null;
-  try {
-    const url = new URL(uploadUrl);
-    if (url.protocol !== "https:" || url.hostname !== "apimg.com.br" || url.username || url.password) return null;
-  } catch {
-    return null;
-  }
-  return { uploadUrl, apiKey };
-}
 
 export function assertApimgPublicUrl(value: string): string {
   let url: URL;
@@ -39,7 +30,7 @@ export function assertApimgPublicUrl(value: string): string {
   return url.toString();
 }
 
-export function parseApimgUploadResponse(json: unknown): { url: string; storageKey: string } {
+export function parseApimgUploadResponse(json: unknown): ApimgUploadResult {
   if (!json || typeof json !== "object") throw new Error("APIMG response is incomplete");
   const body = json as Record<string, unknown>;
   if (Array.isArray(body.detail) || typeof body.message === "string" || typeof body.detail === "string") {
@@ -47,8 +38,10 @@ export function parseApimgUploadResponse(json: unknown): { url: string; storageK
   }
   const url = typeof body.url === "string" ? body.url : "";
   const storageKey = typeof body.public_id === "string" ? body.public_id.trim() : "";
-  if (!url || !storageKey || storageKey.length > 200) throw new Error("APIMG response is incomplete");
-  return { url: assertApimgPublicUrl(url), storageKey };
+  const format = typeof body.format === "string" ? body.format.trim() : "";
+  const bytes = typeof body.bytes === "number" && Number.isFinite(body.bytes) ? body.bytes : null;
+  if (!url || !storageKey || storageKey.length > 200 || !format || bytes === null || bytes < 0) throw new Error("APIMG response is incomplete");
+  return { url: assertApimgPublicUrl(url), storageKey, format, bytes };
 }
 
 function fileName(contentType: string): string {
@@ -64,7 +57,7 @@ function fileName(contentType: string): string {
  * A exclusão física não existe no contrato observado.
  */
 export function createApimgLandingPageMediaStorage(options?: {
-  env?: ApimgEnv;
+  env?: ApimgLandingMediaEnv;
   fetch?: typeof fetch;
   timeoutMs?: number;
 }): LandingPageMediaStorage {
@@ -73,24 +66,25 @@ export function createApimgLandingPageMediaStorage(options?: {
   return {
     async put(_pathname, body, contentType) {
       const config = readApimgLandingMediaConfig(options?.env);
-      if (!config) throw new Error("APIMG media storage is not configured");
+      if (!config?.uploadFolder || !config.landingMediaFolder) throw new Error("APIMG media storage is not configured");
       const form = new FormData();
-      form.append("file", new Blob([Buffer.from(body)], { type: contentType }), fileName(contentType));
+      form.append("file", new File([Buffer.from(body)], fileName(contentType), { type: contentType }));
       const response = await fetchImpl(config.uploadUrl, {
         method: "POST",
         headers: { "X-API-Key": config.apiKey },
         body: form,
         signal: AbortSignal.timeout(timeoutMs),
       });
-      const json = await response.json().catch(() => null);
+      const raw = await response.text();
+      const json = (() => { try { return JSON.parse(raw) as unknown; } catch { return null; } })();
       if (!response.ok) {
         const failure = json && typeof json === "object" ? json as Record<string, unknown> : {};
         const detail = Array.isArray(failure.detail) ? (failure.detail[0] as { msg?: string } | undefined)?.msg : undefined;
         const message = typeof detail === "string" ? detail : typeof failure.message === "string" ? failure.message : typeof failure.detail === "string" ? failure.detail : "";
-        const safe = message.replaceAll(config.apiKey, "").slice(0, 120);
+        const safe = (message || raw).replaceAll(config.apiKey, "").replace(/\s+/g, " ").trim().slice(0, 180);
         throw new Error(`APIMG upload failed (${response.status})${safe ? `: ${safe}` : ""}`);
       }
-      return parseApimgUploadResponse(json);
+      return Object.assign(parseApimgUploadResponse(json), { status: response.status });
     },
     async get(pathname) {
       let url: string;

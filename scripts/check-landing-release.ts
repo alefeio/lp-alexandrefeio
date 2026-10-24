@@ -7,6 +7,8 @@ const report = evaluateLandingPagePublicReleaseReadiness({
     LANDING_PAGE_RATE_LIMIT_SECRET: process.env.LANDING_PAGE_RATE_LIMIT_SECRET,
     APIMG_UPLOAD_URL: process.env.APIMG_UPLOAD_URL,
     APIMG_API_KEY: process.env.APIMG_API_KEY,
+    APIMG_UPLOAD_FOLDER: process.env.APIMG_UPLOAD_FOLDER,
+    APIMG_SITE_UPLOAD_FOLDER: process.env.APIMG_SITE_UPLOAD_FOLDER,
   },
 });
 

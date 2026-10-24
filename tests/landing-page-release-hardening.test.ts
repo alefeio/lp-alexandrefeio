@@ -426,6 +426,8 @@ test("configuração de release não imprime segredo e produção sem segredo fi
       LANDING_PAGE_RATE_LIMIT_SECRET: secret,
       APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload",
       APIMG_API_KEY: "apimg-key-hidden",
+      APIMG_UPLOAD_FOLDER: "alexandre-feio/uploads",
+      APIMG_SITE_UPLOAD_FOLDER: "alexandre-feio/site",
     },
     liveMediaStoreReady: false,
   });

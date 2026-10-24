@@ -21,7 +21,12 @@ import { evaluateLandingPageProductionReadinessConfig } from "../src/lib/landing
 import { landingPagePublicRuntimeEnabled } from "../src/lib/landing-page/publication/gate";
 import { LANDING_PAGE_MEDIA_LIMITS } from "../src/lib/landing-page/media/limits";
 
-const env = { APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "apimg-secret-not-for-logs" };
+const env = {
+  APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload",
+  APIMG_API_KEY: "apimg-secret-not-for-logs",
+  APIMG_UPLOAD_FOLDER: "alexandre-feio/uploads",
+  APIMG_SITE_UPLOAD_FOLDER: "alexandre-feio/site",
+};
 const png = Uint8Array.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -41,10 +46,14 @@ test("adapter APIMG envia file, autentica e valida a resposta", async () => {
     fetch: async (input, init) => {
       const form = init?.body as FormData;
       const file = form.get("file");
+      const headers = new Headers(init?.headers);
       seen.method = init?.method ?? "";
-      seen.key = new Headers(init?.headers).get("X-API-Key");
+      seen.key = headers.get("X-API-Key");
       seen.field = file instanceof Blob ? "file" : "";
       seen.type = file instanceof Blob ? file.type : "";
+      assert.deepEqual([...form.keys()], ["file"]);
+      assert.deepEqual([...headers.keys()], ["x-api-key"]);
+      assert.equal(form.get("folder"), null);
       assert.equal(String(input), env.APIMG_UPLOAD_URL);
       return response({ url: "https://apimg.com.br/igh/image.png", public_id: "igh/image", format: "png", bytes: png.byteLength });
     },
@@ -56,6 +65,11 @@ test("adapter APIMG envia file, autentica e valida a resposta", async () => {
   assert.equal(seen.key, env.APIMG_API_KEY);
   assert.equal(seen.field, "file");
   assert.equal(seen.type, "image/png");
+  const config = readApimgLandingMediaConfig(env);
+  assert.equal(config?.uploadFolder, "alexandre-feio/uploads");
+  assert.equal(config?.siteUploadFolder, "alexandre-feio/site");
+  assert.equal(config?.landingMediaFolder, "alexandre-feio/site/landing-pages");
+  assert.equal(readApimgLandingMediaConfig({ APIMG_UPLOAD_URL: env.APIMG_UPLOAD_URL, APIMG_API_KEY: env.APIMG_API_KEY }), null);
   assert.equal(APIMG_PHYSICAL_DELETE_SUPPORTED, false);
   assert.equal(LANDING_PAGE_MEDIA_STORAGE_PROVIDER, "APIMG");
   await assert.rejects(() => storage.delete("igh/image"), /not supported/);
@@ -66,6 +80,7 @@ test("resposta APIMG incompleta, insegura ou com erro não vira mídia", async (
   assert.throws(() => parseApimgUploadResponse({ url: "http://apimg.com.br/a.png", public_id: "a" }));
   assert.throws(() => parseApimgUploadResponse({ url: "https://evil.example/a.png", public_id: "a" }));
   assert.throws(() => parseApimgUploadResponse({ url: "javascript:alert(1)", public_id: "a" }));
+  assert.throws(() => parseApimgUploadResponse({ url: "https://apimg.com.br/a.png", public_id: "a" }));
   assert.throws(() => parseApimgUploadResponse({ detail: [{ msg: "invalid" }] }));
   assert.equal(assertApimgPublicUrl("https://cdn.apimg.com.br/a.png"), "https://cdn.apimg.com.br/a.png");
   const cases = [response({ url: "https://apimg.com.br/a.png" }, 422), response({ message: "no" }, 500), response({ url: "https://apimg.com.br/a.png" }, 200)];
@@ -115,7 +130,7 @@ test("upload real do serviço fica READY só com resposta válida", async () => 
   if (!started.ok) throw new Error(started.code);
   const storage = createApimgLandingPageMediaStorage({
     env,
-    fetch: async () => response({ url: "https://apimg.com.br/igh/sintetico.png", public_id: "igh/sintetico" }),
+    fetch: async () => response({ url: "https://apimg.com.br/igh/sintetico.png", public_id: "igh/sintetico", format: "png", bytes: png.byteLength }),
   });
   const saved = await completeLandingPageMediaUpload(projects, media, storage, { userId: "owner", mediaId: started.value.id, bytes: png });
   assert.equal(saved.ok, true);
@@ -212,6 +227,8 @@ test("configuração de release exige APIMG e não exige Blob", () => {
   const ready = evaluateLandingPageProductionReadinessConfig({
     APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload",
     APIMG_API_KEY: "apimg-secret-not-for-logs",
+    APIMG_UPLOAD_FOLDER: "alexandre-feio/uploads",
+    APIMG_SITE_UPLOAD_FOLDER: "alexandre-feio/site",
     LANDING_PAGE_RATE_LIMIT_SECRET: "x".repeat(32),
   });
   assert.equal(ready.checks.find((item) => item.id === "MEDIA_STORAGE_CONFIG")?.status, "PASS");

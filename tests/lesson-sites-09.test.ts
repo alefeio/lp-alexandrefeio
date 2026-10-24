@@ -443,9 +443,10 @@ test("mídia, cópia aprovada e preview seguro", async () => {
     assert.equal(removed.code, "LANDING_PAGE_MEDIA_IN_USE");
     assert.equal(removed.message, landingPageMessage("LANDING_PAGE_MEDIA_IN_USE"));
   }
-  assert.equal(landingPageMediaUploadsAvailable({ LANDING_PAGE_MEDIA_UPLOADS: "off", APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "presente" }), false);
+  assert.equal(landingPageMediaUploadsAvailable({ LANDING_PAGE_MEDIA_UPLOADS: "off", APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "presente", APIMG_UPLOAD_FOLDER: "alexandre-feio/uploads", APIMG_SITE_UPLOAD_FOLDER: "alexandre-feio/site" }), false);
   assert.equal(landingPageMediaUploadsAvailable({ BLOB_READ_WRITE_TOKEN: "presente" }), false);
-  assert.equal(landingPageMediaUploadsAvailable({ APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "presente" }), true);
+  assert.equal(landingPageMediaUploadsAvailable({ APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "presente" }), false);
+  assert.equal(landingPageMediaUploadsAvailable({ APIMG_UPLOAD_URL: "https://apimg.com.br/v1/upload", APIMG_API_KEY: "presente", APIMG_UPLOAD_FOLDER: "alexandre-feio/uploads", APIMG_SITE_UPLOAD_FOLDER: "alexandre-feio/site" }), true);
   const editor = renderToStaticMarkup(createElement(LandingPageTrustEditor, { page: view(saved.value, [{ id: mediaId, status: "READY", altText: "Projeto de cozinha planejada concluído", referenced: true }]), uploadsAvailable: false }));
   assert.match(editor, /O envio de imagens está temporariamente indisponível/);
   assert.match(editor, /Você já possui/);

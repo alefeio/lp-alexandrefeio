@@ -32,6 +32,8 @@ type ReadinessEnv = {
   LANDING_PAGE_RATE_LIMIT_SECRET?: string;
   APIMG_UPLOAD_URL?: string;
   APIMG_API_KEY?: string;
+  APIMG_UPLOAD_FOLDER?: string;
+  APIMG_SITE_UPLOAD_FOLDER?: string;
 };
 
 function check(id: string, pass: boolean, kind: ReleaseCheck["kind"]): ReleaseCheck {

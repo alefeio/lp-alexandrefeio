@@ -36,7 +36,7 @@ A página `/privacidade` precisa ser atualizada antes de receber leads públicos
 
 1. Definir as políticas acima e atualizar `/privacidade`.
 2. Confirmar `LANDING_PAGE_RATE_LIMIT_SECRET` no servidor, com pelo menos 32 caracteres. Sem prefixo público.
-3. Confirmar `APIMG_UPLOAD_URL` e `APIMG_API_KEY` no servidor e o smoke sintético de upload e leitura. A exclusão física da APIMG não existe no contrato observado.
+3. Confirmar no servidor `APIMG_UPLOAD_URL`, `APIMG_API_KEY`, `APIMG_UPLOAD_FOLDER=alexandre-feio/uploads` e `APIMG_SITE_UPLOAD_FOLDER=alexandre-feio/site`. As pastas não vão no POST. Confirmar o smoke sintético de upload e leitura. A exclusão física da APIMG não existe no contrato observado.
 4. Aplicar a migration aditiva se ainda não estiver no banco de produção.
 5. Só então avaliar `LANDING_PAGE_PUBLIC_RUNTIME_ENABLED=true` em produção.
 6. Smoke da rota pública real, ainda com `noindex`.

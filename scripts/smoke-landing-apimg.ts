@@ -29,10 +29,19 @@ async function main(): Promise<void> {
   }
   const storage = createApimgLandingPageMediaStorage();
   try {
-    const created = await storage.put("synthetic", png, "image/png");
-    const read = await fetch(created.url);
+    const created = await storage.put("synthetic", png, "image/png") as { url: string; storageKey?: string; status: number; format: string; bytes: number };
+    if (!created.url.startsWith("https://") || !created.storageKey || !created.format || !Number.isFinite(created.bytes)) {
+      throw new Error("APIMG response is incomplete");
+    }
+    const read = await fetch(created.url, { method: "GET" });
     if (!read.ok) throw new Error(`public read status ${read.status}`);
-    console.log("PASS_UPLOAD_READ");
+    console.log("PASS_UPLOAD");
+    console.log(`HTTP_STATUS ${created.status}`);
+    console.log("PUBLIC_URL PASS");
+    console.log("PUBLIC_ID PASS");
+    console.log(`FORMAT ${created.format}`);
+    console.log(`BYTES ${created.bytes}`);
+    console.log("PUBLIC_READ PASS");
     console.log("DELETE_NOT_SUPPORTED");
   } catch (error) {
     console.log(`FAIL ${safeFailure(error)}`);
