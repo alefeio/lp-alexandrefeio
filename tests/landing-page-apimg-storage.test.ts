@@ -105,7 +105,13 @@ test("timeout não repete o upload e a credencial não aparece no erro", async (
     timeoutMs: 20,
     fetch: (_input, init) =>
       new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        const signal = init?.signal;
+        const abort = () => reject(new Error("aborted"));
+        if (!signal || signal.aborted) {
+          abort();
+          return;
+        }
+        signal.addEventListener("abort", abort, { once: true });
       }),
   });
   await assert.rejects(() => storage.put("local", png, "image/png"), (error: unknown) => {
