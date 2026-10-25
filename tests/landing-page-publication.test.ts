@@ -642,7 +642,7 @@ test("gate, privacidade, slug legado e sitemap", () => {
   assert.equal(landingPagePublicRuntimeEnabled({}), false);
   assert.equal(landingPagePublicRuntimeEnabled({ LANDING_PAGE_PUBLIC_RUNTIME_ENABLED: "true" }), true);
   assert.equal(landingPagePublicRuntimeEnabled({ LANDING_PAGE_PUBLIC_RUNTIME_ENABLED: "false" }), false);
-  assert.equal(LIVE_MEDIA_STORE_READY, false);
+  assert.equal(LIVE_MEDIA_STORE_READY, true);
   const gate = readFileSync("src/lib/landing-page/publication/gate.ts", "utf8");
   assert.equal(gate.includes("NEXT_PUBLIC_LANDING_PAGE_PUBLIC_RUNTIME_ENABLED"), false);
   const root = readFileSync("src/app/layout.tsx", "utf8");

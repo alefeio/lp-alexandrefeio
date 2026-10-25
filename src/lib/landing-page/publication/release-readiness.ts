@@ -1,7 +1,7 @@
 import { siteConfig } from "@/data/site-config";
 import { LIVE_MEDIA_STORE_READY, landingPagePublicRuntimeEnabled } from "@/lib/landing-page/publication/gate";
 import { landingPageRateLimitSecret } from "@/lib/landing-page/rate-limit/secret";
-import { readApimgLandingMediaConfig } from "@/lib/landing-page/media/apimg-storage";
+import { APIMG_PHYSICAL_DELETE_SUPPORTED, readApimgLandingMediaConfig } from "@/lib/landing-page/media/apimg-storage";
 
 export const CAPTCHA_REQUIRED_AT_LAUNCH = "NOT_REQUIRED_FOR_MVP" as const;
 export const LEAD_RETENTION_POLICY = "OPEN_DECISION" as const;
@@ -14,6 +14,9 @@ export const METRICS_RETENTION_POLICY = "OPEN_DECISION" as const;
  * mídia pública nem retenção em aberto.
  */
 export const PRIVACY_POLICY_UPDATE_REQUIRED = true;
+
+/** A exclusão física da APIMG e a limpeza de órfãos com proteção histórica estão cobertas. */
+export const MEDIA_ORPHAN_CLEANUP_READY = APIMG_PHYSICAL_DELETE_SUPPORTED;
 
 export type ReleaseCheck = {
   id: string;
@@ -78,7 +81,7 @@ export function evaluateLandingPagePublicReleaseReadiness(input?: {
     check("DURABLE_FORM_RATE_LIMIT", true, "TECHNICAL_BLOCKER"),
     check("PUBLIC_EVENT_PROTECTION", true, "TECHNICAL_BLOCKER"),
     check("LIVE_MEDIA_STORAGE", liveMedia, "TECHNICAL_BLOCKER"),
-    check("MEDIA_ORPHAN_CLEANUP", false, "TECHNICAL_BLOCKER"),
+    check("MEDIA_ORPHAN_CLEANUP", MEDIA_ORPHAN_CLEANUP_READY, "TECHNICAL_BLOCKER"),
     check("FORM_SECURITY", true, "TECHNICAL_BLOCKER"),
     check("PUBLIC_EVENT_SECURITY", true, "TECHNICAL_BLOCKER"),
     check("PRIVACY_BOUNDARY", true, "TECHNICAL_BLOCKER"),

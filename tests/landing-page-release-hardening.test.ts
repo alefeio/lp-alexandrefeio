@@ -418,7 +418,7 @@ test("configuração de release não imprime segredo e produção sem segredo fi
   const closed = landingPagePublicRouteEnabled({ NODE_ENV: "production", LANDING_PAGE_PUBLIC_RUNTIME_ENABLED: "true" });
   assert.equal(closed, false);
   assert.equal(landingPagePublicRuntimeEnabled({}), false);
-  assert.equal(LIVE_MEDIA_STORE_READY, false);
+  assert.equal(LIVE_MEDIA_STORE_READY, true);
   const report = evaluateLandingPagePublicReleaseReadiness({
     env: {
       NODE_ENV: "production",

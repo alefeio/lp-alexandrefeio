@@ -7,18 +7,23 @@ import { inspectLandingPageImage } from "../src/lib/landing-page/media/bytes";
 import {
   APIMG_PHYSICAL_DELETE_SUPPORTED,
   assertApimgPublicUrl,
+  apimgDeleteUrl,
+  assertApimgStorageKey,
   createApimgLandingPageMediaStorage,
   LANDING_PAGE_MEDIA_STORAGE_PROVIDER,
+  parseApimgDeleteResponse,
   parseApimgUploadResponse,
   readApimgLandingMediaConfig,
 } from "../src/lib/landing-page/media/apimg-storage";
-import { cleanupLandingPageMediaOrphans } from "../src/lib/landing-page/media/orphan-cleanup";
+import { cleanupLandingPageMediaOrphans, LANDING_PAGE_MEDIA_ORPHAN_GRACE_MS } from "../src/lib/landing-page/media/orphan-cleanup";
+import { createEmptyLandingPageDocument } from "../src/lib/landing-page/document";
+import { snapshotReferencesMedia } from "../src/lib/landing-page/publication/snapshot";
 import { createMemoryLandingPageMediaStore } from "../src/lib/landing-page/media/memory-store";
 import type { LandingPageMediaRecord } from "../src/lib/landing-page/media/record";
 import { resetLandingPageMediaRateLimit } from "../src/lib/landing-page/media/rate-limit";
 import { beginLandingPageMediaUpload, completeLandingPageMediaUpload, deleteLandingPageMedia } from "../src/lib/landing-page/media/service";
-import { evaluateLandingPageProductionReadinessConfig } from "../src/lib/landing-page/publication/release-readiness";
-import { landingPagePublicRuntimeEnabled } from "../src/lib/landing-page/publication/gate";
+import { evaluateLandingPageProductionReadinessConfig, evaluateLandingPagePublicReleaseReadiness, MEDIA_ORPHAN_CLEANUP_READY, PRIVACY_POLICY_UPDATE_REQUIRED } from "../src/lib/landing-page/publication/release-readiness";
+import { LIVE_MEDIA_STORE_READY, landingPagePublicRuntimeEnabled } from "../src/lib/landing-page/publication/gate";
 import { LANDING_PAGE_MEDIA_LIMITS } from "../src/lib/landing-page/media/limits";
 
 const env = {
@@ -70,9 +75,9 @@ test("adapter APIMG envia file, autentica e valida a resposta", async () => {
   assert.equal(config?.siteUploadFolder, "alexandre-feio/site");
   assert.equal(config?.landingMediaFolder, "alexandre-feio/site/landing-pages");
   assert.equal(readApimgLandingMediaConfig({ APIMG_UPLOAD_URL: env.APIMG_UPLOAD_URL, APIMG_API_KEY: env.APIMG_API_KEY }), null);
-  assert.equal(APIMG_PHYSICAL_DELETE_SUPPORTED, false);
+  assert.equal(APIMG_PHYSICAL_DELETE_SUPPORTED, true);
   assert.equal(LANDING_PAGE_MEDIA_STORAGE_PROVIDER, "APIMG");
-  await assert.rejects(() => storage.delete("igh/image"), /not supported/);
+  await assert.rejects(() => storage.delete("igh/image"), /invalid/);
 });
 
 test("resposta APIMG incompleta, insegura ou com erro não vira mídia", async () => {
@@ -241,4 +246,238 @@ test("configuração de release exige APIMG e não exige Blob", () => {
   assert.equal(JSON.stringify(ready).includes("apimg-secret-not-for-logs"), false);
   assert.equal(readApimgLandingMediaConfig({ APIMG_UPLOAD_URL: "http://apimg.com.br/v1/upload", APIMG_API_KEY: "x" }), null);
   assert.equal(landingPagePublicRuntimeEnabled({}), false);
+});
+
+const PUBLIC_ID = "0123456789abcdef0123456789abcdef.png";
+
+function orphan(id: string, overrides: Partial<LandingPageMediaRecord> = {}): LandingPageMediaRecord {
+  const old = new Date(Date.now() - LANDING_PAGE_MEDIA_ORPHAN_GRACE_MS - 60_000);
+  return {
+    id,
+    landingPageProjectId: "project-a",
+    userId: "owner",
+    type: "GENERAL_IMAGE",
+    status: "READY",
+    storageKey: PUBLIC_ID,
+    publicUrl: `https://apimg.com.br/${PUBLIC_ID}`,
+    mimeType: "image/png",
+    fileSize: 69,
+    width: 1,
+    height: 1,
+    altText: "Sintética",
+    createdAt: old,
+    updatedAt: old,
+    ...overrides,
+  };
+}
+
+test("delete APIMG usa o public_id, aceita deleted true ou false e falha fechado", async () => {
+  const source = readFileSync("src/lib/landing-page/media/apimg-storage.ts", "utf8");
+  assert.equal(source.includes("multipart/form-data"), false);
+  assert.equal(APIMG_PHYSICAL_DELETE_SUPPORTED, true);
+  assert.equal(LIVE_MEDIA_STORE_READY, true);
+  assert.equal(MEDIA_ORPHAN_CLEANUP_READY, true);
+  assert.equal(assertApimgStorageKey(PUBLIC_ID), PUBLIC_ID);
+  assert.equal(apimgDeleteUrl(env.APIMG_UPLOAD_URL, PUBLIC_ID), `https://apimg.com.br/v1/images/${PUBLIC_ID}`);
+  assert.throws(() => apimgDeleteUrl("https://evil.example/v1/upload", PUBLIC_ID));
+  assert.deepEqual(parseApimgDeleteResponse({ public_id: PUBLIC_ID, deleted: false }, PUBLIC_ID), { publicId: PUBLIC_ID, deleted: false });
+  assert.throws(() => parseApimgDeleteResponse({ public_id: "other.png", deleted: true }, PUBLIC_ID));
+  assert.throws(() => parseApimgDeleteResponse({ deleted: true }, PUBLIC_ID));
+
+  const seen: Array<{ method?: string; url: string; key: string | null }> = [];
+  const storage = createApimgLandingPageMediaStorage({
+    env,
+    fetch: async (input, init) => {
+      seen.push({ method: init?.method, url: String(input), key: new Headers(init?.headers).get("X-API-Key") });
+      return response({ public_id: PUBLIC_ID, deleted: true });
+    },
+  });
+  await storage.delete(PUBLIC_ID);
+  assert.equal(seen[0]?.method, "DELETE");
+  assert.equal(seen[0]?.url, `https://apimg.com.br/v1/images/${PUBLIC_ID}`);
+  assert.equal(seen[0]?.key, env.APIMG_API_KEY);
+
+  const absent = createApimgLandingPageMediaStorage({
+    env,
+    fetch: async () => response({ public_id: PUBLIC_ID, deleted: false }),
+  });
+  await absent.delete(PUBLIC_ID);
+
+  const reader = createApimgLandingPageMediaStorage({
+    env,
+    fetch: async (_input, init) => {
+      assert.equal(init?.method, "GET");
+      assert.equal(new Headers(init?.headers).get("X-API-Key"), null);
+      return new Response(png, { status: 200 });
+    },
+  });
+  const read = await reader.get(`https://apimg.com.br/${PUBLIC_ID}`);
+  assert.equal(read?.bytes.byteLength, png.byteLength);
+
+  const unsafe = ["../secret.png", "/tmp/a.png", "https://apimg.com.br/a.png", `${PUBLIC_ID}?x=1`, "igh/sintetico", " "];
+  for (const key of unsafe) {
+    let calls = 0;
+    const guarded = createApimgLandingPageMediaStorage({
+      env,
+      fetch: async () => {
+        calls += 1;
+        return response({});
+      },
+    });
+    await assert.rejects(() => guarded.delete(key), /invalid/);
+    assert.equal(calls, 0);
+  }
+
+  const failures: Array<{ status: number; body: string }> = [
+    { status: 401, body: JSON.stringify({ detail: `denied ${env.APIMG_API_KEY}` }) },
+    { status: 403, body: JSON.stringify({ message: "forbidden" }) },
+    { status: 400, body: JSON.stringify({ detail: "bad" }) },
+    { status: 500, body: "not-json" },
+  ];
+  for (const item of failures) {
+    const failing = createApimgLandingPageMediaStorage({
+      env,
+      fetch: async () => new Response(item.body, { status: item.status }),
+    });
+    await assert.rejects(() => failing.delete(PUBLIC_ID), (error: unknown) => {
+      const message = String(error);
+      assert.equal(message.includes(env.APIMG_API_KEY), false);
+      assert.equal(message.includes("X-API-Key"), false);
+      assert.match(message, new RegExp(String(item.status)));
+      return true;
+    });
+  }
+
+  const mismatch = createApimgLandingPageMediaStorage({
+    env,
+    fetch: async () => response({ public_id: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png", deleted: true }),
+  });
+  await assert.rejects(() => mismatch.delete(PUBLIC_ID), /incomplete/);
+  const invalid = createApimgLandingPageMediaStorage({
+    env,
+    fetch: async () => new Response("not-json", { status: 200 }),
+  });
+  await assert.rejects(() => invalid.delete(PUBLIC_ID), /incomplete/);
+
+  const timedOut = createApimgLandingPageMediaStorage({
+    env,
+    timeoutMs: 20,
+    fetch: async (_input, init) => {
+      assert.ok(init?.signal);
+      throw new Error(`aborted ${env.APIMG_API_KEY}`);
+    },
+  });
+  await assert.rejects(() => timedOut.delete(PUBLIC_ID), (error: unknown) => {
+    assert.equal(String(error).includes(env.APIMG_API_KEY), false);
+    assert.match(String(error), /APIMG delete failed/);
+    return true;
+  });
+});
+
+test("limpeza de órfãos protege referências e só conclui depois do delete físico", async () => {
+  const calls: string[] = [];
+  const storage = {
+    async delete(storageKey: string) {
+      calls.push(storageKey);
+      if (storageKey.endsWith(".fail")) throw new Error("APIMG delete failed (500)");
+    },
+  };
+  const saved: string[] = [];
+  const draft = createEmptyLandingPageDocument();
+  draft.mediaRefs.push({ mediaId: "draft-id", usage: "GENERAL" });
+  const active = { mediaId: "active-id" };
+  const historical = { sections: [{ mediaIds: ["hist-id"] }] };
+  const rollback = { avatarMediaId: "roll-id" };
+  assert.equal(snapshotReferencesMedia(active, "active-id"), true);
+  assert.equal(snapshotReferencesMedia(historical, "hist-id"), true);
+  assert.equal(snapshotReferencesMedia(rollback, "roll-id"), true);
+  const records = [
+    orphan("eligible"),
+    orphan("already", { status: "DELETED" }),
+    orphan("draft-id"),
+    orphan("active-id"),
+    orphan("hist-id"),
+    orphan("roll-id"),
+    orphan("recent", { updatedAt: new Date() }),
+    orphan("broken", { storageKey: `${PUBLIC_ID.slice(0, 32)}.fail` }),
+  ];
+  const external = orphan("external", { landingPageProjectId: "other-project" });
+  const cleanup = await cleanupLandingPageMediaOrphans({
+    records,
+    drafts: [{ projectId: "project-a", document: draft }],
+    publicationReferencesMedia: (_projectId, mediaId) =>
+      snapshotReferencesMedia(active, mediaId) || snapshotReferencesMedia(historical, mediaId) || snapshotReferencesMedia(rollback, mediaId),
+    dryRun: false,
+    storage,
+    save: async (record) => {
+      saved.push(record.id);
+    },
+    now: Date.now(),
+  });
+  assert.deepEqual(calls, [PUBLIC_ID, `${PUBLIC_ID.slice(0, 32)}.fail`]);
+  assert.equal(cleanup.deleted, 1);
+  assert.equal(cleanup.failed, 1);
+  assert.equal(records.find((item) => item.id === "eligible")?.status, "DELETED");
+  assert.equal(records.find((item) => item.id === "eligible")?.publicUrl, null);
+  assert.equal(records.find((item) => item.id === "broken")?.status, "READY");
+  assert.equal(records.find((item) => item.id === "draft-id")?.status, "READY");
+  assert.equal(records.find((item) => item.id === "active-id")?.status, "READY");
+  assert.equal(records.find((item) => item.id === "hist-id")?.status, "READY");
+  assert.equal(records.find((item) => item.id === "roll-id")?.status, "READY");
+  assert.equal(records.find((item) => item.id === "recent")?.status, "READY");
+  assert.equal(external.status, "READY");
+  assert.deepEqual(saved, ["eligible"]);
+
+  calls.length = 0;
+  const absent = orphan("absent");
+  const absentCleanup = await cleanupLandingPageMediaOrphans({
+    records: [absent],
+    drafts: [],
+    publicationReferencesMedia: () => false,
+    dryRun: false,
+    storage: { async delete() { calls.push("absent"); } },
+    save: async () => undefined,
+  });
+  assert.equal(absentCleanup.deleted, 1);
+  assert.equal(absent.status, "DELETED");
+
+  const repeated = await cleanupLandingPageMediaOrphans({
+    records: [absent],
+    drafts: [],
+    publicationReferencesMedia: () => false,
+    dryRun: false,
+    storage: { async delete() { calls.push("again"); } },
+    save: async () => undefined,
+  });
+  assert.equal(repeated.eligible, 0);
+  assert.equal(repeated.deleted, 0);
+  assert.deepEqual(calls, ["absent"]);
+
+  const preview = orphan("preview");
+  const dry = await cleanupLandingPageMediaOrphans({
+    records: [preview],
+    drafts: [],
+    publicationReferencesMedia: () => false,
+    storage: { async delete() { calls.push("dry"); } },
+  });
+  assert.equal(dry.eligible, 1);
+  assert.equal(dry.deleted, 0);
+  assert.equal(preview.status, "READY");
+  assert.equal(calls.includes("dry"), false);
+
+  const report = evaluateLandingPagePublicReleaseReadiness({
+    env: {
+      APIMG_UPLOAD_URL: env.APIMG_UPLOAD_URL,
+      APIMG_API_KEY: env.APIMG_API_KEY,
+      APIMG_UPLOAD_FOLDER: env.APIMG_UPLOAD_FOLDER,
+      APIMG_SITE_UPLOAD_FOLDER: env.APIMG_SITE_UPLOAD_FOLDER,
+      LANDING_PAGE_RATE_LIMIT_SECRET: "x".repeat(32),
+    },
+  });
+  assert.equal(report.status, "BLOCKED");
+  assert.equal(report.checks.find((item) => item.id === "LIVE_MEDIA_STORAGE")?.status, "PASS");
+  assert.equal(report.checks.find((item) => item.id === "MEDIA_ORPHAN_CLEANUP")?.status, "PASS");
+  assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.status, "BLOCKED");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "BLOCKED");
+  assert.equal(PRIVACY_POLICY_UPDATE_REQUIRED, true);
 });

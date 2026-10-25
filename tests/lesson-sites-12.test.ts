@@ -407,7 +407,7 @@ test("preview continua sem ação e a página pública executa ação, formulár
 
 test("privacidade, gate e curso continuam fechados", () => {
   assert.equal(landingPagePublicRuntimeEnabled({}), false);
-  assert.equal(LIVE_MEDIA_STORE_READY, false);
+  assert.equal(LIVE_MEDIA_STORE_READY, true);
   const editor = readFileSync("src/components/learning/LandingPagePublicationEditor.tsx", "utf8");
   const flow = readFileSync("src/lib/landing-page/publication/lesson-flow.ts", "utf8");
   const tool = readFileSync("src/components/learning/LandingPagePublicationTool.tsx", "utf8");

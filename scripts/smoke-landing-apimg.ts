@@ -1,5 +1,5 @@
 import { config as loadEnv } from "dotenv";
-import { createApimgLandingPageMediaStorage, readApimgLandingMediaConfig } from "../src/lib/landing-page/media/apimg-storage";
+import { apimgDeleteUrl, createApimgLandingPageMediaStorage, readApimgLandingMediaConfig } from "../src/lib/landing-page/media/apimg-storage";
 
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
@@ -26,14 +26,17 @@ function syntheticPng(): Buffer {
 
 async function main(): Promise<void> {
   const png = syntheticPng();
-  if (!readApimgLandingMediaConfig()) {
+  const config = readApimgLandingMediaConfig();
+  if (!config) {
     console.log("NOT_CONFIGURED");
     return;
   }
   const storage = createApimgLandingPageMediaStorage();
+  let storageKey: string | null = null;
   try {
     const created = await storage.put("synthetic", png, "image/png") as { url: string; storageKey?: string; status: number; format: string; bytes: number };
-    if (!created.url.startsWith("https://") || !created.storageKey || !created.format || !Number.isFinite(created.bytes)) {
+    storageKey = created.storageKey ?? null;
+    if (!created.url.startsWith("https://") || !storageKey || !created.format || !Number.isFinite(created.bytes)) {
       throw new Error("APIMG response is incomplete");
     }
     const read = await fetch(created.url, { method: "GET" });
@@ -45,10 +48,33 @@ async function main(): Promise<void> {
     console.log(`FORMAT ${created.format}`);
     console.log(`BYTES ${created.bytes}`);
     console.log("PUBLIC_READ PASS");
-    console.log("DELETE_NOT_SUPPORTED");
+    await storage.delete(storageKey);
+    console.log("DELETE PASS");
+    const after = await fetch(created.url, { method: "GET" });
+    if (after.status !== 404) throw new Error(`read after delete status ${after.status}`);
+    console.log("PUBLIC_READ_AFTER_DELETE 404");
+    const again = await fetch(apimgDeleteUrl(config.uploadUrl, storageKey), {
+      method: "DELETE",
+      headers: { "X-API-Key": config.apiKey },
+      signal: AbortSignal.timeout(30_000),
+    });
+    const body = JSON.parse(await again.text()) as { public_id?: unknown; deleted?: unknown };
+    if (!again.ok || body.public_id !== storageKey || body.deleted !== false) {
+      throw new Error(`idempotent delete status ${again.status}`);
+    }
+    console.log("IDEMPOTENT_DELETE PASS");
+    storageKey = null;
   } catch (error) {
     console.log(`FAIL ${safeFailure(error)}`);
     process.exitCode = 1;
+  } finally {
+    if (storageKey) {
+      try {
+        await storage.delete(storageKey);
+      } catch {
+        process.exitCode = 1;
+      }
+    }
   }
 }
 

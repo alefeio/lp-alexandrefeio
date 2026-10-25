@@ -28,5 +28,5 @@ export function landingPagePublicRouteEnabled(env?: RuntimeEnv): boolean {
   return landingPageRateLimitSecret(env) !== null;
 }
 
-/** O armazenamento ao vivo ainda não passou pelo smoke de upload, leitura e exclusão. */
-export const LIVE_MEDIA_STORE_READY = false;
+/** O ciclo sintético de upload, leitura, exclusão e leitura 404 foi confirmado. Não liga o runtime público. */
+export const LIVE_MEDIA_STORE_READY = true;

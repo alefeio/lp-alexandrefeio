@@ -18,8 +18,8 @@ export type LandingPageMediaOrphanCleanup = {
 
 /**
  * Órfã: não está no rascunho, em nenhum snapshot publicado, nem em upload ainda dentro da janela.
- * Mídia de publicação histórica nunca entra. A exclusão real só ocorre com dryRun false.
- * Se o armazenamento falha, o registro permanece.
+ * Mídia de publicação ativa, histórica ou de rollback nunca entra. A exclusão real só ocorre com dryRun false.
+ * deleted=false na APIMG é arquivo já ausente e conta como sucesso. Se o armazenamento falha, o registro permanece.
  */
 export async function cleanupLandingPageMediaOrphans(input: {
   records: LandingPageMediaRecord[];
