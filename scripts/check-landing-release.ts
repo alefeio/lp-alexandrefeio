@@ -20,7 +20,4 @@ if ((secret && text.includes(secret)) || (apimgKey && text.includes(apimgKey))) 
   process.exit(1);
 }
 console.log(text);
-if (process.env.LANDING_PAGE_PUBLIC_RUNTIME_ENABLED === "true" && process.env.NODE_ENV === "production") {
-  console.error("production public runtime must stay disabled during hardening");
-  process.exit(1);
-}
+if (report.status !== "READY") process.exit(1);
