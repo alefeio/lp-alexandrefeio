@@ -5,12 +5,12 @@ import { Container } from "@/components/ui/Container";
 
 export const metadata: Metadata = {
   title: "Privacidade",
-  description: "Como Alexandre Feio usa dados de contato, de conta e de estudo.",
+  description: "Como Alexandre Feio usa dados de contato, de conta, de estudo, de landing pages, de leads e de métricas.",
   alternates: { canonical: "/privacidade" },
   openGraph: {
     url: "/privacidade",
     title: "Privacidade",
-    description: "Como Alexandre Feio usa dados de contato, de conta e de estudo.",
+    description: "Como Alexandre Feio usa dados de contato, de conta, de estudo, de landing pages, de leads e de métricas.",
   },
   robots: {
     index: true,
@@ -70,10 +70,53 @@ export default function PrivacyPage() {
               cookies. Essa escolha pode ser alterada depois em Preferências de cookies, no rodapé. Informações de
               campanha, como origem, mídia e parâmetros de anúncio presentes na URL, podem acompanhar a solicitação
               para identificar de onde o contato veio. Esses dados administrativos não entram nas ferramentas de
-              analytics sem consentimento.
+              analytics sem consentimento. Esse banner vale para {host}. Landing pages publicadas por usuários da
+              plataforma não carregam automaticamente o GTM, o Google Analytics nem o Meta Pixel da plataforma. O dono
+              da página também não recebe essas ferramentas só por publicá-la. Uma integração própria, se existir no
+              futuro, pede revisão desta página.
+            </p>
+            <h2 className="pt-4 text-lg font-semibold text-foreground">Landing pages criadas na plataforma</h2>
+            <p>
+              Usuários autenticados podem criar e publicar landing pages. Essas páginas podem ter botões, links
+              externos, WhatsApp e formulários de contato. Os dados solicitados podem variar conforme o formulário
+              configurado na página. O lead enviado pela landing page fica disponível somente para o usuário autenticado
+              responsável pelo respectivo projeto. Ele não fica público e não fica visível para outro usuário da
+              plataforma.
             </p>
             <p>
-              Dúvidas sobre este uso podem ser enviadas para{" "}
+              Os dados enviados por esses formulários ficam na plataforma por até 12 meses a partir do envio. Depois
+              desse prazo, são excluídos. Arquivar um lead organiza a lista do responsável e não amplia esse prazo.
+              Esta página não promete que cópias de infraestrutura desapareçam no mesmo instante.
+            </p>
+            <p>
+              A landing page pode registrar contagens agregadas de visualização da página, clique em CTA, clique para
+              WhatsApp, início de formulário e envio concluído. Essas informações ficam como contagens agregadas por
+              dia e por publicação. Não há histórico analítico individual do visitante para esses eventos. As contagens
+              antigas são removidas depois de 24 meses.
+            </p>
+            <p>
+              O aplicativo não armazena o endereço IP bruto nos registros de leads nem nas métricas agregadas do
+              Landing Page Builder para fins analíticos. Para proteção contra abuso, a aplicação pode derivar
+              identificadores técnicos temporários e pseudonimizados, usados em janelas de limitação de requisições.
+            </p>
+            <p>
+              Imagens enviadas por quem cria a landing page podem ficar publicamente acessíveis para a página ser
+              exibida. Esse arquivo fica no serviço de armazenamento de mídia utilizado pela plataforma, hoje a APIMG.
+              Mídia usada pelo projeto ou por uma versão publicada pode permanecer enquanto for necessária para a página
+              atual, para o histórico de publicações e para a restauração de versões. Uploads não utilizados podem ser
+              removidos depois de uma janela técnica de limpeza.
+            </p>
+            <p>
+              A ferramenta de IA pode ajudar o usuário autenticado a escrever o conteúdo da própria landing page. Dados
+              enviados por visitantes nos formulários públicos não são encaminhados à OpenAI para gerar esse texto.
+              Métricas dos visitantes também não são enviadas à OpenAI para esse fim.
+            </p>
+            <p>
+              WhatsApp, links externos e outros provedores podem levar o visitante para serviços de terceiros. Depois
+              que a pessoa segue esses links, o tratamento também passa a seguir as políticas desses serviços.
+            </p>
+            <p>
+              Dúvidas sobre este uso, e solicitações relacionadas a dados, podem ser enviadas para{" "}
               <a className="text-foreground underline underline-offset-4" href={`mailto:${siteConfig.contact.email}`}>
                 {siteConfig.contact.email}
               </a>

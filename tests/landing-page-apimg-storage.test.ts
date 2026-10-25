@@ -477,7 +477,8 @@ test("limpeza de órfãos protege referências e só conclui depois do delete f�
   assert.equal(report.status, "BLOCKED");
   assert.equal(report.checks.find((item) => item.id === "LIVE_MEDIA_STORAGE")?.status, "PASS");
   assert.equal(report.checks.find((item) => item.id === "MEDIA_ORPHAN_CLEANUP")?.status, "PASS");
-  assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.status, "BLOCKED");
-  assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "BLOCKED");
-  assert.equal(PRIVACY_POLICY_UPDATE_REQUIRED, true);
+  assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.status, "PASS");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "PASS");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.status, "BLOCKED");
+  assert.equal(PRIVACY_POLICY_UPDATE_REQUIRED, false);
 });

@@ -19,22 +19,28 @@ Pronto no código, com o runtime de produção ainda desligado:
 
 ## POLICY DECISIONS
 
-Ainda sem decisão do proprietário. Não foram escolhidas nesta etapa:
+Privacidade e retenção da landing page, V1:
 
-- Duração da retenção de leads.
-- Retenção de mídia depois de despublicar ou encerrar a conta.
-- Duração da retenção das contagens diárias.
-- CAPTCHA no lançamento. O código trata como desnecessário para o MVP enquanto honeypot, limitador, validação e idempotência estiverem ativos. Pode ser revisto se o abuso aparecer.
+- `PRIVACY_POLICY`: FINALIZED. A página `/privacidade` cobre formulário de landing, campos variáveis, acesso só do responsável, métricas agregadas, mídia pública, limite com a OpenAI e analytics de terceiros.
+- `LEAD_RETENTION`: 12 months, a partir de `createdAt`, depois exclusão. Arquivar não renova.
+- `METRICS_RETENTION`: 24 months, a partir de `date`, depois exclusão da linha agregada.
+- `MEDIA_RETENTION`: referenced/historical retained; unreferenced follows orphan cleanup.
+- `CAPTCHA`: NOT_REQUIRED_FOR_MVP.
+- `VISITOR_DATA_TO_OPENAI`: NO.
+- `THIRD_PARTY_ANALYTICS_ON_STUDENT_PAGES`: NONE_BY_DEFAULT.
+
+Ainda sem decisão comercial. Não foram escolhidas nesta etapa:
+
 - Cota comercial de gerações de copy.
 - Direito de hospedagem depois da compra do curso.
 - Quantidade de páginas por usuário.
 - Cota de armazenamento e limite comercial de mídia.
-
-A página `/privacidade` precisa ser atualizada antes de receber leads públicos. O texto atual não cobre formulário de landing, acesso do dono aos leads, contagens agregadas de primeira parte, mídia pública nem retenção ainda indefinida.
+- Limite comercial de leads.
+- Domínio próprio e exportação de código.
 
 ## MANUAL RELEASE STEPS
 
-1. Definir as políticas acima e atualizar `/privacidade`.
+1. Agendar `npm run landing:retention` em produção. Sem `--execute`, o comando só conta. O agendamento ainda não existe.
 2. Confirmar `LANDING_PAGE_RATE_LIMIT_SECRET` no servidor, com pelo menos 32 caracteres. Sem prefixo público.
 3. Confirmar no servidor `APIMG_UPLOAD_URL`, `APIMG_API_KEY`, `APIMG_UPLOAD_FOLDER=alexandre-feio/uploads` e `APIMG_SITE_UPLOAD_FOLDER=alexandre-feio/site`. As pastas não vão no POST. O smoke sintético cobre upload, leitura, exclusão e a leitura 404.
 4. Aplicar a migration aditiva se ainda não estiver no banco de produção.

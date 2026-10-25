@@ -874,7 +874,7 @@ enum LandingPageMetricEvent {
 }
 
 /// Lead privado do dono da landing. Sem IP, user agent ou cabeçalhos.
-/// OPEN BUSINESS DECISION: política de retenção. Sem exclusão automática nesta fase.
+/// Retenção V1: 12 meses a partir de createdAt, depois exclusão. Arquivar não renova o prazo.
 model LandingPageLead {
   id                   String                 @id
   landingPageProjectId String

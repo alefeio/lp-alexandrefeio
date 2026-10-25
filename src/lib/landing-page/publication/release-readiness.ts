@@ -2,18 +2,23 @@ import { siteConfig } from "@/data/site-config";
 import { LIVE_MEDIA_STORE_READY, landingPagePublicRuntimeEnabled } from "@/lib/landing-page/publication/gate";
 import { landingPageRateLimitSecret } from "@/lib/landing-page/rate-limit/secret";
 import { APIMG_PHYSICAL_DELETE_SUPPORTED, readApimgLandingMediaConfig } from "@/lib/landing-page/media/apimg-storage";
+import {
+  RETENTION_DECISIONS_FINALIZED,
+  RETENTION_MAINTENANCE_SCHEDULED,
+} from "@/lib/landing-page/retention/policy";
+
+export {
+  LEAD_RETENTION_POLICY,
+  MEDIA_RETENTION_POLICY,
+  METRICS_RETENTION_POLICY,
+  RETENTION_DECISIONS_FINALIZED,
+  RETENTION_MAINTENANCE_SCHEDULED,
+} from "@/lib/landing-page/retention/policy";
 
 export const CAPTCHA_REQUIRED_AT_LAUNCH = "NOT_REQUIRED_FOR_MVP" as const;
-export const LEAD_RETENTION_POLICY = "OPEN_DECISION" as const;
-export const MEDIA_RETENTION_POLICY = "OPEN_DECISION" as const;
-export const METRICS_RETENTION_POLICY = "OPEN_DECISION" as const;
 
-/**
- * A página /privacidade cobre contato, conta, estudo, projeto e compra.
- * Ainda não cobre formulário de landing, acesso do dono aos leads, contagem agregada,
- * mídia pública nem retenção em aberto.
- */
-export const PRIVACY_POLICY_UPDATE_REQUIRED = true;
+/** A página /privacidade descreve formulário de landing, acesso do dono, métricas, mídia e prazos. */
+export const PRIVACY_POLICY_UPDATE_REQUIRED = false;
 
 /** A exclusão física da APIMG e a limpeza de órfãos com proteção histórica estão cobertas. */
 export const MEDIA_ORPHAN_CLEANUP_READY = APIMG_PHYSICAL_DELETE_SUPPORTED;
@@ -63,7 +68,7 @@ export function evaluateLandingPageProductionReadinessConfig(env: ReadinessEnv =
 }
 
 /**
- * Consolidado do corte. Políticas em aberto e o runtime desligado mantêm BLOCKED.
+ * Consolidado do corte. Passos manuais de produção e o runtime desligado mantêm BLOCKED.
  * Não é uma nota.
  */
 export function evaluateLandingPagePublicReleaseReadiness(input?: {
@@ -89,7 +94,8 @@ export function evaluateLandingPagePublicReleaseReadiness(input?: {
     check("PUBLIC_RUNTIME_SMOKE", true, "TECHNICAL_BLOCKER"),
     check("RESPONSIVE_PUBLIC_SMOKE", true, "MANUAL_RELEASE_STEP"),
     check("PRIVACY_POLICY", !PRIVACY_POLICY_UPDATE_REQUIRED, "POLICY_BLOCKER"),
-    check("RETENTION_DECISIONS", false, "POLICY_BLOCKER"),
+    check("RETENTION_DECISIONS", RETENTION_DECISIONS_FINALIZED, "POLICY_BLOCKER"),
+    check("RETENTION_MAINTENANCE_SCHEDULE", RETENTION_MAINTENANCE_SCHEDULED, "MANUAL_RELEASE_STEP"),
     check("DURABLE_LIMITER_MIGRATION", migrationPresent, "TECHNICAL_BLOCKER"),
     ...config.checks,
   ];

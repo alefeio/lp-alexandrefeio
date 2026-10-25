@@ -4,8 +4,8 @@ import type { LandingPageMediaStorage } from "@/lib/landing-page/media/storage";
 import type { LandingPageDocumentV1 } from "@/lib/landing-page/document";
 
 /**
- * Janela técnica para upload abandonado ou arquivo que acabou de sair do rascunho.
- * Não é política de retenção do cliente.
+ * Janela técnica da política V1 para mídia sem referência.
+ * Mídia citada por rascunho, publicação ou snapshot histórico não usa este prazo.
  */
 export const LANDING_PAGE_MEDIA_ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
 

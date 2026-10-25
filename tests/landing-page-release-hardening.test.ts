@@ -434,18 +434,25 @@ test("configuração de release não imprime segredo e produção sem segredo fi
   assert.equal(report.status, "BLOCKED");
   assert.equal(JSON.stringify(report).includes(secret), false);
   assert.equal(JSON.stringify(report).includes("apimg-key-hidden"), false);
-  assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.kind, "POLICY_BLOCKER");
-  assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "BLOCKED");
+  assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.status, "PASS");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "PASS");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.status, "BLOCKED");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.kind, "MANUAL_RELEASE_STEP");
   assert.equal(CAPTCHA_REQUIRED_AT_LAUNCH, "NOT_REQUIRED_FOR_MVP");
-  assert.equal(LEAD_RETENTION_POLICY, "OPEN_DECISION");
-  assert.equal(MEDIA_RETENTION_POLICY, "OPEN_DECISION");
-  assert.equal(METRICS_RETENTION_POLICY, "OPEN_DECISION");
-  assert.equal(PRIVACY_POLICY_UPDATE_REQUIRED, true);
+  assert.equal(LEAD_RETENTION_POLICY.months, 12);
+  assert.equal(LEAD_RETENTION_POLICY.basis, "createdAt");
+  assert.equal(LEAD_RETENTION_POLICY.action, "DELETE");
+  assert.equal(METRICS_RETENTION_POLICY.months, 24);
+  assert.equal(METRICS_RETENTION_POLICY.basis, "date");
+  assert.equal(METRICS_RETENTION_POLICY.action, "DELETE");
+  assert.equal(MEDIA_RETENTION_POLICY.referenced, "RETAIN_WHILE_REFERENCED_OR_HISTORICAL");
+  assert.equal(MEDIA_RETENTION_POLICY.orphanGraceHours, 24);
+  assert.equal(PRIVACY_POLICY_UPDATE_REQUIRED, false);
 });
 
 test("privacidade, cabeçalhos e conteúdo público continuam contidos", () => {
   const privacy = readFileSync("src/app/(public)/privacidade/page.tsx", "utf8");
-  assert.equal(privacy.includes("landing"), false);
+  assert.match(privacy, /landing pages/);
   const headers = readFileSync("next.config.ts", "utf8");
   assert.match(headers, /X-Content-Type-Options/);
   assert.match(headers, /strict-origin-when-cross-origin/);
