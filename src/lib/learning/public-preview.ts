@@ -84,6 +84,56 @@ export const LESSON_07_PUBLIC_PREVIEW_KEYS = [
   "intencao-nao-e-nota",
 ] as const;
 
+export const SITE_LESSON_04_PUBLIC_PREVIEW_KEYS = [
+  "pagina-nasce-da-estrategia",
+  "abertura-layout",
+  "callout-nao-comeca-pela-cor",
+] as const;
+
+export const SITE_LESSON_05_PUBLIC_PREVIEW_KEYS = [
+  "duas-pessoas-mesma-pagina",
+  "abertura-duas-pessoas",
+  "callout-sequencia-de-decisoes",
+] as const;
+
+export const SITE_LESSON_06_PUBLIC_PREVIEW_KEYS = [
+  "sai-do-planejamento",
+  "abertura-estrutura",
+  "callout-esqueleto",
+] as const;
+
+export const SITE_LESSON_07_PUBLIC_PREVIEW_KEYS = [
+  "estrutura-ainda-nao-e-mensagem",
+  "abertura-contraste",
+  "callout-clareza",
+] as const;
+
+export const SITE_LESSON_08_PUBLIC_PREVIEW_KEYS = [
+  "mesmos-textos-duas-paginas",
+  "abertura-contraste",
+  "nao-e-curso-de-design",
+] as const;
+
+export const SITE_LESSON_09_PUBLIC_PREVIEW_KEYS = [
+  "confianca-antes-da-acao",
+  "pergunta-de-abertura",
+] as const;
+
+export const SITE_LESSON_10_PUBLIC_PREVIEW_KEYS = [
+  "abertura",
+  "pagina-no-celular",
+] as const;
+
+export const SITE_LESSON_11_PUBLIC_PREVIEW_KEYS = [
+  "abertura",
+  "numeros-sem-pergunta",
+] as const;
+
+export const SITE_LESSON_12_PUBLIC_PREVIEW_KEYS = [
+  "abertura",
+  "chegou-para-publicar",
+] as const;
+
 export const LESSON_06_PUBLIC_PREVIEW_KEYS = [
   "campanha-antes-da-plataforma",
   "pesquisa-nao-comeca-palavra-chave",

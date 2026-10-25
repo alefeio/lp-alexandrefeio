@@ -11,11 +11,21 @@ import { LESSON_09_SLUG } from "@/lib/learning/lesson-09";
 import { LESSON_10_SLUG } from "@/lib/learning/lesson-10";
 import { LESSON_11_SLUG, LESSON_12_SLUG } from "@/lib/learning/lesson-11";
 import { PUBLIC_PREVIEW_TYPES } from "@/lib/learning/public-preview";
+import { SITE_LESSON_04_SLUG } from "@/lib/learning/site-oferta-publico-acao-principal";
+import { SITE_LESSON_05_SLUG } from "@/lib/learning/site-jornada-do-visitante";
+import { SITE_LESSON_06_SLUG } from "@/lib/learning/site-organize-as-secoes-da-pagina";
+import { SITE_LESSON_07_SLUG } from "@/lib/learning/site-mensagem-que-deixa-a-oferta-clara";
+import { SITE_LESSON_08_SLUG } from "@/lib/learning/site-hierarquia-visual-e-atencao";
+import { SITE_LESSON_09_SLUG } from "@/lib/learning/site-construa-confianca";
+import { SITE_LESSON_10_SLUG } from "@/lib/learning/site-pagina-mobile-e-experiencia";
+import { SITE_LESSON_11_SLUG } from "@/lib/learning/site-configure-o-que-precisa-ser-medido";
+import { SITE_LESSON_12_SLUG } from "@/lib/learning/site-revisao-antes-do-trafego";
+import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 
 export const COMMERCE_CATALOG_CONFIRM = "production";
 export const COMMERCE_SHARED_CONFIRM = "shared";
 
-export const FIRST_SALE_ALLOWLIST = [
+export const SALE_ALLOWLIST = [
   { kind: "lesson" as const, slug: LESSON_04_SLUG, priceCents: 2990 },
   { kind: "lesson" as const, slug: LESSON_05_SLUG, priceCents: 3490 },
   { kind: "lesson" as const, slug: LESSON_06_SLUG, priceCents: 3990 },
@@ -30,26 +40,60 @@ export const FIRST_SALE_ALLOWLIST = [
   { kind: "module" as const, slug: "meta-ads-na-pratica", priceCents: 7190 },
   { kind: "module" as const, slug: "entenda-e-melhore", priceCents: 6790 },
   { kind: "course" as const, slug: FIRST_COURSE_SLUG, priceCents: 24990 },
+  { kind: "lesson" as const, slug: SITE_LESSON_04_SLUG, priceCents: 3490 },
+  { kind: "lesson" as const, slug: SITE_LESSON_05_SLUG, priceCents: 3490 },
+  { kind: "lesson" as const, slug: SITE_LESSON_06_SLUG, priceCents: 3990 },
+  { kind: "lesson" as const, slug: SITE_LESSON_07_SLUG, priceCents: 3990 },
+  { kind: "lesson" as const, slug: SITE_LESSON_08_SLUG, priceCents: 3490 },
+  { kind: "lesson" as const, slug: SITE_LESSON_09_SLUG, priceCents: 3490 },
+  { kind: "lesson" as const, slug: SITE_LESSON_10_SLUG, priceCents: 3490 },
+  { kind: "lesson" as const, slug: SITE_LESSON_11_SLUG, priceCents: 3990 },
+  { kind: "lesson" as const, slug: SITE_LESSON_12_SLUG, priceCents: 3990 },
+  { kind: "module" as const, slug: "planeje-antes-de-desenhar", priceCents: 6290 },
+  { kind: "module" as const, slug: "estruture-e-comunique", priceCents: 7190 },
+  { kind: "module" as const, slug: "atencao-e-confianca", priceCents: 6290 },
+  { kind: "module" as const, slug: "publique-mea-e-melhore", priceCents: 10390 },
+  { kind: "course" as const, slug: SITES_COURSE_SLUG, priceCents: 24990 },
 ];
+
+/** Nome histórico. A allowlist agora cobre os dois cursos. */
+export const FIRST_SALE_ALLOWLIST = SALE_ALLOWLIST;
 
 const MODULE_LESSONS: Record<string, readonly string[]> = {
   "planeje-antes-de-anunciar": [LESSON_04_SLUG, LESSON_05_SLUG],
   "google-ads-na-pratica": [LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG],
   "meta-ads-na-pratica": [LESSON_09_SLUG, LESSON_10_SLUG],
   "entenda-e-melhore": [LESSON_11_SLUG, LESSON_12_SLUG],
+  "planeje-antes-de-desenhar": [SITE_LESSON_04_SLUG, SITE_LESSON_05_SLUG],
+  "estruture-e-comunique": [SITE_LESSON_06_SLUG, SITE_LESSON_07_SLUG],
+  "atencao-e-confianca": [SITE_LESSON_08_SLUG, SITE_LESSON_09_SLUG],
+  "publique-mea-e-melhore": [SITE_LESSON_10_SLUG, SITE_LESSON_11_SLUG, SITE_LESSON_12_SLUG],
 };
 
-const COURSE_PAID_LESSONS: readonly string[] = [
-  LESSON_04_SLUG,
-  LESSON_05_SLUG,
-  LESSON_06_SLUG,
-  LESSON_07_SLUG,
-  LESSON_08_SLUG,
-  LESSON_09_SLUG,
-  LESSON_10_SLUG,
-  LESSON_11_SLUG,
-  LESSON_12_SLUG,
-];
+const COURSE_PAID_LESSONS_BY_SLUG: Record<string, readonly string[]> = {
+  [FIRST_COURSE_SLUG]: [
+    LESSON_04_SLUG,
+    LESSON_05_SLUG,
+    LESSON_06_SLUG,
+    LESSON_07_SLUG,
+    LESSON_08_SLUG,
+    LESSON_09_SLUG,
+    LESSON_10_SLUG,
+    LESSON_11_SLUG,
+    LESSON_12_SLUG,
+  ],
+  [SITES_COURSE_SLUG]: [
+    SITE_LESSON_04_SLUG,
+    SITE_LESSON_05_SLUG,
+    SITE_LESSON_06_SLUG,
+    SITE_LESSON_07_SLUG,
+    SITE_LESSON_08_SLUG,
+    SITE_LESSON_09_SLUG,
+    SITE_LESSON_10_SLUG,
+    SITE_LESSON_11_SLUG,
+    SITE_LESSON_12_SLUG,
+  ],
+};
 
 const INCOMPLETE_MODULES = new Set<string>();
 
@@ -217,15 +261,19 @@ export function planCourseEnable(input: {
   };
   const allowed = allowlistItem("course", input.slug);
   if (!allowed) return { ...base, allowed: false, reason: blockedReason("course", input.slug) };
-  if (input.status && input.status !== "PUBLISHED") {
+  if (input.status !== "PUBLISHED") {
     return { ...base, allowed: false, reason: "O curso precisa estar publicado." };
   }
   if (input.priceCents !== allowed.priceCents) {
     return { ...base, allowed: false, reason: "O preço não confere com o valor aprovado." };
   }
+  const required = COURSE_PAID_LESSONS_BY_SLUG[input.slug];
+  if (!required) {
+    return { ...base, allowed: false, reason: "As aulas obrigatórias deste curso não estão configuradas." };
+  }
   const lessons = input.paidLessons ?? [];
   const issues: string[] = [];
-  for (const slug of COURSE_PAID_LESSONS) {
+  for (const slug of required) {
     const lesson = lessons.find((item) => item.slug === slug);
     if (!lesson) {
       issues.push(`A aula ${slug} não está neste curso.`);
@@ -260,7 +308,7 @@ export function planDisable(input: {
 }
 
 function allowlistItem(kind: "lesson" | "module" | "course", slug: string) {
-  return FIRST_SALE_ALLOWLIST.find((item) => item.kind === kind && item.slug === slug) ?? null;
+  return SALE_ALLOWLIST.find((item) => item.kind === kind && item.slug === slug) ?? null;
 }
 
 function blockedReason(kind: "lesson" | "module" | "course", slug: string): string {
@@ -528,9 +576,17 @@ async function findProduct(db: CommerceDb, slug: string): Promise<Found | null> 
 }
 
 async function listCommercialState(db: CommerceDb): Promise<ProductPlan[]> {
-  const course = await db.course.findUnique({ where: { slug: FIRST_COURSE_SLUG } });
+  const rows: ProductPlan[] = [];
+  for (const slug of [FIRST_COURSE_SLUG, SITES_COURSE_SLUG]) {
+    rows.push(...(await listCourseCommercialState(db, slug)));
+  }
+  return rows;
+}
+
+async function listCourseCommercialState(db: CommerceDb, courseSlug: string): Promise<ProductPlan[]> {
+  const course = await db.course.findUnique({ where: { slug: courseSlug } });
   const modules = await db.module.findMany({
-    where: { course: { slug: FIRST_COURSE_SLUG } },
+    where: { course: { slug: courseSlug } },
     orderBy: { sortOrder: "asc" },
     include: { lessons: { orderBy: { sortOrder: "asc" } } },
   });

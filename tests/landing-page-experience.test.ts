@@ -502,9 +502,9 @@ test("fixture, privacidade e regressão do curso", () => {
   assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), true);
   assert.equal(existsSync("src/lib/learning/site-mensuracao-da-pagina.ts"), false);
   assert.equal(existsSync("src/lib/learning/site-construa-confianca.ts"), true);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
   assert.deepEqual([...EXPERIENCE_FINDING_CATEGORIES], ["RESPONSIVE", "READABILITY", "HIERARCHY", "ACTION", "FORM", "MEDIA", "CONTENT", "NAVIGATION", "ACCESSIBILITY", "PERFORMANCE_PERCEIVED"]);
   assert.deepEqual([...EXPERIENCE_SEVERITIES], ["INFO", "ATTENTION", "BLOCKER"]);
   assert.deepEqual([...EXPERIENCE_REVIEW_STATUSES], ["NOT_REVIEWED", "NEEDS_ADJUSTMENTS", "READY_FOR_NEXT_STEP", "STALE"]);

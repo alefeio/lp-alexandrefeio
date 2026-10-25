@@ -1,3 +1,4 @@
+import { assessLesson } from "@/lib/editorial/readiness";
 import { getPrisma } from "@/lib/db/prisma";
 import { commercePatch, commerceStatusForCreate, type CatalogCommerceOptions, preserveCommerce } from "@/lib/learning/catalog-commerce";
 import { firstCourseSeed } from "@/lib/learning/first-course";
@@ -38,13 +39,7 @@ import { seedSitePaginaMobileExperienciaContent } from "@/lib/learning/seed-site
 import { seedSiteConfigureOQuePrecisaSerMedidoContent } from "@/lib/learning/seed-site-configure-o-que-precisa-ser-medido";
 import { seedSiteRevisaoAntesDoTrafegoContent } from "@/lib/learning/seed-site-revisao-antes-do-trafego";
 import { reconcileSiteLesson11Slug } from "@/lib/learning/site-lesson-11-slug";
-import { SITE_LESSON_01_SLUG } from "@/lib/learning/site-ajuda-a-vender";
-import { SITE_LESSON_02_SLUG } from "@/lib/learning/site-landing-page-ou-whatsapp";
-import { SITE_LESSON_03_SLUG } from "@/lib/learning/site-pagina-pronta-para-converter";
-import { SITE_LESSON_04_SLUG } from "@/lib/learning/site-oferta-publico-acao-principal";
-import { SITE_LESSON_05_SLUG } from "@/lib/learning/site-jornada-do-visitante";
-import { SITE_LESSON_06_SLUG } from "@/lib/learning/site-organize-as-secoes-da-pagina";
-import { sitesCourseSeed } from "@/lib/learning/sites-course";
+import { sitesCourseLessons, sitesCourseSeed } from "@/lib/learning/sites-course";
 
 const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LESSON_05_SLUG, LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG, LESSON_09_SLUG, LESSON_10_SLUG, LESSON_11_SLUG, LESSON_12_SLUG]);
 
@@ -168,7 +163,7 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
   const lesson12 = await seedLesson12Content(prisma, seedOptions);
   const lessons = await prisma.lesson.count({ where: { module: { courseId: course.id } } });
   const blocks = await prisma.lessonBlock.count({ where: { lesson: { module: { courseId: course.id } } } });
-  const sitesCourse = await deploySitesCourseScaffold();
+  await deploySitesCourseScaffold({ preserveCommerceStatus: keepSale });
   const siteLesson01 = await seedSiteAjudaAVenderContent(prisma, seedOptions);
   const siteLesson02 = await seedSiteLandingWhatsappContent(prisma, seedOptions);
   const siteLesson03 = await seedSitePaginaProntaContent(prisma, seedOptions);
@@ -181,6 +176,7 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
   const siteLesson10 = await seedSitePaginaMobileExperienciaContent(prisma, seedOptions);
   const siteLesson11 = await seedSiteConfigureOQuePrecisaSerMedidoContent(prisma, seedOptions);
   const siteLesson12 = await seedSiteRevisaoAntesDoTrafegoContent(prisma, seedOptions);
+  const sitesCourse = await publishSitesCourseCatalog();
   return {
     course: course.slug,
     lessons,
@@ -214,13 +210,14 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
 }
 
 /**
- * Scaffold do segundo curso: DRAFT + NOT_FOR_SALE (release público suspenso).
- * Aulas 1–12 recebem conteúdo via seeds (PUBLISHED internamente). O curso permanece DRAFT e NOT_FOR_SALE.
- * Idempotente por slug. Não cria Tool/LessonResult, LandingPageProject nem ativa AVAILABLE.
+ * Estrutura do segundo curso. Registro novo nasce DRAFT e NOT_FOR_SALE.
+ * O update preserva commerceStatus e não devolve curso, módulo ou aula para DRAFT.
+ * A publicação do curso só acontece depois dos seeds, em publishSitesCourseCatalog.
+ * Não cria Tool/LessonResult, LandingPageProject nem marca AVAILABLE.
  */
-export async function deploySitesCourseScaffold() {
+export async function deploySitesCourseScaffold(options: CatalogCommerceOptions = {}) {
   const prisma = getPrisma();
-  const now = new Date();
+  const keepSale = preserveCommerce(options);
   const course = await prisma.course.upsert({
     where: { slug: sitesCourseSeed.slug },
     create: {
@@ -240,9 +237,7 @@ export async function deploySitesCourseScaffold() {
       description: sitesCourseSeed.description,
       sortOrder: sitesCourseSeed.sortOrder,
       bundlePriceCents: sitesCourseSeed.bundlePriceCents,
-      status: "DRAFT",
-      commerceStatus: "NOT_FOR_SALE",
-      publishedAt: null,
+      ...commercePatch(keepSale),
     },
   });
 
@@ -266,8 +261,7 @@ export async function deploySitesCourseScaffold() {
         description: moduleSeed.description,
         sortOrder: moduleSeed.sortOrder,
         bundlePriceCents: moduleSeed.bundlePriceCents,
-        status: "DRAFT",
-        commerceStatus: "NOT_FOR_SALE",
+        ...commercePatch(keepSale),
       },
     });
     modules += 1;
@@ -283,13 +277,6 @@ export async function deploySitesCourseScaffold() {
     );
 
     for (const lessonSeed of moduleSeed.lessons) {
-      const contentOwned =
-        lessonSeed.slug === SITE_LESSON_01_SLUG ||
-        lessonSeed.slug === SITE_LESSON_02_SLUG ||
-        lessonSeed.slug === SITE_LESSON_03_SLUG ||
-        lessonSeed.slug === SITE_LESSON_04_SLUG ||
-        lessonSeed.slug === SITE_LESSON_05_SLUG ||
-        lessonSeed.slug === SITE_LESSON_06_SLUG;
       await prisma.lesson.upsert({
         where: { slug: lessonSeed.slug },
         create: {
@@ -300,11 +287,11 @@ export async function deploySitesCourseScaffold() {
           publicPreview: lessonSeed.publicPreview,
           estimatedMinutes: lessonSeed.estimatedMinutes,
           sortOrder: lessonSeed.sortOrder,
-          status: contentOwned ? "PUBLISHED" : "DRAFT",
+          status: "DRAFT",
           accessType: lessonSeed.accessType,
           priceCents: lessonSeed.priceCents,
           commerceStatus: commerceStatusForCreate(),
-          publishedAt: contentOwned ? now : null,
+          publishedAt: null,
         },
         update: {
           moduleId: moduleRow.id,
@@ -315,13 +302,7 @@ export async function deploySitesCourseScaffold() {
           sortOrder: lessonSeed.sortOrder,
           accessType: lessonSeed.accessType,
           priceCents: lessonSeed.priceCents,
-          commerceStatus: "NOT_FOR_SALE",
-          ...(contentOwned
-            ? {}
-            : {
-                status: "DRAFT" as const,
-                publishedAt: null,
-              }),
+          ...commercePatch(keepSale),
         },
       });
       lessons += 1;
@@ -338,6 +319,69 @@ export async function deploySitesCourseScaffold() {
     commerceStatus: course.commerceStatus,
     modules,
     lessons,
+    blocks: blockCount,
+  };
+}
+
+/**
+ * Publica módulos e curso somente depois que as 12 aulas passaram na prontidão.
+ * Não altera commerceStatus.
+ */
+export async function publishSitesCourseCatalog() {
+  const prisma = getPrisma();
+  const course = await prisma.course.findUnique({
+    where: { slug: sitesCourseSeed.slug },
+    include: {
+      modules: {
+        include: {
+          lessons: { include: { blocks: { select: { blockKey: true, retiredAt: true, payload: true } } } },
+        },
+      },
+    },
+  });
+  if (!course) throw new Error("Curso Sites não encontrado. O scaffold precisa existir antes da publicação.");
+
+  const lessons = course.modules.flatMap((moduleRow) => moduleRow.lessons);
+  for (const expected of sitesCourseLessons()) {
+    const row = lessons.find((lesson) => lesson.slug === expected.slug);
+    if (!row || row.status !== "PUBLISHED" || row.accessType !== expected.accessType) {
+      throw new Error(`Aula ${expected.slug} ainda não está pronta para publicar o curso.`);
+    }
+    const assessment = assessLesson(
+      {
+        title: row.title,
+        summary: row.summary,
+        publicPreview: row.publicPreview,
+        estimatedMinutes: row.estimatedMinutes,
+        accessType: row.accessType,
+        status: row.status,
+        priceCents: row.priceCents,
+        commerceStatus: row.commerceStatus,
+      },
+      row.blocks,
+    );
+    if (!assessment.ready) {
+      throw new Error(`Aula ${expected.slug} não passou na prontidão editorial. ${assessment.issues.join(" ")}`);
+    }
+  }
+
+  const now = new Date();
+  for (const moduleRow of course.modules) {
+    await prisma.module.update({ where: { id: moduleRow.id }, data: { status: "PUBLISHED" } });
+  }
+  const published = await prisma.course.update({
+    where: { id: course.id },
+    data: { status: "PUBLISHED", publishedAt: course.publishedAt ?? now },
+  });
+  const blockCount = await prisma.lessonBlock.count({
+    where: { lesson: { module: { courseId: course.id } } },
+  });
+  return {
+    course: published.slug,
+    status: published.status,
+    commerceStatus: published.commerceStatus,
+    modules: course.modules.length,
+    lessons: lessons.length,
     blocks: blockCount,
   };
 }

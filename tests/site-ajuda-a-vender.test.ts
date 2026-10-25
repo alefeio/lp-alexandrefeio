@@ -138,7 +138,7 @@ test("URL opcional e OTHER exige texto; analytics/seed não vazam oferta", () =>
 });
 
 test("curso sites DRAFT/NFS; aula 1 completa internamente; curso 1 intacto", () => {
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(isPublicLesson({ status: "DRAFT" }), false);
   assert.equal(canIndexLesson({ status: "PUBLISHED", accessType: "FREE", publicPreview: "x" }, true), true);

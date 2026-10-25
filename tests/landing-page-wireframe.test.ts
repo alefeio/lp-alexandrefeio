@@ -399,7 +399,7 @@ test("conflito de revisão não grava seções e o motor não registra contexto"
   assert.equal(joined.includes("OFFER_SECRET_TOKEN"), false);
   const preview = readFileSync("src/app/(app)/app/landing-pages/[landingPageProjectId]/preview/page.tsx", "utf8");
   assert.equal(preview.includes("ViewEvent"), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(firstCourseSeed.bundlePriceCents, 24990);
   assert.equal(parseWireframeContext({ version: 1 }).ok, false);

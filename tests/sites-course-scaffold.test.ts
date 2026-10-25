@@ -15,18 +15,21 @@ import {
 } from "../src/lib/learning/sites-course";
 import { buildPublicSitemap } from "../src/lib/seo/public-sitemap";
 
-test("segundo curso existe no scaffold com release suspenso e promessa de landing page", () => {
+test("segundo curso existe no scaffold com release aprovado e promessa de landing page", () => {
   assert.equal(sitesCourseSeed.slug, SITES_COURSE_SLUG);
   assert.equal(sitesCourseSeed.title, "Sites que Convertem para Pequenos Negócios");
   assert.equal(sitesCourseSeed.sortOrder, 1);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(sitesCourseEditorial.contentStatus, "REFRAMED_LANDING_PAGE_BUILDER");
-  assert.equal(sitesCourseEditorial.publicRelease, "SUSPENDED");
-  assert.equal(sitesCourseEditorial.commerceRelease, "NOT_APPROVED");
+  assert.equal(sitesCourseEditorial.publicRelease, "APPROVED");
+  assert.equal(sitesCourseEditorial.commerceRelease, "APPROVED");
+  assert.equal(sitesCourseEditorial.publicationStatus, "PUBLISHED");
+  assert.equal(sitesCourseEditorial.commerceStatus, "NOT_FOR_SALE");
   assert.equal(sitesCourseEditorial.paidBoundary, "BUILD_AND_PUBLISH");
   assert.match(sitesCourseSeed.subtitle, /publique sua própria landing page/i);
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
+  assert.equal(sitesCourseIsPubliclyVisible("DRAFT"), false);
 });
 
 test("scaffold tem 5 módulos e 12 aulas na ordem correta", () => {
@@ -100,14 +103,24 @@ test("preços planejados: aulas 334,10 · módulos 301,60 · curso 249,90", () =
   assert.equal(sitesCourseSeed.bundlePriceCents, 24990);
 });
 
-test("todos os produtos novos ficam NOT_FOR_SALE e scaffold força DRAFT", () => {
+test("registro novo nasce fora de venda e o deploy não desfaz publicação nem venda", () => {
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   const deploy = readFileSync(new URL("../src/lib/learning/catalog-deploy.ts", import.meta.url), "utf8");
-  const scaffoldFn = deploy.slice(deploy.indexOf("export async function deploySitesCourseScaffold"));
+  const scaffoldStart = deploy.indexOf("export async function deploySitesCourseScaffold");
+  const publishStart = deploy.indexOf("export async function publishSitesCourseCatalog");
+  const scaffoldFn = deploy.slice(scaffoldStart, publishStart);
+  const publishFn = deploy.slice(publishStart);
   assert.match(scaffoldFn, /status: "DRAFT"/);
-  assert.match(scaffoldFn, /commerceStatus: "NOT_FOR_SALE"/);
+  assert.match(scaffoldFn, /commerceStatusForCreate\(\)/);
+  assert.match(scaffoldFn, /commercePatch\(keepSale\)/);
+  assert.equal(scaffoldFn.includes('commerceStatus: "NOT_FOR_SALE"'), false);
   assert.equal(scaffoldFn.includes("AVAILABLE"), false);
   assert.equal(scaffoldFn.includes("LandingPageProject"), false);
+  assert.match(publishFn, /status: "PUBLISHED"/);
+  assert.equal(/data:\s*\{[^}]*commerceStatus/.test(publishFn), false);
+  const seedCall = deploy.indexOf("seedSiteRevisaoAntesDoTrafegoContent");
+  const publishCall = deploy.indexOf("publishSitesCourseCatalog()");
+  assert.ok(seedCall > 0 && publishCall > seedCall);
 });
 
 test("curso sites não é público nem entra no sitemap", () => {

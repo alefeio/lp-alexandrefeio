@@ -506,9 +506,9 @@ test("plano de conversão e mensuração grava uma vez e as capacidades ficam no
   assert.match(readFileSync("src/app/p/layout.tsx", "utf8"), /index: false/);
   assert.equal(existsSync("src/lib/learning/site-mensuracao-da-pagina.ts"), false);
   assert.equal((TOOL_KEYS as readonly string[]).includes("LANDING_PAGE_MEASUREMENT_V1"), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
   assert.equal(commerceStatusForCreate(), "NOT_FOR_SALE");
   const migration = readFileSync("prisma/migrations/20261022120000_add_landing_page_forms_measurement/migration.sql", "utf8");
   assert.equal(/drop|truncate/i.test(migration), false);

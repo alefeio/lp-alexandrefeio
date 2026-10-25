@@ -147,9 +147,9 @@ test("aula 7 completa com blocos, checkpoints, tool e transição", () => {
     commerceStatus: "NOT_FOR_SALE",
   }, siteLesson07Blocks.map((block) => ({ blockKey: block.blockKey, retiredAt: null, payload: block.data })));
   assert.equal(assessment.ready, true, assessment.issues.join(" "));
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
 });
 
 test("setup da copy exige projeto, brief, jornada e seções do dono", async () => {

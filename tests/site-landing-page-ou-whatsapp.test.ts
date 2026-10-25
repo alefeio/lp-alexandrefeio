@@ -207,11 +207,11 @@ test("privacidade: analytics/UI admin sem vazamento estratégico; seed wired", (
   assert.match(toolUi, /pré-visualização não cria progresso/i);
   const deploy = readFileSync(new URL("../src/lib/learning/catalog-deploy.ts", import.meta.url), "utf8");
   assert.match(deploy, /seedSiteLandingWhatsappContent/);
-  assert.match(deploy, /SITE_LESSON_02_SLUG/);
+  assert.match(deploy, /publishSitesCourseCatalog/);
 });
 
 test("curso sites DRAFT/NFS; aula 2 completa internamente; curso 1 intacto", () => {
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(isPublicLesson({ status: "DRAFT" }), false);
   assert.equal(canReadLessonBody({ status: "PUBLISHED", accessType: "FREE" }), true);

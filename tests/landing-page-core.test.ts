@@ -504,7 +504,7 @@ test("title update e unsupported schema na leitura", async () => {
 });
 
 test("regressão: curso sites DRAFT/NFS; curso 1 intacto; migration aditiva", () => {
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(firstCourseSeed.slug, "trafego-pago-na-pratica");
   assert.equal(firstCourseSeed.bundlePriceCents, 24990);

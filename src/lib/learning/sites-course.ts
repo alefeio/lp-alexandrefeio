@@ -1,7 +1,7 @@
 /**
- * Scaffold editorial do segundo curso.
- * Release público SUSPENSO até o reframe Landing Page Builder: Course DRAFT + NOT_FOR_SALE.
- * Aulas 1–3 completas internamente; 4–12 constroem e publicam o mesmo LandingPageProject. O curso permanece DRAFT.
+ * Source of truth do segundo curso depois da aprovação do release.
+ * Publicação editorial aprovada. Venda aprovada, mas o status escrito no banco nasce NOT_FOR_SALE.
+ * A transição para AVAILABLE fica exclusiva de commerce-products.
  */
 
 export const SITES_COURSE_SLUG = "sites-que-convertem";
@@ -30,11 +30,11 @@ export type SitesSeedModule = {
 
 export const sitesCourseEditorial = {
   contentStatus: "REFRAMED_LANDING_PAGE_BUILDER" as const,
-  publicRelease: "SUSPENDED" as const,
-  commerceRelease: "NOT_APPROVED" as const,
-  publicationStatus: "DRAFT" as const,
+  publicRelease: "APPROVED" as const,
+  commerceRelease: "APPROVED" as const,
+  publicationStatus: "PUBLISHED" as const,
+  /** Status comercial de um registro novo. A aprovação está em commerceRelease. */
   commerceStatus: "NOT_FOR_SALE" as const,
-  /** Promessa pública planejada (não ativa enquanto DRAFT). */
   promise: "Planeje, construa e publique sua própria landing page enquanto aprende.",
   freeBoundary: "DISCOVER" as const,
   paidBoundary: "BUILD_AND_PUBLISH" as const,
@@ -48,7 +48,7 @@ export const sitesCourseSeed = {
     "Formação prática para diagnosticar a presença digital, construir uma landing page real na plataforma e publicá-la — com estratégia, copy, confiança, experiência e mensuração. Não ensina programação nem CMS.",
   sortOrder: 1,
   bundlePriceCents: 24990,
-  status: "DRAFT" as const,
+  status: "PUBLISHED" as const,
   commerceStatus: "NOT_FOR_SALE" as const,
   modules: [
     {
@@ -110,7 +110,8 @@ export const sitesCourseSeed = {
           slug: "oferta-publico-acao-principal",
           title: "Defina oferta, público e ação principal",
           summary: "Transforme a intenção de conversão em um brief que alimenta a landing page.",
-          publicPreview: null,
+          publicPreview:
+            "A landing page começa pela oferta, pelo público e pela ação — não pelo layout. Nesta aula você registra essas decisões no projeto da sua página.",
           estimatedMinutes: 30,
           sortOrder: 0,
           accessType: "PAID" as const,
@@ -122,7 +123,8 @@ export const sitesCourseSeed = {
           slug: "jornada-do-visitante",
           title: "Planeje a jornada do visitante",
           summary: "Registre o que o visitante sabe, precisa entender, duvidar e decidir até a ação final.",
-          publicPreview: null,
+          publicPreview:
+            "A página é uma sequência de decisões. Nesta aula você registra o caminho do visitante até a ação, no mesmo projeto da sua landing page.",
           estimatedMinutes: 30,
           sortOrder: 1,
           accessType: "PAID" as const,
@@ -178,7 +180,8 @@ export const sitesCourseSeed = {
           slug: "hierarquia-visual-e-atencao",
           title: "Use hierarquia visual para conduzir a atenção",
           summary: "Defina o que o visitante percebe primeiro, com cores, contraste e destaque controlados.",
-          publicPreview: null,
+          publicPreview:
+            "Duas páginas podem ter os mesmos textos e as mesmas seções. Nesta aula você decide o que ganha prioridade visual, sem editor gráfico livre.",
           estimatedMinutes: 30,
           sortOrder: 0,
           accessType: "PAID" as const,
@@ -190,7 +193,8 @@ export const sitesCourseSeed = {
           slug: "construa-confianca",
           title: "Construa confiança antes de pedir a ação",
           summary: "Adicione prova e confiança reais informadas por você — sem inventar depoimentos ou números.",
-          publicPreview: null,
+          publicPreview:
+            "Clareza ajuda o visitante a entender a oferta. Confiança reduz a insegurança. Nesta aula você usa só o que já é verdadeiro.",
           estimatedMinutes: 30,
           sortOrder: 1,
           accessType: "PAID" as const,
@@ -211,7 +215,8 @@ export const sitesCourseSeed = {
           slug: "pagina-mobile-e-experiencia",
           title: "Prepare sua página para o celular e uma boa experiência",
           summary: "Revise se a pessoa consegue entender, ler e agir na landing page em larguras diferentes.",
-          publicPreview: null,
+          publicPreview:
+            "Uma página pode parecer ótima no notebook de quem criou e ainda ser difícil de usar no celular. Nesta aula você revisa a experiência real.",
           estimatedMinutes: 30,
           sortOrder: 0,
           accessType: "PAID" as const,

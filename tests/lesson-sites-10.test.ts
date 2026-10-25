@@ -122,9 +122,9 @@ test("aula 10 completa, com ferramenta e transição para a aula 11", () => {
   const lesson = sitesCourseSeed.modules.flatMap((module) => module.lessons).find((item) => item.slug === "pagina-mobile-e-experiencia");
   assert.equal(lesson?.plannedTool, "LANDING_PAGE_EXPERIENCE_REVIEW_V1");
   assert.equal(lesson?.plannedResult, EXPERIENCE_RESULT_TITLE);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
   assert.equal(existsSync("src/lib/learning/site-mensuracao-da-pagina.ts"), false);
   assert.equal((TOOL_KEYS as readonly string[]).includes("LANDING_PAGE_EXPERIENCE_REVIEW_V1"), true);
   assert.equal((TOOL_KEYS as readonly string[]).includes("LANDING_PAGE_MEASUREMENT_V1"), false);

@@ -211,9 +211,9 @@ test("privacidade e discovery: analytics sem dados estratégicos; curso DRAFT/NF
   assert.match(toolUi, /pré-visualização não cria progresso/i);
   const deploy = readFileSync(new URL("../src/lib/learning/catalog-deploy.ts", import.meta.url), "utf8");
   assert.match(deploy, /seedSitePaginaProntaContent/);
-  assert.match(deploy, /SITE_LESSON_03_SLUG/);
+  assert.match(deploy, /publishSitesCourseCatalog/);
 
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(isPublicLesson({ status: "DRAFT" }), false);
   assert.equal(canReadLessonBody({ status: "PUBLISHED", accessType: "FREE" }), true);

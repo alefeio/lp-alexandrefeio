@@ -148,9 +148,9 @@ test("aula 11 tem 33 blocos, 4 checkpoints, ferramenta e transição", () => {
   const lesson = sitesCourseSeed.modules.flatMap((module) => module.lessons).find((item) => item.slug === SITE_MEASUREMENT_SLUG);
   assert.equal(lesson?.plannedTool, "LANDING_PAGE_MEASUREMENT_PLAN_V1");
   assert.equal(lesson?.plannedResult, MEASUREMENT_RESULT_TITLE);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
   assert.equal((TOOL_KEYS as readonly string[]).includes("LANDING_PAGE_MEASUREMENT_PLAN_V1"), true);
   assert.equal(existsSync("src/app/p/[slug]/page.tsx"), true);
   assert.match(readFileSync("src/lib/landing-page/publication/gate.ts", "utf8"), /LANDING_PAGE_PUBLIC_RUNTIME_ENABLED/);

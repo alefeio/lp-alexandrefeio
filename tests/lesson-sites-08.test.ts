@@ -196,9 +196,9 @@ test("aula 8 completa o conteúdo, a ferramenta e a transição", () => {
     commerceStatus: "NOT_FOR_SALE",
   }, siteLesson08Blocks.map((block) => ({ blockKey: block.blockKey, retiredAt: null, payload: block.data })));
   assert.equal(ready.ready, true, ready.issues.join(" "));
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
 });
 
 test("tema atual, presets, cores e contraste local", () => {

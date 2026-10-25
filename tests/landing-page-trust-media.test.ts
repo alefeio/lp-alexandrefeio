@@ -735,7 +735,7 @@ test("limites, privacidade e regressão do curso", async () => {
   const sitemap = buildPublicSitemap("https://alexandrefeio.com.br", { courses: [{ slug: firstCourseSeed.slug, updatedAt: new Date() }], lessons: [] });
   assert.equal(sitemap.some((entry) => entry.url.includes("/p/")), false);
   assert.equal(sitemap.some((entry) => entry.url.includes("landing-media")), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(existsSync("src/lib/learning/site-construa-confianca.ts"), true);
   assert.equal(existsSync("src/lib/learning/site-pagina-mobile-e-experiencia.ts"), true);

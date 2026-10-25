@@ -178,9 +178,9 @@ test("aula 9 completa o conteúdo, os checkpoints e a transição", () => {
     siteLesson09Blocks.map((block) => ({ blockKey: block.blockKey, retiredAt: null, payload: block.data })),
   );
   assert.equal(assessment.ready, true, assessment.issues.join(" "));
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
   const lesson = sitesCourseSeed.modules.flatMap((module) => module.lessons).find((item) => item.slug === "construa-confianca");
   assert.equal(lesson?.plannedResult, "Plano de confiança da minha landing page");
   assert.equal(lesson?.plannedTool, "LANDING_PAGE_TRUST_V1");

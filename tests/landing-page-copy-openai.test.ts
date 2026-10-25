@@ -316,7 +316,7 @@ test("acesso, limite e segredo ficam fora do client", async () => {
   assert.equal(serverSources.includes("NEXT_PUBLIC_OPENAI"), false);
   assert.equal(/(^|[^A-Za-z0-9])sk-[A-Za-z0-9]{20,}/.test(serverSources), false);
   assert.equal(readFileSync(".env.example", "utf8").includes("NEXT_PUBLIC_OPENAI"), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   const sample = buildOpenAICopyRequest({ model: "gpt-6-luna", promptVersion: LANDING_PAGE_COPY_PROMPT_V1, context, repair: false, variantCount: 3 });
   assert.equal(JSON.stringify(sample).includes("landingPageProjectId"), false);

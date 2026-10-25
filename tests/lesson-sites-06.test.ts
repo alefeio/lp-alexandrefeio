@@ -126,7 +126,7 @@ test("aula 6 completa com 32 blocos, 4 checkpoints, tool e transição", () => {
     siteLesson06Blocks.map((block) => ({ blockKey: block.blockKey, retiredAt: null, payload: block.data })),
   );
   assert.equal(assessment.ready, true, assessment.issues.join(" "));
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
 });
 
@@ -388,7 +388,7 @@ test("a ferramenta explica a estrutura e o preview continua privado", () => {
   assert.match(preview, /mode="PREVIEW"/);
   assert.equal(preview.includes("ViewEvent"), false);
   assert.equal(preview.includes("track("), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   const sources = readFileSync("src/lib/landing-page/wireframe/structure.ts", "utf8");
   assert.equal(/openai|anthropic|generateText/i.test(sources), false);
   assert.equal(sources.includes("PUBLISHED"), true);

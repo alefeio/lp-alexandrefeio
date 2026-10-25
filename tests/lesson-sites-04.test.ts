@@ -78,7 +78,7 @@ test("aula 4 completa com 31 blocos, chaves estáveis, 4 checkpoints, tool e res
 });
 
 test("curso continua draft e fora de venda; curso 1 segue publicado no seed", () => {
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(FIRST_COURSE_SLUG, "trafego-pago-na-pratica");
   const lesson4 = sitesCourseSeed.modules.flatMap((module) => module.lessons).find((lesson) => lesson.slug === "oferta-publico-acao-principal");

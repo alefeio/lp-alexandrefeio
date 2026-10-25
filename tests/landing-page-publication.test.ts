@@ -660,9 +660,9 @@ test("gate, privacidade, slug legado e sitemap", () => {
   const publicationSource = readFileSync("src/lib/landing-page/publication/service.ts", "utf8");
   assert.equal(publicationSource.includes("openai"), false);
   assert.equal(publicationSource.includes("LessonProgress"), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
   assert.equal(commerceStatusForCreate(), "NOT_FOR_SALE");
 
   const moduleId = "module-sites";

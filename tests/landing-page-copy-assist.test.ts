@@ -455,6 +455,6 @@ test("preview distingue status e a assistência não vaza para o client", () => 
   assert.equal(copySources.includes("console."), false);
   assert.equal(/gtag|googletagmanager|fbq|analytics/i.test(copySources), false);
   assert.equal(copySources.includes("sk-"), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
 });

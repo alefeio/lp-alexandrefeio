@@ -136,9 +136,9 @@ test("aula 12 completa o conteúdo, a ferramenta e o resultado", () => {
   const lesson = sitesCourseLessons().find((item) => item.slug === "revisao-antes-do-trafego");
   assert.equal(lesson?.plannedTool, "LANDING_PAGE_PUBLICATION_V1");
   assert.equal(lesson?.plannedResult, PUBLICATION_RESULT_TITLE);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
-  assert.equal(sitesCourseIsPubliclyVisible(), false);
+  assert.equal(sitesCourseIsPubliclyVisible(), true);
 });
 
 test("a conclusão da aula 12 fecha o curso pela engine existente", () => {

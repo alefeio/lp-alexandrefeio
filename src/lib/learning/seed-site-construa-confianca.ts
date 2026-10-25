@@ -1,4 +1,6 @@
-import { commerceStatusMatches, preserveCommerce } from "@/lib/learning/catalog-commerce";
+import { commercePatch, commerceStatusMatches, preserveCommerce } from "@/lib/learning/catalog-commerce";
+import { SITE_LESSON_09_PUBLIC_PREVIEW_KEYS } from "@/lib/learning/public-preview";
+import { syncLessonPublicPreview } from "@/lib/learning/sync-public-preview";
 import { planUsedContent } from "@/lib/learning/content-guard";
 import { assessLesson } from "@/lib/editorial/readiness";
 import { SITE_LESSON_09_SLUG, siteLesson09Blocks, siteLesson09Meta } from "@/lib/learning/site-construa-confianca";
@@ -53,6 +55,7 @@ export async function seedSiteConstruaConfiancaContent(
     throw new Error(`Aula Sites 9 já tem uso de aluno e os metadados divergem. Nada foi alterado. ${JSON.stringify(usage)}`);
   }
   if (blockPlan.kind === "skip") {
+    await syncLessonPublicPreview(prisma, lesson.id, SITE_LESSON_09_PUBLIC_PREVIEW_KEYS);
     return report(lesson.status, existing.filter((block) => !block.retiredAt).length, usage, true, true, [], []);
   }
   if (blockPlan.kind === "append") {
@@ -72,6 +75,7 @@ export async function seedSiteConstruaConfiancaContent(
       });
     }
     const active = await prisma.lessonBlock.count({ where: { lessonId: lesson.id, retiredAt: null } });
+    await syncLessonPublicPreview(prisma, lesson.id, SITE_LESSON_09_PUBLIC_PREVIEW_KEYS);
     return report("PUBLISHED", active, usage, true, false, [], []);
   }
 
@@ -89,7 +93,7 @@ export async function seedSiteConstruaConfiancaContent(
       estimatedMinutes: siteLesson09Meta.estimatedMinutes,
       accessType: "PAID",
       priceCents: siteLesson09Meta.priceCents,
-      commerceStatus: "NOT_FOR_SALE",
+      ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
     },
@@ -128,6 +132,7 @@ export async function seedSiteConstruaConfiancaContent(
   }
 
   const active = await prisma.lessonBlock.count({ where: { lessonId: lesson.id, retiredAt: null } });
+  await syncLessonPublicPreview(prisma, lesson.id, SITE_LESSON_09_PUBLIC_PREVIEW_KEYS);
   return report("PUBLISHED", active, usage, true, false, removed, retired);
 }
 

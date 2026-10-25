@@ -103,7 +103,7 @@ test("aula 5 completa com 31 blocos, 4 checkpoints, tool e transição", () => {
     siteLesson05Blocks.map((block) => ({ blockKey: block.blockKey, retiredAt: null, payload: block.data })),
   );
   assert.equal(assessment.ready, true, assessment.issues.join(" "));
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
 });
 

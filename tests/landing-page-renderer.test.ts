@@ -225,7 +225,7 @@ test("preview lê o draft do dono e não altera a revisão", async () => {
 test("renderer não usa HTML cru e curso 1 permanece intacto", () => {
   const source = readFileSync(new URL("../src/components/landing-page/LandingPageRenderer.tsx", import.meta.url), "utf8");
   assert.equal(source.includes("dangerouslySetInnerHTML"), false);
-  assert.equal(sitesCourseSeed.status, "DRAFT");
+  assert.equal(sitesCourseSeed.status, "PUBLISHED");
   assert.equal(sitesCourseSeed.commerceStatus, "NOT_FOR_SALE");
   assert.equal(firstCourseSeed.bundlePriceCents, 24990);
 });
