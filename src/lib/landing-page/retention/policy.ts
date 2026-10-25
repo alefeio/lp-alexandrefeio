@@ -28,8 +28,8 @@ export const MEDIA_RETENTION_POLICY = {
 
 export const RETENTION_DECISIONS_FINALIZED = true;
 
-/** Ainda não há cron de produção para esta rotina. */
-export const RETENTION_MAINTENANCE_SCHEDULED = false;
+/** O artefato de deploy agenda GET /api/cron/landing-retention. Não prova o deployment. */
+export const RETENTION_MAINTENANCE_SCHEDULED = true;
 
 export function subtractCalendarMonths(now: Date, months: number): Date {
   const shifted = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months, 1, now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds()));

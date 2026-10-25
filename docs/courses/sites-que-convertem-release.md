@@ -40,7 +40,7 @@ Ainda sem decisão comercial. Não foram escolhidas nesta etapa:
 
 ## MANUAL RELEASE STEPS
 
-1. Agendar `npm run landing:retention` em produção. Sem `--execute`, o comando só conta. O agendamento ainda não existe.
+1. O deploy leva `GET /api/cron/landing-retention` às 04:00 UTC. Sem `CRON_SECRET`, a rota responde 503. O comando local `npm run landing:retention` continua só contando, sem `--execute`.
 2. Confirmar `LANDING_PAGE_RATE_LIMIT_SECRET` no servidor, com pelo menos 32 caracteres. Sem prefixo público.
 3. Confirmar no servidor `APIMG_UPLOAD_URL`, `APIMG_API_KEY`, `APIMG_UPLOAD_FOLDER=alexandre-feio/uploads` e `APIMG_SITE_UPLOAD_FOLDER=alexandre-feio/site`. As pastas não vão no POST. O smoke sintético cobre upload, leitura, exclusão e a leitura 404.
 4. Aplicar a migration aditiva se ainda não estiver no banco de produção.

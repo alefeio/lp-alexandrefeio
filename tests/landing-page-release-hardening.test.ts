@@ -436,7 +436,7 @@ test("configuração de release não imprime segredo e produção sem segredo fi
   assert.equal(JSON.stringify(report).includes("apimg-key-hidden"), false);
   assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.status, "PASS");
   assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "PASS");
-  assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.status, "BLOCKED");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.status, "PASS");
   assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.kind, "MANUAL_RELEASE_STEP");
   assert.equal(CAPTCHA_REQUIRED_AT_LAUNCH, "NOT_REQUIRED_FOR_MVP");
   assert.equal(LEAD_RETENTION_POLICY.months, 12);

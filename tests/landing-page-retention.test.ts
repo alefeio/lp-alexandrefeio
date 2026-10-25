@@ -18,6 +18,7 @@ import {
   metricsRetentionCutoff,
   subtractCalendarMonths,
 } from "../src/lib/landing-page/retention/policy";
+import { handleLandingRetentionCron } from "../src/lib/landing-page/retention/cron";
 import {
   formatLandingPageRetentionReport,
   runLandingPageRetention,
@@ -245,7 +246,7 @@ test("rotina, página e release não expõem dado de visitante nem deixam a pol�
   assert.equal(report.status, "BLOCKED");
   assert.equal(report.checks.find((item) => item.id === "PRIVACY_POLICY")?.status, "PASS");
   assert.equal(report.checks.find((item) => item.id === "RETENTION_DECISIONS")?.status, "PASS");
-  assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.status, "BLOCKED");
+  assert.equal(report.checks.find((item) => item.id === "RETENTION_MAINTENANCE_SCHEDULE")?.status, "PASS");
   const copy = readFileSync("src/lib/landing-page/copy/providers/openai.ts", "utf8");
   assert.equal(copy.includes("submittedData"), false);
   assert.equal(copy.includes("LandingPageLead"), false);
@@ -269,4 +270,57 @@ test("rotina, página e release não expõem dado de visitante nem deixam a pol�
   assert.equal(serialized.includes("submittedData"), false);
   assert.equal(serialized.includes("@"), false);
   assert.equal(buildCopyContextForSection.length, 1);
+});
+
+test("cron de retenção só executa depois do Bearer e responde só contagens", async () => {
+  const cron = JSON.parse(readFileSync("vercel.json", "utf8")) as { crons: Array<{ path: string; schedule: string }> };
+  assert.deepEqual(cron.crons, [{ path: "/api/cron/landing-retention", schedule: "0 4 * * *" }]);
+  const route = readFileSync("src/app/api/cron/landing-retention/route.ts", "utf8");
+  assert.match(route, /execute: true/);
+  assert.match(route, /createPrismaLandingPageRetentionRepository/);
+  assert.equal(route.includes("submittedData"), false);
+  const reminders = readFileSync("src/app/api/cron/reminders/route.ts", "utf8");
+  assert.match(reminders, /export async function POST/);
+  assert.equal(reminders.includes("landing-retention"), false);
+
+  const secret = "cron-secret-value-not-for-logs";
+  let runs = 0;
+  const run = async () => {
+    runs += 1;
+    return {
+      mode: "EXECUTE" as const,
+      expiredLeads: 3,
+      expiredMetricRows: 4,
+      deletedLeads: 3,
+      deletedMetricRows: 4,
+    };
+  };
+  const url = `https://alexandrefeio.com.br/api/cron/landing-retention?secret=${secret}`;
+  const missing = await handleLandingRetentionCron(new Request(url), { secret: undefined, run });
+  assert.equal(missing.status, 503);
+  assert.equal(runs, 0);
+  const absent = await handleLandingRetentionCron(new Request(url), { secret, run });
+  assert.equal(absent.status, 401);
+  const wrong = await handleLandingRetentionCron(new Request(url, { headers: { authorization: "Bearer outro" } }), { secret, run });
+  assert.equal(wrong.status, 401);
+  assert.equal(runs, 0);
+  const ok = await handleLandingRetentionCron(new Request(url, { headers: { authorization: `Bearer ${secret}` } }), {
+    secret,
+    run: async () => ({
+      mode: "EXECUTE",
+      expiredLeads: 1,
+      expiredMetricRows: 2,
+      deletedLeads: 1,
+      deletedMetricRows: 2,
+      submittedData: { email: "ana@example.com" },
+    } as never),
+  });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.headers.get("cache-control"), "no-store");
+  const body = await ok.text();
+  assert.equal(body.includes(secret), false);
+  assert.equal(body.includes("ana@example.com"), false);
+  assert.equal(body.includes("submittedData"), false);
+  assert.match(body, /"mode":"EXECUTE"/);
+  assert.match(body, /"deletedLeads":1/);
 });
