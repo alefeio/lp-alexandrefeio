@@ -1,11 +1,18 @@
-export function TrafficCampaignVisual() {
-  const steps = ["Oferta", "Google / Meta", "Campanha", "Dados", "Diagnóstico", "Próxima ação"];
+const TRAFFIC_FLOW = ["Oferta", "Google / Meta", "Campanha", "Dados", "Diagnóstico", "Próxima ação"];
+
+export function TrafficCampaignVisual({
+  steps = TRAFFIC_FLOW,
+  title = "Campanha do negócio",
+}: {
+  steps?: string[];
+  title?: string;
+} = {}) {
   return (
     <figure className="system-panel min-w-0" aria-label="Ilustração do fluxo de uma campanha. Não mostra métricas nem resultado financeiro.">
       <figcaption className="sr-only">Demonstração da sequência de uma campanha. Não representa dados de um cliente.</figcaption>
       <div className="system-panel-bar">
         <span className="system-live" aria-hidden />
-        <p className="text-sm font-medium">Campanha do negócio</p>
+        <p className="text-sm font-medium">{title}</p>
       </div>
       <ol className="grid gap-2 p-4 sm:p-5">
         {steps.map((step, index) => (

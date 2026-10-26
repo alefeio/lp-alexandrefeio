@@ -119,12 +119,12 @@ test("página de vendas mostra a ementa antes do preço", () => {
 });
 
 test("Home multi-curso usa catálogo data-driven", () => {
-  const home = readFileSync(new URL("../src/components/home/CourseHome.tsx", import.meta.url), "utf8");
+  const summaries = readFileSync(new URL("../src/components/home/HomeCourseSummaries.tsx", import.meta.url), "utf8");
   const page = readFileSync(new URL("../src/app/(public)/page.tsx", import.meta.url), "utf8");
   assert.match(page, /loadCourseCatalog/);
-  assert.match(home, /md:grid-cols-2/);
-  assert.match(home, /Conhecer o curso/);
-  assert.match(home, /freeLessonCount/);
+  assert.match(summaries, /md:grid-cols-2/);
+  assert.match(summaries, /ctaLabel/);
+  assert.match(summaries, /freeLessonCount/);
 });
 
 test("CollectionPage e sitemap incluem /cursos", () => {

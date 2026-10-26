@@ -8,9 +8,10 @@ export type AcquisitionEvent =
   | "course_cta_click"
   | "course_complementary_click"
   | "curriculum_lesson_expand"
+  | "home_course_path_click"
   | "service_from_course_click";
 
-const ALLOWED_KEYS = ["course_slug", "lesson_slug", "cta_name", "source_course_slug", "target_course_slug"] as const;
+const ALLOWED_KEYS = ["course_slug", "lesson_slug", "cta_name", "source_course_slug", "target_course_slug", "scenario"] as const;
 
 export type AcquisitionPayload = {
   course_slug?: string;
@@ -18,6 +19,7 @@ export type AcquisitionPayload = {
   cta_name?: string;
   source_course_slug?: string;
   target_course_slug?: string;
+  scenario?: string;
 };
 
 export function acquisitionAnalyticsPayload(input: AcquisitionPayload): AcquisitionPayload {

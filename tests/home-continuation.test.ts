@@ -20,7 +20,7 @@ function lessons(patch: Partial<ContinuationLesson>[] = []): ContinuationLesson[
 
 test("anônimo permanece na home pública e a metadata não muda", () => {
   assert.equal(homeAudience(false), "anonymous");
-  assert.equal(publicHomeCopy.hero, "Aprenda. Aplique. Faça seu negócio avançar.");
+  assert.equal(publicHomeCopy.hero, "Transforme tráfego em oportunidades.");
   assert.equal(publicHomeMetadata.canonical, "/");
   assert.equal(studentHomeRendering.dynamic, "force-dynamic");
   const page = readFileSync(new URL("../src/app/(public)/page.tsx", import.meta.url), "utf8");
@@ -34,8 +34,9 @@ test("anônimo permanece na home pública e a metadata não muda", () => {
 test("autenticado preserva a base pública e recebe bloco de continuidade", () => {
   assert.equal(homeAudience(true), "student");
   const home = readFileSync(new URL("../src/components/home/CourseHome.tsx", import.meta.url), "utf8");
+  const hero = readFileSync(new URL("../src/components/home/HomeHero.tsx", import.meta.url), "utf8");
   assert.match(home, /continuation/);
-  assert.match(home, /publicHomeCopy\.hero/);
+  assert.match(hero, /publicHomeCopy\.hero/);
   const card = buildHomeContinuation({ userId: "user-a", name: "Alexandre Feio", lessons: lessons() });
   assert.equal(card.userId, "user-a");
   assert.equal(homeBelongsToViewer(card.userId, "user-a"), true);

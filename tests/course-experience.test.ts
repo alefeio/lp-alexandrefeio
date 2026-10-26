@@ -181,6 +181,6 @@ test("commerce e a home permanecem no lugar", () => {
   assert.match(sales, /hasPartialPurchase/);
   assert.match(lessonPage, /LessonPaywall/);
   assert.match(page, /canonical: `\/cursos\/\$\{course\.slug\}`/);
-  assert.match(home, /Conhecer o curso/);
+  assert.match(home, /ConnectedCourses/);
   assert.equal(sales.includes("LandingPageProject"), false);
 });

@@ -4,31 +4,27 @@ import test from "node:test";
 import { navigation, footerNavigation } from "../src/data/navigation";
 import { publicHomeCopy, publicHomeMetadata } from "../src/lib/home/public-home";
 
-test("home posiciona a plataforma e não a landing de um único curso", () => {
-  assert.equal(publicHomeCopy.hero, "Aprenda. Aplique. Faça seu negócio avançar.");
-  assert.equal(publicHomeCopy.primaryCta, "Explorar os cursos");
-  assert.equal(publicHomeCopy.secondaryCta, "Prefiro contratar a gestão");
-  assert.match(publicHomeMetadata.title, /Cursos práticos/);
+test("home posiciona as duas formações e não a landing de um único curso", () => {
+  assert.equal(publicHomeCopy.hero, "Transforme tráfego em oportunidades.");
+  assert.equal(publicHomeCopy.primaryCta, "Conhecer as formações");
+  assert.equal(publicHomeCopy.secondaryCta, "Começar gratuitamente");
+  assert.match(publicHomeMetadata.title, /pequenos negócios/);
   assert.match(publicHomeMetadata.description, /Alexandre Feio/);
+  assert.match(publicHomeMetadata.description, /página/);
+  assert.equal(publicHomeMetadata.title.includes("Alexandre Feio"), false);
 
   const home = readFileSync(new URL("../src/components/home/CourseHome.tsx", import.meta.url), "utf8");
-  assert.match(home, /href="\/cursos"/);
-  assert.match(home, /Conhecimento sem aplicação não muda o negócio/);
-  assert.match(home, /Você não termina uma aula só com anotações/);
-  assert.match(home, /Uma plataforma feita para colocar conhecimento em prática/);
-  assert.match(home, /Escolha onde você quer avançar/);
-  assert.match(home, /md:grid-cols-2/);
-  assert.match(home, /Conhecer o curso/);
-  assert.match(home, /freeLessonCount/);
-  assert.match(home, /Menos conteúdo esquecido/);
-  assert.match(home, /Sua jornada fica visível/);
-  assert.match(home, /Você pode começar gratuitamente/);
-  assert.match(home, /Você escolhe como avançar/);
-  assert.match(home, /Explorar os cursos/);
+  const summaries = readFileSync(new URL("../src/components/home/HomeCourseSummaries.tsx", import.meta.url), "utf8");
+  assert.match(home, /HomeHero/);
+  assert.match(home, /ConnectedCourses/);
+  assert.match(home, /FreeCourseJourney/);
+  assert.match(summaries, /href="\/cursos"/);
+  assert.match(summaries, /freeLessonCount/);
+  assert.match(summaries, /ctaLabel/);
   assert.equal(home.includes("Porta de entrada do curso de Tráfego Pago"), false);
+  assert.equal(home.includes("Conhecimento sem aplicação não muda o negócio"), false);
   assert.equal(home.includes("Meu primeiro mapa de tráfego"), false);
   assert.equal(home.includes('id="comece-gratis"'), false);
-  assert.equal(home.includes("freeLessons.map"), false);
 });
 
 test("nav e footer usam semântica multi-curso sem Aulas gratuitas", () => {

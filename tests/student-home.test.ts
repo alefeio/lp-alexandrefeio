@@ -35,11 +35,11 @@ function input(patch: Partial<StudentHomeInput> = {}): StudentHomeInput {
 
 test("anônimo permanece na home pública e a metadata não muda", () => {
   assert.equal(homeAudience(false), "anonymous");
-  assert.equal(publicHomeCopy.hero, "Aprenda. Aplique. Faça seu negócio avançar.");
-  assert.equal(publicHomeCopy.primaryCta, "Explorar os cursos");
-  assert.equal(publicHomeCopy.secondaryCta, "Prefiro contratar a gestão");
+  assert.equal(publicHomeCopy.hero, "Transforme tráfego em oportunidades.");
+  assert.equal(publicHomeCopy.primaryCta, "Conhecer as formações");
+  assert.equal(publicHomeCopy.secondaryCta, "Começar gratuitamente");
   assert.equal(publicHomeMetadata.canonical, "/");
-  assert.equal(publicHomeMetadata.title, "Cursos práticos de tecnologia e marketing");
+  assert.equal(publicHomeMetadata.title, "Tráfego e páginas para pequenos negócios");
   assert.equal(studentHomeRendering.dynamic, "force-dynamic");
   assert.equal(studentHomeRendering.sharedCache, false);
   const page = readFileSync(new URL("../src/app/(public)/page.tsx", import.meta.url), "utf8");

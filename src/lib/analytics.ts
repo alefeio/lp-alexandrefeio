@@ -19,6 +19,7 @@ export type AnalyticsEventName =
   | "course_cta_click"
   | "course_complementary_click"
   | "curriculum_lesson_expand"
+  | "home_course_path_click"
   | "service_from_course_click"
   | "diagnostic_started"
   | "diagnostic_completed"

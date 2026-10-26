@@ -1,16 +1,16 @@
 export const publicHomeCopy = {
-  hero: "Aprenda. Aplique. Faça seu negócio avançar.",
-  support:
-    "Cursos práticos de tecnologia e marketing em que cada etapa ajuda você a tomar decisões, construir algo real e avançar no seu próprio negócio.",
-  primaryCta: "Explorar os cursos",
-  secondaryCta: "Prefiro contratar a gestão",
-  finalSecondaryCta: "Quero atrair mais clientes",
+  hero: "Transforme tráfego em oportunidades.",
+  support: "Aprenda a atrair as pessoas certas, construir a página para onde elas vão e usar os resultados para decidir o que melhorar.",
+  complement: "Duas formações práticas. Um sistema aplicado ao seu negócio.",
+  primaryCta: "Conhecer as formações",
+  secondaryCta: "Começar gratuitamente",
+  finalTitle: "Descubra qual parte do sistema seu negócio precisa fortalecer agora.",
+  finalPrimaryCta: "Ver as formações",
 } as const;
 
 export const publicHomeMetadata = {
-  title: "Cursos práticos de tecnologia e marketing",
-  description:
-    "Alexandre Feio: aprenda, aplique e avance com cursos práticos de tecnologia, marketing e tráfego — ou delegue a gestão.",
+  title: "Tráfego e páginas para pequenos negócios",
+  description: "Alexandre Feio: atraia as pessoas certas, construa a página e use os resultados para decidir o próximo passo.",
   canonical: "/",
 } as const;
 

@@ -2,6 +2,12 @@ import { getPrisma } from "@/lib/db/prisma";
 import { loadOwnedLessonIds } from "@/lib/commerce/catalog";
 import { listPublishedCourses } from "@/lib/learning/catalog";
 
+export type CatalogFreeLesson = {
+  slug: string;
+  title: string;
+  number: number;
+};
+
 export type CourseCatalogCard = {
   id: string;
   slug: string;
@@ -10,6 +16,7 @@ export type CourseCatalogCard = {
   lessonCount: number;
   moduleCount: number;
   freeLessonCount: number;
+  freeLessons: CatalogFreeLesson[];
   href: string;
   ctaLabel: "Conhecer o curso" | "Continuar curso";
   microcopy: string | null;
@@ -29,6 +36,11 @@ export function buildCourseCatalogCard(
   const owned = new Set(input.ownedLessonIds);
   const completed = new Set(input.completedLessonIds);
   const freeLessonCount = lessons.filter((lesson) => lesson.accessType === "FREE").length;
+  const freeLessons = lessons.flatMap((lesson, index) =>
+    lesson.accessType === "FREE" && lesson.slug && lesson.title
+      ? [{ slug: lesson.slug, title: lesson.title, number: index + 1 }]
+      : [],
+  );
   const accessible = lessons.filter((lesson) => lesson.accessType === "FREE" || owned.has(lesson.id));
   const completedAccessible = accessible.filter((lesson) => completed.has(lesson.id)).length;
   const inProgress = accessible.length > 0 && completedAccessible > 0 && completedAccessible < accessible.length;
@@ -42,6 +54,7 @@ export function buildCourseCatalogCard(
     lessonCount: lessons.length,
     moduleCount: course.modules.length,
     freeLessonCount,
+    freeLessons,
     href: `/cursos/${course.slug}`,
     ctaLabel: started ? "Continuar curso" : "Conhecer o curso",
     microcopy: freeLessonCount > 0 && !started ? "Comece gratuitamente" : null,
