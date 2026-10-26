@@ -11,7 +11,7 @@ const variants: Record<ButtonVariant, string> = {
 
 export function buttonClass(variant: ButtonVariant = "primary", className?: string): string {
   return cn(
-    "inline-flex min-h-12 cursor-pointer items-center justify-center rounded-lg px-5 py-3 text-center text-sm font-medium leading-snug transition-[background-color,border-color,color,transform,box-shadow] duration-200 motion-safe:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none disabled:active:translate-y-0",
+    "inline-flex min-h-12 cursor-pointer items-center justify-center rounded-lg px-5 py-3 text-center text-sm font-medium leading-snug transition-[background-color,border-color,color,transform,box-shadow] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta motion-safe:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none disabled:active:translate-y-0",
     variants[variant],
     className,
   );

@@ -91,6 +91,9 @@ test("a home não copia as 24 experiências e o caminho não leva dado privado",
     .map((name) => readFileSync(`src/components/home/${name}`, "utf8"))
     .join("\n");
   assert.match(source, /courseExperience\(/);
+  assert.equal(readFileSync("src/components/home/HomeArtifacts.tsx", "utf8").includes("SitesPageVisual"), false);
+  assert.match(readFileSync("src/components/home/ProductInAction.tsx", "utf8"), /SitesPageVisual/);
+  assert.match(readFileSync("src/components/home/ConnectedCourses.tsx", "utf8"), /href="\/cursos"/);
   assert.equal(source.includes("Como avaliar objetivo, oferta, público, destino, mensuração e operação antes de investir."), false);
   assert.equal(source.includes("courses[0]"), false);
   assert.equal(source.includes("courses[1]"), false);

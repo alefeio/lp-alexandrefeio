@@ -14,13 +14,13 @@ test("home posiciona as duas formações e não a landing de um único curso", (
   assert.equal(publicHomeMetadata.title.includes("Alexandre Feio"), false);
 
   const home = readFileSync(new URL("../src/components/home/CourseHome.tsx", import.meta.url), "utf8");
-  const summaries = readFileSync(new URL("../src/components/home/HomeCourseSummaries.tsx", import.meta.url), "utf8");
+  const connected = readFileSync(new URL("../src/components/home/ConnectedCourses.tsx", import.meta.url), "utf8");
   assert.match(home, /HomeHero/);
   assert.match(home, /ConnectedCourses/);
   assert.match(home, /FreeCourseJourney/);
-  assert.match(summaries, /href="\/cursos"/);
-  assert.match(summaries, /freeLessonCount/);
-  assert.match(summaries, /ctaLabel/);
+  assert.equal(home.includes("HomeCourseSummaries"), false);
+  assert.match(connected, /href="\/cursos"/);
+  assert.match(connected, /freeLessonCount/);
   assert.equal(home.includes("Porta de entrada do curso de Tráfego Pago"), false);
   assert.equal(home.includes("Conhecimento sem aplicação não muda o negócio"), false);
   assert.equal(home.includes("Meu primeiro mapa de tráfego"), false);

@@ -9,7 +9,7 @@ const stages = [
 
 export function SystemStages() {
   return (
-    <section className="py-16" aria-label="Da atenção à próxima decisão">
+    <section className="py-14" aria-label="Da atenção à próxima decisão">
       <Container>
         <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">Da atenção à próxima decisão.</h2>
         <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

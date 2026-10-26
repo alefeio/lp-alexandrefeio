@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { SitesPageVisual, TrafficCampaignVisual } from "@/components/course/CourseProductVisual";
 import { Container } from "@/components/ui/Container";
@@ -30,6 +31,10 @@ function CoursePanel({
       <h3 className="mt-3 text-xl font-semibold tracking-tight">{course.title}</h3>
       <p className="mt-2 text-base font-medium leading-snug">{headline}</p>
       {experience ? <p className="mt-3 text-sm leading-relaxed text-muted">{experience.shortOutcome}</p> : null}
+      <p className="mt-3 text-sm text-muted">
+        {course.lessonCount} aulas · {course.moduleCount} módulos
+        {course.freeLessonCount > 0 ? ` · ${course.freeLessonCount} gratuitas` : ""}
+      </p>
       <div className="mt-5 min-w-0">
         {visual === "traffic" ? <TrafficCampaignVisual steps={trafficSteps} title="Da campanha à decisão" /> : <SitesPageVisual />}
       </div>
@@ -51,7 +56,7 @@ function CoursePanel({
         </ul>
       ) : null}
       <p className="mt-6">
-        <AcquisitionLink className="text-sm font-medium underline underline-offset-4" href={course.href} event="course_cta_click" payload={{ course_slug: course.slug, cta_name: ctaName }}>
+        <AcquisitionLink className="text-sm font-medium underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta" href={course.href} event="course_cta_click" payload={{ course_slug: course.slug, cta_name: ctaName }}>
           {cta}
         </AcquisitionLink>
       </p>
@@ -65,14 +70,14 @@ export function ConnectedCourses({ courses }: { courses: CourseCatalogCard[] }) 
   if (!traffic && !sites) return null;
 
   return (
-    <section id="formacoes" className="scroll-mt-24 border-t border-border py-16">
+    <section id="formacoes" className="scroll-mt-24 border-t border-border py-20 lg:py-24">
       <Container>
         <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">Duas formações. Um único sistema.</h2>
         <div className="mt-8 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_11rem_minmax(0,1fr)]">
           {traffic ? (
             <CoursePanel course={traffic} headline="Atraia e aprenda com os dados." cta="Conhecer Tráfego Pago" ctaName="conhecer_trafego" visual="traffic" />
           ) : null}
-          <div className="flex min-w-0 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border px-4 py-5 text-center">
+          <div className="flex min-w-0 flex-col items-center justify-center gap-3 px-2 py-4 text-center">
             <p className="text-sm font-medium leading-relaxed">O anúncio leva até a página. A página prepara a ação.</p>
             <ol className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium" aria-label="Tráfego, página e ação">
               {["Tráfego", "Página", "Ação"].map((step, index, list) => (
@@ -87,6 +92,11 @@ export function ConnectedCourses({ courses }: { courses: CourseCatalogCard[] }) 
             <CoursePanel course={sites} headline="Construa o destino." cta="Conhecer Sites que Convertem" ctaName="conhecer_sites" visual="sites" />
           ) : null}
         </div>
+        <p className="mt-8">
+          <Link className="text-sm font-medium underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta" href="/cursos">
+            Ver todas as formações
+          </Link>
+        </p>
       </Container>
     </section>
   );

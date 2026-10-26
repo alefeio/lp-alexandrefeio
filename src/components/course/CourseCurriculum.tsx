@@ -140,7 +140,7 @@ function LessonCurriculumItem({
             <span className="mt-1 block font-medium">{lesson.title}</span>
           </span>
           <span className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full border border-border px-2 py-1 font-medium">{paid ? "Paga" : "Grátis"}</span>
+            <span className={paid ? "rounded-full border border-border px-2 py-1 font-medium text-muted" : "rounded-full bg-cta/10 px-2 py-1 font-medium text-cta"}>{paid ? "Paga" : "Grátis"}</span>
             {duration ? <span className="text-muted">{duration}</span> : null}
             {!hidePrice && paid && lesson.priceCents != null ? <span className="text-muted">{formatPriceCents(lesson.priceCents)}</span> : null}
           </span>

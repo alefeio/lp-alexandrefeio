@@ -4,7 +4,6 @@ import { ConnectedCourses } from "@/components/home/ConnectedCourses";
 import { CourseDecisionGuide } from "@/components/home/CourseDecisionGuide";
 import { FreeCourseJourney } from "@/components/home/FreeCourseJourney";
 import { HomeArtifacts } from "@/components/home/HomeArtifacts";
-import { HomeCourseSummaries } from "@/components/home/HomeCourseSummaries";
 import { HomeHero } from "@/components/home/HomeHero";
 import { LearnOrDelegate } from "@/components/home/LearnOrDelegate";
 import { ProductInAction } from "@/components/home/ProductInAction";
@@ -31,8 +30,7 @@ export function CourseHome({
       <ProductInAction />
       <CourseDecisionGuide courses={courses} />
       <FreeCourseJourney courses={courses} />
-      <HomeCourseSummaries courses={courses} />
-      <section id="sobre" className="scroll-mt-24 border-t border-border py-16">
+      <section id="sobre" className="scroll-mt-24 py-14">
         <Container className="max-w-3xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Sobre</p>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Tecnologia, marketing e produto na mesma experiência.</h2>
@@ -42,7 +40,7 @@ export function CourseHome({
         </Container>
       </section>
       <LearnOrDelegate />
-      <section className="border-t border-border py-16">
+      <section className="border-t border-border py-20">
         <Container className="max-w-3xl">
           <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{publicHomeCopy.finalTitle}</h2>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">

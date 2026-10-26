@@ -49,12 +49,12 @@ export function CoursePurchasePanel({
   firstFreeHref: string | null;
 }) {
   return (
-    <section id="curso-completo" className="scroll-mt-24 overflow-x-clip border-t border-border py-16">
+    <section id="curso-completo" className="scroll-mt-24 overflow-x-clip border-t border-border py-20">
       <Container className="max-w-3xl">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Formação completa</p>
         <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
         <p className="mt-3 text-base leading-relaxed text-muted">{support}</p>
-        <div className="mt-8 rounded-2xl border border-cta/25 bg-surface p-6 sm:p-8">
+        <div className="mt-8 border-t border-border pt-6">
           <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">{courseTitle}</h3>
           <p className="mt-3 text-sm text-muted">
             {lessonCount} aulas · {moduleCount} módulos

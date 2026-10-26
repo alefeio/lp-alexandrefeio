@@ -29,7 +29,7 @@ export function CourseHero({
   priceLabel: string | null;
 }) {
   return (
-    <section className="hero-stage final-stage overflow-x-clip py-12 text-on-ink sm:py-16">
+    <section className="hero-stage final-stage overflow-x-clip py-14 text-on-ink sm:py-16 lg:py-20">
       <Container className="grid min-w-0 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
         <div className="min-w-0 max-w-xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-on-ink">{eyebrow}</p>

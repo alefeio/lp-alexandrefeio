@@ -9,6 +9,7 @@ export type AcquisitionEvent =
   | "course_complementary_click"
   | "curriculum_lesson_expand"
   | "home_course_path_click"
+  | "course_catalog_path_click"
   | "service_from_course_click";
 
 const ALLOWED_KEYS = ["course_slug", "lesson_slug", "cta_name", "source_course_slug", "target_course_slug", "scenario"] as const;
