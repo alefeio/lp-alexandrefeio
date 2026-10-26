@@ -1,6 +1,6 @@
 # ADR — Landing Page Builder V1
 
-Status: **ACCEPTED — PHASE 1 a PHASE 9 com núcleo implementado**. O hardening pré-lançamento adiciona limitador durável, proteção dos endpoints públicos e limpeza técnica de mídia órfã. O runtime público fica desligado em produção até o corte explícito. O curso permanece DRAFT.
+Status: **ACCEPTED — PHASE 1 a PHASE 9 com núcleo implementado**. O hardening pré-lançamento adiciona limitador durável, proteção dos endpoints públicos e limpeza técnica de mídia órfã. O corte explícito ligou o runtime público em produção. O curso está PUBLISHED e AVAILABLE.
 
 Relacionado: [`docs/courses/sites-que-convertem.md`](../courses/sites-que-convertem.md)
 
@@ -484,5 +484,5 @@ Conteúdo pedagógico: Aulas 1–9 com conteúdo interno. Aulas 10–12 ainda n�
 
 - Promessa comercial alinhada a entrega real (página publicada).
 - Complexidade de produto sobe (builder, hosting, leads, mídia).
-- Course permanece DRAFT / NOT_FOR_SALE até core mínimo e decisão de release.
+- Course permanece DRAFT / NOT_FOR_SALE até core mínimo e decisão de release. Essa decisão foi tomada no corte: o curso está PUBLISHED e o curso completo está AVAILABLE.
 - Curso 1 (tráfego) permanece isolado.

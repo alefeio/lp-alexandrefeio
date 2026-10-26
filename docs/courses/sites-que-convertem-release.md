@@ -1,6 +1,8 @@
 # Sites que Convertem — corte de lançamento
 
-O curso permanece DRAFT, fora do público e NOT_FOR_SALE. Este documento não liga o runtime, não publica o curso e não escolhe política comercial.
+Corte concluído. O curso está PUBLISHED, à venda a R$ 249,90, e o runtime público da landing page está ligado em produção.
+
+O registro abaixo descreve a fase anterior, quando o curso permanecia DRAFT, fora do público e NOT_FOR_SALE. Naquela fase este documento não ligava o runtime, não publicava o curso e não escolhia a política comercial.
 
 ## TECHNICAL READY
 

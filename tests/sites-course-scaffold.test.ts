@@ -162,10 +162,12 @@ test("primeiro curso permanece intacto no seed", () => {
   }
 });
 
-test("documentação e ADR registram reframe e release suspenso", () => {
+test("documentação e ADR registram o release e a fase anterior", () => {
   const doc = readFileSync(new URL("../docs/courses/sites-que-convertem.md", import.meta.url), "utf8");
   const adr = readFileSync(new URL("../docs/adr/landing-page-builder-v1.md", import.meta.url), "utf8");
   assert.match(doc, /CONTENT_STATUS \| REFRAMED_LANDING_PAGE_BUILDER/);
+  assert.match(doc, /PUBLIC_RELEASE \| APPROVED/);
+  assert.match(doc, /COMMERCE_RELEASE \| APPROVED/);
   assert.match(doc, /PUBLIC_RELEASE \| SUSPENDED/);
   assert.match(doc, /COMMERCE_RELEASE \| NOT_APPROVED/);
   assert.match(doc, /LandingPageProject/);

@@ -5,14 +5,25 @@
 | Campo | Valor |
 | --- | --- |
 | CONTENT_STATUS | REFRAMED_LANDING_PAGE_BUILDER · Aulas 1–12 COMPLETE |
-| PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
-| COMMERCE_RELEASE | NOT_APPROVED |
-| Publication | Course DRAFT · Aulas 1–3 FREE e Aulas 4–12 PAID com conteúdo (internamente PUBLISHED no seed) |
-| Commerce | NOT_FOR_SALE |
-| Catálogo público | não |
-| Sitemap / indexação | não (curso fora do público) |
+| PUBLIC_RELEASE | APPROVED |
+| COMMERCE_RELEASE | APPROVED |
+| Publication | Course PUBLISHED · 5 módulos PUBLISHED · Aulas 1–3 FREE · Aulas 4–12 PAID |
+| Commerce | Curso completo AVAILABLE a R$ 249,90 · 9 aulas pagas AVAILABLE · 4 módulos pagos AVAILABLE · aulas gratuitas e o módulo Antes de construir fora de venda |
+| Catálogo público | sim |
+| Sitemap / indexação | sim |
+| Runtime público da landing | ENABLED em produção |
 
 ADR técnico: [`docs/adr/landing-page-builder-v1.md`](../adr/landing-page-builder-v1.md).
+
+## Fase anterior
+
+Até o corte, o curso ficou fora do público enquanto o builder era construído:
+
+| Campo | Valor naquela fase |
+| --- | --- |
+| PUBLIC_RELEASE | SUSPENDED (release gratuito anterior suspenso até arquitetura do builder) |
+| COMMERCE_RELEASE | NOT_APPROVED |
+| Commerce | NOT_FOR_SALE |
 
 ## Nova promessa central
 
@@ -38,7 +49,7 @@ O aluno não termina apenas sabendo “como uma landing page deveria ser”. Ter
 - **Subtítulo:** Planeje, construa e publique sua própria landing page enquanto aprende.
 - **Ordem editorial:** depois de `trafego-pago-na-pratica` (`sortOrder: 1`)
 - **Totais:** 12 aulas · 5 módulos · 3 aulas gratuitas
-- **Preço planejado do curso completo:** R$ 249,90 (não exibir publicamente enquanto NOT_FOR_SALE)
+- **Preço do curso completo:** R$ 249,90
 
 ## Preços planejados
 
@@ -46,7 +57,7 @@ Soma das aulas pagas individuais: **R$ 334,10**
 Soma dos módulos pagos: **R$ 301,60**  
 Curso completo: **R$ 249,90** (economia planejada R$ 84,20 / ~25,2%)
 
-Nenhum produto deste curso fica `AVAILABLE` neste estágio.
+As nove aulas pagas, os quatro módulos pagos e o curso completo estão `AVAILABLE`. As três aulas gratuitas e o módulo Antes de construir permanecem fora da allowlist comercial.
 
 ## Módulos e aulas
 
@@ -61,42 +72,42 @@ Nenhum produto deste curso fica `AVAILABLE` neste estágio.
 
 ### Módulo 2 — Planeje antes de desenhar — R$ 62,90 — Aulas 4–5 COMPLETE
 
-4. **Defina oferta, público e ação principal** (`oferta-publico-acao-principal`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+4. **Defina oferta, público e ação principal** (`oferta-publico-acao-principal`) — PAID R$ 34,90 · AVAILABLE · COMPLETE  
    Resultado: Brief de conversão da minha landing page · Tool: `CONVERSION_PAGE_BRIEF_V1`  
    O `LandingPageProject` nasce nesta aula. A estratégia canônica fica em `draftDocument.strategy.brief`. O `LessonResult` guarda só o resumo. Status do projeto permanece `DRAFT`. Nenhuma seção é gerada.
-5. **Planeje a jornada do visitante** (`jornada-do-visitante`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+5. **Planeje a jornada do visitante** (`jornada-do-visitante`) — PAID R$ 34,90 · AVAILABLE · COMPLETE  
    Resultado: Mapa de decisão do visitante · Tool: `VISITOR_DECISION_JOURNEY_V1`  
    Cria `draftDocument.strategy.decisionJourney` no mesmo projeto. A navegação da aula é independente; a ferramenta exige o brief da Aula 4. `buildWireframeContextFromLandingPageProject` passa a montar o `WireframeContextV1`. A Aula 6 consome esse contexto. Esta aula não gera seções.
 
 ### Módulo 3 — Estruture e comunique — R$ 71,90 — Aulas 6–7 COMPLETE
 
-6. **Monte a estrutura da sua landing page** (`organize-as-secoes-da-pagina`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
+6. **Monte a estrutura da sua landing page** (`organize-as-secoes-da-pagina`) — PAID R$ 39,90 · AVAILABLE · COMPLETE  
    Resultado: Estrutura da minha landing page · Tool: `LANDING_PAGE_WIREFRAME_V1`  
    Aula 4 grava `strategy.brief`. Aula 5 grava `strategy.decisionJourney`. Aula 6 grava `strategy.wireframe` e materializa `draftDocument.sections` com conteúdo provisório (`PLACEHOLDER`). O status passa a `READY_TO_PREVIEW`, que significa apenas que existe uma estrutura válida para visualizar. Não significa pronta para publicar.
-7. **Escreva uma mensagem que deixa sua oferta clara** (`mensagem-que-deixa-a-oferta-clara`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
+7. **Escreva uma mensagem que deixa sua oferta clara** (`mensagem-que-deixa-a-oferta-clara`) — PAID R$ 39,90 · AVAILABLE · COMPLETE  
    Resultado: Copy da minha landing page · Tool: `LANDING_PAGE_COPY_ASSIST_V1`  
    Aula 6 deixa as seções em `PLACEHOLDER`. Aula 7 escreve e aprova a copy das seções principais (`HERO` e, quando existem, `PROBLEM`, `SOLUTION`, `BENEFITS`, `CTA`). A IA sugere por seção, no máximo 3 opções, e não grava sozinha. O aluno aplica como `DRAFT` e aprova. Fatos complementares ficam em `strategy.copyFacts`. Seções opcionais (`PROCESS`, `FAQ`, `TRUST`, `FORM`) não bloqueiam a conclusão quando faltam fatos. `CONTACT` e `FOOTER` não usam IA. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda o resumo, não a copy inteira.
 
 ### Módulo 4 — Atenção e confiança — R$ 62,90 — Aulas 8–9 COMPLETE
 
-8. **Use hierarquia visual para conduzir a atenção** (`hierarquia-visual-e-atencao`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+8. **Use hierarquia visual para conduzir a atenção** (`hierarquia-visual-e-atencao`) — PAID R$ 34,90 · AVAILABLE · COMPLETE  
    Resultado: Direção visual da minha landing page · Tool: `LANDING_PAGE_VISUAL_DIRECTION_V1`  
    Aula 6 define a estrutura. Aula 7 define a mensagem. Aula 8 grava o tema, os ajustes visuais das seções e `strategy.visualDirection` no mesmo projeto, numa única revisão. O tema padrão pode ser confirmado sem personalização obrigatória. Contraste crítico não é salvo. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda o resumo e a impressão digital do tema, não a paleta inteira.
-9. **Construa confiança antes de pedir a ação** (`construa-confianca`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+9. **Construa confiança antes de pedir a ação** (`construa-confianca`) — PAID R$ 34,90 · AVAILABLE · COMPLETE  
    Resultado: Plano de confiança da minha landing page · Tool: `LANDING_PAGE_TRUST_V1`  
    A aula usa o núcleo da Phase 6. As provas continuam em `strategy.copyFacts.trustProofs` e a mídia em `LandingPageMedia`. `strategy.trustPlan` guarda só a decisão pedagógica: versão, tipos revisados, ids selecionados, uso das seções, tipos ausentes e próximos passos. Não duplica o texto das provas. O aluno pode concluir sem provas prontas. Depoimento sem autorização não fica pronto. Não há nota de confiança nem selo de verificado. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` guarda contagens, não o conteúdo.
 
 ### Módulo 5 — Publique, meça e melhore — R$ 103,90 — Aulas 10–12 COMPLETE
 
-10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90 · NOT_FOR_SALE · COMPLETE  
+10. **Prepare sua página para o celular e uma boa experiência** (`pagina-mobile-e-experiencia`) — PAID R$ 34,90 · AVAILABLE · COMPLETE  
     Resultado: Revisão de experiência da minha landing page · Tool: `LANDING_PAGE_EXPERIENCE_REVIEW_V1`  
     A aula usa o núcleo da Phase 7. A revisão canônica fica em `draftDocument.experienceReview`. `strategy.experienceReview` guarda versão, status, viewports e contagens, sem o texto dos findings. A conclusão exige `READY_FOR_NEXT_STEP`. Salvar grava `reviewedDraftRevision` como a revisão seguinte do rascunho, então a própria gravação não deixa o status `STALE`. O projeto permanece `READY_TO_PREVIEW`. O `LessonResult` só é gravado quando a revisão está pronta.
-11. **Configure o que precisa ser medido** (`configure-o-que-precisa-ser-medido`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
+11. **Configure o que precisa ser medido** (`configure-o-que-precisa-ser-medido`) — PAID R$ 39,90 · AVAILABLE · COMPLETE  
     Resultado: Plano de mensuração da minha landing page · Tool: `LANDING_PAGE_MEASUREMENT_PLAN_V1`  
-    Aula 10 grava a revisão de experiência. Aula 11 confirma a ação e o plano de mensuração no mesmo `LandingPageProject`. A ação fica em `draftDocument.conversion`, o formulário na seção `FORM`, a mensuração em `draftDocument.measurement` e o resumo em `strategy.measurementPlan`, com `confirmed: true` só depois da confirmação do aluno. Gravar só os eventos não deixa a revisão de experiência `STALE`. Mudar ação ou formulário deixa. A aula pode concluir mesmo assim. A publicação exige revisão atual. O `LessonResult` guarda tipos, contagens e status, sem telefone, URL, respostas ou lead. Preview e simulação não gravam métrica nem lead. O projeto permanece `READY_TO_PREVIEW` até a publicação. O reconciliador do slug `mensuracao-da-pagina` só roda num futuro `catalog:deploy` e não apaga as duas linhas se elas coexistirem. `catalog:deploy` não foi executado nesta etapa.
-12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90 · NOT_FOR_SALE · COMPLETE  
+    Aula 10 grava a revisão de experiência. Aula 11 confirma a ação e o plano de mensuração no mesmo `LandingPageProject`. A ação fica em `draftDocument.conversion`, o formulário na seção `FORM`, a mensuração em `draftDocument.measurement` e o resumo em `strategy.measurementPlan`, com `confirmed: true` só depois da confirmação do aluno. Gravar só os eventos não deixa a revisão de experiência `STALE`. Mudar ação ou formulário deixa. A aula pode concluir mesmo assim. A publicação exige revisão atual. O `LessonResult` guarda tipos, contagens e status, sem telefone, URL, respostas ou lead. Preview e simulação não gravam métrica nem lead. O projeto permanece `READY_TO_PREVIEW` até a publicação. O reconciliador do slug `mensuracao-da-pagina` rodou no `catalog:deploy` do release e não apaga as duas linhas se elas coexistirem. O slug canônico é `configure-o-que-precisa-ser-medido`.
+12. **Revise e publique sua landing page** (`revisao-antes-do-trafego`) — PAID R$ 39,90 · AVAILABLE · COMPLETE  
     Resultado: Publicação da minha landing page · Tool: `LANDING_PAGE_PUBLICATION_V1`  
-    Sequência final do mesmo `LandingPageProject`: 4 estratégia, 5 jornada, 6 estrutura, 7 copy, 8 visual, 9 confiança, 10 experiência, 11 mensuração, 12 publicação. A aula usa `evaluateLandingPagePublicationReadiness` e `publishLandingPage`. Bloqueio vira “Precisa corrigir” e não pode ser ignorado. Aviso vira “Vale revisar” e pede reconhecimento. Revisão de experiência desatualizada volta para a Aula 10. A revisão final continua em modo preview, sem ação, lead ou métrica. O `LessonResult` só é gravado quando existe publicação ativa, snapshot válido e o runtime público daquele ambiente consegue servir `/p/[slug]`. Com `LANDING_PAGE_PUBLIC_RUNTIME_ENABLED` desligado, uma linha de publicação não conclui a aula e a interface não diz que a página está no ar. O resultado guarda slug e caminho, não a URL absoluta, o snapshot, telefone, URL externa nem lead. O curso permanece DRAFT, NOT PUBLIC e NOT_FOR_SALE. `catalog:deploy` não foi executado.
+    Sequência final do mesmo `LandingPageProject`: 4 estratégia, 5 jornada, 6 estrutura, 7 copy, 8 visual, 9 confiança, 10 experiência, 11 mensuração, 12 publicação. A aula usa `evaluateLandingPagePublicationReadiness` e `publishLandingPage`. Bloqueio vira “Precisa corrigir” e não pode ser ignorado. Aviso vira “Vale revisar” e pede reconhecimento. Revisão de experiência desatualizada volta para a Aula 10. A revisão final continua em modo preview, sem ação, lead ou métrica. O `LessonResult` só é gravado quando existe publicação ativa, snapshot válido e o runtime público daquele ambiente consegue servir `/p/[slug]`. Com `LANDING_PAGE_PUBLIC_RUNTIME_ENABLED` desligado, uma linha de publicação não conclui a aula e a interface não diz que a página está no ar. O resultado guarda slug e caminho, não a URL absoluta, o snapshot, telefone, URL externa nem lead. Em produção o runtime está ligado, o curso está PUBLISHED e o `catalog:deploy` do release já foi executado.
 
 ## Resultado macro
 
@@ -106,4 +117,4 @@ Relação opcional com `Project` genérico (1 Project → N landing pages).
 
 ## Deploy
 
-`deploySitesCourseScaffold` + seeds das aulas 1–12 quando `catalog:deploy` for executado. O comando não foi executado nesta etapa. Course permanece DRAFT até a decisão de release. A Aula 12 está completa no código, mas o runtime público de produção continua desligado.
+`deploySitesCourseScaffold` publica a estrutura e `publishSitesCourseCatalog` publica módulos e curso depois das doze aulas. O `catalog:deploy` do release já rodou. O curso está PUBLISHED e o runtime público de produção está ligado. O comando preserva `commerceStatus` existente. Registro novo continua nascendo `NOT_FOR_SALE`.
