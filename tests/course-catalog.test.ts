@@ -98,18 +98,20 @@ test("navegação pública e footer usam Cursos → /cursos", () => {
   assert.equal(footerNavigation.some((item) => item.label === "Curso"), false);
 });
 
-test("página de vendas prioriza curso completo antes dos módulos", () => {
+test("página de vendas mostra a ementa antes do preço", () => {
   const sales = readFileSync(new URL("../src/components/course/CourseSales.tsx", import.meta.url), "utf8");
-  const freeIdx = sales.indexOf('id="aulas-gratuitas"');
-  const fullIdx = sales.indexOf('id="curso-completo"');
-  const programIdx = sales.indexOf('id="programa"');
-  assert.ok(freeIdx > 0);
+  const purchase = readFileSync(new URL("../src/components/course/CoursePurchasePanel.tsx", import.meta.url), "utf8");
+  const programIdx = sales.indexOf("<CourseCurriculum");
+  const freeIdx = sales.indexOf("<CourseFreeLessons");
+  const fullIdx = sales.indexOf("<CoursePurchasePanel");
+  assert.ok(programIdx > 0);
+  assert.ok(freeIdx > programIdx);
   assert.ok(fullIdx > freeIdx);
-  assert.ok(programIdx > fullIdx);
   assert.match(sales, /individualTotalCents/);
   assert.match(sales, /savingsCents/);
-  assert.match(sales, /formatPriceCents/);
+  assert.match(purchase, /formatPriceCents/);
   assert.equal(sales.includes("249,90"), false);
+  assert.equal(purchase.includes("249,90"), false);
   assert.equal(sales.includes("334,10"), false);
   assert.equal(sales.includes("84,20"), false);
   assert.match(sales, /hidePrices/);

@@ -45,12 +45,20 @@ test("nav e footer usam semântica multi-curso sem Aulas gratuitas", () => {
 
 test("página do curso preserva aulas gratuitas e oferta completa", () => {
   const sales = readFileSync(new URL("../src/components/course/CourseSales.tsx", import.meta.url), "utf8");
+  const curriculum = readFileSync(new URL("../src/components/course/CourseCurriculum.tsx", import.meta.url), "utf8");
+  const free = readFileSync(new URL("../src/components/course/CourseFreeLessons.tsx", import.meta.url), "utf8");
+  const purchase = readFileSync(new URL("../src/components/course/CoursePurchasePanel.tsx", import.meta.url), "utf8");
   const copy = readFileSync(new URL("../src/lib/learning/course-sales-copy.ts", import.meta.url), "utf8");
-  assert.match(sales, /id="aulas-gratuitas"/);
-  assert.match(sales, /id="curso-completo"/);
-  assert.match(sales, /id="programa"/);
+  assert.match(free, /id="aulas-gratuitas"/);
+  assert.match(purchase, /id="curso-completo"/);
+  assert.match(curriculum, /id="programa"/);
+  assert.match(sales, /CourseFreeLessons/);
+  assert.match(sales, /CoursePurchasePanel/);
+  assert.match(sales, /CourseCurriculum/);
   assert.match(sales, /courseSalesCopy/);
   assert.match(copy, /Três aulas gratuitas/);
   assert.match(copy, /Faça a jornada completa/);
   assert.match(copy, /Começar gratuitamente/);
+  assert.equal(copy.includes("page builder estão sendo preparados"), false);
+  assert.equal(copy.includes("fora do catálogo"), false);
 });

@@ -321,8 +321,8 @@ test("dados da lista não entram em analytics, preview administrativo nem venda"
   const payload = lessonAnalyticsPayload({ lessonSlug: LESSON_07_SLUG, courseSlug: "trafego-pago-na-pratica", accessType: "PAID" });
   assert.deepEqual(Object.keys(payload).sort(), ["access_type", "course_slug", "lesson_slug"]);
   assert.equal(JSON.stringify(payload).includes("advogado"), false);
-  const sales = readFileSync(new URL("../src/components/course/CourseSales.tsx", import.meta.url), "utf8");
-  assert.match(sales, /Disponível em breve/);
-  assert.match(sales, /Ler a parte gratuita/);
-  assert.match(sales, /hasPublicPreview/);
+  const curriculum = readFileSync(new URL("../src/components/course/CourseCurriculum.tsx", import.meta.url), "utf8");
+  assert.match(curriculum, /Disponível em breve/);
+  assert.match(curriculum, /Ler a parte gratuita/);
+  assert.match(curriculum, /hasPublicPreview/);
 });

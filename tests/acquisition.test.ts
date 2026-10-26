@@ -126,10 +126,12 @@ test("analytics de aquisição não carrega dado de negócio", () => {
 
 test("preço e aulas futuras não estão hardcoded na página de vendas", () => {
   const sales = readFileSync(new URL("../src/components/course/CourseSales.tsx", import.meta.url), "utf8");
+  const purchase = readFileSync(new URL("../src/components/course/CoursePurchasePanel.tsx", import.meta.url), "utf8");
   assert.equal(sales.includes("29,90"), false);
   assert.equal(sales.includes("249,90"), false);
-  assert.match(sales, /formatPriceCents/);
-  assert.match(sales, /Disponível em breve/);
+  assert.equal(purchase.includes("249,90"), false);
+  assert.match(purchase, /formatPriceCents/);
+  assert.match(purchase, /Disponível em breve/);
   assert.match(sales, /isProductForSale/);
   const home = readFileSync(new URL("../src/components/home/CourseHome.tsx", import.meta.url), "utf8");
   const publicHome = readFileSync(new URL("../src/lib/home/public-home.ts", import.meta.url), "utf8");

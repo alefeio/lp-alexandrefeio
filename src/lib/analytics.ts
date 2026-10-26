@@ -17,6 +17,8 @@ export type AnalyticsEventName =
   | "lesson_public_preview_view"
   | "lesson_paywall_view"
   | "course_cta_click"
+  | "course_complementary_click"
+  | "curriculum_lesson_expand"
   | "service_from_course_click"
   | "diagnostic_started"
   | "diagnostic_completed"

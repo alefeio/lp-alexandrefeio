@@ -117,6 +117,9 @@ test("timeout não repete o upload e a credencial não aparece no erro", async (
           return;
         }
         signal.addEventListener("abort", abort, { once: true });
+        // AbortSignal.timeout no Node 20 não mantém o event loop. Sem este timer o teste encerra antes do abort.
+        const keepAlive = setTimeout(() => reject(new Error("timeout did not abort")), 1000);
+        signal.addEventListener("abort", () => clearTimeout(keepAlive), { once: true });
       }),
   });
   await assert.rejects(() => storage.put("local", png, "image/png"), (error: unknown) => {
