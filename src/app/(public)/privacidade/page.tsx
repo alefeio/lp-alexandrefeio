@@ -75,6 +75,22 @@ export default function PrivacyPage() {
               da página também não recebe essas ferramentas só por publicá-la. Uma integração própria, se existir no
               futuro, pede revisão desta página.
             </p>
+            <h2 className="pt-4 text-lg font-semibold text-foreground">Jornada e uso da plataforma</h2>
+            <p>
+              Com o consentimento de analytics, {host} pode registrar eventos estratégicos de navegação e uso. Esses
+              registros ajudam a entender qual curso chamou atenção, a entrada por aulas gratuitas, a passagem entre
+              cursos, os diagnósticos e a intenção de compra. Quando a pessoa está autenticada, o evento pode ficar
+              associado à conta. O visitante pode usar um identificador pseudônimo guardado no navegador. Origem, mídia
+              e campanha podem acompanhar o evento. Esse registro analítico não guarda nome, telefone nem o conteúdo
+              digitado em formulários ou atividades, e não guarda o endereço IP bruto. Os eventos brutos ficam por até
+              12 meses, contados a partir de quando ocorreram.
+            </p>
+            <p>
+              Ao retirar o consentimento de analytics, novos eventos de jornada deixam de ser registrados e o
+              identificador analítico local é removido do navegador. Os eventos já gravados seguem o prazo de retenção
+              e as solicitações relacionadas a dados. Pedidos, progresso, diagnósticos e acessos comprados são registros
+              da conta, não desse identificador, e não são apagados por essa retirada.
+            </p>
             <h2 className="pt-4 text-lg font-semibold text-foreground">Landing pages criadas na plataforma</h2>
             <p>
               Usuários autenticados podem criar e publicar landing pages. Essas páginas podem ter botões, links

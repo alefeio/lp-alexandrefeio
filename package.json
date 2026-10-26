@@ -16,6 +16,7 @@
     "commerce:products": "tsx scripts/commerce-products.ts",
     "test": "tsx scripts/run-unit-tests.ts",
     "landing:retention": "tsx scripts/landing-page-retention.ts",
+    "journey:retention": "tsx scripts/product-journey-retention.ts",
     "test:database-live": "tsx scripts/run-database-live-tests.ts",
     "test:mercado-pago-live": "tsx scripts/run-mercado-pago-live-tests.ts"
   },

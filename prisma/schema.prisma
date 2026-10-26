@@ -33,6 +33,7 @@ model User {
   entitlements         Entitlement[]
   landingPageProjects  LandingPageProject[]
   landingPageMedia     LandingPageMedia[]
+  journeyEvents        JourneyEvent[]
 
   @@unique([email])
   @@map("user")
@@ -927,4 +928,43 @@ model LandingPageRateLimitBucket {
   @@unique([namespace, hashedKey, windowBucket], map: "landing_page_rate_limit_bucket_key")
   @@index([expiresAt])
   @@map("landing_page_rate_limit_bucket")
+}
+
+/// Evento estratégico da jornada, só com consentimento de analytics.
+/// Não substitui pedido, pagamento, progresso, diagnóstico, acesso nem landing page.
+/// anonymousId identifica o navegador ou perfil, não uma pessoa. Não equivale a userId.
+model JourneyEvent {
+  id               String    @id @default(cuid())
+  eventId          String    @unique
+  eventName        String
+  userId           String?
+  user             User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anonymousId      String?
+  sessionId        String?
+  courseSlug       String?
+  lessonSlug       String?
+  sourceCourseSlug String?
+  targetCourseSlug String?
+  scenario         String?
+  ctaName          String?
+  sourcePath       String?
+  targetPath       String?
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmContent       String?
+  utmTerm          String?
+  leadSource       String?
+  leadMedium       String?
+  landingPath      String?
+  referrerHost     String?
+  consentUpdatedAt DateTime?
+  occurredAt       DateTime
+  createdAt        DateTime  @default(now())
+
+  @@index([eventName, occurredAt])
+  @@index([userId, occurredAt])
+  @@index([anonymousId, occurredAt])
+  @@index([courseSlug, eventName, occurredAt])
+  @@map("journey_event")
 }

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { trackEvent } from "@/lib/analytics";
 import { acquisitionAnalyticsPayload, type AcquisitionEvent, type AcquisitionPayload } from "@/lib/learning/acquisition-analytics";
+import { journeyPath } from "@/lib/product-journey/paths";
 
 export function AcquisitionLink({
   href,
@@ -19,7 +20,7 @@ export function AcquisitionLink({
   children: ReactNode;
 }) {
   return (
-    <Link href={href} className={className} onClick={() => trackEvent(event, acquisitionAnalyticsPayload(payload ?? {}))}>
+    <Link href={href} className={className} onClick={() => trackEvent(event, acquisitionAnalyticsPayload(payload ?? {}), { targetPath: journeyPath(href) })}>
       {children}
     </Link>
   );

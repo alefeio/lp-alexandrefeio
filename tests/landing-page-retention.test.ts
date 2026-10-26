@@ -274,7 +274,10 @@ test("rotina, página e release não expõem dado de visitante nem deixam a pol�
 
 test("cron de retenção só executa depois do Bearer e responde só contagens", async () => {
   const cron = JSON.parse(readFileSync("vercel.json", "utf8")) as { crons: Array<{ path: string; schedule: string }> };
-  assert.deepEqual(cron.crons, [{ path: "/api/cron/landing-retention", schedule: "0 4 * * *" }]);
+  assert.deepEqual(cron.crons, [
+    { path: "/api/cron/landing-retention", schedule: "0 4 * * *" },
+    { path: "/api/cron/product-journey-retention", schedule: "15 4 * * *" },
+  ]);
   const route = readFileSync("src/app/api/cron/landing-retention/route.ts", "utf8");
   assert.match(route, /execute: true/);
   assert.match(route, /createPrismaLandingPageRetentionRepository/);

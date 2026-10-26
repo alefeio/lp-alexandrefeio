@@ -1,4 +1,5 @@
 import { pushConsentDefaults, pushConsentUpdate } from "@/lib/analytics";
+import { clearJourneyIdentity } from "@/lib/product-journey/identity";
 import {
   CONSENT_STORAGE_KEY,
   parseConsent,
@@ -93,6 +94,13 @@ export function bootstrapConsent(): void {
 
 function persist(next: ConsentState) {
   localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(next));
+  if (!next.analytics) {
+    try {
+      clearJourneyIdentity(localStorage, sessionStorage);
+    } catch {
+      // A retirada do consentimento continua mesmo se o armazenamento local falhar.
+    }
+  }
   pushConsentUpdate(next);
   setState({
     ...state,

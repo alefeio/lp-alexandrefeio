@@ -1,4 +1,6 @@
-import { consentToGoogleSignals, type ConsentState } from "@/lib/consent";
+import { CONSENT_STORAGE_KEY, consentToGoogleSignals, parseConsent, type ConsentState } from "@/lib/consent";
+import { persistJourneyEvent } from "@/lib/product-journey/client";
+import { isStrategicJourneyEvent } from "@/lib/product-journey/events";
 
 export type AnalyticsEventName =
   | "cta_click"
@@ -112,12 +114,15 @@ function sanitizeParams(params: AnalyticsParams): Record<string, string | number
   return clean;
 }
 
+export type JourneyTrackContext = { targetPath?: string };
+
 /**
  * Empurra eventos de negócio no dataLayer.
  * A existência do evento não depende de consentimento.
  * GA4 / Ads / Meta só devem consumir via tags no GTM com Consent Mode.
+ * A cópia first-party é best effort e só sai com analytics ligado.
  */
-export function trackEvent(event: AnalyticsEventName, params: AnalyticsParams = {}): void {
+export function trackEvent(event: AnalyticsEventName, params: AnalyticsParams = {}, context?: JourneyTrackContext): void {
   const dataLayer = getDataLayer();
   if (!dataLayer) return;
 
@@ -130,6 +135,20 @@ export function trackEvent(event: AnalyticsEventName, params: AnalyticsParams = 
 
   if (process.env.NODE_ENV === "development") {
     console.info("[analytics]", payload);
+  }
+
+  try {
+    if (!isStrategicJourneyEvent(event)) return;
+    const consent = parseConsent(window.localStorage.getItem(CONSENT_STORAGE_KEY));
+    if (!consent?.analytics) return;
+    persistJourneyEvent({
+      eventName: event,
+      params: payload,
+      targetPath: context?.targetPath,
+      consentUpdatedAt: consent.updatedAt,
+    });
+  } catch {
+    // A cópia first-party é best effort e não pode interromper o clique.
   }
 }
 
