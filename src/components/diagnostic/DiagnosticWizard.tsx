@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { trackEvent } from "@/lib/analytics";
 import { QUESTIONS } from "@/lib/diagnostic/definition";
+import { diagnosticAnalyticsPayload } from "@/lib/diagnostic/analytics";
 import { optionLabel, type DiagnosticAnswers } from "@/lib/diagnostic/score";
 import { completeDiagnosticAction, linkLessonToolFromReturn, saveDiagnosticAction } from "@/lib/diagnostic/actions";
 import { buttonClass } from "@/lib/button-styles";
-import { DiagnosticBeacon } from "@/components/diagnostic/DiagnosticBeacon";
 
 const choiceClass =
   "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface px-3 py-3 text-base leading-snug has-[:focus-visible]:border-cta";
@@ -33,6 +34,10 @@ export function DiagnosticWizard({
   const question = QUESTIONS[step];
   const answered = QUESTIONS.filter((item) => answers[item.id as keyof DiagnosticAnswers]).length;
 
+  function emitStartedIfNeeded(startedNow: boolean) {
+    if (startedNow) trackEvent("diagnostic_started", diagnosticAnalyticsPayload({}));
+  }
+
   async function persist(nextStep: number, nextAnswers: DiagnosticAnswers) {
     setPending(true);
     setError(null);
@@ -42,6 +47,7 @@ export function DiagnosticWizard({
         setError(result.message);
         return false;
       }
+      emitStartedIfNeeded(result.startedNow);
       setAnswers(nextAnswers);
       setStep(nextStep);
       return true;
@@ -50,6 +56,16 @@ export function DiagnosticWizard({
       return false;
     } finally {
       setPending(false);
+    }
+  }
+
+  async function persistSelection(nextAnswers: DiagnosticAnswers) {
+    try {
+      const result = await saveDiagnosticAction(projectId, diagnosticId, nextAnswers, step);
+      if (!result.ok) return;
+      emitStartedIfNeeded(result.startedNow);
+    } catch {
+      // O avanço seguinte repete a persistência e exibirá erro se o problema continuar.
     }
   }
 
@@ -72,10 +88,14 @@ export function DiagnosticWizard({
         setError(saved.message);
         return;
       }
+      emitStartedIfNeeded(saved.startedNow);
       const result = await completeDiagnosticAction(projectId, diagnosticId);
       if (!result.ok) {
         setError(result.message);
         return;
+      }
+      if (result.completedNow) {
+        trackEvent("diagnostic_completed", diagnosticAnalyticsPayload({ band: result.resultBand }));
       }
       if (returnTo) {
         const linked = await linkLessonToolFromReturn(returnTo, projectId, result.diagnosticId);
@@ -98,7 +118,6 @@ export function DiagnosticWizard({
 
   return (
     <div>
-      <DiagnosticBeacon diagnosticId={diagnosticId} event="diagnostic_started" />
       <p className="text-sm text-muted" aria-live="polite">
         {reviewing ? "Revisão das respostas" : `${Math.min(step + 1, QUESTIONS.length)} de ${QUESTIONS.length} perguntas`}
         {" · "}
@@ -133,7 +152,7 @@ export function DiagnosticWizard({
                       setError(null);
                       const next = { ...answers, [question.id]: option.id };
                       setAnswers(next);
-                      void saveDiagnosticAction(projectId, diagnosticId, next, step);
+                      void persistSelection(next);
                     }}
                   />
                   <span>{option.label}</span>
