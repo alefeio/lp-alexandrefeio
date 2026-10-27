@@ -64,7 +64,7 @@ export async function saveDiagnosticProgress(userId: string, projectId: string, 
         AND "userId" = ${userId}
         AND "projectId" = ${projectId}
         AND "status" = 'IN_PROGRESS'
-        AND "answers" = '{}'::jsonb
+        AND NOT ("answers" ?| ARRAY['q1','q2','q3','q4','q5','q6','q7','q8','q9','q10','q11','q12','q13','q14','q15'])
       RETURNING "id"
     `;
     startedNow = started.length === 1;
