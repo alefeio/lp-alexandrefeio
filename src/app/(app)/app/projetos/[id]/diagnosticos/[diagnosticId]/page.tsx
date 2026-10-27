@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
-import { DiagnosticBeacon } from "@/components/diagnostic/DiagnosticBeacon";
 import { requireSession } from "@/lib/auth/session";
 import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from "@/lib/diagnostic/definition";
 import { dimensionLabel, resultSnapshotSchema } from "@/lib/diagnostic/score";
@@ -31,7 +30,6 @@ export default async function DiagnosticResultPage({
 
   return (
     <Container className="max-w-2xl">
-      <DiagnosticBeacon diagnosticId={diagnostic.id} event="diagnostic_completed" band={result.band} />
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Diagnóstico de Prontidão</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Principal gargalo: {dimensionLabel(bottleneck)}</h1>
       <p className="mt-4 text-base leading-relaxed">
