@@ -11,9 +11,11 @@ export function marketingSitemap(origin: string): MetadataRoute.Sitemap {
   ];
 }
 
+export type SitemapPost = { slug: string; updatedAt: Date };
+
 export function buildPublicSitemap(
   origin: string,
-  input: { courses: SitemapCourse[]; lessons: SitemapLesson[] },
+  input: { courses: SitemapCourse[]; lessons: SitemapLesson[]; posts?: SitemapPost[] },
 ): MetadataRoute.Sitemap {
   const courses = input.courses.map((course) => ({
     url: `${origin}/cursos/${course.slug}`,
@@ -35,5 +37,19 @@ export function buildPublicSitemap(
       ? [{ url: `${origin}/cursos`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.6 }]
       : [];
 
-  return [...marketingSitemap(origin), ...catalog, ...courses, ...lessons];
+  const posts = input.posts ?? [];
+  const blog =
+    posts.length === 0
+      ? []
+      : [
+          { url: `${origin}/blog`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.7 },
+          ...posts.map((post) => ({
+            url: `${origin}/blog/${post.slug}`,
+            lastModified: post.updatedAt,
+            changeFrequency: "monthly" as const,
+            priority: 0.6,
+          })),
+        ];
+
+  return [...marketingSitemap(origin), ...catalog, ...courses, ...lessons, ...blog];
 }

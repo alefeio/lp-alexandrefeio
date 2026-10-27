@@ -968,3 +968,55 @@ model JourneyEvent {
   @@index([courseSlug, eventName, occurredAt])
   @@map("journey_event")
 }
+
+/// Artigo do blog. Status reutiliza ContentStatus. A capa usa a APIMG.
+model BlogPost {
+  id                 String       @id @default(cuid())
+  slug               String       @unique
+  title              String
+  excerpt            String       @default("")
+  contentMarkdown    String       @default("")
+  categorySlug       String       @default("")
+  ctaKey             String       @default("NONE")
+  seoTitle           String?
+  seoDescription     String?
+  coverImageUrl      String?
+  coverImagePublicId String?
+  coverImageAlt      String?
+  status             ContentStatus @default(DRAFT)
+  publishedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  relatedIdeas       BlogEditorialIdea[] @relation("BlogIdeaRelatedPost")
+  draftIdeas         BlogEditorialIdea[] @relation("BlogIdeaDraftPost")
+
+  @@index([status, publishedAt])
+  @@index([categorySlug, status])
+  @@map("blog_post")
+}
+
+/// Memória editorial. Status, papel e intenção ficam em código para não exigir enum a cada ajuste.
+model BlogEditorialIdea {
+  id             String    @id @default(cuid())
+  title          String
+  angle          String    @default("")
+  categorySlug   String    @default("")
+  contentRole    String
+  searchIntent   String
+  ctaKey         String    @default("NONE")
+  status         String    @default("PLANNED")
+  rationale      String    @default("")
+  relatedPostId  String?
+  relatedPost    BlogPost? @relation("BlogIdeaRelatedPost", fields: [relatedPostId], references: [id], onDelete: SetNull)
+  draftPostId    String?
+  draftPost      BlogPost? @relation("BlogIdeaDraftPost", fields: [draftPostId], references: [id], onDelete: SetNull)
+  trendStatus    String?
+  trendCheckedAt DateTime?
+  sourceUrls     String[]  @default([])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+  @@index([categorySlug])
+  @@map("blog_editorial_idea")
+}

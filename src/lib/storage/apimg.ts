@@ -16,6 +16,7 @@ export async function uploadToApimg(
   format: EditorialImageFormat,
   env: Record<string, string | undefined> = process.env,
   fetchImpl: FetchLike = fetch,
+  folder?: string,
 ): Promise<{ ok: true; asset: ApimgAsset } | { ok: false; message: string }> {
   const apiKey = env.APIMG_API_KEY?.trim() ?? "";
   const uploadUrl = env.APIMG_UPLOAD_URL?.trim() ?? "";
@@ -24,6 +25,7 @@ export async function uploadToApimg(
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
   body.set("file", new Blob([copy], { type: mime(format) }), `editorial.${format === "jpeg" ? "jpg" : format}`);
+  if (folder) body.set("folder", folder);
   let response: Response;
   try {
     response = await fetchImpl(uploadUrl, {

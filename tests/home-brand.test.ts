@@ -35,7 +35,7 @@ test("nav e footer usam semântica multi-curso sem Aulas gratuitas", () => {
   assert.equal(footerNavigation.some((item) => item.label === "Aulas gratuitas"), false);
   assert.deepEqual(
     navigation.map((item) => item.label),
-    ["Cursos", "Como funciona", "Sobre", "Gestão"],
+    ["Cursos", "Blog", "Como funciona", "Sobre", "Gestão"],
   );
 });
 
