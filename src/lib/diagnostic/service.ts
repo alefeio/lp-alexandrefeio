@@ -4,6 +4,10 @@ import { DIAGNOSTIC_VERSION, QUESTIONS } from "@/lib/diagnostic/definition";
 import { answersComplete, parseAnswers, resultSnapshotSchema, scoreDiagnostic, type DiagnosticAnswers } from "@/lib/diagnostic/score";
 import { ownedProject } from "@/lib/project/service";
 
+function hasAnsweredQuestion(answers: DiagnosticAnswers) {
+  return QUESTIONS.some((question) => Boolean(answers[question.id as keyof DiagnosticAnswers]));
+}
+
 export async function getDiagnosticForUser(userId: string, projectId: string, diagnosticId: string) {
   return getPrisma().diagnostic.findFirst({
     where: { id: diagnosticId, userId, projectId },
@@ -40,18 +44,43 @@ export async function resumeDiagnosticForUser(userId: string, projectId: string)
 }
 
 export async function saveDiagnosticProgress(userId: string, projectId: string, diagnosticId: string, rawAnswers: unknown, step: number) {
-  const diagnostic = await getPrisma().diagnostic.findFirst({
-    where: { id: diagnosticId, userId, projectId, status: "IN_PROGRESS" },
-  });
-  if (!diagnostic) return { ok: false as const, message: "Diagnóstico não encontrado." };
   const answers = parseAnswers(rawAnswers);
   if (!answers) return { ok: false as const, message: "Resposta inválida." };
+
+  const prisma = getPrisma();
   const currentStep = Math.min(Math.max(Math.trunc(step), 0), QUESTIONS.length);
-  const saved = await getPrisma().diagnostic.update({
-    where: { id: diagnostic.id },
-      data: { answers: JSON.parse(JSON.stringify(answers)) as Prisma.InputJsonValue, currentStep },
-  });
-  return { ok: true as const, diagnostic: saved };
+  const answersJson = JSON.stringify(answers);
+  let startedNow = false;
+
+  if (hasAnsweredQuestion(answers)) {
+    const started = await prisma.$queryRaw<Array<{ id: string }>>`
+      UPDATE "diagnostic"
+      SET
+        "answers" = ${answersJson}::jsonb,
+        "currentStep" = ${currentStep},
+        "updatedAt" = NOW()
+      WHERE
+        "id" = ${diagnosticId}
+        AND "userId" = ${userId}
+        AND "projectId" = ${projectId}
+        AND "status" = 'IN_PROGRESS'
+        AND "answers" = '{}'::jsonb
+      RETURNING "id"
+    `;
+    startedNow = started.length === 1;
+  }
+
+  if (!startedNow) {
+    const updated = await prisma.diagnostic.updateMany({
+      where: { id: diagnosticId, userId, projectId, status: "IN_PROGRESS" },
+      data: { answers: JSON.parse(answersJson) as Prisma.InputJsonValue, currentStep },
+    });
+    if (updated.count !== 1) return { ok: false as const, message: "Diagnóstico não encontrado." };
+  }
+
+  const saved = await prisma.diagnostic.findUnique({ where: { id: diagnosticId } });
+  if (!saved) return { ok: false as const, message: "Diagnóstico não encontrado." };
+  return { ok: true as const, diagnostic: saved, startedNow };
 }
 
 export async function completeDiagnosticForUser(userId: string, projectId: string, diagnosticId: string) {
@@ -60,7 +89,15 @@ export async function completeDiagnosticForUser(userId: string, projectId: strin
     where: { id: diagnosticId, userId, projectId },
   });
   if (!diagnostic) return { ok: false as const, message: "Diagnóstico não encontrado." };
-  if (diagnostic.status === "COMPLETED") return { ok: true as const, diagnosticId: diagnostic.id };
+  if (diagnostic.status === "COMPLETED") {
+    const parsed = resultSnapshotSchema.safeParse(diagnostic.resultSnapshot);
+    return {
+      ok: true as const,
+      diagnosticId: diagnostic.id,
+      completedNow: false,
+      resultBand: parsed.success ? parsed.data.band : undefined,
+    };
+  }
 
   const answers = parseAnswers(diagnostic.answers);
   if (!answers || !answersComplete(answers)) return { ok: false as const, message: "Responda todas as perguntas antes de concluir." };
@@ -71,9 +108,9 @@ export async function completeDiagnosticForUser(userId: string, projectId: strin
     ? await prisma.lesson.findFirst({ where: { slug: snapshot.lessonSlug, status: "PUBLISHED" }, select: { id: true } })
     : null;
 
-  await prisma.$transaction([
-    prisma.diagnostic.update({
-      where: { id: diagnostic.id },
+  const completedNow = await prisma.$transaction(async (tx) => {
+    const transitioned = await tx.diagnostic.updateMany({
+      where: { id: diagnostic.id, userId, projectId, status: "IN_PROGRESS" },
       data: {
         status: "COMPLETED",
         completedAt: new Date(),
@@ -83,8 +120,10 @@ export async function completeDiagnosticForUser(userId: string, projectId: strin
         dimensionScores: snapshot.dimensionScores,
         resultSnapshot: snapshot,
       },
-    }),
-    prisma.recommendation.create({
+    });
+    if (transitioned.count !== 1) return false;
+
+    await tx.recommendation.create({
       data: {
         projectId,
         diagnosticId: diagnostic.id,
@@ -97,10 +136,27 @@ export async function completeDiagnosticForUser(userId: string, projectId: strin
           : "Nenhuma dimensão crítica ficou abaixo da base desta versão.",
         lessonId: lesson?.id ?? null,
       },
-    }),
-  ]);
+    });
 
-  return { ok: true as const, diagnosticId: diagnostic.id };
+    return true;
+  });
+
+  if (!completedNow) {
+    const current = await prisma.diagnostic.findFirst({ where: { id: diagnosticId, userId, projectId } });
+    if (!current) return { ok: false as const, message: "Diagnóstico não encontrado." };
+    if (current.status === "COMPLETED") {
+      const parsed = resultSnapshotSchema.safeParse(current.resultSnapshot);
+      return {
+        ok: true as const,
+        diagnosticId: current.id,
+        completedNow: false,
+        resultBand: parsed.success ? parsed.data.band : undefined,
+      };
+    }
+    return { ok: false as const, message: "Não foi possível concluir o diagnóstico." };
+  }
+
+  return { ok: true as const, diagnosticId: diagnostic.id, completedNow: true, resultBand: snapshot.band };
 }
 
 export function publicAnswers(value: unknown): DiagnosticAnswers {
