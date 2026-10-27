@@ -32,7 +32,7 @@ test("completed é emitido antes de qualquer returnTo/router.push", () => {
 });
 
 test("serviço usa estado persistido como autoridade e não cria campo de analytics", () => {
-  assert.match(service, /AND "answers" = '\{\}'::jsonb/);
+  assert.match(service, /AND NOT \("answers" \?\| ARRAY\['q1','q2','q3','q4','q5','q6','q7','q8','q9','q10','q11','q12','q13','q14','q15'\]\)/);
   assert.match(service, /status: "IN_PROGRESS"/);
   assert.match(service, /completedNow: true/);
   assert.match(service, /completedNow: false/);
