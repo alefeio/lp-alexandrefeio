@@ -4,7 +4,7 @@ import test from "node:test";
 
 loadEnv({ path: ".env.local" });
 import { needsSession } from "../src/proxy";
-import { diagnosticAnalyticsPayload, diagnosticPayloadIsPublic } from "../src/lib/diagnostic/analytics";
+import { DIAGNOSTIC_COURSE_SLUG, diagnosticAnalyticsPayload, diagnosticPayloadIsPublic } from "../src/lib/diagnostic/analytics";
 import { DIAGNOSTIC_VERSION, DIMENSIONS, LESSON_BY_DIMENSION } from "../src/lib/diagnostic/definition";
 import { answersComplete, channelHint, dimensionScore, isCritical, overallScore, primaryBottleneck, scoreDiagnostic, type DiagnosticAnswers } from "../src/lib/diagnostic/score";
 import { parseMoneyToCents, projectInputSchema } from "../src/lib/project/schema";
@@ -70,13 +70,29 @@ test("indicação inicial de canal não trata WhatsApp como Meta", () => {
   assert.match(channelHint(full).explanation, /inicial/i);
 });
 
-test("analytics do diagnóstico não leva dado do negócio", () => {
-  const payload = diagnosticAnalyticsPayload({ band: "incomplete" });
-  assert.equal(diagnosticPayloadIsPublic(payload), true);
-  assert.equal(payload.diagnostic_version, DIAGNOSTIC_VERSION);
-  assert.equal("projectId" in payload, false);
-  assert.equal("answers" in payload, false);
-  assert.equal("overallScore" in payload, false);
+test("analytics do diagnóstico usa somente contexto público mínimo", () => {
+  const started = diagnosticAnalyticsPayload({});
+  assert.deepEqual(started, {
+    course_slug: "trafego-pago-na-pratica",
+    diagnostic_type: "traffic-readiness",
+    diagnostic_version: "traffic-readiness-v1",
+  });
+  assert.equal(DIAGNOSTIC_COURSE_SLUG, "trafego-pago-na-pratica");
+  assert.equal(diagnosticPayloadIsPublic(started), true);
+  assert.equal(started.diagnostic_version, DIAGNOSTIC_VERSION);
+
+  const completed = diagnosticAnalyticsPayload({ band: "incomplete" });
+  assert.deepEqual(completed, {
+    course_slug: "trafego-pago-na-pratica",
+    diagnostic_type: "traffic-readiness",
+    diagnostic_version: "traffic-readiness-v1",
+    result_band: "incomplete",
+  });
+  assert.equal(diagnosticPayloadIsPublic(completed), true);
+
+  for (const forbidden of ["user_id", "project_id", "diagnostic_id", "name", "email", "phone", "company", "answers", "notes", "overallScore", "dimensionScores"]) {
+    assert.equal(forbidden in completed, false);
+  }
 });
 
 test("dinheiro fica em centavos e URL inválida não passa", () => {
@@ -98,4 +114,3 @@ test("/app, projetos e aprendizado continuam protegidos", () => {
   assert.equal(needsSession("/app/projetos/novo"), true);
   assert.equal(needsSession("/aulas/como-funciona-o-trafego-pago"), false);
 });
-
