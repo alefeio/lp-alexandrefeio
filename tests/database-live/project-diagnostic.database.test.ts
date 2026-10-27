@@ -23,7 +23,24 @@ const full: DiagnosticAnswers = {
   q15: "yes",
 };
 
-test("projeto, diagnóstico e resultado por negócio ficam isolados no banco de desenvolvimento", async () => {
+const fourteen: DiagnosticAnswers = {
+  q1: "leads",
+  q2: "clear",
+  q3: "yes",
+  q4: "yes",
+  q5: "clear",
+  q6: "clear",
+  q7: "searches",
+  q8: "instagram",
+  q9: "yes",
+  q10: "works",
+  q11: "yes",
+  q12: "both",
+  q13: "up-to-300",
+  q14: "yes",
+};
+
+test("projeto, diagnóstico e telemetria de domínio ficam isolados e idempotentes no banco de desenvolvimento", async () => {
   const { assertMigrationTargetAllowed } = await import("../../src/lib/db/urls");
   assertMigrationTargetAllowed();
   const { getPrisma } = await import("../../src/lib/db/prisma");
@@ -71,30 +88,106 @@ test("projeto, diagnóstico e resultado por negócio ficam isolados no banco de 
     assert.equal(edited.ok, true);
     if (edited.ok) assert.equal(edited.project.monthlyMediaBudgetCents, 60000);
 
+    // Abrir/criar o diagnóstico não é início real.
     const started = await resumeDiagnosticForUser(userA, projectId);
     assert.ok(started);
     if (!started) return;
+    assert.deepEqual(started.answers, {});
     assert.equal(await resumeDiagnosticForUser(userB, projectId), null);
-    const saved = await saveDiagnosticProgress(userA, projectId, started.id, { q1: "leads" }, 1);
-    assert.equal(saved.ok, true);
+
+    // Primeira resposta persistida é a única transição de início.
+    const firstSave = await saveDiagnosticProgress(userA, projectId, started.id, { q1: "leads" }, 0);
+    assert.equal(firstSave.ok, true);
+    if (!firstSave.ok) return;
+    assert.equal(firstSave.startedNow, true);
+
+    const secondSave = await saveDiagnosticProgress(userA, projectId, started.id, { q1: "leads", q2: "clear" }, 1);
+    assert.equal(secondSave.ok, true);
+    if (!secondSave.ok) return;
+    assert.equal(secondSave.startedNow, false);
+
     const resumed = await resumeDiagnosticForUser(userA, projectId);
     assert.equal(resumed?.id, started.id);
     assert.equal((resumed?.answers as { q1?: string }).q1, "leads");
+    const afterResume = await saveDiagnosticProgress(userA, projectId, started.id, { q1: "leads", q2: "clear", q3: "yes" }, 2);
+    assert.equal(afterResume.ok, true);
+    if (!afterResume.ok) return;
+    assert.equal(afterResume.startedNow, false);
 
+    // Duas primeiras respostas concorrentes: somente uma vence a transição {} -> respondido.
+    const concurrentStart = await prisma.diagnostic.create({
+      data: { projectId, userId: userA, version: "traffic-readiness-v1", status: "IN_PROGRESS", answers: {}, currentStep: 0 },
+    });
+    const concurrentStarts = await Promise.all([
+      saveDiagnosticProgress(userA, projectId, concurrentStart.id, { q1: "leads" }, 0),
+      saveDiagnosticProgress(userA, projectId, concurrentStart.id, { q1: "whatsapp" }, 0),
+    ]);
+    assert.equal(concurrentStarts.every((item) => item.ok), true);
+    assert.equal(concurrentStarts.filter((item) => item.ok && item.startedNow).length, 1);
+
+    // 14/15 respostas não concluem.
+    const incomplete = await prisma.diagnostic.create({
+      data: { projectId, userId: userA, version: "traffic-readiness-v1", status: "IN_PROGRESS", answers: {}, currentStep: 0 },
+    });
+    const incompleteSave = await saveDiagnosticProgress(userA, projectId, incomplete.id, fourteen, 14);
+    assert.equal(incompleteSave.ok, true);
+    if (!incompleteSave.ok) return;
+    assert.equal(incompleteSave.startedNow, true);
+    const incompleteDone = await completeDiagnosticForUser(userA, projectId, incomplete.id);
+    assert.equal(incompleteDone.ok, false);
+    const incompleteRecord = await prisma.diagnostic.findUnique({ where: { id: incomplete.id } });
+    assert.equal(incompleteRecord?.status, "IN_PROGRESS");
+
+    // Conclusão válida ocorre uma vez; revisita/reexecução não conclui de novo.
     const firstComplete = await saveDiagnosticProgress(userA, projectId, started.id, full, 15);
     assert.equal(firstComplete.ok, true);
+    if (!firstComplete.ok) return;
+    assert.equal(firstComplete.startedNow, false);
     const done = await completeDiagnosticForUser(userA, projectId, started.id);
     assert.equal(done.ok, true);
+    if (!done.ok) return;
+    assert.equal(done.completedNow, true);
+    assert.equal(done.resultBand, "ready");
+
+    const repeatedDone = await completeDiagnosticForUser(userA, projectId, started.id);
+    assert.equal(repeatedDone.ok, true);
+    if (!repeatedDone.ok) return;
+    assert.equal(repeatedDone.completedNow, false);
+    assert.equal(repeatedDone.resultBand, "ready");
+
     const first = await getDiagnosticForUser(userA, projectId, started.id);
     assert.equal(first?.status, "COMPLETED");
     assert.equal(first?.overallScore, 100);
+    assert.equal(first?.recommendations.length, 1);
     assert.equal(await getDiagnosticForUser(userB, projectId, started.id), null);
 
+    // Duas conclusões concorrentes: somente uma faz IN_PROGRESS -> COMPLETED e cria recomendação.
+    const concurrentComplete = await prisma.diagnostic.create({
+      data: { projectId, userId: userA, version: "traffic-readiness-v1", status: "IN_PROGRESS", answers: {}, currentStep: 0 },
+    });
+    const readyForConcurrentComplete = await saveDiagnosticProgress(userA, projectId, concurrentComplete.id, full, 15);
+    assert.equal(readyForConcurrentComplete.ok, true);
+    const concurrentCompletions = await Promise.all([
+      completeDiagnosticForUser(userA, projectId, concurrentComplete.id),
+      completeDiagnosticForUser(userA, projectId, concurrentComplete.id),
+    ]);
+    assert.equal(concurrentCompletions.every((item) => item.ok), true);
+    assert.equal(concurrentCompletions.filter((item) => item.ok && item.completedNow).length, 1);
+    assert.equal(await prisma.recommendation.count({ where: { diagnosticId: concurrentComplete.id } }), 1);
+
+    // Um novo diagnóstico continua independente dos anteriores.
     const second = await resumeDiagnosticForUser(userA, projectId);
     assert.ok(second);
     assert.notEqual(second?.id, started.id);
-    await saveDiagnosticProgress(userA, projectId, second!.id, { ...full, q1: "unknown", q2: "no" }, 15);
-    await completeDiagnosticForUser(userA, projectId, second!.id);
+    const secondSaved = await saveDiagnosticProgress(userA, projectId, second!.id, { ...full, q1: "unknown", q2: "no" }, 15);
+    assert.equal(secondSaved.ok, true);
+    if (!secondSaved.ok) return;
+    assert.equal(secondSaved.startedNow, true);
+    const secondDone = await completeDiagnosticForUser(userA, projectId, second!.id);
+    assert.equal(secondDone.ok, true);
+    if (!secondDone.ok) return;
+    assert.equal(secondDone.completedNow, true);
+
     const preserved = await getDiagnosticForUser(userA, projectId, started.id);
     assert.equal(preserved?.overallScore, 100);
     assert.equal((preserved?.answers as { q1?: string }).q1, "leads");
