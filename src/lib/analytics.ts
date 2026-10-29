@@ -1,5 +1,11 @@
 import { CONSENT_STORAGE_KEY, consentToGoogleSignals, parseConsent, type ConsentState } from "@/lib/consent";
 import { persistJourneyEvent } from "@/lib/product-journey/client";
+import {
+  courseViewAlreadyPersisted,
+  courseViewJourneyKey,
+  PENDING_COURSE_VIEW_KEY,
+  rememberPendingCourseView,
+} from "@/lib/product-journey/current-view";
 import { isStrategicJourneyEvent } from "@/lib/product-journey/events";
 
 export type AnalyticsEventName =
@@ -140,7 +146,19 @@ export function trackEvent(event: AnalyticsEventName, params: AnalyticsParams = 
   try {
     if (!isStrategicJourneyEvent(event)) return;
     const consent = parseConsent(window.localStorage.getItem(CONSENT_STORAGE_KEY));
-    if (!consent?.analytics) return;
+    if (event === "course_view") {
+      const slug = typeof params.course_slug === "string" ? params.course_slug : "";
+      const path = window.location.pathname;
+      if (!consent?.analytics) {
+        if (slug) rememberPendingCourseView(slug, path);
+        return;
+      }
+      if (!slug || courseViewAlreadyPersisted(slug, path)) return;
+      window.sessionStorage.setItem(courseViewJourneyKey(slug), path);
+      window.sessionStorage.removeItem(PENDING_COURSE_VIEW_KEY);
+    } else if (!consent?.analytics) {
+      return;
+    }
     persistJourneyEvent({
       eventName: event,
       params: payload,
