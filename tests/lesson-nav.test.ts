@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lessonStepNav, lessonStepNavClass } from "../src/lib/learning/lesson-nav";
+import { lessonStepNav, lessonStepNavClass, nextLessonContinuationLabel, visibleNeighborAccess } from "../src/lib/learning/lesson-nav";
 
 const previous = { slug: "como-funciona-o-trafego-pago", title: "Como funciona o tráfego pago e quando ele faz sentido" };
 const next = { slug: "google-ads-ou-meta-ads", title: "Google Ads ou Meta Ads: qual escolher?" };
@@ -36,6 +36,14 @@ test("última aula publicada disponível não mostra próxima", () => {
   const nav = lessonStepNav({ previous, next: null });
   assert.equal(nav.next, null);
   assert.equal(nav.previous?.variant, "secondary");
+});
+
+test("próxima sem acesso não usa o rótulo de continuação normal", () => {
+  assert.equal(nextLessonContinuationLabel("open"), "Próxima aula");
+  assert.equal(nextLessonContinuationLabel("preview"), "Ver a prévia da próxima aula");
+  assert.equal(visibleNeighborAccess("preview", "lesson-4", []), "preview");
+  assert.equal(visibleNeighborAccess("preview", "lesson-4", ["lesson-4"]), "open");
+  assert.equal(visibleNeighborAccess("open", "lesson-1", []), "open");
 });
 
 test("próxima paga com preview continua no caminho da aula e aula sem destino não gera link", () => {
