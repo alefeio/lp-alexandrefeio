@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { CONSENT_STORAGE_KEY, serializeConsent } from "../src/lib/consent";
-import { rejectNonEssentialConsent } from "../src/lib/consent-store";
+import { acceptAllConsent, rejectNonEssentialConsent } from "../src/lib/consent-store";
 import { ATTRIBUTION_STORAGE_KEY } from "../src/lib/attribution";
 import { trackEvent } from "../src/lib/analytics";
 import { createMemoryDurableRateLimiter } from "../src/lib/landing-page/rate-limit/durable";
@@ -243,6 +243,132 @@ test("consentimento controla o dataLayer e a chamada da jornada sem criar identi
     scope.sessionStorage = previousSession;
     globalThis.fetch = previousFetch;
   }
+});
+
+test("aceite tardio recupera só o course_view atual e a revogação não faz backfill", () => {
+  const scope = globalThis as unknown as {
+    window?: unknown;
+    localStorage?: unknown;
+    sessionStorage?: unknown;
+    fetch: typeof fetch;
+  };
+  const previousWindow = scope.window;
+  const previousLocal = scope.localStorage;
+  const previousSession = scope.sessionStorage;
+  const previousFetch = globalThis.fetch;
+  const calls: Array<{ body: Record<string, unknown> }> = [];
+  try {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    const win = {
+      localStorage: local,
+      sessionStorage: session,
+      dataLayer: [] as Array<Record<string, unknown>>,
+      location: { pathname: "/cursos/trafego-pago-na-pratica" },
+    };
+    scope.window = win;
+    scope.localStorage = local;
+    scope.sessionStorage = session;
+    local.setItem("better-auth.session_token", "sessao-necessaria");
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+      return new Response(null, { status: 202 });
+    }) as typeof fetch;
+
+    const courseViews = () => calls.filter((call) => call.body.eventName === "course_view");
+    const viewKey = "af_course_view_trafego-pago-na-pratica";
+    session.setItem(viewKey, "1");
+    trackEvent("course_view", { course_slug: "trafego-pago-na-pratica", email: "ana@example.com" });
+    assert.equal(win.dataLayer.filter((entry) => entry.event === "course_view").length, 1);
+    assert.equal(calls.length, 0);
+    assert.equal(local.getItem(JOURNEY_ANONYMOUS_KEY), null);
+    assert.ok(session.getItem("af_pending_course_view_v1"));
+
+    acceptAllConsent();
+    assert.equal(courseViews().length, 1);
+    assert.equal(courseViews()[0]?.body.courseSlug, "trafego-pago-na-pratica");
+    assert.equal(courseViews()[0]?.body.analyticsConsent, true);
+    assert.equal("email" in (courseViews()[0]?.body ?? {}), false);
+    assert.equal(win.dataLayer.filter((entry) => entry.event === "course_view").length, 1);
+    const anonymousId = String(courseViews()[0]?.body.anonymousId);
+
+    trackEvent("course_view", { course_slug: "trafego-pago-na-pratica" });
+    assert.equal(courseViews().length, 1);
+    assert.equal(session.getItem(viewKey), "1");
+
+    win.location.pathname = "/cursos/sites-que-convertem";
+    trackEvent("course_view", { course_slug: "sites-que-convertem" });
+    assert.equal(courseViews().length, 2);
+    assert.equal(courseViews()[1]?.body.courseSlug, "sites-que-convertem");
+
+    const nextSession = memoryStorage();
+    scope.sessionStorage = nextSession;
+    win.sessionStorage = nextSession;
+    win.location.pathname = "/cursos/trafego-pago-na-pratica";
+    trackEvent("course_view", { course_slug: "trafego-pago-na-pratica" });
+    assert.equal(courseViews().length, 3);
+    assert.equal(courseViews()[2]?.body.anonymousId, anonymousId);
+    assert.notEqual(courseViews()[2]?.body.sessionId, courseViews()[0]?.body.sessionId);
+
+    rejectNonEssentialConsent();
+    assert.equal(local.getItem("better-auth.session_token"), "sessao-necessaria");
+    assert.equal(local.getItem(JOURNEY_ANONYMOUS_KEY), null);
+    assert.equal(nextSession.getItem("af_pending_course_view_v1"), null);
+    const blocked = courseViews().length;
+    trackEvent("checkout_started", { course_slug: "trafego-pago-na-pratica" });
+    assert.equal(calls.length, blocked);
+    assert.equal(win.dataLayer.some((entry) => entry.event === "checkout_started"), true);
+    acceptAllConsent();
+    assert.equal(courseViews().length, blocked);
+  } finally {
+    scope.window = previousWindow;
+    scope.localStorage = previousLocal;
+    scope.sessionStorage = previousSession;
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("revogação antes do aceite apaga a visualização pendente e não faz backfill", () => {
+  const scope = globalThis as unknown as { window?: unknown; localStorage?: unknown; sessionStorage?: unknown; fetch: typeof fetch };
+  const previousWindow = scope.window;
+  const previousLocal = scope.localStorage;
+  const previousSession = scope.sessionStorage;
+  const previousFetch = globalThis.fetch;
+  let calls = 0;
+  try {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    scope.window = { localStorage: local, sessionStorage: session, dataLayer: [], location: { pathname: "/cursos/trafego-pago-na-pratica" } };
+    scope.localStorage = local;
+    scope.sessionStorage = session;
+    local.setItem("better-auth.session_token", "sessao-necessaria");
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response(null, { status: 202 });
+    }) as typeof fetch;
+    trackEvent("course_view", { course_slug: "trafego-pago-na-pratica" });
+    assert.ok(session.getItem("af_pending_course_view_v1"));
+    rejectNonEssentialConsent();
+    assert.equal(session.getItem("af_pending_course_view_v1"), null);
+    assert.equal(local.getItem("better-auth.session_token"), "sessao-necessaria");
+    acceptAllConsent();
+    assert.equal(calls, 0);
+  } finally {
+    scope.window = previousWindow;
+    scope.localStorage = previousLocal;
+    scope.sessionStorage = previousSession;
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("o lead operacional não depende de analytics e não entra no JourneyEvent", () => {
+  assert.equal(isStrategicJourneyEvent("generate_lead"), false);
+  const form = readFileSync("src/components/sections/LeadForm.tsx", "utf8");
+  const action = readFileSync("src/app/actions/submit-lead.ts", "utf8");
+  assert.ok(form.indexOf("await submitLead") < form.indexOf("trackGenerateLeadOnce("));
+  assert.equal(action.includes("JourneyEvent"), false);
+  assert.equal(action.includes("analytics"), false);
+  assert.equal(action.includes("CONSENT"), false);
 });
 
 test("endpoint aceita evento estratégico, ignora userId do cliente e deriva a sessão", async () => {

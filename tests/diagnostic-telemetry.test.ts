@@ -41,3 +41,18 @@ test("serviço usa estado persistido como autoridade e não cria campo de analyt
   assert.equal(service.includes("$queryRawUnsafe"), false);
   assert.equal(service.includes("$executeRawUnsafe"), false);
 });
+
+test("início e conclusão do diagnóstico seguem só a transição persistida", () => {
+  assert.equal(wizard.split('trackEvent("diagnostic_started"').length, 2);
+  assert.equal(wizard.split('trackEvent("diagnostic_completed"').length, 2);
+  assert.match(wizard, /emitStartedIfNeeded\(result\.startedNow\)/);
+  assert.match(wizard, /emitStartedIfNeeded\(saved\.startedNow\)/);
+  assert.match(service, /startedNow = started\.length === 1/);
+  assert.match(service, /if \(!startedNow\)/);
+  assert.match(service, /where: \{ id: diagnostic\.id, userId, projectId, status: "IN_PROGRESS" \}/);
+  assert.match(service, /status: "COMPLETED"/);
+  assert.match(service, /if \(diagnostic\.status === "COMPLETED"\)/);
+  assert.match(service, /completedNow: false/);
+  assert.equal(resultPage.includes("diagnostic_started"), false);
+  assert.equal(resultPage.includes("diagnostic_completed"), false);
+});
