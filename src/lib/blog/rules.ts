@@ -73,6 +73,7 @@ export function prepareBlogWrite(input: {
   intent: "save" | "publish" | "unpublish";
   now: Date;
   coverUrl?: string | null;
+  hasCover?: boolean;
 }): { ok: true; record: BlogWriteFields & { status: "DRAFT" | "PUBLISHED"; publishedAt: Date | null; slugLocked: boolean } } | { ok: false; message: string } {
   const locked = Boolean(input.existing?.publishedAt);
   const title = input.fields.title.trim();
@@ -85,6 +86,9 @@ export function prepareBlogWrite(input: {
   const seoTitle = input.fields.seoTitle.trim();
   const seoDescription = input.fields.seoDescription.trim();
   const coverImageAlt = input.fields.coverImageAlt.trim();
+  const publishing = input.intent === "publish";
+  const status = input.intent === "unpublish" ? "DRAFT" : publishing ? "PUBLISHED" : input.existing?.status ?? "DRAFT";
+  const hasCover = input.hasCover ?? Boolean(input.coverUrl?.trim());
 
   if (input.intent !== "unpublish") {
     if (title.length < 3) return { ok: false, message: "O título precisa identificar o artigo." };
@@ -93,18 +97,18 @@ export function prepareBlogWrite(input: {
     if (categorySlug && !isBlogCategory(categorySlug)) return { ok: false, message: "A categoria não está na lista permitida." };
     if (seoTitle.length > 70) return { ok: false, message: "O título de SEO passa de 70 caracteres." };
     if (seoDescription.length > 160) return { ok: false, message: "A descrição de SEO passa de 160 caracteres." };
-    if (input.coverUrl && !coverImageAlt) return { ok: false, message: "A capa precisa de texto alternativo." };
+    if (hasCover && !coverImageAlt) return { ok: false, message: "A capa precisa de texto alternativo." };
   }
 
-  if (input.intent === "publish") {
+  if (status === "PUBLISHED") {
+    if (!hasCover) return { ok: false, message: "Para publicar, adicione uma imagem de capa." };
+    if (!coverImageAlt) return { ok: false, message: "A capa precisa de texto alternativo." };
     if (!isBlogCategory(categorySlug) || !isBlogCta(ctaKey) || excerpt.length < 40 || contentMarkdown.trim().length < 80) {
       return { ok: false, message: "Para publicar, complete título, slug, categoria, resumo e conteúdo." };
     }
   }
 
-  const publishing = input.intent === "publish";
   const publishedAt = publishing ? input.existing?.publishedAt ?? input.now : input.existing?.publishedAt ?? null;
-  const status = input.intent === "unpublish" ? "DRAFT" : publishing ? "PUBLISHED" : input.existing?.status ?? "DRAFT";
 
   return {
     ok: true,
