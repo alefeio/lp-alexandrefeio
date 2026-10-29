@@ -1,6 +1,7 @@
 import { Container } from "@/components/ui/Container";
 import { ProjectForm, emptyProjectForm } from "@/components/project/ProjectForm";
 import { safeReturnPath } from "@/lib/auth/messages";
+import { requireSession } from "@/lib/auth/session";
 
 export const metadata = { title: "Novo projeto" };
 
@@ -9,6 +10,7 @@ export default async function NewProjectPage({
 }: {
   searchParams: Promise<{ returnTo?: string | string[] }>;
 }) {
+  await requireSession();
   const query = await searchParams;
   const returnTo = safeReturnPath(typeof query.returnTo === "string" ? query.returnTo : undefined);
   return (
