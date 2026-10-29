@@ -236,5 +236,6 @@ test("UI do carrinho remove copy técnica e usa nomes reais", () => {
   assert.match(screen, /Tentar novamente/);
   assert.match(screen, /Seu carrinho está vazio/);
   assert.match(screen, /Você já tem este conteúdo/);
-  assert.match(screen, /Pagar \$\{formatPriceCents/);
+  assert.match(screen, /Continuar para pagamento/);
+  assert.equal(screen.includes("Pagar ${formatPriceCents"), false);
 });

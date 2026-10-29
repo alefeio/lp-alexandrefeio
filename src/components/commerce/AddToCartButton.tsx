@@ -4,19 +4,24 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CART_STORAGE_KEY, readStoredCart, writeStoredCart, type StoredCartLine } from "@/lib/commerce/cart";
 import { mergeCartLine, type CartProductCover } from "@/lib/commerce/cart-normalize";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass, type ButtonVariant } from "@/lib/button-styles";
 
 export function AddToCartButton({
   id,
   type,
   label,
   lessonIds = [],
+  variant = "primary",
+  appearance = "button",
 }: {
   id: string;
   type: StoredCartLine["type"];
   label: string;
   /** Aulas cobertas pelo produto — usadas para normalizar o carrinho no cliente. */
   lessonIds?: string[];
+  variant?: ButtonVariant;
+  /** `text` rebaixa a ação quando já existem primary e secondary no mesmo bloco. */
+  appearance?: "button" | "text";
 }) {
   const router = useRouter();
   const [added, setAdded] = useState(false);
@@ -31,7 +36,7 @@ export function AddToCartButton({
   }
 
   return (
-    <button className={`${buttonClass("primary")} mt-6`} type="button" onClick={add}>
+    <button className={`${appearance === "text" ? navigationLinkClass() : buttonClass(variant)} mt-6`} type="button" onClick={add}>
       {added ? "No carrinho" : label}
     </button>
   );

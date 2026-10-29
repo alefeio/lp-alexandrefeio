@@ -33,16 +33,10 @@ export async function Header() {
 
           <div className="hidden items-center gap-3 lg:flex">
             <AccountNav signedIn={signedIn} source="public_header" />
-            <ContactLink location="header">{siteConfig.ctas.primary}</ContactLink>
+            <ContactLink location="header" variant="secondary">{siteConfig.ctas.primary}</ContactLink>
           </div>
 
           <MobileNav signedIn={signedIn} />
-        </div>
-
-        <div className="pb-3 lg:hidden">
-          <ContactLink location="header_mobile" className="w-full">
-            {siteConfig.ctas.primary}
-          </ContactLink>
         </div>
       </Container>
     </header>

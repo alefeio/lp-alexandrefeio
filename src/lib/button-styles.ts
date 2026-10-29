@@ -16,3 +16,12 @@ export function buttonClass(variant: ButtonVariant = "primary", className?: stri
     className,
   );
 }
+
+/** Navegação de baixo compromisso. Não compete com buttonClass("primary"). */
+export function navigationLinkClass(tone: "default" | "on-ink" = "default", className?: string): string {
+  return cn(
+    "inline-flex min-h-12 items-center text-sm font-medium underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta",
+    tone === "on-ink" ? "text-on-ink" : "text-foreground",
+    className,
+  );
+}

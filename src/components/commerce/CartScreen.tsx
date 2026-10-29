@@ -85,7 +85,7 @@ export function CartScreen() {
         <p className="mt-2 text-sm text-muted">Escolha o curso completo ou uma aula para continuar.</p>
         <p className="mt-5">
           <Link className={buttonClass("primary")} href="/cursos/trafego-pago-na-pratica">
-            Ver curso
+            Ver o curso de tráfego pago
           </Link>
         </p>
       </div>
@@ -219,7 +219,7 @@ export function CartScreen() {
                 </div>
               </div>
               <Link className={`${buttonClass("primary")} mt-2 w-full`} href="/app/checkout">
-                {`Pagar ${formatPriceCents(quote.totalCents)}`}
+                Continuar para pagamento
               </Link>
               <p className="text-center text-xs text-muted">Pagamento processado com segurança.</p>
             </>

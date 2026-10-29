@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MarkdownBody } from "@/components/blog/MarkdownBody";
 import { blogCategoryLabel, blogCtaHref, siteAuthorName } from "@/lib/blog/public";
 import { readingTimeMinutes } from "@/lib/blog/rules";
+import { buttonClass } from "@/lib/button-styles";
 
 export type BlogArticleModel = {
   title: string;
@@ -45,7 +46,7 @@ export function BlogArticle({ post, related }: { post: BlogArticleModel; related
       <MarkdownBody markdown={post.contentMarkdown} />
       {cta ? (
         <p className="mt-10">
-          <Link href={cta.href} className="inline-flex rounded-md border border-foreground px-4 py-2 text-sm font-medium">
+          <Link href={cta.href} className={buttonClass("primary")}>
             {cta.label}
           </Link>
         </p>

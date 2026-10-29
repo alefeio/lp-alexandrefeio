@@ -9,7 +9,7 @@ import { LearnOrDelegate } from "@/components/home/LearnOrDelegate";
 import { ProductInAction } from "@/components/home/ProductInAction";
 import { SystemStages } from "@/components/home/SystemStages";
 import { Container } from "@/components/ui/Container";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { publicHomeCopy } from "@/lib/home/public-home";
 import type { CourseCatalogCard } from "@/lib/learning/course-catalog";
 
@@ -43,11 +43,11 @@ export function CourseHome({
       <section className="border-t border-border py-20">
         <Container className="max-w-3xl">
           <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{publicHomeCopy.finalTitle}</h2>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link className={buttonClass("primary", "w-full sm:w-auto")} href="#formacoes">
               {publicHomeCopy.finalPrimaryCta}
             </Link>
-            <Link className={buttonClass("secondary", "w-full sm:w-auto")} href="#aulas-gratuitas">
+            <Link className={navigationLinkClass()} href="#aulas-gratuitas">
               {publicHomeCopy.secondaryCta}
             </Link>
           </div>

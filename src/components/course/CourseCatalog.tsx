@@ -14,6 +14,12 @@ import { collectionPageJsonLd } from "@/lib/seo/learning-jsonld";
 const trafficSteps = ["Mapa", "Campanha", "Dados", "Decisão"];
 const linkClass = "text-sm font-medium underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta";
 
+function choiceLabel(course: CourseCatalogCard): string {
+  const name =
+    course.slug === TRAFFIC_COURSE_SLUG ? "Tráfego Pago" : course.slug === SITES_COURSE_SLUG ? "Sites que Convertem" : course.title;
+  return course.ctaLabel === "Continuar curso" ? `Continuar ${name}` : `Conhecer ${name}`;
+}
+
 function FormationPanel({ course }: { course: CourseCatalogCard }) {
   const experience = courseExperience(course.slug);
   const benefits = experience?.benefits.slice(0, 4) ?? [];
@@ -30,7 +36,18 @@ function FormationPanel({ course }: { course: CourseCatalogCard }) {
       )}
       <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">{course.title}</h2>
       {experience ? <p className="mt-3 text-base leading-relaxed">{experience.transformation}</p> : <p className="mt-3 text-base leading-relaxed">{course.summary}</p>}
-      {experience ? <p className="mt-2 text-sm leading-relaxed text-muted">{experience.shortOutcome}</p> : null}
+      {!started && course.microcopy ? <p className="mt-3 text-sm font-medium text-cta">{course.microcopy}</p> : null}
+      <p className="mt-4">
+        <AcquisitionLink
+          className={buttonClass("primary")}
+          href={course.href}
+          event="course_catalog_click"
+          payload={{ course_slug: course.slug, cta_name: started ? "continuar_curso" : "conhecer_o_curso" }}
+        >
+          {course.ctaLabel}
+        </AcquisitionLink>
+      </p>
+      {experience ? <p className="mt-4 text-sm leading-relaxed text-muted">{experience.shortOutcome}</p> : null}
       <p className="mt-4 text-sm text-muted">
         {course.lessonCount} aulas · {course.moduleCount} módulos
         {course.freeLessonCount > 0 ? ` · ${course.freeLessonCount} gratuitas` : ""}
@@ -51,17 +68,6 @@ function FormationPanel({ course }: { course: CourseCatalogCard }) {
           ))}
         </ul>
       ) : null}
-      {!started && course.microcopy ? <p className="mt-4 text-sm font-medium text-cta">{course.microcopy}</p> : null}
-      <p className="mt-6">
-        <AcquisitionLink
-          className={buttonClass(started ? "primary" : "secondary")}
-          href={course.href}
-          event="course_catalog_click"
-          payload={{ course_slug: course.slug, cta_name: started ? "continuar_curso" : "conhecer_o_curso" }}
-        >
-          {course.ctaLabel}
-        </AcquisitionLink>
-      </p>
     </article>
   );
 }
@@ -122,6 +128,21 @@ export function CourseCatalog({ courses }: { courses: CourseCatalogCard[] }) {
       <Container className="max-w-5xl py-14 sm:py-20">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">{catalogPageCopy.eyebrow}</p>
         <h1 className="mt-3 max-w-3xl text-[1.85rem] font-semibold leading-[1.12] tracking-tight sm:text-4xl">{catalogPageCopy.title}</h1>
+        {courses.length > 0 ? (
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            {[traffic, sites, ...rest].filter((course): course is CourseCatalogCard => Boolean(course)).map((course) => (
+              <AcquisitionLink
+                key={course.id}
+                className={buttonClass("primary", "w-full sm:w-auto")}
+                href={course.href}
+                event="course_catalog_click"
+                payload={{ course_slug: course.slug, cta_name: course.ctaLabel === "Continuar curso" ? "continuar_curso" : "conhecer_o_curso" }}
+              >
+                {choiceLabel(course)}
+              </AcquisitionLink>
+            ))}
+          </div>
+        ) : null}
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">{catalogPageCopy.support}</p>
         <div className="mt-6">
           <ProductFlow steps={catalogPageCopy.flow} label="Tráfego, página, ação, dados e decisão" />

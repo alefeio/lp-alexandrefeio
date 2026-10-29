@@ -64,7 +64,8 @@ test("a home mostra o sistema, as duas formações e as aulas gratuitas do catá
   assert.match(html, /Demonstração ilustrativa/);
   assert.match(html, /Qual é o seu gargalo agora/);
   assert.match(html, /Talvez você não precise dos dois agora/);
-  assert.equal(html.match(/Começar gratuitamente/g)?.length, 8);
+  assert.equal(html.match(/Começar gratuitamente/g)?.length, 2);
+  assert.equal(html.match(/Começar aula gratuita/g)?.length, 6);
   assert.match(html, /Catálogo como-funciona-o-trafego-pago/);
   assert.match(html, new RegExp(experience.lessons[0].learns[0].slice(0, 24)));
   assert.match(html, /Continuar de onde parei/);

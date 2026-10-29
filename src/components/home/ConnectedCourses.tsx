@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { SitesPageVisual, TrafficCampaignVisual } from "@/components/course/CourseProductVisual";
 import { Container } from "@/components/ui/Container";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { courseExperience, TRAFFIC_COURSE_SLUG } from "@/lib/learning/course-experience";
 import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 import type { CourseCatalogCard } from "@/lib/learning/course-catalog";
@@ -56,7 +57,7 @@ function CoursePanel({
         </ul>
       ) : null}
       <p className="mt-6">
-        <AcquisitionLink className="text-sm font-medium underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta" href={course.href} event="course_cta_click" payload={{ course_slug: course.slug, cta_name: ctaName }}>
+        <AcquisitionLink className={buttonClass("primary", "w-full sm:w-auto")} href={course.href} event="course_cta_click" payload={{ course_slug: course.slug, cta_name: ctaName }}>
           {cta}
         </AcquisitionLink>
       </p>
@@ -93,7 +94,7 @@ export function ConnectedCourses({ courses }: { courses: CourseCatalogCard[] }) 
           ) : null}
         </div>
         <p className="mt-8">
-          <Link className="text-sm font-medium underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta" href="/cursos">
+          <Link className={navigationLinkClass()} href="/cursos">
             Ver todas as formações
           </Link>
         </p>

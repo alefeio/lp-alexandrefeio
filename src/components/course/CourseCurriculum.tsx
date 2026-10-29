@@ -162,12 +162,12 @@ function LessonCurriculumItem({
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {!paid && lesson.hasBody ? (
             <AcquisitionLink
-              className="text-sm font-medium underline underline-offset-4"
+              className={buttonClass("primary")}
               href={`/aulas/${lesson.slug}`}
               event="course_free_start"
               payload={{ course_slug: courseSlug, lesson_slug: lesson.slug, cta_name: "comecar_aula" }}
             >
-              Começar aula
+              Começar aula gratuita
             </AcquisitionLink>
           ) : null}
           {action !== "access" && paid && lesson.hasPublicPreview ? (
