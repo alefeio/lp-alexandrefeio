@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AcquisitionConversionFlow } from "@/components/home/AcquisitionConversionFlow";
 import { Container } from "@/components/ui/Container";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { publicHomeCopy } from "@/lib/home/public-home";
 
 export function HomeHero() {
@@ -14,16 +14,16 @@ export function HomeHero() {
             <h1 className="mt-4 max-w-xl text-[2.05rem] font-semibold leading-[1.08] tracking-tight text-on-ink sm:text-5xl">
               {publicHomeCopy.hero}
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-on-ink-muted sm:text-lg">{publicHomeCopy.support}</p>
-            <p className="mt-3 max-w-xl text-sm font-medium text-on-ink">{publicHomeCopy.complement}</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link className={buttonClass("inverted", "w-full sm:w-auto")} href="#formacoes">
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center">
+              <Link className={buttonClass("primary", "w-full sm:w-auto")} href="#formacoes">
                 {publicHomeCopy.primaryCta}
               </Link>
-              <Link className={`${buttonClass("secondary", "w-full sm:w-auto")} border-white/20 bg-transparent text-on-ink hover:bg-white/10`} href="#aulas-gratuitas">
+              <Link className={navigationLinkClass("on-ink")} href="#aulas-gratuitas">
                 {publicHomeCopy.secondaryCta}
               </Link>
             </div>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-on-ink-muted sm:text-lg">{publicHomeCopy.support}</p>
+            <p className="mt-3 max-w-xl text-sm font-medium text-on-ink">{publicHomeCopy.complement}</p>
           </div>
           <AcquisitionConversionFlow />
         </div>

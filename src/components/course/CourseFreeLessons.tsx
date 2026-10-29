@@ -47,7 +47,7 @@ export function CourseFreeLessons({
                     event="course_free_start"
                     payload={{ course_slug: courseSlug, lesson_slug: lesson.slug, cta_name: "comecar_aula" }}
                   >
-                    {owned.has(lesson.id) ? "Continuar" : "Começar aula"}
+                    {owned.has(lesson.id) ? "Continuar aula" : "Começar aula gratuita"}
                   </AcquisitionLink>
                 ) : (
                   <p className="mt-4 text-sm text-muted">Em preparação.</p>

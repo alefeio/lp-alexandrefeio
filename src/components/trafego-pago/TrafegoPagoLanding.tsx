@@ -10,12 +10,12 @@ import {
   trafegoSolution,
   trafegoSteps,
 } from "@/data/trafego-pago";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 
 export function TrafegoPagoLanding() {
   return (
     <>
-      <section id="topo" aria-labelledby="trafego-titulo" className="hero-stage final-stage scroll-mt-36 py-14 text-on-ink sm:py-16 lg:py-20">
+      <section id="topo" aria-labelledby="trafego-titulo" className="hero-stage final-stage scroll-mt-36 py-4 text-on-ink sm:py-16 lg:py-20">
         <Container className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)] lg:gap-14">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-on-ink">Google Ads + Estratégia + Conversão</p>
@@ -25,10 +25,7 @@ export function TrafegoPagoLanding() {
             >
               Gestão de Tráfego Pago para gerar oportunidades reais.
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-on-ink-muted sm:text-lg">
-              Anúncios, página de destino e mensuração no mesmo plano. O clique só conta quando vira contato.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-3 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:items-center sm:gap-3">
               <TrackedLink
                 href="#contato"
                 event="service_interest"
@@ -41,11 +38,14 @@ export function TrafegoPagoLanding() {
                 href="#como-funciona"
                 event="cta_click"
                 params={{ cta_name: "trafego_como_funciona", cta_location: "trafego_hero", destination_type: "anchor" }}
-                className={buttonClass("secondary", "w-full sm:w-auto")}
+                className={navigationLinkClass("on-ink")}
               >
                 Entender como funciona
               </TrackedLink>
             </div>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-on-ink-muted sm:text-lg">
+              Anúncios, página de destino e mensuração no mesmo plano. O clique só conta quando vira contato.
+            </p>
           </div>
           <AcquisitionFlow steps={trafegoHeroFlow} label="Do anúncio à oportunidade." />
         </Container>

@@ -1,5 +1,6 @@
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { Container } from "@/components/ui/Container";
+import { buttonClass } from "@/lib/button-styles";
 import type { CourseCatalogCard } from "@/lib/learning/course-catalog";
 import { courseExperience, TRAFFIC_COURSE_SLUG } from "@/lib/learning/course-experience";
 import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
@@ -46,12 +47,12 @@ export function FreeCourseJourney({ courses }: { courses: CourseCatalogCard[] })
                         ) : null}
                         <p className="mt-4">
                           <AcquisitionLink
-                            className="text-sm font-medium underline underline-offset-4"
+                            className={buttonClass("primary", "w-full sm:w-auto")}
                             href={`/aulas/${lesson.slug}`}
                             event="course_free_start"
                             payload={{ course_slug: course.slug, lesson_slug: lesson.slug, cta_name: "comecar_gratuitamente" }}
                           >
-                            Começar gratuitamente
+                            Começar aula gratuita
                           </AcquisitionLink>
                         </p>
                       </li>

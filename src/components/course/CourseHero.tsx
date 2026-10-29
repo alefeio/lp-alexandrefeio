@@ -1,7 +1,7 @@
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { SitesPageVisual, TrafficCampaignVisual } from "@/components/course/CourseProductVisual";
 import { Container } from "@/components/ui/Container";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { TRAFFIC_COURSE_SLUG } from "@/lib/learning/course-experience";
 import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 import { formatPriceCents } from "@/lib/learning/money";
@@ -29,21 +29,20 @@ export function CourseHero({
   priceLabel: string | null;
 }) {
   return (
-    <section className="hero-stage final-stage overflow-x-clip py-14 text-on-ink sm:py-16 lg:py-20">
+    <section className="hero-stage final-stage overflow-x-clip py-4 text-on-ink sm:py-16 lg:py-20">
       <Container className="grid min-w-0 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
         <div className="min-w-0 max-w-xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-on-ink">{eyebrow}</p>
           <h1 className="mt-4 text-[1.85rem] font-semibold leading-[1.12] tracking-tight sm:text-5xl">{title}</h1>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-on-ink-muted">{support}</p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="mt-3 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             {ownsAllPaid ? (
-              <Link className={buttonClass("inverted")} href="/app/aprendizado">
+              <Link className={buttonClass("primary")} href="/app/aprendizado">
                 Continuar curso
               </Link>
             ) : (
               <>
                 <AcquisitionLink
-                  className={buttonClass("inverted")}
+                  className={buttonClass("primary")}
                   href={primaryHref}
                   event="course_free_start"
                   payload={{ course_slug: slug, cta_name: "aulas_gratuitas" }}
@@ -51,7 +50,7 @@ export function CourseHero({
                   {primaryCta}
                 </AcquisitionLink>
                 <AcquisitionLink
-                  className={buttonClass("secondary", "border-white/30 bg-transparent text-on-ink hover:bg-white/10")}
+                  className={navigationLinkClass("on-ink")}
                   href="#programa"
                   event="course_cta_click"
                   payload={{ course_slug: slug, cta_name: "ver_programa" }}
@@ -61,6 +60,7 @@ export function CourseHero({
               </>
             )}
           </div>
+          <p className="mt-4 max-w-lg text-base leading-relaxed text-on-ink-muted">{support}</p>
           {priceLabel ? <p className="mt-4 text-sm text-on-ink-muted">Formação completa · {priceLabel}</p> : null}
         </div>
         <div className="min-w-0">

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { notFound } from "next/navigation";
 import { ViewEvent } from "@/components/analytics/ViewEvent";
 import { AddToCartButton } from "@/components/commerce/AddToCartButton";
 import { LessonPaywall } from "@/components/learning/LessonPaywall";
 import { LessonReader } from "@/components/learning/LessonReader";
 import { LessonStepNav } from "@/components/learning/LessonStepNav";
+import { lessonStepNav } from "@/lib/learning/lesson-nav";
 import { PublicLessonArticle } from "@/components/learning/PublicLessonArticle";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
@@ -142,7 +144,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
           moduleId={page.lesson.moduleId}
           courseId={page.lesson.courseId}
         />
-        <LessonNeighbors courseSlug={page.lesson.courseSlug} courseTitle={page.lesson.courseTitle} previous={neighbors.previous} next={neighbors.next} />
+        <LessonNeighbors courseSlug={page.lesson.courseSlug} courseTitle={page.lesson.courseTitle} previous={neighbors.previous} next={neighbors.next} tone="text" />
       </Container>
     );
   }
@@ -317,17 +319,21 @@ function LessonNeighbors({
   courseTitle,
   previous,
   next,
+  tone = "steps",
 }: {
   courseSlug: string;
   courseTitle: string;
   previous: { slug: string; title: string } | null;
   next: { slug: string; title: string } | null;
+  /** No paywall, avançar não pode competir com a compra. */
+  tone?: "steps" | "text";
 }) {
-  const freeFunnelEnd = courseSlug === "sites-que-convertem" && !next;
+  const freeFunnelEnd = tone === "steps" && courseSlug === "sites-que-convertem" && !next;
+  const steps = lessonStepNav({ previous, next });
   return (
     <nav aria-label="Aulas próximas" className="mt-12 text-sm">
       <p>
-        <Link className="underline underline-offset-4" href={`/cursos/${courseSlug}`}>
+        <Link className={navigationLinkClass()} href={`/cursos/${courseSlug}`}>
           Voltar para {courseTitle}
         </Link>
       </p>
@@ -337,17 +343,32 @@ function LessonNeighbors({
           <p className="mt-2 text-sm leading-relaxed text-muted">
             Agora você já mapeou sua jornada, definiu a estrutura mais adequada e identificou os principais pontos de atenção.
           </p>
-          <p className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <Link className="text-sm font-medium underline underline-offset-4" href="/cursos">
-              Explorar outros cursos
+          <p className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <Link className={buttonClass("primary")} href={`/cursos/${courseSlug}`}>
+              Ver a formação
             </Link>
-            <Link className="text-sm font-medium underline underline-offset-4" href={`/cursos/${courseSlug}#aulas-gratuitas`}>
-              Ver meu diagnóstico / aulas gratuitas
+            <Link className={navigationLinkClass()} href="/cursos">
+              Explorar outros cursos
             </Link>
           </p>
         </aside>
       ) : null}
-      <LessonStepNav previous={previous} next={next} />
+      {tone === "text" ? (
+        <div className="mt-4 flex flex-col">
+          {steps.previous ? (
+            <Link className={navigationLinkClass()} href={steps.previous.href}>
+              {steps.previous.kicker}: {steps.previous.title}
+            </Link>
+          ) : null}
+          {steps.next ? (
+            <Link className={navigationLinkClass()} href={steps.next.href}>
+              {steps.next.kicker}: {steps.next.title}
+            </Link>
+          ) : null}
+        </div>
+      ) : (
+        <LessonStepNav previous={previous} next={next} />
+      )}
     </nav>
   );
 }

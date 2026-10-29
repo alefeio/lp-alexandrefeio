@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { trackEvent } from "@/lib/analytics";
 import { acquisitionAnalyticsPayload, acquisitionDedupeKey } from "@/lib/learning/acquisition-analytics";
-import { buttonClass } from "@/lib/button-styles";
+import { navigationLinkClass } from "@/lib/button-styles";
 import { formatPriceCents } from "@/lib/learning/money";
 import { AddToCartButton } from "@/components/commerce/AddToCartButton";
 
@@ -79,7 +79,12 @@ export function LessonPaywall({
               <p>
                 {moduleTitle}: {formatPriceCents(modulePriceCents)}
               </p>
-              <AddToCartButton id={moduleId} type="MODULE" label={`Ver módulo — ${formatPriceCents(modulePriceCents)}`} />
+              <AddToCartButton
+                id={moduleId}
+                type="MODULE"
+                variant={lessonForSale ? "secondary" : "primary"}
+                label={`Comprar o módulo — ${formatPriceCents(modulePriceCents)}`}
+              />
             </div>
           ) : null}
           {courseForSale && coursePriceCents != null && courseId ? (
@@ -87,7 +92,13 @@ export function LessonPaywall({
               <p>
                 {courseTitle}: {formatPriceCents(coursePriceCents)}
               </p>
-              <AddToCartButton id={courseId} type="COURSE" label={`Curso completo — ${formatPriceCents(coursePriceCents)}`} />
+              <AddToCartButton
+                id={courseId}
+                type="COURSE"
+                appearance={lessonForSale && moduleForSale ? "text" : "button"}
+                variant={lessonForSale || moduleForSale ? "secondary" : "primary"}
+                label={`Comprar o curso completo — ${formatPriceCents(coursePriceCents)}`}
+              />
             </div>
           ) : null}
         </div>
@@ -95,7 +106,7 @@ export function LessonPaywall({
         <p className="mt-4 text-sm leading-relaxed text-muted">Conteúdo completo disponível em breve.</p>
       )}
       <p className="mt-6">
-        <Link className={`${buttonClass("secondary")} w-full sm:w-auto`} href={`/cursos/${courseSlug}`}>
+        <Link className={navigationLinkClass()} href={`/cursos/${courseSlug}`}>
           Ver o curso
         </Link>
       </p>
