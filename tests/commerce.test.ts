@@ -756,8 +756,35 @@ test("e-mail e analytics de compra não levam cartão nem repetem o pedido", () 
   assert.equal(needsSession("/app/compras"), true);
   assert.equal(needsSession("/app/checkout"), true);
   assert.equal(needsSession("/api/webhooks/mercado-pago"), false);
-  if (process.env.VERCEL_ENV === "production" || process.env.DATABASE_ENV === "production") {
-    assert.equal(isCommerceEnabled(), false);
-  }
+});
+
+test("comércio só abre com ambiente sintético explícito", () => {
+  const credentials = {
+    NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY: "dummy-public-key",
+    MERCADO_PAGO_ACCESS_TOKEN: "dummy-access-token",
+    MERCADO_PAGO_WEBHOOK_SECRET: "dummy-webhook-secret",
+  };
+  assert.equal(isCommerceEnabled({}), false);
+  const production = {
+    COMMERCE_ENABLED: "true",
+    COMMERCE_PRODUCTION_READY: "true",
+    MERCADO_PAGO_ENV: "production",
+    DATABASE_ENV: "production",
+    VERCEL_ENV: "production",
+    ...credentials,
+  };
+  assert.equal(isCommerceEnabled(production), true);
+  assert.equal(isCommerceEnabled({ ...production, COMMERCE_PRODUCTION_READY: "false" }), false);
+  assert.equal(
+    isCommerceEnabled({
+      COMMERCE_ENABLED: "true",
+      COMMERCE_PRODUCTION_READY: "false",
+      MERCADO_PAGO_ENV: "test",
+      DATABASE_ENV: "development",
+      VERCEL_ENV: "development",
+      ...credentials,
+    }),
+    true,
+  );
 });
 

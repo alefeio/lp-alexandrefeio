@@ -9,12 +9,12 @@ type RuntimeEnv = {
 /**
  * Liga o runtime público. Não usar prefixo NEXT_PUBLIC.
  * Qualquer valor diferente de "true" deixa a rota no escuro, inclusive em produção sem a variável.
+ * O objeto env, quando informado, é a configuração inteira. process.env só entra na chamada sem argumento.
  * O núcleo de publicação pode gravar a versão. A rota /p só responde com a variável ligada.
  */
 export function landingPagePublicRuntimeEnabled(env?: { LANDING_PAGE_PUBLIC_RUNTIME_ENABLED?: string }): boolean {
-  const runtime = process.env as Record<string, string | undefined>;
-  const value = env?.LANDING_PAGE_PUBLIC_RUNTIME_ENABLED ?? runtime.LANDING_PAGE_PUBLIC_RUNTIME_ENABLED;
-  return value === "true";
+  const source = env ?? (process.env as Record<string, string | undefined>);
+  return source.LANDING_PAGE_PUBLIC_RUNTIME_ENABLED === "true";
 }
 
 /**
