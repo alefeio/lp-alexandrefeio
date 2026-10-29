@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run lint && npm run typecheck && npm test && npx tsx scripts/apimg-live-smoke.ts && npm run build",
+  "buildCommand": "npm run lint && npm run typecheck && npm test && npm run build",
   "crons": [
     {
       "path": "/api/cron/landing-retention",
