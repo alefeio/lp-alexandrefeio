@@ -7,3 +7,10 @@ export function purchasedLessonPath(items: { productType: string; lessonSlug: st
   if (!item || item.productType !== "LESSON" || !item.lessonSlug || !SLUG.test(item.lessonSlug)) return null;
   return `/aulas/${item.lessonSlug}`;
 }
+
+/** Depois do pagamento: aula única abre a aula; módulo ou curso vão para a área do aluno. */
+export function paidOrderStart(items: { productType: string; lessonSlug: string | null }[]): { href: string; cta: string } {
+  const lesson = purchasedLessonPath(items);
+  if (lesson) return { href: lesson, cta: "Começar aula" };
+  return { href: "/app", cta: "Ver meus cursos" };
+}

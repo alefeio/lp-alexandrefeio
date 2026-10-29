@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
-import { buttonClass } from "@/lib/button-styles";
+import { safeReturnPath } from "@/lib/auth/messages";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { dimensionLabel, knownDimension } from "@/lib/diagnostic/score";
 import { formatPriceCents } from "@/lib/learning/money";
 import { coverageDays, coverageLabel } from "@/lib/plan/budget";
@@ -19,8 +20,16 @@ const OBJECTIVE: Record<string, string> = {
   UNDEFINED: "Ainda não definido",
 };
 
-export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
+  const backToLesson = safeReturnPath(query.returnTo);
   const session = await requireSession();
   const project = await getProjectForUser(session.user.id, id);
   if (!project) notFound();
@@ -56,6 +65,18 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </>
         ) : null}
       </div>
+      {backToLesson ? (
+        <p className="mt-4">
+          <Link className={navigationLinkClass()} href={backToLesson}>
+            Voltar à aula
+          </Link>
+        </p>
+      ) : null}
+      <p className="mt-4">
+        <Link className={navigationLinkClass()} href="/app">
+          Ir para o início
+        </Link>
+      </p>
       <p className="mt-4 text-sm text-muted">
         {project.tasks.length === 0 ? "Nenhuma ação aberta." : `${project.tasks.length} ação aberta${project.tasks.length === 1 ? "" : "s"}.`}
         {project.reminders[0] ? ` Próximo lembrete em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(project.reminders[0].remindAt)}.` : ""}

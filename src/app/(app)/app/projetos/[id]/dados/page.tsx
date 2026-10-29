@@ -7,12 +7,13 @@ import { deleteCampaignImportAction } from "@/lib/campaign-data/actions";
 import { failureLabel, importStatusLabel } from "@/lib/campaign-data/labels";
 import { platformLabel } from "@/lib/campaign-data/mapping";
 import { listCampaignImports } from "@/lib/campaign-data/service";
+import { ReturnToLesson } from "@/components/app/ReturnToLesson";
 import { buttonClass } from "@/lib/button-styles";
 import type { SourcePlatform } from "@/lib/campaign-data/types";
 
 export const metadata = { title: "Dados da campanha", robots: { index: false, follow: false } };
 
-export default async function CampaignDataPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ erro?: string }> }) {
+export default async function CampaignDataPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ erro?: string; returnTo?: string }> }) {
   const { id } = await params;
   const query = await searchParams;
   const session = await requireSession();
@@ -23,6 +24,7 @@ export default async function CampaignDataPage({ params, searchParams }: { param
     <Container className="max-w-3xl">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Projeto</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Dados da campanha</h1>
+      <ReturnToLesson returnTo={query.returnTo} fallbackHref={`/app/projetos/${id}`} fallbackLabel="Voltar ao projeto" />
       <p className="mt-3 text-base leading-relaxed">Envie um relatório CSV ou XLSX para usar nas análises do seu projeto.</p>
       {query.erro ? <p className="mt-3 text-sm">{failureLabel(query.erro)}</p> : null}
       <section className="mt-8 rounded-lg border border-border bg-surface p-4">

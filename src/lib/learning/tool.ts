@@ -267,8 +267,8 @@ async function summaryFor(userId: string, projectId: string, diagnosticId: strin
     bottleneckLabel: dimensionLabel(knownDimension(diagnostic.primaryBottleneck)),
     nextStepTitle: snapshot.success ? snapshot.data.nextStepTitle : "Veja o diagnóstico completo.",
     channelExplanation: snapshot.success ? snapshot.data.channelExplanation : "",
-    resultHref: `/app/projetos/${diagnostic.projectId}/diagnosticos/${diagnostic.id}`,
-    planHref: `/app/projetos/${diagnostic.projectId}/plano`,
+    resultHref: `/app/projetos/${diagnostic.projectId}/diagnosticos/${diagnostic.id}?returnTo=${encodeURIComponent(lessonToolReturnPath(LESSON_03_SLUG))}`,
+    planHref: `/app/projetos/${diagnostic.projectId}/plano?returnTo=${encodeURIComponent(lessonToolReturnPath(LESSON_03_SLUG))}`,
     recommendation: recommendation
       ? {
           id: recommendation.id,

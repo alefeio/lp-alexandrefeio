@@ -6,7 +6,7 @@ import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from "@/lib/diagnostic/de
 import { dimensionLabel, resultSnapshotSchema } from "@/lib/diagnostic/score";
 import { getDiagnosticForUser } from "@/lib/diagnostic/service";
 import { RecommendationPlanButton } from "@/components/plan/PlanForms";
-import { buttonClass } from "@/lib/button-styles";
+import { ReturnToLesson } from "@/components/app/ReturnToLesson";
 
 export const metadata = { title: "Resultado do diagnóstico" };
 
@@ -16,10 +16,13 @@ function asDimension(value: string | null | undefined): Dimension | null {
 
 export default async function DiagnosticResultPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; diagnosticId: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 }) {
   const { id, diagnosticId } = await params;
+  const query = await searchParams;
   const session = await requireSession();
   const diagnostic = await getDiagnosticForUser(session.user.id, id, diagnosticId);
   if (!diagnostic || diagnostic.status !== "COMPLETED") notFound();
@@ -97,9 +100,7 @@ export default async function DiagnosticResultPage({
         </ul>
       </section>
 
-      <Link className={`${buttonClass("secondary")} mt-8`} href={`/app/projetos/${id}`}>
-        Voltar ao projeto
-      </Link>
+      <ReturnToLesson returnTo={query.returnTo} fallbackHref={`/app/projetos/${id}`} fallbackLabel="Voltar ao projeto" />
     </Container>
   );
 }

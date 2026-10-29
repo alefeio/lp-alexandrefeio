@@ -7,7 +7,8 @@ import { AddToCartButton } from "@/components/commerce/AddToCartButton";
 import { LessonPaywall } from "@/components/learning/LessonPaywall";
 import { LessonReader } from "@/components/learning/LessonReader";
 import { LessonStepNav } from "@/components/learning/LessonStepNav";
-import { lessonStepNav } from "@/lib/learning/lesson-nav";
+import { lessonStepNav, nextLessonContinuationLabel, visibleNeighborAccess } from "@/lib/learning/lesson-nav";
+import { loadOwnedLessonIds } from "@/lib/commerce/catalog";
 import { PublicLessonArticle } from "@/components/learning/PublicLessonArticle";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
@@ -98,7 +99,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
   }
 
   if (page.hasPublicPreview && page.blocks.length > 0) {
-    const neighbors = await adjacentLessons(page.lesson.courseSlug, page.lesson.slug);
+    const neighbors = await lessonContext(page.lesson.courseSlug, page.lesson.slug, session?.user.id ?? null);
     const description = metaDescription(page.lesson.summary);
     const path = `/aulas/${page.lesson.slug}`;
     const commerce = isCommerceEnabled();
@@ -127,7 +128,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
             />
           </>
         ) : null}
-        <LessonChrome lesson={page.lesson} paid />
+        <LessonChrome lesson={page.lesson} paid place={neighbors.place} />
         <PublicLessonArticle blocks={page.blocks} />
         <LessonPaywall
           lessonId={page.lesson.id}
@@ -215,7 +216,7 @@ async function FullLesson({
                         : toolKey === "CAMPAIGN_NEXT_ACTION_PLAN_V1"
                           ? await loadCampaignNextActionPanel({ userId, blocks })
                           : await loadTrafficToolPanel({ userId, blocks });
-  const neighbors = await adjacentLessons(lesson.courseSlug, lesson.slug);
+  const neighbors = await lessonContext(lesson.courseSlug, lesson.slug, userId);
   const path = `/aulas/${lesson.slug}`;
   const description = metaDescription(lesson.summary);
 
@@ -245,6 +246,7 @@ async function FullLesson({
       ) : null}
       <Container className="max-w-6xl px-5 pt-10 sm:px-8">
         <LessonTrail lesson={lesson} />
+        <LessonPlace courseTitle={lesson.courseTitle} moduleTitle={lesson.moduleTitle} place={neighbors.place} />
         <p className="mt-4 text-sm">
           Conteúdo por <Link className="underline underline-offset-4" href="/#sobre">Alexandre Feio</Link>. Aula gratuita.
         </p>
@@ -274,6 +276,28 @@ async function FullLesson({
   );
 }
 
+async function lessonContext(courseSlug: string, lessonSlug: string, userId: string | null) {
+  const neighbors = await adjacentLessons(courseSlug, lessonSlug);
+  const owned = userId ? await loadOwnedLessonIds(userId) : [];
+  return {
+    previous: presentNeighbor(neighbors.previous, owned),
+    next: presentNeighbor(neighbors.next, owned),
+    place: neighbors.place,
+  };
+}
+
+function presentNeighbor(
+  neighbor: { slug: string; title: string; lessonId: string; access: "open" | "preview" } | null,
+  owned: readonly string[],
+) {
+  if (!neighbor) return null;
+  return {
+    slug: neighbor.slug,
+    title: neighbor.title,
+    access: visibleNeighborAccess(neighbor.access, neighbor.lessonId, owned),
+  };
+}
+
 function LessonTrail({ lesson }: { lesson: PublicLesson }) {
   return (
     <nav aria-label="Trilha" className="text-sm text-muted">
@@ -296,10 +320,37 @@ function LessonTrail({ lesson }: { lesson: PublicLesson }) {
   );
 }
 
-function LessonChrome({ lesson, paid }: { lesson: PublicLesson; paid: boolean }) {
+function LessonPlace({
+  courseTitle,
+  moduleTitle,
+  place,
+}: {
+  courseTitle: string;
+  moduleTitle: string;
+  place: { number: number; total: number } | null;
+}) {
+  return (
+    <p className="mt-4 text-sm leading-relaxed text-foreground">
+      <span className="font-medium">{courseTitle}</span>
+      <span className="text-muted"> · {moduleTitle}</span>
+      {place ? <span className="text-muted"> · Aula {place.number} de {place.total}</span> : null}
+    </p>
+  );
+}
+
+function LessonChrome({
+  lesson,
+  paid,
+  place,
+}: {
+  lesson: PublicLesson;
+  paid: boolean;
+  place: { number: number; total: number } | null;
+}) {
   return (
     <>
       <LessonTrail lesson={lesson} />
+      <LessonPlace courseTitle={lesson.courseTitle} moduleTitle={lesson.moduleTitle} place={place} />
       <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-cta">{lesson.moduleTitle}</p>
       <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">{lesson.title}</h1>
       <p className="mt-4 text-base leading-relaxed">{lesson.summary}</p>
@@ -323,18 +374,24 @@ function LessonNeighbors({
 }: {
   courseSlug: string;
   courseTitle: string;
-  previous: { slug: string; title: string } | null;
-  next: { slug: string; title: string } | null;
+  previous: { slug: string; title: string; access?: "open" | "preview" } | null;
+  next: { slug: string; title: string; access?: "open" | "preview" } | null;
   /** No paywall, avançar não pode competir com a compra. */
   tone?: "steps" | "text";
 }) {
   const freeFunnelEnd = tone === "steps" && courseSlug === "sites-que-convertem" && !next;
-  const steps = lessonStepNav({ previous, next });
+  const nextIsPreview = next?.access === "preview";
+  const steps = lessonStepNav({ previous, next: nextIsPreview ? null : next });
   return (
     <nav aria-label="Aulas próximas" className="mt-12 text-sm">
       <p>
-        <Link className={navigationLinkClass()} href={`/cursos/${courseSlug}`}>
-          Voltar para {courseTitle}
+        <Link className={navigationLinkClass()} href={`/cursos/${courseSlug}`} aria-label={`Voltar ao curso ${courseTitle}`}>
+          Voltar ao curso
+        </Link>
+      </p>
+      <p>
+        <Link className={navigationLinkClass()} href="/app/aprendizado">
+          Voltar aos meus cursos
         </Link>
       </p>
       {freeFunnelEnd ? (
@@ -360,14 +417,23 @@ function LessonNeighbors({
               {steps.previous.kicker}: {steps.previous.title}
             </Link>
           ) : null}
-          {steps.next ? (
-            <Link className={navigationLinkClass()} href={steps.next.href}>
-              {steps.next.kicker}: {steps.next.title}
+          {next ? (
+            <Link className={navigationLinkClass()} href={`/aulas/${next.slug}`}>
+              {nextLessonContinuationLabel(next.access ?? "open")}: {next.title}
             </Link>
           ) : null}
         </div>
       ) : (
-        <LessonStepNav previous={previous} next={next} />
+        <>
+          <LessonStepNav previous={previous} next={nextIsPreview ? null : next} />
+          {nextIsPreview && next ? (
+            <p className="mt-4">
+              <Link className={navigationLinkClass()} href={`/aulas/${next.slug}`}>
+                {nextLessonContinuationLabel("preview")}: {next.title}
+              </Link>
+            </p>
+          ) : null}
+        </>
       )}
     </nav>
   );
@@ -387,7 +453,7 @@ function LessonGate({
   const gate = lessonGateKind({ accessType: lesson.accessType, entitled, forSale, hasBody });
   return (
     <Container className="max-w-2xl py-16">
-      <LessonChrome lesson={lesson} paid={paid} />
+      <LessonChrome lesson={lesson} paid={paid} place={null} />
       <p className="mt-8 text-sm leading-relaxed text-muted">
         {forSale && lesson.priceCents != null ? `${formatPriceCents(lesson.priceCents)}. ` : ""}
         {gate === "soon" ? "Disponível em breve." : null}
