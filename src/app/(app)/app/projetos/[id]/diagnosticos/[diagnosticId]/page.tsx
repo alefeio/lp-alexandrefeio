@@ -10,8 +10,6 @@ import { buttonClass } from "@/lib/button-styles";
 
 export const metadata = { title: "Resultado do diagnóstico" };
 
-// `diagnostic_completed` is emitted by DiagnosticWizard only when completion is confirmed for the first time.
-// This result page intentionally does not emit it again on reload.
 function asDimension(value: string | null | undefined): Dimension | null {
   return DIMENSIONS.includes(value as Dimension) ? (value as Dimension) : null;
 }
