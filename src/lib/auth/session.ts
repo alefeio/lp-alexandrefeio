@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth, USER_ROLES } from "@/lib/auth/auth";
+import { auth } from "@/lib/auth/auth";
+import { isAdminRole } from "@/lib/auth/policy";
 
 export async function getSession() {
   return auth.api.getSession({
@@ -16,6 +17,6 @@ export async function requireSession() {
 
 export async function requireAdmin() {
   const session = await requireSession();
-  if (session.user.role !== USER_ROLES.admin) return null;
+  if (!isAdminRole(session.user.role)) return null;
   return session;
 }

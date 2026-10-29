@@ -31,7 +31,9 @@ test("aluno comum não recebe papel de admin e a área exige sessão de administ
   const session = readFileSync(new URL("../src/lib/auth/session.ts", import.meta.url), "utf8");
   const layout = readFileSync(new URL("../src/app/(admin)/admin/layout.tsx", import.meta.url), "utf8");
   const proxy = readFileSync(new URL("../src/proxy.ts", import.meta.url), "utf8");
-  assert.match(session, /session\.user\.role !== USER_ROLES\.admin/);
+  assert.match(session, /if \(!isAdminRole\(session\.user\.role\)\) return null/);
+  const policy = readFileSync(new URL("../src/lib/auth/policy.ts", import.meta.url), "utf8");
+  assert.match(policy, /role === USER_ROLES\.admin/);
   assert.match(session, /return null/);
   assert.match(layout, /requireAdmin/);
   assert.match(layout, /Sem acesso/);

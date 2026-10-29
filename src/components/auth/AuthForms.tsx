@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
 import { AUTH_MESSAGES, mapAuthError, safeNextPath, verificationCallbackPath } from "@/lib/auth/messages";
+import { accountLookupFeedback } from "@/lib/auth/policy";
 import { buttonClass } from "@/lib/button-styles";
 
 const fieldClass =
@@ -140,8 +141,9 @@ export function ForgotPasswordForm() {
     });
     setPending(false);
 
-    if (authError) {
-      setError(mapAuthError(authError));
+    const feedback = accountLookupFeedback(authError);
+    if (feedback) {
+      setError(feedback);
       return;
     }
 
@@ -244,8 +246,9 @@ export function ResendVerificationForm({ callbackURL }: { callbackURL: string })
     });
     setPending(false);
 
-    if (authError) {
-      setError(mapAuthError(authError));
+    const feedback = accountLookupFeedback(authError);
+    if (feedback) {
+      setError(feedback);
       return;
     }
 
