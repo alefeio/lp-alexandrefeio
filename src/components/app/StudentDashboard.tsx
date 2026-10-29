@@ -12,11 +12,14 @@ import {
 } from "lucide-react";
 import { useId, useState } from "react";
 import { Container } from "@/components/ui/Container";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import type {
+  DashboardNextAction,
   JourneyStageView,
+  LearningContinuation,
   MilestoneView,
   QuickAccessCard,
+  StudentCourseCard,
   StudentDashboardViewModel,
 } from "@/lib/home/student-dashboard";
 
@@ -32,49 +35,102 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
   const [showAllMilestones, setShowAllMilestones] = useState(false);
   const progressId = useId();
   const milestones = showAllMilestones ? view.milestones : view.visibleMilestones;
+  const partialAccess = view.progress.publishedLessons > view.progress.accessibleLessons;
+  const progressDetail = partialAccess
+    ? `${view.progress.completedLessons} de ${view.progress.accessibleLessons} aulas acessíveis`
+    : `${view.progress.completedLessons} de ${view.progress.accessibleLessons} aulas`;
+  const project = view.quickAccess.find((card) => card.id === "project");
+  const hasProject = Boolean(project && !project.href.endsWith("/novo"));
+  const showLegacy = !view.learningContinuation && !view.businessNextAction;
 
   return (
     <Container className="max-w-4xl py-10 sm:py-12">
       <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">{view.greeting}</h1>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Início</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{view.greeting}</h1>
           <p className="mt-2 text-sm text-muted">{view.subtext}</p>
         </div>
         <ProgressRing
           id={progressId}
           percentage={view.progress.percentage}
           label={view.progress.label}
-          detail={`${view.progress.completedLessons} de ${view.progress.accessibleLessons} aulas`}
+          detail={progressDetail}
+          fraction={partialAccess ? `${view.progress.completedLessons}/${view.progress.accessibleLessons}` : null}
         />
       </header>
 
-      <section
-        aria-labelledby="next-step-heading"
-        className={`mt-8 rounded-xl border p-5 sm:p-6 ${
-          view.nextAction.tone === "wait"
-            ? "border-border bg-surface"
-            : view.nextAction.tone === "celebrate"
-              ? "border-accent/40 bg-surface"
-              : "border-cta/30 bg-surface shadow-sm"
-        }`}
-      >
-        <p id="next-step-heading" className="text-xs font-medium uppercase tracking-[0.14em] text-cta">
-          {view.nextAction.eyebrow}
-        </p>
-        <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground">{view.nextAction.title}</h2>
-        {view.nextAction.detail ? <p className="mt-2 text-sm text-muted">{view.nextAction.detail}</p> : null}
-        {view.nextAction.percent != null ? (
-          <p className="mt-2 text-sm text-muted" aria-label={`Progresso da aula: ${view.nextAction.percent}%`}>
-            {view.nextAction.percent}% concluída
+      {view.learningContinuation ? <LearningBlock item={view.learningContinuation} /> : null}
+      {view.businessNextAction ? (
+        <BusinessBlock item={view.businessNextAction} primary={!view.learningContinuation} />
+      ) : null}
+      {showLegacy ? <BusinessBlock item={view.nextAction} primary /> : null}
+
+      {view.myCourses.length > 0 ? (
+        <section aria-labelledby="my-courses-heading" className="mt-10">
+          <h2 id="my-courses-heading" className="text-sm font-medium text-foreground">
+            Meus cursos
+          </h2>
+          <ul className="mt-4 grid gap-3">
+            {view.myCourses.map((course) => (
+              <CourseCard key={course.slug} course={course} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section aria-labelledby="business-heading" className="mt-10">
+        <h2 id="business-heading" className="text-sm font-medium text-foreground">
+          Meu negócio
+        </h2>
+        {hasProject && project ? (
+          <div className="mt-4 rounded-xl border border-border bg-surface p-5">
+            <p className="text-lg font-semibold tracking-tight text-foreground">{project.detail}</p>
+            <p className="mt-4">
+              <Link className={navigationLinkClass()} href={project.href}>
+                Abrir projeto
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted">
+            Você ainda não tem um projeto.{" "}
+            <Link className="underline underline-offset-4" href="/app/projetos/novo">
+              Criar projeto
+            </Link>
           </p>
-        ) : null}
-        <p className="mt-5">
-          <Link className={buttonClass("primary")} href={view.nextAction.href}>
-            {view.nextAction.cta}
-            <ArrowRight className="ml-2 inline size-4" aria-hidden />
-          </Link>
-        </p>
+        )}
       </section>
+
+      {hasProject && view.businessNextAction?.kind !== "diagnostic" ? (
+        <section aria-labelledby="diagnostic-heading" className="mt-8">
+          <h2 id="diagnostic-heading" className="text-sm font-medium text-foreground">
+            Diagnóstico
+          </h2>
+          {view.diagnostic === "completed" ? (
+            <p className="mt-3 text-sm text-muted">
+              Concluído{view.diagnosticCompletedLabel ? ` · ${view.diagnosticCompletedLabel}` : ""}.{" "}
+              {view.diagnosticHref ? (
+                <Link className="underline underline-offset-4" href={view.diagnosticHref}>
+                  Ver resultado
+                </Link>
+              ) : null}
+            </p>
+          ) : view.diagnostic === "in_progress" && view.diagnosticHref ? (
+            <p className="mt-3 text-sm">
+              <Link className={navigationLinkClass()} href={view.diagnosticHref}>
+                Continuar diagnóstico
+              </Link>
+            </p>
+          ) : view.diagnosticHref ? (
+            <p className="mt-3 text-sm">
+              <Link className={navigationLinkClass()} href={view.diagnosticHref}>
+                Fazer diagnóstico
+              </Link>
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section aria-labelledby="journey-heading" className="mt-10">
         <h2 id="journey-heading" className="text-sm font-medium text-foreground">
@@ -131,23 +187,104 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
   );
 }
 
+function LearningBlock({ item }: { item: LearningContinuation }) {
+  return (
+    <section aria-labelledby="learning-heading" className="mt-8 rounded-xl border border-cta/30 bg-surface p-5 shadow-sm sm:p-6">
+      <p id="learning-heading" className="text-xs font-medium uppercase tracking-[0.14em] text-cta">
+        {item.eyebrow}
+      </p>
+      {item.state === "purchased_not_started" ? (
+        <>
+          <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground">Aula: {item.lessonTitle}</h2>
+          <p className="mt-2 text-sm text-muted">Curso: {item.courseTitle}</p>
+          <p className="mt-1 text-sm text-muted">
+            {item.moduleTitle ? `${item.moduleTitle} · ` : ""}
+            {item.positionLabel}
+          </p>
+        </>
+      ) : (
+        <>
+          <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground">{item.courseTitle}</h2>
+          <p className="mt-2 text-sm text-foreground">
+            {item.moduleTitle ? `${item.moduleTitle} · ` : ""}
+            {item.positionLabel}
+          </p>
+          <p className="mt-1 text-sm text-muted">{item.lessonTitle}</p>
+        </>
+      )}
+      {item.percent != null ? (
+        <p className="mt-2 text-sm text-muted" aria-label={`Progresso da aula: ${item.percent}%`}>
+          {item.percent}% percorrido
+        </p>
+      ) : null}
+      <p className="mt-5">
+        <Link className={buttonClass("primary")} href={item.href}>
+          {item.cta}
+          <ArrowRight className="ml-2 inline size-4" aria-hidden />
+        </Link>
+      </p>
+    </section>
+  );
+}
+
+function BusinessBlock({ item, primary }: { item: DashboardNextAction; primary: boolean }) {
+  return (
+    <section
+      aria-labelledby={primary ? "next-step-heading" : "business-action-heading"}
+      className={`mt-8 rounded-xl border p-5 sm:p-6 ${
+        item.tone === "wait" ? "border-border bg-surface" : item.tone === "celebrate" ? "border-accent/40 bg-surface" : "border-border bg-surface"
+      }`}
+    >
+      <p id={primary ? "next-step-heading" : "business-action-heading"} className="text-xs font-medium uppercase tracking-[0.14em] text-cta">
+        {primary ? item.eyebrow : "Próxima ação no seu negócio"}
+      </p>
+      <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground">{item.title}</h2>
+      {item.detail ? <p className="mt-2 text-sm text-muted">{item.detail}</p> : null}
+      <p className="mt-5">
+        <Link className={buttonClass(primary ? "primary" : "secondary")} href={item.href}>
+          {item.cta}
+          <ArrowRight className="ml-2 inline size-4" aria-hidden />
+        </Link>
+      </p>
+    </section>
+  );
+}
+
+function CourseCard({ course }: { course: StudentCourseCard }) {
+  return (
+    <li className="rounded-xl border border-border bg-surface p-5">
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">{course.statusLabel}</p>
+      <h3 className="mt-2 text-lg font-semibold tracking-tight text-foreground">{course.title}</h3>
+      <p className="mt-2 text-sm text-muted">{course.progressLabel}</p>
+      <p className="mt-4">
+        <Link className={navigationLinkClass()} href={course.href}>
+          {course.cta}
+        </Link>
+      </p>
+    </li>
+  );
+}
+
 function ProgressRing({
   id,
   percentage,
   label,
   detail,
+  fraction,
 }: {
   id: string;
   percentage: number;
   label: string;
   detail: string;
+  fraction: string | null;
 }) {
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
+  const visible = fraction ?? `${percentage}%`;
   return (
     <div className="flex items-center gap-3" aria-labelledby={id}>
-      <svg width="88" height="88" viewBox="0 0 88 88" className="shrink-0" role="img" aria-label={`${label}: ${percentage}% concluído`}>
+      <svg width="88" height="88" viewBox="0 0 88 88" className="shrink-0" role="img" aria-label={fraction ? `${label}: ${detail}` : `${label}: ${percentage}% concluído`}>
         <circle cx="44" cy="44" r={radius} fill="none" stroke="currentColor" strokeWidth="8" className="text-border" />
         <circle
           cx="44"
@@ -162,7 +299,7 @@ function ProgressRing({
           className="origin-center -rotate-90 text-cta motion-safe:transition-[stroke-dashoffset] motion-safe:duration-500"
         />
         <text x="44" y="48" textAnchor="middle" className="fill-foreground text-[0.95rem] font-semibold">
-          {percentage}%
+          {visible}
         </text>
       </svg>
       <div>

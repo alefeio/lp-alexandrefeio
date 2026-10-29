@@ -199,6 +199,6 @@ export async function listOrdersForUser(userId: string) {
   return getPrisma().order.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
-    include: { items: true },
+    include: { items: { include: { lesson: { select: { slug: true } } } } },
   });
 }

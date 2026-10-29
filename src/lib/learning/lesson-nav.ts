@@ -1,7 +1,22 @@
 export type LessonStepTarget = {
   slug: string;
   title: string;
+  access?: "open" | "preview";
 };
+
+/** Próxima aula paga sem acesso não pode parecer continuação normal. */
+export function visibleNeighborAccess(
+  access: "open" | "preview",
+  lessonId: string,
+  ownedLessonIds: readonly string[],
+): "open" | "preview" {
+  if (access === "open" || ownedLessonIds.includes(lessonId)) return "open";
+  return "preview";
+}
+
+export function nextLessonContinuationLabel(access: "open" | "preview"): string {
+  return access === "preview" ? "Ver a prévia da próxima aula" : "Próxima aula";
+}
 
 export type LessonStepLink = {
   href: string;

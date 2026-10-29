@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
+import { navigationLinkClass } from "@/lib/button-styles";
 import { DiagnosticWizard } from "@/components/diagnostic/DiagnosticWizard";
 import { requireSession } from "@/lib/auth/session";
 import { safeReturnPath } from "@/lib/auth/messages";
@@ -28,6 +30,11 @@ export default async function DiagnosticPage({
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">O que falta antes de investir mais</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
         São 15 perguntas. Você pode sair e voltar: as respostas já escolhidas ficam neste projeto.
+      </p>
+      <p className="mt-4">
+        <Link className={navigationLinkClass()} href={returnTo ?? "/app"}>
+          {returnTo ? "Voltar à aula" : "Ir para o início"}
+        </Link>
       </p>
       <div className="mt-8">
         <DiagnosticWizard

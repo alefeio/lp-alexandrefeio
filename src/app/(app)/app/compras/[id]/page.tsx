@@ -4,9 +4,9 @@ import { PurchaseBeacon } from "@/components/commerce/PurchaseBeacon";
 import { RefreshPayment } from "@/components/commerce/RefreshPayment";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { getOrderForUser } from "@/lib/commerce/orders";
-import { purchasedLessonPath } from "@/lib/commerce/purchase-cta";
+import { paidOrderStart } from "@/lib/commerce/purchase-cta";
 import { fetchPixPresentation } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
 
@@ -42,9 +42,9 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
     ? await fetchPixPresentation(payment.providerPaymentId)
     : null;
   const item = order.items[0];
-  const lessonPath = purchasedLessonPath(
-    order.items.map((row) => ({ productType: row.productType, lessonSlug: row.lesson?.slug ?? null })),
-  );
+  const start = order.status === "PAID"
+    ? paidOrderStart(order.items.map((row) => ({ productType: row.productType, lessonSlug: row.lesson?.slug ?? null })))
+    : null;
 
   return (
     <Container className="max-w-2xl">
@@ -83,16 +83,18 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
         </div>
       ) : null}
       <RefreshPayment orderId={order.id} pending={pending} />
-      {order.status === "PAID" ? (
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          {lessonPath ? (
-            <Link className={buttonClass("primary")} href={lessonPath}>
-              Acessar minha aula
+      {start ? (
+        <div className="mt-6">
+          <p className="text-base font-medium">Acesso liberado.</p>
+          <p className="mt-2 text-sm text-muted">Você comprou {order.items.map((row) => row.titleSnapshot).join(", ")}.</p>
+          <div className="mt-4 flex flex-col items-start gap-3">
+            <Link className={buttonClass("primary")} href={start.href}>
+              {start.cta}
             </Link>
-          ) : null}
-          <Link className={buttonClass(lessonPath ? "secondary" : "primary")} href="/app/aprendizado">
-            Ver meu aprendizado
-          </Link>
+            <Link className={navigationLinkClass()} href="/app/aprendizado">
+              Ver meu aprendizado
+            </Link>
+          </div>
         </div>
       ) : null}
     </Container>

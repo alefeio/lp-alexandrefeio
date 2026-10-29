@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { purchasedLessonPath } from "../src/lib/commerce/purchase-cta";
+import { paidOrderStart, purchasedLessonPath } from "../src/lib/commerce/purchase-cta";
 import { paidLessonAction } from "../src/lib/commerce/sale-action";
 import { lessonsAvailableToStudy } from "../src/lib/learning/available-study";
 
@@ -37,6 +37,24 @@ test("quem já tem a aula vê acesso e quem não tem vê compra", () => {
   assert.equal(paidLessonAction({ open: true, owned: true }), "access");
   assert.equal(paidLessonAction({ open: true, owned: false }), "buy");
   assert.equal(paidLessonAction({ open: false, owned: false }), "soon");
+});
+
+test("pedido pago de aula única começa na aula", () => {
+  assert.deepEqual(paidOrderStart([{ productType: "LESSON", lessonSlug: "objetivo-oferta-orcamento" }]), {
+    href: "/aulas/objetivo-oferta-orcamento",
+    cta: "Começar aula",
+  });
+});
+
+test("pedido pago de módulo ou curso vai para meus cursos", () => {
+  assert.deepEqual(paidOrderStart([{ productType: "MODULE", lessonSlug: "objetivo-oferta-orcamento" }]), {
+    href: "/app",
+    cta: "Ver meus cursos",
+  });
+  assert.deepEqual(paidOrderStart([{ productType: "COURSE", lessonSlug: null }]), {
+    href: "/app",
+    cta: "Ver meus cursos",
+  });
 });
 
 test("pedido de módulo ou curso não assume uma lesson única", () => {

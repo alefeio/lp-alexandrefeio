@@ -4,9 +4,10 @@ import {
   buildStudentDashboard,
   type DashboardBuildInput,
   type DashboardLesson,
+  type StudentCourseInput,
   type StudentDashboardViewModel,
 } from "@/lib/home/student-dashboard";
-import { getPublishedCourse } from "@/lib/learning/catalog";
+import { listPublishedCourses } from "@/lib/learning/catalog";
 import { FIRST_COURSE_SLUG } from "@/lib/learning/first-course";
 import { chooseNextAction } from "@/lib/plan/next-action";
 
@@ -14,8 +15,8 @@ const OPEN = ["TODO", "IN_PROGRESS"] as const;
 
 export async function loadStudentDashboard(userId: string, name: string, now = new Date()): Promise<StudentDashboardViewModel> {
   const prisma = getPrisma();
-  const [course, progress, project, entitlements, resultRows, importRows] = await Promise.all([
-    getPublishedCourse(FIRST_COURSE_SLUG),
+  const [publishedCourses, progress, project, entitlements, resultRows, importRows] = await Promise.all([
+    listPublishedCourses(),
     prisma.lessonProgress.findMany({
       where: { userId },
       orderBy: { lastActiveAt: "desc" },
@@ -34,7 +35,7 @@ export async function loadStudentDashboard(userId: string, name: string, now = n
         name: true,
         diagnostics: {
           orderBy: { createdAt: "desc" },
-          select: { status: true },
+          select: { id: true, status: true, completedAt: true },
         },
         recommendations: {
           orderBy: { createdAt: "desc" },
@@ -79,24 +80,29 @@ export async function loadStudentDashboard(userId: string, name: string, now = n
 
   const entitled = new Set(entitlements.map((row) => row.lessonId));
   const progressByLesson = new Map(progress.map((row) => [row.lessonId, row]));
-  const published = course?.modules.flatMap((moduleRow) => moduleRow.lessons) ?? [];
-
-  const lessons: DashboardLesson[] = published.map((lesson, index) => {
-    const row = progressByLesson.get(lesson.id);
-    const accessible = lesson.accessType === "FREE" || entitled.has(lesson.id);
+  const courses: StudentCourseInput[] = publishedCourses.map((course) => {
+    const flat = course.modules.flatMap((moduleRow) =>
+      moduleRow.lessons.map((lesson) => ({ lesson, moduleTitle: moduleRow.title })),
+    );
     return {
-      slug: lesson.slug,
-      title: lesson.title,
-      number: index + 1,
-      accessible,
-      completed: Boolean(row?.completedAt),
-      inProgress: Boolean(row && !row.completedAt),
-      percent: row?.percent ?? 0,
+      slug: course.slug,
+      title: course.title,
+      lessons: flat.map((item, index) => toDashboardLesson(item.lesson, item.moduleTitle, index, entitled, progressByLesson)),
     };
   });
+  const lessons = courses.find((course) => course.slug === FIRST_COURSE_SLUG)?.lessons ?? courses[0]?.lessons ?? [];
 
-  const completedDiagnostic = project?.diagnostics.some((item) => item.status === "COMPLETED") ?? false;
+  const completedDiagnosticRow = project?.diagnostics.find((item) => item.status === "COMPLETED") ?? null;
+  const completedDiagnostic = Boolean(completedDiagnosticRow);
   const inProgressDiagnostic = project?.diagnostics.some((item) => item.status === "IN_PROGRESS") ?? false;
+  const diagnosticHref = !project
+    ? null
+    : completedDiagnosticRow
+      ? `/app/projetos/${project.id}/diagnosticos/${completedDiagnosticRow.id}`
+      : `/app/projetos/${project.id}/diagnostico`;
+  const diagnosticCompletedLabel = completedDiagnosticRow?.completedAt
+    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(completedDiagnosticRow.completedAt)
+    : null;
   const nextAction = project
     ? chooseNextAction({
         tasks: project.tasks.map((task) => ({
@@ -142,12 +148,37 @@ export async function loadStudentDashboard(userId: string, name: string, now = n
     },
     resultSlugs: resultRows.map((row) => row.lesson.slug),
     planHint,
+    courses,
+    diagnosticHref,
+    diagnosticCompletedLabel,
     operational,
   };
 
   const view = buildStudentDashboard(input);
   if (!homeBelongsToViewer(view.userId, userId)) throw new Error("DASHBOARD_OWNER_MISMATCH");
   return view;
+}
+
+function toDashboardLesson(
+  lesson: { id: string; slug: string; title: string; accessType: "FREE" | "PAID" },
+  moduleTitle: string,
+  index: number,
+  entitled: Set<string>,
+  progressByLesson: { get(id: string): { percent: number; completedAt: Date | null } | undefined },
+): DashboardLesson {
+  const row = progressByLesson.get(lesson.id);
+  const accessible = lesson.accessType === "FREE" || entitled.has(lesson.id);
+  return {
+    slug: lesson.slug,
+    title: lesson.title,
+    number: index + 1,
+    moduleTitle,
+    accessible,
+    owned: lesson.accessType === "PAID" && entitled.has(lesson.id),
+    completed: Boolean(row?.completedAt),
+    inProgress: Boolean(row && !row.completedAt),
+    percent: row?.percent ?? 0,
+  };
 }
 
 function mapOperational(

@@ -200,30 +200,42 @@ export async function sitemapLearningEntries(): Promise<{ courses: SitemapCourse
   return { courses: courseEntries, lessons };
 }
 
+export type LessonNeighbor = {
+  slug: string;
+  title: string;
+  lessonId: string;
+  access: "open" | "preview";
+};
+
 export async function adjacentLessons(courseSlug: string, lessonSlug: string): Promise<{
-  previous: { slug: string; title: string } | null;
-  next: { slug: string; title: string } | null;
+  previous: LessonNeighbor | null;
+  next: LessonNeighbor | null;
+  place: { number: number; total: number } | null;
 }> {
   const course = await getPublishedCourse(courseSlug);
-  if (!course) return { previous: null, next: null };
+  if (!course) return { previous: null, next: null, place: null };
   const trail = course.modules.flatMap((moduleRow) => moduleRow.lessons);
   const index = trail.findIndex((lesson) => lesson.slug === lessonSlug);
   return {
     previous: await linkableNeighbor(trail[index - 1]),
     next: await linkableNeighbor(trail[index + 1]),
+    place: index >= 0 ? { number: index + 1, total: trail.length } : null,
   };
 }
 
-async function linkableNeighbor(lesson: { id: string; slug: string; title: string; accessType: "FREE" | "PAID" } | undefined) {
+async function linkableNeighbor(
+  lesson: { id: string; slug: string; title: string; accessType: "FREE" | "PAID" } | undefined,
+): Promise<LessonNeighbor | null> {
   if (!lesson) return null;
+  const access = lesson.accessType === "FREE" ? "open" : "preview";
   if (lesson.accessType === "FREE") {
     const body = await getPrisma().lessonBlock.count({ where: { lessonId: lesson.id, retiredAt: null } });
-    return body > 0 ? { slug: lesson.slug, title: lesson.title } : null;
+    return body > 0 ? { slug: lesson.slug, title: lesson.title, lessonId: lesson.id, access } : null;
   }
   const preview = await getPrisma().lessonBlock.count({
     where: { lessonId: lesson.id, retiredAt: null, isPublicPreview: true, type: { in: [...PUBLIC_PREVIEW_TYPES] } },
   });
-  return preview > 0 ? { slug: lesson.slug, title: lesson.title } : null;
+  return preview > 0 ? { slug: lesson.slug, title: lesson.title, lessonId: lesson.id, access } : null;
 }
 
 export async function continueStudying(userId: string) {

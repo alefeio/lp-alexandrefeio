@@ -108,7 +108,8 @@ export function DiagnosticWizard({
           return;
         }
       }
-      router.push(`/app/projetos/${projectId}/diagnosticos/${result.diagnosticId}`);
+      const resultPath = `/app/projetos/${projectId}/diagnosticos/${result.diagnosticId}`;
+      router.push(returnTo ? `${resultPath}?returnTo=${encodeURIComponent(returnTo)}` : resultPath);
     } catch {
       setError("Não foi possível concluir agora. Tente de novo.");
     } finally {

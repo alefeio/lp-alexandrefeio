@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BudgetForm, DueReminderForm, LessonTaskForm, ManualTaskForm, RecommendationPlanButton, ReminderForm } from "@/components/plan/PlanForms";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
+import { ReturnToLesson } from "@/components/app/ReturnToLesson";
 import { buttonClass } from "@/lib/button-styles";
 import { dimensionLabel, knownDimension } from "@/lib/diagnostic/score";
 import { formatPriceCents } from "@/lib/learning/money";
@@ -22,8 +22,15 @@ const OBJECTIVE: Record<string, string> = {
   UNDEFINED: "Ainda não definido",
 };
 
-export default async function LivePlanPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LivePlanPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
   const session = await requireSession();
   const plan = await getPlanForUser(session.user.id, id);
   if (!plan) notFound();
@@ -102,7 +109,7 @@ export default async function LivePlanPage({ params }: { params: Promise<{ id: s
         ) : null}
       </section>
 
-      <Link className={`${buttonClass("secondary")} mt-10`} href={`/app/projetos/${project.id}`}>Voltar ao projeto</Link>
+      <ReturnToLesson returnTo={query.returnTo} fallbackHref={`/app/projetos/${project.id}`} fallbackLabel="Voltar ao projeto" />
     </Container>
   );
 }
