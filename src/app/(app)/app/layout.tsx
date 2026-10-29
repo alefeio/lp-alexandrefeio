@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { PlatformShell } from "@/components/analytics/PlatformShell";
-import { SignOutButton } from "@/components/auth/AuthForms";
+import { StudentNav } from "@/components/app/StudentNav";
 import { Container } from "@/components/ui/Container";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { requireSession } from "@/lib/auth/session";
@@ -20,25 +20,11 @@ export default async function StudentLayout({ children }: { children: ReactNode 
     <PlatformShell>
     <div className="flex min-h-[100dvh] flex-col">
       <header className="border-b border-border">
-        <Container className="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
-          <Link href="/app" className="text-foreground">
+        <Container className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/app" className="shrink-0 text-foreground">
             <Wordmark />
           </Link>
-          <nav aria-label="Área do aluno" className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-sm">
-            <Link href="/app/aprendizado" className="underline underline-offset-4">
-              Aprendizado
-            </Link>
-            <Link href="/app/projetos" className="underline underline-offset-4">
-              Projetos
-            </Link>
-            <Link href="/app/alertas" className="underline underline-offset-4">
-              Alertas
-            </Link>
-            <Link href="/app/compras" className="underline underline-offset-4">
-              Compras
-            </Link>
-            <SignOutButton />
-          </nav>
+          <StudentNav />
         </Container>
       </header>
       <main id="conteudo" className="flex-1 py-16">
