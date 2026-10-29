@@ -94,6 +94,7 @@ export async function saveBlogPost(input: { id?: string; fields: BlogWriteFields
   const existing = input.id ? await prisma.blogPost.findUnique({ where: { id: input.id }, select: postSelect }) : null;
   if (input.id && !existing) return { ok: false as const, message: "Artigo não encontrado." };
   if (input.intent === "unpublish" && !existing) return { ok: false as const, message: "Artigo não encontrado." };
+
   const fields: BlogWriteFields = input.intent === "unpublish" && existing
     ? {
         title: existing.title,
@@ -107,26 +108,36 @@ export async function saveBlogPost(input: { id?: string; fields: BlogWriteFields
         coverImageAlt: existing.coverImageAlt ?? "",
       }
     : input.fields;
-  let coverUrl = existing?.coverImageUrl ?? null;
-  let coverId = existing?.coverImagePublicId ?? null;
-  if (input.cover) {
-    const checked = validateEditorialImage(input.cover.bytes, input.cover.type, input.cover.size);
-    if (!checked.ok) return checked;
-    const uploaded = await uploadToApimg(checked.bytes, checked.format, process.env, fetch, BLOG_COVER_FOLDER);
-    if (!uploaded.ok) return uploaded;
-    coverUrl = uploaded.asset.url;
-    coverId = uploaded.asset.publicId;
-  }
+
+  const checkedCover = input.cover
+    ? validateEditorialImage(input.cover.bytes, input.cover.type, input.cover.size)
+    : null;
+  if (checkedCover && !checkedCover.ok) return checkedCover;
+
   const prepared = prepareBlogWrite({
     existing: existing ? { slug: existing.slug, publishedAt: existing.publishedAt, status: existing.status } : null,
     fields,
     intent: input.intent,
     now,
-    coverUrl,
+    coverUrl: existing?.coverImageUrl ?? null,
+    hasCover: Boolean(existing?.coverImageUrl || checkedCover),
   });
   if (!prepared.ok) return prepared;
+
   const slugs = await prisma.blogPost.findMany({ select: { id: true, slug: true } });
-  if (slugConflict(prepared.record.slug, slugs, existing?.id)) return { ok: false as const, message: "Já existe um artigo com este slug." };
+  if (slugConflict(prepared.record.slug, slugs, existing?.id)) {
+    return { ok: false as const, message: "Já existe um artigo com este slug." };
+  }
+
+  let coverUrl = existing?.coverImageUrl ?? null;
+  let coverId = existing?.coverImagePublicId ?? null;
+  if (checkedCover) {
+    const uploaded = await uploadToApimg(checkedCover.bytes, checkedCover.format, process.env, fetch, BLOG_COVER_FOLDER);
+    if (!uploaded.ok) return uploaded;
+    coverUrl = uploaded.asset.url;
+    coverId = uploaded.asset.publicId;
+  }
+
   const data = {
     slug: prepared.record.slug,
     title: prepared.record.title,
@@ -142,7 +153,9 @@ export async function saveBlogPost(input: { id?: string; fields: BlogWriteFields
     status: prepared.record.status,
     publishedAt: prepared.record.publishedAt,
   };
-  const saved = existing ? await prisma.blogPost.update({ where: { id: existing.id }, data, select: { id: true, slug: true, status: true } }) : await prisma.blogPost.create({ data, select: { id: true, slug: true, status: true } });
+  const saved = existing
+    ? await prisma.blogPost.update({ where: { id: existing.id }, data, select: { id: true, slug: true, status: true } })
+    : await prisma.blogPost.create({ data, select: { id: true, slug: true, status: true } });
   return { ok: true as const, post: saved };
 }
 

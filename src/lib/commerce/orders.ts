@@ -11,6 +11,10 @@ function origin() {
   return (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "P2002");
+}
+
 export async function quoteForUser(userId: string | null, lines: CartLine[]) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
   const catalog = await loadSaleCatalog();
@@ -21,7 +25,8 @@ export async function quoteForUser(userId: string | null, lines: CartLine[]) {
 
 export async function createOrderForUser(userId: string, lines: CartLine[], checkoutKey: string) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
-  const existing = await getPrisma().order.findUnique({ where: { checkoutKey } });
+  const prisma = getPrisma();
+  const existing = await prisma.order.findUnique({ where: { checkoutKey } });
   if (existing) {
     if (existing.userId !== userId) return { ok: false as const, message: "Não foi possível abrir este pedido." };
     return { ok: true as const, orderId: existing.id, status: existing.status, totalCents: existing.totalCents };
@@ -29,42 +34,50 @@ export async function createOrderForUser(userId: string, lines: CartLine[], chec
   const quote = await quoteForUser(userId, lines);
   if (!quote.ok) return quote;
 
-  const order = await getPrisma().$transaction(async (tx) => {
-    const created = await tx.order.create({
-      data: {
-        userId,
-        checkoutKey,
-        currency: "BRL",
-        subtotalCents: quote.subtotalCents,
-        creditCents: quote.creditCents,
-        totalCents: quote.totalCents,
-        status: quote.kind === "zero_upgrade" ? "PAID" : "PENDING_PAYMENT",
-        zeroValueUpgrade: quote.kind === "zero_upgrade",
-      },
-    });
-    for (const item of quote.items) {
-      const row = await tx.orderItem.create({
+  let order;
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
         data: {
-          orderId: created.id,
-          productType: item.productType,
-          lessonId: item.productType === "LESSON" ? item.productId : null,
-          moduleId: item.productType === "MODULE" ? item.productId : null,
-          courseId: item.productType === "COURSE" ? item.productId : null,
-          titleSnapshot: item.title,
-          listPriceCents: item.listPriceCents,
-          creditAppliedCents: item.creditAppliedCents,
-          finalPriceCents: item.finalPriceCents,
+          userId,
+          checkoutKey,
+          currency: "BRL",
+          subtotalCents: quote.subtotalCents,
+          creditCents: quote.creditCents,
+          totalCents: quote.totalCents,
+          status: quote.kind === "zero_upgrade" ? "PAID" : "PENDING_PAYMENT",
+          zeroValueUpgrade: quote.kind === "zero_upgrade",
         },
       });
-      if (item.lessonIds.length > 0) {
-        await tx.orderItemLesson.createMany({
-          data: item.lessonIds.map((lessonId) => ({ orderItemId: row.id, lessonId })),
+      for (const item of quote.items) {
+        const row = await tx.orderItem.create({
+          data: {
+            orderId: created.id,
+            productType: item.productType,
+            lessonId: item.productType === "LESSON" ? item.productId : null,
+            moduleId: item.productType === "MODULE" ? item.productId : null,
+            courseId: item.productType === "COURSE" ? item.productId : null,
+            titleSnapshot: item.title,
+            listPriceCents: item.listPriceCents,
+            creditAppliedCents: item.creditAppliedCents,
+            finalPriceCents: item.finalPriceCents,
+          },
         });
+        if (item.lessonIds.length > 0) {
+          await tx.orderItemLesson.createMany({
+            data: item.lessonIds.map((lessonId) => ({ orderItemId: row.id, lessonId })),
+          });
+        }
+        if (quote.kind === "zero_upgrade") await grantItem(tx, userId, row.id, item.lessonIds);
       }
-      if (quote.kind === "zero_upgrade") await grantItem(tx, userId, row.id, item.lessonIds);
-    }
-    return created;
-  });
+      return created;
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    const raced = await prisma.order.findUnique({ where: { checkoutKey } });
+    if (!raced || raced.userId !== userId) return { ok: false as const, message: "Não foi possível abrir este pedido." };
+    return { ok: true as const, orderId: raced.id, status: raced.status, totalCents: raced.totalCents };
+  }
 
   if (order.status === "PAID") await sendPurchaseConfirmationIfNeeded(order.id);
   return { ok: true as const, orderId: order.id, status: order.status, totalCents: order.totalCents };
@@ -103,36 +116,47 @@ export async function revokeOrderAccess(orderId: string) {
 
 export async function preparePaymentAttempt(userId: string, orderId: string) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
-  const order = await getPrisma().order.findFirst({ where: { id: orderId, userId } });
-  if (!order) return { ok: false as const, message: "Pedido não encontrado." };
-  if (order.status === "PAID") return { ok: false as const, message: "Este pedido já foi pago." };
-  if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
-    return { ok: false as const, message: "Este pedido não aceita uma nova cobrança." };
-  }
+  const prisma = getPrisma();
 
-  const open = await getPrisma().payment.findFirst({
-    where: { orderId: order.id, status: { in: ["PENDING", "IN_PROCESS"] } },
-    orderBy: { createdAt: "desc" },
+  return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "Order"
+      WHERE "id" = ${orderId} AND "userId" = ${userId}
+      FOR UPDATE
+    `;
+    if (locked.length === 0) return { ok: false as const, message: "Pedido não encontrado." };
+
+    const order = await tx.order.findUnique({ where: { id: orderId } });
+    if (!order) return { ok: false as const, message: "Pedido não encontrado." };
+    if (order.status === "PAID") return { ok: false as const, message: "Este pedido já foi pago." };
+    if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
+      return { ok: false as const, message: "Este pedido não aceita uma nova cobrança." };
+    }
+
+    const open = await tx.payment.findFirst({
+      where: { orderId: order.id, status: { in: ["PENDING", "IN_PROCESS"] } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (open?.providerPaymentId) {
+      return { ok: true as const, paymentId: open.id, idempotencyKey: open.idempotencyKey, amountCents: open.amountCents, reused: true };
+    }
+    if (open && Date.now() - open.createdAt.getTime() < 20_000) {
+      return { ok: false as const, message: "O pagamento já está em andamento." };
+    }
+    if (open) {
+      await tx.payment.update({ where: { id: open.id }, data: { status: "CANCELLED" } });
+    }
+    const payment = await tx.payment.create({
+      data: {
+        orderId: order.id,
+        provider: "MERCADO_PAGO",
+        idempotencyKey: randomUUID(),
+        amountCents: order.totalCents,
+        status: "PENDING",
+      },
+    });
+    return { ok: true as const, paymentId: payment.id, idempotencyKey: payment.idempotencyKey, amountCents: payment.amountCents, reused: false };
   });
-  if (open?.providerPaymentId) {
-    return { ok: true as const, paymentId: open.id, idempotencyKey: open.idempotencyKey, amountCents: open.amountCents, reused: true };
-  }
-  if (open && Date.now() - open.createdAt.getTime() < 20_000) {
-    return { ok: false as const, message: "O pagamento já está em andamento." };
-  }
-  if (open) {
-    await getPrisma().payment.update({ where: { id: open.id }, data: { status: "CANCELLED" } });
-  }
-  const payment = await getPrisma().payment.create({
-    data: {
-      orderId: order.id,
-      provider: "MERCADO_PAGO",
-      idempotencyKey: randomUUID(),
-      amountCents: order.totalCents,
-      status: "PENDING",
-    },
-  });
-  return { ok: true as const, paymentId: payment.id, idempotencyKey: payment.idempotencyKey, amountCents: payment.amountCents, reused: false };
 }
 
 export async function sendPurchaseConfirmationIfNeeded(orderId: string) {

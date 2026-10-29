@@ -52,6 +52,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
+  padding-bottom: var(--consent-banner-offset, 0px);
 }
 
 ::selection {

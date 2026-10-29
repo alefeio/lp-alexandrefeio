@@ -7,6 +7,7 @@ import { blogPostingJsonLd } from "../src/lib/blog/seo";
 import { buildPublicSitemap } from "../src/lib/seo/public-sitemap";
 
 const now = new Date("2026-10-27T12:00:00.000Z");
+const coverUrl = "https://apimg.com.br/blog/pronto-para-anunciar.webp";
 const fields = {
   title: "Como saber se o negócio está pronto para anunciar",
   slug: "pronto-para-anunciar",
@@ -16,15 +17,21 @@ const fields = {
   ctaKey: "TRAFFIC_COURSE",
   seoTitle: "Pronto para anunciar",
   seoDescription: "Decida se o anúncio é o próximo passo.",
-  coverImageAlt: "",
+  coverImageAlt: "Pessoa analisando uma campanha de tráfego pago.",
 };
 
 test("rascunho salva incompleto e publicação exige o essencial", () => {
   const draft = prepareBlogWrite({ existing: null, fields: { ...fields, excerpt: "", contentMarkdown: "", categorySlug: "" }, intent: "save", now });
   assert.equal(draft.ok, true);
-  const blocked = prepareBlogWrite({ existing: null, fields: { ...fields, excerpt: "curto", contentMarkdown: "pouco" }, intent: "publish", now });
+  const blocked = prepareBlogWrite({ existing: null, fields: { ...fields, excerpt: "curto", contentMarkdown: "pouco" }, intent: "publish", now, coverUrl });
   assert.equal(blocked.ok, false);
-  const published = prepareBlogWrite({ existing: null, fields, intent: "publish", now });
+  const withoutCover = prepareBlogWrite({ existing: null, fields, intent: "publish", now });
+  assert.equal(withoutCover.ok, false);
+  if (!withoutCover.ok) assert.match(withoutCover.message, /imagem de capa/);
+  const withoutAlt = prepareBlogWrite({ existing: null, fields: { ...fields, coverImageAlt: "" }, intent: "publish", now, coverUrl });
+  assert.equal(withoutAlt.ok, false);
+  if (!withoutAlt.ok) assert.match(withoutAlt.message, /texto alternativo/);
+  const published = prepareBlogWrite({ existing: null, fields, intent: "publish", now, coverUrl });
   assert.equal(published.ok, true);
   if (published.ok) {
     assert.equal(published.record.status, "PUBLISHED");
@@ -43,6 +50,7 @@ test("slug único fica travado e a data da primeira publicação permanece", () 
     fields: { ...fields, slug: "outro-slug" },
     intent: "save",
     now,
+    coverUrl,
   });
   assert.equal(edited.ok, true);
   if (edited.ok) {

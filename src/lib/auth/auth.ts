@@ -4,11 +4,16 @@ import { nextCookies } from "better-auth/next-js";
 import { siteConfig } from "@/data/site-config";
 import { getPrisma } from "@/lib/db/prisma";
 import { passwordResetEmail, sendAuthEmail, verificationEmail } from "@/lib/email/auth-mail";
+import {
+  RESET_TOKEN_EXPIRES_IN_SECONDS,
+  roleForNewUser,
+  secureSessionCookies,
+  SESSION_COOKIE_ATTRIBUTES,
+  SESSION_EXPIRES_IN_SECONDS,
+  USER_ROLES,
+} from "@/lib/auth/policy";
 
-export const USER_ROLES = {
-  user: "USER",
-  admin: "ADMIN",
-} as const;
+export { USER_ROLES };
 
 export function getAuthBaseURL(env: Record<string, string | undefined> = process.env): string {
   const configured = env.BETTER_AUTH_URL?.trim();
@@ -33,6 +38,15 @@ function trustedOrigins(): string[] {
   return [...origins];
 }
 
+async function deliverAuthEmail(to: string, message: { subject: string; html: string; text: string }): Promise<void> {
+  try {
+    await sendAuthEmail({ to, ...message });
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "Error";
+    console.error("auth email failed", { name });
+  }
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(getPrisma(), { provider: "postgresql" }),
   secret: getAuthSecret(),
@@ -43,15 +57,22 @@ export const auth = betterAuth({
     window: 60,
     max: 10,
   },
+  session: {
+    expiresIn: SESSION_EXPIRES_IN_SECONDS,
+  },
+  advanced: {
+    useSecureCookies: secureSessionCookies(getAuthBaseURL()),
+    defaultCookieAttributes: SESSION_COOKIE_ATTRIBUTES,
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
+    resetPasswordTokenExpiresIn: RESET_TOKEN_EXPIRES_IN_SECONDS,
     revokeSessionsOnPasswordReset: true,
     minPasswordLength: 8,
     maxPasswordLength: 128,
     sendResetPassword: async ({ user, url }) => {
-      const message = passwordResetEmail(url);
-      await sendAuthEmail({ to: user.email, ...message });
+      await deliverAuthEmail(user.email, passwordResetEmail(url));
     },
   },
   emailVerification: {
@@ -59,8 +80,7 @@ export const auth = betterAuth({
     sendOnSignIn: true,
     autoSignInAfterVerification: false,
     sendVerificationEmail: async ({ user, url }) => {
-      const message = verificationEmail(url);
-      await sendAuthEmail({ to: user.email, ...message });
+      await deliverAuthEmail(user.email, verificationEmail(url));
     },
   },
   user: {
@@ -77,7 +97,7 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
-          return { data: { ...user, role: USER_ROLES.user } };
+          return { data: { ...user, role: roleForNewUser(user.role) } };
         },
       },
     },

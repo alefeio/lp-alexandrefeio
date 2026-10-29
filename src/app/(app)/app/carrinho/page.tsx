@@ -1,12 +1,14 @@
 import { CartScreen } from "@/components/commerce/CartScreen";
 import { Container } from "@/components/ui/Container";
+import { requireSession } from "@/lib/auth/session";
 
 export const metadata = {
   title: "Finalizar compra",
   robots: { index: false, follow: false },
 };
 
-export default function CartPage() {
+export default async function CartPage() {
+  await requireSession();
   return (
     <Container className="max-w-5xl">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Compras</p>

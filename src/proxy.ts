@@ -5,6 +5,12 @@ export function needsSession(pathname: string): boolean {
   return pathname === "/app" || pathname.startsWith("/app/") || pathname === "/admin" || pathname.startsWith("/admin/");
 }
 
+/** Destino do visitante sem cookie de sessão. Null quando a rota segue. */
+export function unauthenticatedEntry(pathname: string, hasSessionCookie: boolean): string | null {
+  if (!needsSession(pathname) || hasSessionCookie) return null;
+  return `/entrar?next=${encodeURIComponent(pathname)}`;
+}
+
 export function proxy(request: NextRequest) {
   if (!needsSession(request.nextUrl.pathname)) return NextResponse.next();
 
