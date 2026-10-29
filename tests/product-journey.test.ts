@@ -501,7 +501,7 @@ test("modelo, migration e privacidade não guardam IP, agente nem metadata livre
     lesson_started: "src/components/learning/LessonReader.tsx",
     lesson_completed: "src/lib/learning/progress.ts",
     diagnostic_started: "src/components/diagnostic/DiagnosticWizard.tsx",
-    diagnostic_completed: "src/app/(app)/app/projetos/[id]/diagnosticos/[diagnosticId]/page.tsx",
+    diagnostic_completed: "src/components/diagnostic/DiagnosticWizard.tsx",
     checkout_started: "src/components/commerce/CheckoutScreen.tsx",
     purchase_completed: "src/components/commerce/PurchaseBeacon.tsx",
     service_interest: "src/components/ui/ContactLink.tsx",
