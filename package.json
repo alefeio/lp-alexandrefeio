@@ -12,6 +12,7 @@
     "db:migrate": "tsx scripts/run-prisma.ts migrate dev",
     "db:deploy": "tsx scripts/run-prisma.ts migrate deploy",
     "db:seed": "tsx scripts/seed-learning.ts",
+    "blog:seed": "tsx scripts/seed-blog.ts",
     "catalog:deploy": "tsx scripts/catalog-deploy.ts",
     "commerce:products": "tsx scripts/commerce-products.ts",
     "test": "tsx scripts/run-unit-tests.ts",
