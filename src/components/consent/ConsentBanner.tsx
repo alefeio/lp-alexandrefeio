@@ -28,6 +28,23 @@ export function ConsentBanner({
   const [marketing, setMarketing] = useState(initialChoice.marketing);
 
   useEffect(() => {
+    const node = panelRef.current;
+    if (!node) return;
+    const root = document.documentElement;
+    const apply = () => {
+      const height = Math.max(0, Math.round(node.getBoundingClientRect().height));
+      root.style.setProperty("--consent-banner-offset", `${height}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--consent-banner-offset");
+    };
+  }, [customize]);
+
+  useEffect(() => {
     const previous = document.activeElement;
     const primaryAction = panelRef.current?.querySelector<HTMLElement>('button[type="button"]');
     primaryAction?.focus();
