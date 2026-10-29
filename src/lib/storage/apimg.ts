@@ -1,6 +1,6 @@
 import type { EditorialImageFormat } from "@/lib/storage/image-file";
 
-const DEFAULT_UPLOAD_URL = "https://apimg.com.br/v1/upload";
+const VALID_FORMATS = new Set(["jpg", "jpeg", "png", "webp"]);
 
 export type ApimgAsset = {
   url: string;
@@ -21,10 +21,12 @@ export async function uploadToApimg(
   folder?: string,
 ): Promise<{ ok: true; asset: ApimgAsset } | { ok: false; message: string }> {
   const apiKey = env.APIMG_API_KEY?.trim() ?? "";
-  const uploadUrl = env.APIMG_UPLOAD_URL?.trim() || DEFAULT_UPLOAD_URL;
-  if (!apiKey) return { ok: false, message: "O envio de imagens editoriais não está configurado." };
+  const uploadUrl = env.APIMG_UPLOAD_URL?.trim() ?? "";
+  if (!apiKey || !uploadUrl) {
+    return { ok: false, message: "O envio de imagens editoriais não está configurado." };
+  }
 
-  // APIMG accepts only the file in multipart. Folder values are local logical prefixes.
+  // APIMG receives only `file`. Folder env vars are logical prefixes used by the app.
   void folder;
   const body = new FormData();
   const copy = new Uint8Array(bytes.byteLength);
@@ -44,52 +46,59 @@ export async function uploadToApimg(
   }
 
   const payload = await response.json().catch(() => null);
-  if (!response.ok || !payload || typeof payload !== "object") {
+  if (!response.ok) {
     console.error("apimg upload rejected", { status: response.status });
     return { ok: false, message: "O serviço de imagens não aceitou este arquivo." };
   }
 
-  const row = payload as Record<string, unknown>;
-  const data = recordOrNull(row.data);
-  const url = firstString(row.url, row.secure_url, data?.url, data?.secure_url);
-  const publicId = firstString(row.public_id, row.publicId, data?.public_id, data?.publicId);
-
-  if (!url.startsWith("https://") || !publicId) {
+  const parsed = parseApimgUploadResponse(payload);
+  if (!parsed.ok) {
+    console.error("apimg upload rejected", { status: response.status, reason: "invalid-response" });
     return { ok: false, message: "A resposta da imagem veio incompleta." };
   }
 
+  const row = payload as Record<string, unknown>;
   return {
     ok: true,
     asset: {
-      url,
-      publicId,
-      width: numberOrNull(data?.width ?? row.width),
-      height: numberOrNull(data?.height ?? row.height),
-      format: firstString(data?.format, row.format) || format,
-      sizeBytes: numberOrNull(data?.bytes ?? data?.size ?? row.bytes ?? row.size),
+      url: parsed.url,
+      publicId: parsed.publicId,
+      width: numberOrNull(row.width),
+      height: numberOrNull(row.height),
+      format: parsed.format,
+      sizeBytes: parsed.bytes,
     },
   };
 }
 
 export function apimgConfigured(env: Record<string, string | undefined> = process.env): boolean {
-  return Boolean(env.APIMG_API_KEY?.trim());
+  return Boolean(env.APIMG_API_KEY?.trim() && env.APIMG_UPLOAD_URL?.trim());
+}
+
+function parseApimgUploadResponse(payload: unknown):
+  | { ok: true; url: string; publicId: string; format: string; bytes: number }
+  | { ok: false } {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return { ok: false };
+
+  const row = payload as Record<string, unknown>;
+  if (typeof row.url !== "string" || !row.url.startsWith("https://")) return { ok: false };
+  if (typeof row.public_id !== "string" || !row.public_id.trim()) return { ok: false };
+  if (typeof row.format !== "string" || !VALID_FORMATS.has(row.format.toLowerCase())) return { ok: false };
+  if (typeof row.bytes !== "number" || !Number.isFinite(row.bytes) || row.bytes < 0) return { ok: false };
+
+  return {
+    ok: true,
+    url: row.url,
+    publicId: row.public_id,
+    format: row.format.toLowerCase(),
+    bytes: row.bytes,
+  };
 }
 
 function mime(format: EditorialImageFormat): string {
   if (format === "jpeg") return "image/jpeg";
   if (format === "png") return "image/png";
   return "image/webp";
-}
-
-function firstString(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return "";
-}
-
-function recordOrNull(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 function numberOrNull(value: unknown): number | null {
