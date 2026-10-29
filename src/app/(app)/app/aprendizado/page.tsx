@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { continueStudying, learningLists, sectionTitlesFor } from "@/lib/learning/catalog";
 import { remainingMinutes } from "@/lib/learning/progress";
 
@@ -27,19 +27,22 @@ export default async function LearningPage() {
 
   return (
     <Container className="max-w-2xl">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Aprendizado</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">Continuar de onde você parou</h1>
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Meus cursos</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+        {current ? "Continuar de onde você parou" : "O que estudar agora"}
+      </h1>
       {current ? (
-        <section className="mt-6">
-          <p>
-            <Link className={buttonClass("primary")} href={`/aulas/${current.lesson.slug}?continuar=1`}>
-              {current.lesson.title}
-            </Link>
-          </p>
+        <section className="mt-6" aria-labelledby="continue-heading">
+          <h2 id="continue-heading" className="text-xl font-semibold tracking-tight">{current.lesson.title}</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             {currentSection ? `${currentSection}. ` : ""}
             {current.percent}% do conteúdo percorrido
             {remaining != null ? ` · cerca de ${remaining} min restantes` : ""}
+          </p>
+          <p className="mt-5">
+            <Link className={buttonClass("primary")} href={`/aulas/${current.lesson.slug}?continuar=1`}>
+              Continuar estudando
+            </Link>
           </p>
         </section>
       ) : lists.completed.length > 0 ? (
@@ -54,6 +57,29 @@ export default async function LearningPage() {
           </Link>
         </p>
       )}
+      {lists.available.length > 0 ? (
+        <Section title="Conteúdos disponíveis" empty="">
+          {lists.available.map((item, index) => (
+            <li key={item.lessonId}>
+              <Link className="underline underline-offset-4" href={`/aulas/${item.slug}`}>
+                {item.title}
+              </Link>
+              <span className="ml-2 text-sm text-muted">Comprada · ainda não iniciada</span>
+              {index === 0 && !current ? (
+                <p className="mt-3">
+                  <Link className={buttonClass("primary")} href={`/aulas/${item.slug}`}>
+                    Começar aula
+                  </Link>
+                </p>
+              ) : (
+                <Link className={`${navigationLinkClass()} ml-2`} href={`/aulas/${item.slug}`}>
+                  Começar aula
+                </Link>
+              )}
+            </li>
+          ))}
+        </Section>
+      ) : null}
       <Section title="Em andamento" empty="Nenhuma aula em andamento.">
         {lists.inProgress.map((item) => (
           <li key={item.id}>
@@ -64,21 +90,6 @@ export default async function LearningPage() {
           </li>
         ))}
       </Section>
-      {lists.available.length > 0 ? (
-        <Section title="Disponíveis para estudar" empty="">
-          {lists.available.map((item) => (
-            <li key={item.lessonId}>
-              <Link className="underline underline-offset-4" href={`/aulas/${item.slug}`}>
-                {item.title}
-              </Link>
-              <span className="ml-2 text-sm text-muted">Comprada</span>
-              <Link className="ml-2 text-sm underline underline-offset-4" href={`/aulas/${item.slug}`}>
-                Começar aula
-              </Link>
-            </li>
-          ))}
-        </Section>
-      ) : null}
       <Section title="Concluídas" empty="Nenhuma aula concluída.">
         {lists.completed.map((item) => (
           <li key={item.id}>

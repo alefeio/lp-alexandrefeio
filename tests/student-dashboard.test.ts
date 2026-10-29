@@ -84,9 +84,9 @@ test("usuário novo vê jornada simples e poucos acessos", () => {
   assert.equal(view.nextAction.href.startsWith("/aulas/"), true);
   assert.equal(view.quickAccess.length, 2);
   assert.equal(view.quickAccess[0]?.id, "course");
-  assert.equal(view.quickAccess[0]?.title, "Cursos");
-  assert.equal(view.quickAccess[0]?.href, "/cursos");
-  assert.equal(view.quickAccess[0]?.detail, "Veja os cursos disponíveis");
+  assert.equal(view.quickAccess[0]?.title, "Meus cursos");
+  assert.equal(view.quickAccess[0]?.href, "/app/aprendizado");
+  assert.equal(view.quickAccess[0]?.detail, "Veja o que você pode estudar");
   assert.equal(view.quickAccess[1]?.id, "project");
   assert.equal(view.progress.percentage, 0);
   assert.equal(view.progress.accessibleLessons, 3);
@@ -119,8 +119,8 @@ test("acesso parcial não conta aulas bloqueadas no progresso", () => {
   assert.equal(view.progress.accessibleLessons, 3);
   assert.equal(view.progress.completedLessons, 1);
   assert.equal(view.progress.percentage, Math.round((1 / 3) * 100));
-  assert.equal(view.quickAccess[0]?.title, "Cursos");
-  assert.equal(view.quickAccess[0]?.href, "/cursos");
+  assert.equal(view.quickAccess[0]?.title, "Meus cursos");
+  assert.equal(view.quickAccess[0]?.href, "/app/aprendizado");
   assert.equal(view.quickAccess[0]?.detail, "Continue sua jornada");
   assert.equal(view.quickAccess[0]?.detail.includes("12"), false);
 });

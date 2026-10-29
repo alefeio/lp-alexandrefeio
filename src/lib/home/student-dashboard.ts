@@ -9,6 +9,9 @@ export type DashboardLesson = {
   completed: boolean;
   inProgress: boolean;
   percent: number;
+  moduleTitle?: string;
+  /** Aula paga com entitlement ativo. Aula gratuita acessível não conta como compra. */
+  owned?: boolean;
 };
 
 export type DashboardNextTone = "default" | "wait" | "celebrate";
@@ -55,6 +58,39 @@ export type QuickAccessCard = {
   href: string;
 };
 
+export type LearningContinuationState = "in_progress" | "purchased_not_started" | "ready_next";
+
+export type LearningContinuation = {
+  state: LearningContinuationState;
+  eyebrow: string;
+  courseTitle: string;
+  courseSlug: string;
+  moduleTitle: string | null;
+  lessonTitle: string;
+  positionLabel: string;
+  percent: number | null;
+  href: string;
+  cta: string;
+};
+
+export type StudentCourseStatus = "not_started" | "in_progress" | "completed" | "partial";
+
+export type StudentCourseCard = {
+  slug: string;
+  title: string;
+  status: StudentCourseStatus;
+  statusLabel: string;
+  progressLabel: string;
+  href: string;
+  cta: string;
+};
+
+export type StudentCourseInput = {
+  slug: string;
+  title: string;
+  lessons: DashboardLesson[];
+};
+
 export type StudentDashboardViewModel = {
   userId: string;
   firstName: string;
@@ -64,10 +100,17 @@ export type StudentDashboardViewModel = {
     percentage: number;
     completedLessons: number;
     accessibleLessons: number;
+    publishedLessons: number;
     label: string;
   };
   currentStage: { id: JourneyStageId | null; label: string | null };
   nextAction: DashboardNextAction;
+  learningContinuation: LearningContinuation | null;
+  businessNextAction: DashboardNextAction | null;
+  myCourses: StudentCourseCard[];
+  diagnostic: "none" | "in_progress" | "completed";
+  diagnosticHref: string | null;
+  diagnosticCompletedLabel: string | null;
   journeyStages: JourneyStageView[];
   milestones: MilestoneView[];
   visibleMilestones: MilestoneView[];
@@ -85,6 +128,11 @@ export type DashboardBuildInput = {
   importSummary: { total: number; ready: number };
   resultSlugs: readonly string[];
   planHint: string | null;
+  courses?: StudentCourseInput[];
+  courseTitle?: string;
+  courseSlug?: string;
+  diagnosticHref?: string | null;
+  diagnosticCompletedLabel?: string | null;
   operational: {
     kind: "none" | "task" | "recommendation" | "wait" | "diagnostic";
     recommendationType?: "LEARN" | "EXECUTE" | "ANALYZE" | "WAIT";
@@ -364,9 +412,9 @@ export function buildQuickAccess(input: DashboardBuildInput): QuickAccessCard[] 
   const cards: QuickAccessCard[] = [
     {
       id: "course",
-      title: "Cursos",
-      detail: accessible.length === 0 || completed === 0 ? "Veja os cursos disponíveis" : "Continue sua jornada",
-      href: "/cursos",
+      title: "Meus cursos",
+      detail: accessible.length === 0 || completed === 0 ? "Veja o que você pode estudar" : "Continue sua jornada",
+      href: "/app/aprendizado",
     },
   ];
 
@@ -435,8 +483,6 @@ export function buildStudentDashboard(input: DashboardBuildInput): StudentDashbo
   const accessible = input.lessons.filter((lesson) => lesson.accessible);
   const completedLessons = accessible.filter((lesson) => lesson.completed).length;
   const inProgressCount = accessible.filter((lesson) => lesson.inProgress).length;
-  const openCount = accessible.length - completedLessons - inProgressCount;
-  const percentage = courseProgressPercent(completedLessons, inProgressCount, openCount);
   const stage = currentJourneyStage(input.lessons);
   const courseCompleted = accessible.length > 0 && completedLessons === accessible.length;
   const isNewStudent =
@@ -453,6 +499,14 @@ export function buildStudentDashboard(input: DashboardBuildInput): StudentDashbo
     resultSlugs: input.resultSlugs,
   });
   const nextAction = resolveDashboardNextAction(input);
+  const learningContinuation = resolveLearningContinuation(input);
+  const focusLessons =
+    (learningContinuation && input.courses?.find((course) => course.slug === learningContinuation.courseSlug)?.lessons) ||
+    input.lessons;
+  const focusAccessible = focusLessons.filter((lesson) => lesson.accessible);
+  const focusCompleted = focusAccessible.filter((lesson) => lesson.completed).length;
+  const focusInProgress = focusAccessible.filter((lesson) => lesson.inProgress).length;
+  const focusOpen = focusAccessible.length - focusCompleted - focusInProgress;
 
   return {
     userId: input.userId,
@@ -460,13 +514,21 @@ export function buildStudentDashboard(input: DashboardBuildInput): StudentDashbo
     greeting,
     subtext: isNewStudent ? "Vamos começar?" : courseCompleted ? "Curso concluído ✓" : "Continue avançando.",
     progress: {
-      percentage,
-      completedLessons,
-      accessibleLessons: accessible.length,
+      percentage: courseProgressPercent(focusCompleted, focusInProgress, focusOpen),
+      completedLessons: focusCompleted,
+      accessibleLessons: focusAccessible.length,
+      publishedLessons: focusLessons.length,
       label: "Seu progresso",
     },
     currentStage: { id: stage.id, label: stage.label },
     nextAction,
+    learningContinuation,
+    businessNextAction: resolveBusinessNextAction(input),
+    myCourses: buildMyCourses(input),
+    diagnostic: input.diagnostic,
+    diagnosticHref:
+      input.diagnosticHref ?? (input.project ? `/app/projetos/${input.project.id}/diagnostico` : null),
+    diagnosticCompletedLabel: input.diagnosticCompletedLabel ?? null,
     journeyStages: buildJourneyStages(input.lessons),
     milestones,
     visibleMilestones: pickVisibleMilestones(milestones),
@@ -474,6 +536,136 @@ export function buildStudentDashboard(input: DashboardBuildInput): StudentDashbo
     isNewStudent,
     courseCompleted,
   };
+}
+
+function courseInputs(input: DashboardBuildInput): StudentCourseInput[] {
+  if (input.courses && input.courses.length > 0) return input.courses;
+  return [
+    {
+      slug: input.courseSlug ?? "formacao",
+      title: input.courseTitle ?? "Formação",
+      lessons: input.lessons,
+    },
+  ];
+}
+
+function courseIsRelated(course: StudentCourseInput): boolean {
+  return course.lessons.some((lesson) => lesson.owned || lesson.completed || lesson.inProgress);
+}
+
+function continuationFrom(
+  course: StudentCourseInput,
+  lesson: DashboardLesson,
+  state: LearningContinuationState,
+): LearningContinuation {
+  const positionLabel = `Aula ${lesson.number} de ${course.lessons.length}`;
+  if (state === "purchased_not_started") {
+    return {
+      state,
+      eyebrow: "Seu conteúdo está disponível",
+      courseTitle: course.title,
+      courseSlug: course.slug,
+      moduleTitle: lesson.moduleTitle ?? null,
+      lessonTitle: lesson.title,
+      positionLabel,
+      percent: null,
+      href: `/aulas/${lesson.slug}`,
+      cta: "Começar minha aula",
+    };
+  }
+  return {
+    state,
+    eyebrow: "Continuar de onde parei",
+    courseTitle: course.title,
+    courseSlug: course.slug,
+    moduleTitle: lesson.moduleTitle ?? null,
+    lessonTitle: lesson.title,
+    positionLabel,
+    percent: state === "in_progress" ? lesson.percent : null,
+    href: state === "in_progress" ? `/aulas/${lesson.slug}?continuar=1` : `/aulas/${lesson.slug}`,
+    cta: "Continuar estudando",
+  };
+}
+
+/** Continuidade de estudo, independente da próxima ação operacional. */
+export function resolveLearningContinuation(input: DashboardBuildInput): LearningContinuation | null {
+  const courses = courseInputs(input).filter(courseIsRelated);
+  for (const course of courses) {
+    const resume = course.lessons.find((lesson) => lesson.accessible && lesson.inProgress);
+    if (resume) return continuationFrom(course, resume, "in_progress");
+  }
+  for (const course of courses) {
+    const started = course.lessons.some((lesson) => lesson.completed || lesson.inProgress);
+    const fresh = course.lessons.find((lesson) => lesson.owned && lesson.accessible && !lesson.completed && !lesson.inProgress);
+    if (fresh && !started) return continuationFrom(course, fresh, "purchased_not_started");
+  }
+  for (const course of courses) {
+    const accessible = course.lessons.filter((lesson) => lesson.accessible);
+    const next = accessible.find((lesson) => !lesson.completed && !lesson.inProgress);
+    const started = accessible.some((lesson) => lesson.completed);
+    if (next && started) return continuationFrom(course, next, "ready_next");
+  }
+  return null;
+}
+
+/** Ação do negócio vinda de chooseNextAction. Aula em andamento não entra aqui. */
+export function resolveBusinessNextAction(input: DashboardBuildInput): DashboardNextAction | null {
+  const action = resolveDashboardNextAction(input);
+  if (action.kind === "start" || action.kind === "learn") return null;
+  return action;
+}
+
+const COURSE_STATUS_LABEL: Record<StudentCourseStatus, string> = {
+  not_started: "Não iniciado",
+  in_progress: "Em andamento",
+  completed: "Concluído",
+  partial: "Acesso parcial",
+};
+
+export function buildMyCourses(input: DashboardBuildInput): StudentCourseCard[] {
+  return courseInputs(input).filter(courseIsRelated).map((course) => {
+    const published = course.lessons.length;
+    const accessible = course.lessons.filter((lesson) => lesson.accessible);
+    const completed = accessible.filter((lesson) => lesson.completed).length;
+    const started = course.lessons.some((lesson) => lesson.completed || lesson.inProgress);
+    const partial = accessible.length < published;
+    const allAccessibleDone = accessible.length > 0 && completed === accessible.length;
+    const status: StudentCourseStatus = !started
+      ? partial
+        ? "partial"
+        : "not_started"
+      : allAccessibleDone && !partial
+        ? "completed"
+        : partial
+          ? "partial"
+          : "in_progress";
+    const target =
+      accessible.find((lesson) => lesson.inProgress) ??
+      accessible.find((lesson) => !lesson.completed) ??
+      course.lessons[0];
+    const cta =
+      status === "completed" || (status === "partial" && allAccessibleDone)
+        ? "Revisar"
+        : status === "in_progress" || (status === "partial" && started)
+          ? "Continuar"
+          : "Começar";
+    const progressLabel = !started
+      ? partial
+        ? `${accessible.length} de ${published} aulas disponíveis`
+        : "Ainda não iniciada"
+      : partial
+        ? `${completed} de ${accessible.length} aulas acessíveis${allAccessibleDone ? " concluídas" : ""}`
+        : `${completed} de ${published} aulas`;
+    return {
+      slug: course.slug,
+      title: course.title,
+      status,
+      statusLabel: COURSE_STATUS_LABEL[status],
+      progressLabel,
+      href: target ? `/aulas/${target.slug}${target.inProgress ? "?continuar=1" : ""}` : `/cursos/${course.slug}`,
+      cta,
+    };
+  });
 }
 
 export function dashboardHasPrivateKeys(view: StudentDashboardViewModel): boolean {
