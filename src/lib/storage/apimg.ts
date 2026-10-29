@@ -81,10 +81,10 @@ function parseApimgUploadResponse(payload: unknown):
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return { ok: false };
 
   const row = payload as Record<string, unknown>;
-  if (typeof row.url !== "string" || !row.url.startsWith("https://")) return { ok: false };
-  if (typeof row.public_id !== "string" || !row.public_id.trim()) return { ok: false };
+  if (typeof row.url !== "string") return { ok: false };
+  if (typeof row.public_id !== "string") return { ok: false };
   if (typeof row.format !== "string" || !VALID_FORMATS.has(row.format.toLowerCase())) return { ok: false };
-  if (typeof row.bytes !== "number" || !Number.isFinite(row.bytes) || row.bytes < 0) return { ok: false };
+  if (typeof row.bytes !== "number") return { ok: false };
 
   return {
     ok: true,
