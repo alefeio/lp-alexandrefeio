@@ -52,6 +52,7 @@ export function buildOpenAICopyRequest(input: {
     : "";
   return {
     model: input.model,
+    service_tier: "default",
     store: false,
     max_output_tokens: copyMaxOutputTokens(input.context.sectionType),
     reasoning: { effort: "none" },

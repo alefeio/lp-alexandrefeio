@@ -18,7 +18,7 @@ A versão atual do cálculo é `openai-2026-10-30-v2`. Ela congela tier Standard
 
 ## Service tier
 
-O ledger grava `service_tier` devolvido pela resposta, não o valor pedido. Só `default` usa a tabela Standard. `flex`, `priority`, `scale`, `auto`, `ultrafast` e ausência de tier ficam sem preço. `auto` não é tratado como Standard, porque descreve o pedido e não o tier efetivo.
+O pedido de `landing_page_copy` envia `service_tier: default`. O ledger grava o `service_tier` devolvido pela resposta, não o valor pedido. Só `default` usa a tabela Standard. `flex`, `priority`, `scale`, `auto`, `ultrafast` e ausência de tier ficam sem preço. `auto` não é tratado como Standard, porque descreve o pedido e não o tier efetivo.
 
 ## Long-context
 

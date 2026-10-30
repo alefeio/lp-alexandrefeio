@@ -510,6 +510,37 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
   assert.equal(flexLedger.rows[0]?.estimatedCostUsdMicros, null);
   assert.equal(flexLedger.rows[0]?.pricingVersion, null);
 
+  const responseTiers: Array<{ tier?: string; persisted: string | null }> = [
+    { tier: "priority", persisted: "priority" },
+    { tier: "custom", persisted: "custom" },
+    { persisted: null },
+  ];
+  const responseTierRows = [];
+  for (const item of responseTiers) {
+    const ledger = createMemoryAiLedger();
+    const response: Record<string, unknown> = {
+      id: `resp-${item.tier ?? "missing"}`,
+      model: "gpt-6-luna",
+      output_text: JSON.stringify(heroRaw()),
+      usage: { input_tokens: 1_000, output_tokens: 2 },
+    };
+    if (item.tier) response.service_tier = item.tier;
+    const result = await generateLandingPageCopySuggestions(store, {
+      userId: "user-a",
+      landingPageProjectId,
+      sectionId: "hero",
+    }, createOpenAILandingPageCopyProvider({
+      client: clientReturning(response).client,
+      apiKey: "test-key",
+      model: "gpt-6-luna",
+    }), { recordProviderCall: ledger.write });
+    assert.equal(result.ok, true);
+    assert.equal(ledger.rows[0]?.serviceTier, item.persisted);
+    assert.equal(ledger.rows[0]?.estimatedCostUsdMicros, null);
+    assert.equal(ledger.rows[0]?.pricingVersion, null);
+    responseTierRows.push(...ledger.rows);
+  }
+
   const serialized = JSON.stringify([
     ...acceptedLedger.rows,
     ...repairLedger.rows,
@@ -518,6 +549,7 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
     ...zeroTtlLedger.rows,
     ...officialLedger.rows,
     ...flexLedger.rows,
+    ...responseTierRows,
   ]);
   assert.equal(serialized.includes("OfertaLedgerPrivadaUnica"), false);
   assert.equal(serialized.includes("SugestaoPrivadaLedger"), false);
@@ -559,6 +591,7 @@ test("requestId e attempt não duplicam o custo e a migration só cria a tabela"
   assert.equal(adapter.includes("await executeProviderCall()"), true);
   assert.equal((adapter.match(/await executeProviderCall\(\)/g) ?? []).length, 2);
   const request = buildOpenAICopyRequest({ model: "gpt-6-luna", promptVersion: LANDING_PAGE_COPY_PROMPT_V1, context, repair: false, variantCount: 1 });
+  assert.equal(request.service_tier, "default");
   assert.equal(request.store, false);
   assert.equal(request.reasoning?.effort, "none");
 });
