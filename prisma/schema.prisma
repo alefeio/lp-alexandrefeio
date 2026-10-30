@@ -34,6 +34,7 @@ model User {
   landingPageProjects  LandingPageProject[]
   landingPageMedia     LandingPageMedia[]
   journeyEvents        JourneyEvent[]
+  aiProviderCalls      AiProviderCall[]
 
   @@unique([email])
   @@map("user")
@@ -1019,4 +1020,47 @@ model BlogEditorialIdea {
   @@index([status])
   @@index([categorySlug])
   @@map("blog_editorial_idea")
+}
+
+/// Custo estimado de API baseado no usage retornado pelo provedor. Não é a fatura do provedor.
+/// Não guarda prompt, copy, fatos do aluno nem a resposta bruta.
+model AiProviderCall {
+  id                     String   @id @default(cuid())
+  requestId              String
+  attempt                Int
+  featureKey             String
+  providerId             String
+  modelId                String
+  serviceTier            String?
+  providerResponseId     String?
+  promptVersion          String?
+  operationType          String?
+  sectionType            String?
+  userId                 String
+  projectId              String?
+  courseId               String?
+  landingPageProjectId   String?
+  status                 String
+  errorCode              String?
+  inputTokens            Int?
+  cachedInputTokens      Int?
+  cacheWriteTokens       Int?
+  cacheWrite30mTokens    Int?
+  cacheWrite12hTokens    Int?
+  outputTokens           Int?
+  reasoningTokens        Int?
+  totalTokens            Int?
+  estimatedCostUsdMicros Int?
+  pricingVersion         String?
+  latencyMs              Int?
+  createdAt              DateTime @default(now())
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, attempt])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([featureKey, createdAt])
+  @@index([modelId, createdAt])
+  @@index([projectId, createdAt])
+  @@map("ai_provider_call")
 }
