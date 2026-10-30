@@ -266,6 +266,11 @@ function CourseCard({ course }: { course: StudentCourseCard }) {
           {course.cta}
         </Link>
       </p>
+      <p className="mt-1">
+        <Link className={navigationLinkClass()} href={`/app/cursos/${course.slug}`}>
+          Ver jornada
+        </Link>
+      </p>
     </li>
   );
 }
