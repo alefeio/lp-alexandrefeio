@@ -4,7 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import OpenAI from "openai";
 import { AI_PROVIDER_CALL_FIELDS, createMemoryAiLedger, recordAiProviderCall, type AiProviderCallDraft } from "../src/lib/ai/ledger";
-import { AI_PRICING_VERSION, estimateAiProviderCost } from "../src/lib/ai/pricing";
+import { AI_PRICING_VERSION, estimateAiProviderCost, type AiTokenUsage } from "../src/lib/ai/pricing";
 import { COPY_CLAIM_POLICY, LANDING_PAGE_COPY_PROMPT_V1 } from "../src/lib/landing-page/copy/constants";
 import type { LandingPageCopyContextV1 } from "../src/lib/landing-page/copy/context";
 import { buildOpenAICopyRequest, createOpenAILandingPageCopyProvider, type CopyResponsesClient } from "../src/lib/landing-page/copy/providers/openai";
@@ -114,6 +114,10 @@ async function heroProject() {
   return { store, landingPageProjectId: updated.value.id };
 }
 
+function lunaCost(usage: AiTokenUsage | undefined, serviceTier: string | null = "default") {
+  return estimateAiProviderCost("gpt-6-luna", usage, serviceTier);
+}
+
 function draft(patch: Partial<AiProviderCallDraft> = {}): AiProviderCallDraft {
   return {
     requestId: "req-1",
@@ -121,6 +125,7 @@ function draft(patch: Partial<AiProviderCallDraft> = {}): AiProviderCallDraft {
     featureKey: "landing_page_copy",
     providerId: "openai",
     modelId: "gpt-6-luna",
+    serviceTier: "default",
     providerResponseId: null,
     promptVersion: LANDING_PAGE_COPY_PROMPT_V1,
     operationType: "generate",
@@ -147,33 +152,33 @@ function draft(patch: Partial<AiProviderCallDraft> = {}): AiProviderCallDraft {
 }
 
 test("o preço do Luna usa inteiros e não cobra reasoning de novo", () => {
-  assert.deepEqual(estimateAiProviderCost("gpt-6-luna", { inputTokens: 1_000_000, outputTokens: 0 }), {
-    estimatedCostUsdMicros: 100_000,
+  assert.deepEqual(lunaCost( { inputTokens: 1_000_000, outputTokens: 0 }), {
+    estimatedCostUsdMicros: 200_000,
     pricingVersion: AI_PRICING_VERSION,
   });
-  assert.deepEqual(estimateAiProviderCost("gpt-6-luna", { inputTokens: 1_000_000, cachedInputTokens: 1_000_000, outputTokens: 0 }), {
-    estimatedCostUsdMicros: 10_000,
+  assert.deepEqual(lunaCost( { inputTokens: 1_000_000, cachedInputTokens: 1_000_000, outputTokens: 0 }), {
+    estimatedCostUsdMicros: 20_000,
     pricingVersion: AI_PRICING_VERSION,
   });
-  assert.deepEqual(estimateAiProviderCost("gpt-6-luna", {
+  assert.deepEqual(lunaCost( {
     inputTokens: 1_000_000,
     cacheWriteTokens: 1_000_000,
     cacheWrite30mTokens: 1_000_000,
     outputTokens: 0,
   }), {
-    estimatedCostUsdMicros: 125_000,
+    estimatedCostUsdMicros: 250_000,
     pricingVersion: AI_PRICING_VERSION,
   });
-  assert.deepEqual(estimateAiProviderCost("gpt-6-luna", {
+  assert.deepEqual(lunaCost( {
     inputTokens: 1_000_000,
     cacheWriteTokens: 1_000_000,
     cacheWrite12hTokens: 1_000_000,
     outputTokens: 0,
   }), {
-    estimatedCostUsdMicros: 250_000,
+    estimatedCostUsdMicros: 500_000,
     pricingVersion: AI_PRICING_VERSION,
   });
-  assert.deepEqual(estimateAiProviderCost("gpt-6-luna", {
+  assert.deepEqual(lunaCost( {
     inputTokens: 1_000,
     cachedInputTokens: 200,
     cacheWriteTokens: 150,
@@ -185,20 +190,44 @@ test("o preço do Luna usa inteiros e não cobra reasoning de novo", () => {
     estimatedCostUsdMicros: 97,
     pricingVersion: AI_PRICING_VERSION,
   });
-  const outputOnly = estimateAiProviderCost("gpt-6-luna", { inputTokens: 0, outputTokens: 1_000_000, reasoningTokens: 900_000 });
-  const sameOutput = estimateAiProviderCost("gpt-6-luna", { inputTokens: 0, outputTokens: 1_000_000 });
+  const outputOnly = lunaCost( { inputTokens: 0, outputTokens: 1_000_000, reasoningTokens: 900_000 });
+  const sameOutput = lunaCost( { inputTokens: 0, outputTokens: 1_000_000 });
   assert.equal(outputOnly.estimatedCostUsdMicros, 500_000);
   assert.equal(outputOnly.estimatedCostUsdMicros, sameOutput.estimatedCostUsdMicros);
-  assert.deepEqual(estimateAiProviderCost("gpt-6-sol", { inputTokens: 20, outputTokens: 5 }), {
+  assert.deepEqual(estimateAiProviderCost("gpt-6-sol", { inputTokens: 20, outputTokens: 5 }, "default"), {
     estimatedCostUsdMicros: null,
     pricingVersion: null,
   });
-  assert.deepEqual(estimateAiProviderCost("gpt-6-luna", undefined), {
+  for (const tier of ["flex", "priority", "scale", "auto", "ultrafast", null]) {
+    assert.equal(lunaCost({ inputTokens: 1_000, outputTokens: 10 }, tier).estimatedCostUsdMicros, null);
+  }
+  assert.equal(lunaCost({ inputTokens: 272_000, outputTokens: 0 }).estimatedCostUsdMicros, 27_200);
+  const longContext = lunaCost({ inputTokens: 272_001, outputTokens: 0 });
+  assert.equal(longContext.estimatedCostUsdMicros, 54_400);
+  assert.notEqual(longContext.estimatedCostUsdMicros, lunaCost({ inputTokens: 272_001, outputTokens: 0 }, "flex").estimatedCostUsdMicros);
+  assert.equal(lunaCost({ inputTokens: 272_001, outputTokens: 0 }, "flex").pricingVersion, null);
+  assert.deepEqual(lunaCost({
+    inputTokens: 1_000,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    cacheWrite30mTokens: 0,
+    cacheWrite12hTokens: 0,
+    outputTokens: 0,
+  }), { estimatedCostUsdMicros: 100, pricingVersion: AI_PRICING_VERSION });
+  assert.equal(lunaCost({
+    inputTokens: 15_000,
+    cachedInputTokens: 4_000,
+    cacheWriteTokens: 7_000,
+    cacheWrite30mTokens: 1_000,
+    cacheWrite12hTokens: 1_000,
+    outputTokens: 10,
+  }).pricingVersion, null);
+  assert.deepEqual(lunaCost( undefined), {
     estimatedCostUsdMicros: null,
     pricingVersion: null,
   });
-  assert.equal(estimateAiProviderCost("gpt-6-luna", { inputTokens: 0, outputTokens: 0 }).estimatedCostUsdMicros, 0);
-  assert.deepEqual(estimateAiProviderCost("gpt-6-luna", { inputTokens: 100, cacheWriteTokens: 40, outputTokens: 1 }), {
+  assert.equal(lunaCost( { inputTokens: 0, outputTokens: 0 }).estimatedCostUsdMicros, 0);
+  assert.deepEqual(lunaCost( { inputTokens: 100, cacheWriteTokens: 40, outputTokens: 1 }), {
     estimatedCostUsdMicros: null,
     pricingVersion: null,
   });
@@ -210,8 +239,9 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
   const accepted = clientReturning({
     id: "resp-1",
     model: "gpt-6-luna",
+    service_tier: "default",
     output_text: JSON.stringify(heroRaw()),
-    usage: { input_tokens: 1_000_000, output_tokens: 2, total_tokens: 1_000_002 },
+    usage: { input_tokens: 1_000, output_tokens: 2, total_tokens: 1_002 },
   });
   const acceptedResult = await generateLandingPageCopySuggestions(store, {
     userId: "user-a",
@@ -226,7 +256,8 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
   assert.equal(acceptedLedger.rows[0]?.attempt, 1);
   assert.equal(acceptedLedger.rows[0]?.status, "responded");
   assert.equal(acceptedLedger.rows[0]?.operationType, "generate");
-  assert.equal(acceptedLedger.rows[0]?.estimatedCostUsdMicros, 100_001);
+  assert.equal(acceptedLedger.rows[0]?.estimatedCostUsdMicros, 101);
+  assert.equal(acceptedLedger.rows[0]?.serviceTier, "default");
   assert.equal(acceptedLedger.rows[0]?.providerResponseId, "resp-1");
 
   const repairLedger = createMemoryAiLedger();
@@ -236,9 +267,9 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
       async create() {
         repairCalls += 1;
         if (repairCalls === 1) {
-          return { id: "resp-a", model: "gpt-6-luna", output_text: "{", usage: { input_tokens: 100, output_tokens: 10 } };
+          return { id: "resp-a", model: "gpt-6-luna", service_tier: "default", output_text: "{", usage: { input_tokens: 100, output_tokens: 10 } };
         }
-        return { id: "resp-b", model: "gpt-6-luna", output_text: JSON.stringify(heroRaw()), usage: { input_tokens: 200, output_tokens: 20 } };
+        return { id: "resp-b", model: "gpt-6-luna", service_tier: "default", output_text: JSON.stringify(heroRaw()), usage: { input_tokens: 200, output_tokens: 20 } };
       },
     },
   };
@@ -256,14 +287,15 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
   assert.deepEqual(repairLedger.rows.map((row) => row.operationType), ["generate", "repair"]);
   assert.equal(
     (repairLedger.rows[0]?.estimatedCostUsdMicros ?? 0) + (repairLedger.rows[1]?.estimatedCostUsdMicros ?? 0),
-    (estimateAiProviderCost("gpt-6-luna", { inputTokens: 100, outputTokens: 10 }).estimatedCostUsdMicros ?? 0)
-      + (estimateAiProviderCost("gpt-6-luna", { inputTokens: 200, outputTokens: 20 }).estimatedCostUsdMicros ?? 0),
+    (lunaCost( { inputTokens: 100, outputTokens: 10 }).estimatedCostUsdMicros ?? 0)
+      + (lunaCost( { inputTokens: 200, outputTokens: 20 }).estimatedCostUsdMicros ?? 0),
   );
 
   const retryLedger = createMemoryAiLedger();
   const retried = clientReturning({
     id: "resp-retry",
     model: "gpt-6-luna",
+    service_tier: "default",
     output_text: JSON.stringify(heroRaw()),
     usage: { input_tokens: 50, output_tokens: 5 },
   }, 1);
@@ -292,7 +324,11 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
       input_tokens: 80,
       output_tokens: 8,
       total_tokens: 88,
-      input_tokens_details: { cached_tokens: 20, cache_write_tokens: 10, cache_write_30m_tokens: 10 },
+      input_tokens_details: {
+        cached_tokens: 20,
+        cache_write_tokens: 10,
+        cache_write_tokens_details: { ttl_30m_tokens: 10, ttl_12h_tokens: 0 },
+      },
       output_tokens_details: { reasoning_tokens: 3 },
     },
   });
@@ -307,6 +343,37 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
   assert.equal(cachedLedger.rows[0]?.modelId, "gpt-6-other");
   assert.equal(cachedLedger.rows[0]?.cachedInputTokens, 20);
   assert.equal(cachedLedger.rows[0]?.cacheWrite30mTokens, 10);
+  assert.equal(cachedLedger.rows[0]?.cacheWrite12hTokens, 0);
+
+  const zeroTtlLedger = createMemoryAiLedger();
+  const zeroTtl = await generateLandingPageCopySuggestions(store, {
+    userId: "user-a",
+    landingPageProjectId,
+    sectionId: "hero",
+  }, createOpenAILandingPageCopyProvider({
+    client: clientReturning({
+      id: "resp-zero-ttl",
+      model: "gpt-6-luna",
+      service_tier: "default",
+      output_text: JSON.stringify(heroRaw()),
+      usage: {
+        input_tokens: 8,
+        output_tokens: 1,
+        input_tokens_details: {
+          cached_tokens: 0,
+          cache_write_tokens: 0,
+          cache_write_tokens_details: { ttl_30m_tokens: 0, ttl_12h_tokens: 0 },
+        },
+      },
+    }).client,
+    apiKey: "test-key",
+    model: "gpt-6-luna",
+  }), { recordProviderCall: zeroTtlLedger.write });
+  assert.equal(zeroTtl.ok, true);
+  assert.equal(zeroTtlLedger.rows[0]?.cacheWriteTokens, 0);
+  assert.equal(zeroTtlLedger.rows[0]?.cacheWrite30mTokens, 0);
+  assert.equal(zeroTtlLedger.rows[0]?.cacheWrite12hTokens, 0);
+  assert.equal(zeroTtlLedger.rows[0]?.estimatedCostUsdMicros, 1);
   assert.equal(cachedLedger.rows[0]?.reasoningTokens, 3);
   assert.equal(cachedLedger.rows[0]?.estimatedCostUsdMicros, null);
   assert.equal(cachedLedger.rows[0]?.pricingVersion, null);
@@ -341,7 +408,117 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
   assert.deepEqual(failures, [1]);
   assert.equal(brokenLedger.rows.length, 0);
 
-  const serialized = JSON.stringify([...acceptedLedger.rows, ...repairLedger.rows, ...retryLedger.rows, ...cachedLedger.rows]);
+  const failedWriter: number[] = [];
+  const failedWrite = await generateLandingPageCopySuggestions(store, {
+    userId: "user-a",
+    landingPageProjectId,
+    sectionId: "hero",
+  }, createOpenAILandingPageCopyProvider({
+    client: clientReturning({
+      id: "resp-failed-ledger",
+      model: "gpt-6-luna",
+      service_tier: "default",
+      output_text: JSON.stringify(heroRaw()),
+      usage: { input_tokens: 4, output_tokens: 1 },
+    }).client,
+    apiKey: "test-key",
+    model: "gpt-6-luna",
+  }), {
+    recordProviderCall: async () => "failed",
+    onLedgerFailure: (notice) => failedWriter.push(notice.attempt),
+  });
+  assert.equal(failedWrite.ok, true);
+  assert.deepEqual(failedWriter, [1]);
+
+  const hungNotices: number[] = [];
+  const hungStarted = Date.now();
+  const hung = await generateLandingPageCopySuggestions(store, {
+    userId: "user-a",
+    landingPageProjectId,
+    sectionId: "hero",
+  }, createOpenAILandingPageCopyProvider({
+    client: clientReturning({
+      id: "resp-hung",
+      model: "gpt-6-luna",
+      service_tier: "default",
+      output_text: JSON.stringify(heroRaw()),
+      usage: { input_tokens: 4, output_tokens: 1 },
+    }).client,
+    apiKey: "test-key",
+    model: "gpt-6-luna",
+  }), {
+    recordProviderCall: () => new Promise(() => undefined),
+    ledgerTimeoutMs: 30,
+    onLedgerFailure: (notice) => hungNotices.push(notice.attempt),
+  });
+  assert.equal(hung.ok, true);
+  if (!hung.ok) return;
+  assert.equal(hung.value.suggestions.length, 1);
+  assert.deepEqual(hungNotices, [1]);
+  assert.equal(Date.now() - hungStarted < 1_000, true);
+
+  const officialLedger = createMemoryAiLedger();
+  const official = await generateLandingPageCopySuggestions(store, {
+    userId: "user-a",
+    landingPageProjectId,
+    sectionId: "hero",
+  }, createOpenAILandingPageCopyProvider({
+    client: clientReturning({
+      id: "resp-official",
+      model: "gpt-6-luna",
+      service_tier: "default",
+      output_text: JSON.stringify(heroRaw()),
+      usage: {
+        input_tokens: 15_000,
+        output_tokens: 10,
+        input_tokens_details: {
+          cached_tokens: 4_000,
+          cache_write_tokens: 7_000,
+          cache_write_tokens_details: { ttl_30m_tokens: 3_000, ttl_12h_tokens: 4_000 },
+        },
+      },
+    }).client,
+    apiKey: "test-key",
+    model: "gpt-6-luna",
+  }), { recordProviderCall: officialLedger.write });
+  assert.equal(official.ok, true);
+  assert.equal(officialLedger.rows[0]?.cachedInputTokens, 4_000);
+  assert.equal(officialLedger.rows[0]?.cacheWriteTokens, 7_000);
+  assert.equal(officialLedger.rows[0]?.cacheWrite30mTokens, 3_000);
+  assert.equal(officialLedger.rows[0]?.cacheWrite12hTokens, 4_000);
+  assert.equal(officialLedger.rows[0]?.serviceTier, "default");
+  assert.equal(officialLedger.rows[0]?.estimatedCostUsdMicros, 1_820);
+
+  const flexLedger = createMemoryAiLedger();
+  const flex = await generateLandingPageCopySuggestions(store, {
+    userId: "user-a",
+    landingPageProjectId,
+    sectionId: "hero",
+  }, createOpenAILandingPageCopyProvider({
+    client: clientReturning({
+      id: "resp-flex",
+      model: "gpt-6-luna",
+      service_tier: "flex",
+      output_text: JSON.stringify(heroRaw()),
+      usage: { input_tokens: 1_000_000, output_tokens: 0 },
+    }).client,
+    apiKey: "test-key",
+    model: "gpt-6-luna",
+  }), { recordProviderCall: flexLedger.write });
+  assert.equal(flex.ok, true);
+  assert.equal(flexLedger.rows[0]?.serviceTier, "flex");
+  assert.equal(flexLedger.rows[0]?.estimatedCostUsdMicros, null);
+  assert.equal(flexLedger.rows[0]?.pricingVersion, null);
+
+  const serialized = JSON.stringify([
+    ...acceptedLedger.rows,
+    ...repairLedger.rows,
+    ...retryLedger.rows,
+    ...cachedLedger.rows,
+    ...zeroTtlLedger.rows,
+    ...officialLedger.rows,
+    ...flexLedger.rows,
+  ]);
   assert.equal(serialized.includes("OfertaLedgerPrivadaUnica"), false);
   assert.equal(serialized.includes("SugestaoPrivadaLedger"), false);
   assert.equal(serialized.includes("test-key"), false);

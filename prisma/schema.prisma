@@ -1031,6 +1031,7 @@ model AiProviderCall {
   featureKey             String
   providerId             String
   modelId                String
+  serviceTier            String?
   providerResponseId     String?
   promptVersion          String?
   operationType          String?

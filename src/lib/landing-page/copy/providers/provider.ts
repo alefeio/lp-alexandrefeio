@@ -27,6 +27,7 @@ export type CopyProviderCallObservation = {
   usage?: CopyProviderUsage;
   providerResponseId?: string;
   modelId: string;
+  serviceTier?: string;
   latencyMs: number;
 };
 

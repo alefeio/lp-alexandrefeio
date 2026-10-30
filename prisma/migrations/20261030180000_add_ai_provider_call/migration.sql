@@ -7,6 +7,7 @@ CREATE TABLE "ai_provider_call" (
     "featureKey" TEXT NOT NULL,
     "providerId" TEXT NOT NULL,
     "modelId" TEXT NOT NULL,
+    "serviceTier" TEXT,
     "providerResponseId" TEXT,
     "promptVersion" TEXT,
     "operationType" TEXT,

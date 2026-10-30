@@ -6,7 +6,7 @@ import type { LandingPageStore } from "@/lib/landing-page/types";
 import { COPY_PROVIDER_TIMEOUT_MS, COPY_VARIANT_MAX, LANDING_PAGE_COPY_PROMPT_V1, type CopyIntent, type CopyMissingFact } from "@/lib/landing-page/copy/constants";
 import { buildCopyContextForSection } from "@/lib/landing-page/copy/context";
 import { LANDING_PAGE_COPY_FEATURE_KEY } from "@/lib/ai/features";
-import { recordAiProviderCall, type AiLedgerWriter, type AiProviderCallDraft } from "@/lib/ai/ledger";
+import { LEDGER_WRITE_TIMEOUT_MS, recordAiProviderCall, reportLedgerPersistFailure, settleLedgerWrite, type AiLedgerWriter, type AiProviderCallDraft } from "@/lib/ai/ledger";
 import { estimateAiProviderCost } from "@/lib/ai/pricing";
 import { emitCopyAssistLog, type CopyAssistOperationalEvent } from "@/lib/landing-page/copy/log";
 import type { CopyProviderCallObservation, CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
@@ -106,6 +106,7 @@ export async function generateLandingPageCopySuggestions(
     log?: (event: CopyAssistOperationalEvent) => void;
     timeoutMs?: number;
     recordProviderCall?: AiLedgerWriter;
+    ledgerTimeoutMs?: number;
     onLedgerFailure?: (notice: { requestId: string; attempt: number }) => void;
   },
 ): Promise<LandingPageResult<CopySuggestionResponseV1>> {
@@ -135,43 +136,53 @@ export async function generateLandingPageCopySuggestions(
   const requestId = crypto.randomUUID();
   const variantCount = input.variantCount ?? COPY_VARIANT_MAX;
   const allocateAttempt = sequence();
-  const persistCall = async (observation: CopyProviderCallObservation) => {
-    const priced = estimateAiProviderCost(observation.modelId, observation.usage);
-    const draft: AiProviderCallDraft = {
-      requestId,
-      attempt: observation.attempt,
-      featureKey: LANDING_PAGE_COPY_FEATURE_KEY,
-      providerId: provider.id,
-      modelId: observation.modelId,
-      providerResponseId: observation.providerResponseId ?? null,
-      promptVersion: LANDING_PAGE_COPY_PROMPT_V1,
-      operationType: observation.operationType,
-      sectionType: built.context.sectionType,
-      userId: input.userId,
-      projectId: record.projectId,
-      courseId: record.courseId,
-      landingPageProjectId: input.landingPageProjectId,
-      status: observation.status,
-      errorCode: observation.errorCode ?? null,
-      inputTokens: observation.usage?.inputTokens ?? null,
-      cachedInputTokens: observation.usage?.cachedInputTokens ?? null,
-      cacheWriteTokens: observation.usage?.cacheWriteTokens ?? null,
-      cacheWrite30mTokens: observation.usage?.cacheWrite30mTokens ?? null,
-      cacheWrite12hTokens: observation.usage?.cacheWrite12hTokens ?? null,
-      outputTokens: observation.usage?.outputTokens ?? null,
-      reasoningTokens: observation.usage?.reasoningTokens ?? null,
-      totalTokens: observation.usage?.totalTokens ?? null,
-      estimatedCostUsdMicros: priced.estimatedCostUsdMicros,
-      pricingVersion: priced.pricingVersion,
-      latencyMs: observation.latencyMs,
-    };
+  const observed: CopyProviderCallObservation[] = [];
+  const collectCall = async (observation: CopyProviderCallObservation) => {
+    observed.push(observation);
+  };
+  const flushLedger = async () => {
+    const batch = observed.splice(0);
     const writer = options?.recordProviderCall ?? (process.env.UNIT_TEST_ISOLATION === "1" ? null : recordAiProviderCall);
-    if (!writer) return;
-    try {
-      const written = await writer(draft);
-      if (written === "failed") options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
-    } catch {
-      options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
+    if (!writer || batch.length === 0) return;
+    const timeoutMs = options?.ledgerTimeoutMs ?? LEDGER_WRITE_TIMEOUT_MS;
+    for (const observation of batch) {
+      const priced = estimateAiProviderCost(observation.modelId, observation.usage, observation.serviceTier);
+      const draft: AiProviderCallDraft = {
+        requestId,
+        attempt: observation.attempt,
+        featureKey: LANDING_PAGE_COPY_FEATURE_KEY,
+        providerId: provider.id,
+        modelId: observation.modelId,
+        serviceTier: observation.serviceTier ?? null,
+        providerResponseId: observation.providerResponseId ?? null,
+        promptVersion: LANDING_PAGE_COPY_PROMPT_V1,
+        operationType: observation.operationType,
+        sectionType: built.context.sectionType,
+        userId: input.userId,
+        projectId: record.projectId,
+        courseId: record.courseId,
+        landingPageProjectId: input.landingPageProjectId,
+        status: observation.status,
+        errorCode: observation.errorCode ?? null,
+        inputTokens: observation.usage?.inputTokens ?? null,
+        cachedInputTokens: observation.usage?.cachedInputTokens ?? null,
+        cacheWriteTokens: observation.usage?.cacheWriteTokens ?? null,
+        cacheWrite30mTokens: observation.usage?.cacheWrite30mTokens ?? null,
+        cacheWrite12hTokens: observation.usage?.cacheWrite12hTokens ?? null,
+        outputTokens: observation.usage?.outputTokens ?? null,
+        reasoningTokens: observation.usage?.reasoningTokens ?? null,
+        totalTokens: observation.usage?.totalTokens ?? null,
+        estimatedCostUsdMicros: priced.estimatedCostUsdMicros,
+        pricingVersion: priced.pricingVersion,
+        latencyMs: observation.latencyMs,
+      };
+      try {
+        const written = await settleLedgerWrite(writer(draft), timeoutMs);
+        if (written === "failed") options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
+      } catch {
+        reportLedgerPersistFailure({ requestId, attempt: observation.attempt, featureKey: draft.featureKey });
+        options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
+      }
     }
   };
   const logEvent = (status: CopyAssistOperationalEvent["status"], errorCode?: string, usage?: CopyProviderUsage) => {
@@ -200,15 +211,17 @@ export async function generateLandingPageCopySuggestions(
       variantCount,
       requestId,
       allocateAttempt,
-      onProviderCall: persistCall,
+      onProviderCall: collectCall,
     });
   let providerResult: CopyProviderResult;
   try {
     providerResult = await withTimeout((signal) => ask(false, signal), options?.timeoutMs ?? COPY_PROVIDER_TIMEOUT_MS);
   } catch {
+    await flushLedger();
     logEvent("error", "COPY_ASSIST_PROVIDER_ERROR");
     return fail("COPY_ASSIST_PROVIDER_ERROR");
   }
+  await flushLedger();
   if (!providerResult.ok) {
     logEvent("error", providerResult.code);
     return fail(providerResult.code);
@@ -226,6 +239,7 @@ export async function generateLandingPageCopySuggestions(
     } catch {
       accepted = null;
     }
+    await flushLedger();
   }
   if (!accepted) {
     logEvent("error", "COPY_ASSIST_INVALID_RESPONSE", usage);

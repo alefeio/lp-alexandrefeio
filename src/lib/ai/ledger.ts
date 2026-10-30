@@ -6,6 +6,7 @@ export const AI_PROVIDER_CALL_FIELDS = [
   "featureKey",
   "providerId",
   "modelId",
+  "serviceTier",
   "providerResponseId",
   "promptVersion",
   "operationType",
@@ -35,6 +36,7 @@ export type AiProviderCallDraft = {
   featureKey: string;
   providerId: string;
   modelId: string;
+  serviceTier: string | null;
   providerResponseId: string | null;
   promptVersion: string | null;
   operationType: string | null;
@@ -59,6 +61,33 @@ export type AiProviderCallDraft = {
 };
 
 export type LedgerWriteResult = "recorded" | "duplicate" | "failed";
+
+/** A gravação do ledger não pode ocupar o timeout da chamada de IA. */
+export const LEDGER_WRITE_TIMEOUT_MS = 1_000;
+
+export function reportLedgerPersistFailure(notice: { requestId: string; attempt: number; featureKey: string }) {
+  console.error("[ai-ledger] persist_failed", {
+    requestId: notice.requestId,
+    attempt: notice.attempt,
+    featureKey: notice.featureKey,
+  });
+}
+
+export function settleLedgerWrite(work: Promise<LedgerWriteResult>, timeoutMs = LEDGER_WRITE_TIMEOUT_MS): Promise<LedgerWriteResult> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("LEDGER_TIMEOUT")), timeoutMs);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 export type AiLedgerWriter = (record: AiProviderCallDraft) => Promise<LedgerWriteResult>;
 

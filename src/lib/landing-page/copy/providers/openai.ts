@@ -134,13 +134,27 @@ function readUsage(response: unknown): CopyProviderUsage | undefined {
     outputTokens: readCount(usage.output_tokens),
     cachedInputTokens: readCount(inputRecord?.cached_tokens),
     cacheWriteTokens: readCount(inputRecord?.cache_write_tokens),
-    cacheWrite30mTokens: readCount(inputRecord?.cache_write_30m_tokens),
-    cacheWrite12hTokens: readCount(inputRecord?.cache_write_12h_tokens),
+    cacheWrite30mTokens: readCount(writeDetails(inputRecord)?.ttl_30m_tokens),
+    cacheWrite12hTokens: readCount(writeDetails(inputRecord)?.ttl_12h_tokens),
     reasoningTokens: readCount(outputRecord?.reasoning_tokens),
     totalTokens: readCount(usage.total_tokens),
   };
   if (Object.values(parsed).every((value) => value === undefined)) return undefined;
   return Object.fromEntries(Object.entries(parsed).filter((entry) => entry[1] !== undefined)) as CopyProviderUsage;
+}
+
+function writeDetails(inputRecord: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  const details = inputRecord?.cache_write_tokens_details;
+  if (!details || typeof details !== "object") return undefined;
+  return details as Record<string, unknown>;
+}
+
+function readServiceTier(response: unknown): string | undefined {
+  if (!response || typeof response !== "object" || !("service_tier" in response)) return undefined;
+  const tier = (response as { service_tier?: unknown }).service_tier;
+  if (typeof tier !== "string") return undefined;
+  const trimmed = tier.trim();
+  return /^[a-z0-9_-]{1,32}$/i.test(trimmed) ? trimmed : undefined;
 }
 
 function readResponseId(response: unknown): string | undefined {
@@ -251,6 +265,7 @@ export function createOpenAILandingPageCopyProvider(options?: {
             usage: readUsage(response),
             providerResponseId: readResponseId(response),
             modelId: readResponseModel(response, model),
+            serviceTier: readServiceTier(response),
             latencyMs: Date.now() - started,
           });
           return response;

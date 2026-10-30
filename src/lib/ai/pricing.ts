@@ -5,7 +5,12 @@
  * Não busque essa URL em runtime. Mudança de preço exige nova pricingVersion.
  * O valor calculado é custo estimado de API baseado no usage retornado pelo provedor, não a fatura do provedor.
  */
-export const AI_PRICING_VERSION = "openai-2026-10-30";
+export const AI_PRICING_VERSION = "openai-2026-10-30-v2";
+
+/** Acima deste input, a request inteira usa o cartão long-context. O limite em si permanece short-context. */
+export const LUNA_LONG_CONTEXT_INPUT_TOKENS = 272_000;
+
+const STANDARD_SERVICE_TIER = "default";
 
 /** Micros de dólar por 1 milhão de tokens. 1 USD = 1_000_000 micros. */
 const PER_MILLION = BigInt(1_000_000);
@@ -18,7 +23,7 @@ type RateCard = {
   output: bigint;
 };
 
-const GPT_6_LUNA: RateCard = {
+const GPT_6_LUNA_SHORT: RateCard = {
   input: BigInt(100_000),
   cachedInput: BigInt(10_000),
   cacheWrite30m: BigInt(125_000),
@@ -26,8 +31,13 @@ const GPT_6_LUNA: RateCard = {
   output: BigInt(500_000),
 };
 
-const CATALOG: Record<string, RateCard> = {
-  "gpt-6-luna": GPT_6_LUNA,
+/** 2x input e cache, 1,5x output, para a request inteira. Tabela Standard de 2026-10-30. */
+const GPT_6_LUNA_LONG: RateCard = {
+  input: BigInt(200_000),
+  cachedInput: BigInt(20_000),
+  cacheWrite30m: BigInt(250_000),
+  cacheWrite12h: BigInt(500_000),
+  output: BigInt(750_000),
 };
 
 export type AiTokenUsage = {
@@ -46,10 +56,19 @@ export type AiCostEstimate = {
   pricingVersion: string | null;
 };
 
-export function estimateAiProviderCost(modelId: string, usage: AiTokenUsage | undefined): AiCostEstimate {
+export function estimateAiProviderCost(
+  modelId: string,
+  usage: AiTokenUsage | undefined,
+  serviceTier: string | null | undefined,
+): AiCostEstimate {
   const unpriced = { estimatedCostUsdMicros: null, pricingVersion: null };
+  if (serviceTier !== STANDARD_SERVICE_TIER) return unpriced;
   if (!usage || usage.inputTokens === undefined || usage.outputTokens === undefined) return unpriced;
-  const card = CATALOG[modelId];
+  const card = modelId === "gpt-6-luna"
+    ? usage.inputTokens > LUNA_LONG_CONTEXT_INPUT_TOKENS
+      ? GPT_6_LUNA_LONG
+      : GPT_6_LUNA_SHORT
+    : undefined;
   if (!card) return unpriced;
   const writes = resolveWrites(usage);
   if (!writes) return unpriced;
