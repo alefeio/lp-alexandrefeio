@@ -363,6 +363,8 @@ test("a trilha de tráfego agrupa os 12 resultados e destaca a aula atual", () =
   assert.equal(artifacts.find((item) => item.lessonId === "11")?.produced, false);
   assert.equal(artifacts.find((item) => item.lessonId === "5")?.statusLabel, "Próxima etapa");
   assert.equal(view.campaignExecuted, false);
+  assert.equal(view.complementary?.href, "/app/cursos/sites-que-convertem");
+  assert.equal(view.complementary?.cta, "Conhecer Sites que Convertem");
   const onGoogle = buildCourseJourney(
     source("trafego-pago-na-pratica", [
       moduleRow("google", "Google Ads na prática", [
@@ -382,11 +384,113 @@ test("a trilha de tráfego agrupa os 12 resultados e destaca a aula atual", () =
   assert.match(html, /snap-x/);
   assert.equal(html.includes("Google → Meta"), false);
 
-  const sites = buildCourseJourney(source("sites-que-convertem", [moduleRow("a", "Antes de construir", [lesson("s1", "site-ajuda-a-vender", { accessType: "FREE" })])]));
-  assert.equal(sites?.construction, null);
-  const sitesHtml = renderToStaticMarkup(createElement(CourseJourney, { view: sites! }));
-  assert.match(sitesHtml, /O que você vai construir/);
-  assert.equal(sitesHtml.includes("O que você está construindo"), false);
+  const sites = buildCourseJourney(source("sites-que-convertem", [moduleRow("a", "Antes de construir", [lesson("s1", "site-ajuda-a-vender", { accessType: "FREE" })], "Antes.", "antes-de-construir")]));
+  assert.equal(sites?.construction?.title, "O que você está construindo");
+  assert.equal(sites?.construction?.groups[0]?.title, "Entender o cenário");
+  assert.equal(sites?.complementary?.href, "/app/cursos/trafego-pago-na-pratica");
+});
+
+test("o mapa de sites agrupa os 12 resultados e distingue publicação real", () => {
+  const modules = [
+    moduleRow("antes", "Antes de construir", [
+      lesson("1", "site-ajuda-a-vender", { accessType: "FREE", completed: true, resultSaved: true, title: "Mapa" }),
+      lesson("2", "site-landing-page-ou-whatsapp", { accessType: "FREE", title: "Estrutura" }),
+      lesson("3", "pagina-pronta-para-converter", { title: "Prontidão" }),
+    ], "Antes.", "antes-de-construir"),
+    moduleRow("plano", "Planeje antes de desenhar", [
+      lesson("4", "oferta-publico-acao-principal", { entitled: true, inProgress: true, lastActiveAt: new Date("2026-10-20"), title: "Brief" }),
+      lesson("5", "jornada-do-visitante", { entitled: true, title: "Decisão" }),
+    ], "Plano.", "planeje-antes-de-desenhar"),
+    moduleRow("estrutura", "Estruture e comunique", [
+      lesson("6", "organize-as-secoes-da-pagina", { entitled: true, title: "Seções" }),
+      lesson("7", "mensagem-que-deixa-a-oferta-clara", { entitled: true, title: "Copy" }),
+    ], "Estrutura.", "estruture-e-comunique"),
+    moduleRow("confianca", "Atenção e confiança", [
+      lesson("8", "hierarquia-visual-e-atencao", { entitled: true, title: "Visual" }),
+      lesson("9", "construa-confianca", { entitled: true, title: "Confiança" }),
+    ], "Confiança.", "atencao-e-confianca"),
+    moduleRow("publicar", "Publique, meça e melhore", [
+      lesson("10", "pagina-mobile-e-experiencia", { entitled: true, title: "Mobile" }),
+      lesson("11", "configure-o-que-precisa-ser-medido", { entitled: true, title: "Medir" }),
+      lesson("12", "revisao-antes-do-trafego", { entitled: true, title: "Publicar" }),
+    ], "Publicar.", "publique-mea-e-melhore"),
+  ];
+  const view = buildCourseJourney(source("sites-que-convertem", modules));
+  assert.ok(view?.construction);
+  assert.equal(view.construction.intro, "Cada etapa transforma decisões do seu negócio em uma parte real da sua landing page.");
+  const artifacts = view.construction.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts));
+  assert.equal(artifacts.length, 12);
+  assert.equal(new Set(artifacts.map((item) => item.title)).size, 12);
+  assert.equal(view.construction.groups.length, 5);
+  assert.equal(view.construction.groups.some((group) => group.parallel), false);
+  assert.deepEqual(view.construction.groups.map((group) => group.title), [
+    "Entender o cenário",
+    "Planejar a página",
+    "Estruturar e comunicar",
+    "Criar atenção e confiança",
+    "Revisar e publicar",
+  ]);
+  assert.deepEqual(view.construction.groups[0]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Mapa de conversão",
+    "Estrutura digital ideal",
+    "Diagnóstico de prontidão",
+  ]);
+  assert.deepEqual(view.construction.groups[1]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Brief de conversão",
+    "Mapa de decisão do visitante",
+  ]);
+  assert.deepEqual(view.construction.groups[2]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Estrutura da landing page",
+    "Copy da landing page",
+  ]);
+  assert.deepEqual(view.construction.groups[3]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Direção visual",
+    "Plano de confiança",
+  ]);
+  assert.deepEqual(view.construction.groups[4]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Revisão de experiência",
+    "Plano de mensuração",
+    "Landing page publicada",
+  ]);
+  const current = artifacts.filter((item) => item.current);
+  assert.equal(current.length, 1);
+  assert.equal(current[0]?.lessonId, view.here?.lessonId);
+  assert.equal(current[0]?.statusLabel, "Em construção");
+  assert.equal(artifacts.find((item) => item.lessonId === "3")?.statusLabel, "Não adquirida");
+  assert.equal(artifacts.find((item) => item.lessonId === "12")?.produced, false);
+  const html = renderToStaticMarkup(createElement(CourseJourney, { view }));
+  assert.match(html, /overflow-x-auto/);
+  assert.match(html, /snap-x/);
+  assert.match(html, /Conhecer Tráfego Pago/);
+  assert.match(html, /href="\/app\/cursos\/trafego-pago-na-pratica"/);
+  assert.match(html, /href="\/cursos\/trafego-pago-na-pratica"/);
+
+  const preview = buildCourseJourney(source("sites-que-convertem", modules, [page({ id: "preview", status: "READY_TO_PREVIEW", updatedAt: new Date("2026-10-02") })]));
+  const previewArtifact = preview?.construction?.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts)).find((item) => item.lessonId === "12");
+  assert.equal(previewArtifact?.statusLabel, "Pronta para visualizar");
+  assert.equal(previewArtifact?.produced, false);
+
+  const missingId = buildCourseJourney(source("sites-que-convertem", modules, [page({ id: "bare", status: "PUBLISHED", updatedAt: new Date("2026-10-02") })]));
+  const bare = missingId?.construction?.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts)).find((item) => item.lessonId === "12");
+  assert.equal(bare?.produced, false);
+
+  const live = buildCourseJourney(source("sites-que-convertem", modules, [page({ id: "live", status: "PUBLISHED", publishedPublicationId: "pub-1", updatedAt: new Date("2026-10-02") })]));
+  const liveArtifact = live?.construction?.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts)).find((item) => item.lessonId === "12");
+  assert.equal(liveArtifact?.statusLabel, "Landing page publicada");
+  assert.equal(liveArtifact?.produced, true);
+
+  const offline = buildCourseJourney(source("sites-que-convertem", modules, [page({ id: "off", status: "UNPUBLISHED", updatedAt: new Date("2026-10-02") })]));
+  const offlineArtifact = offline?.construction?.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts)).find((item) => item.lessonId === "12");
+  assert.equal(offlineArtifact?.statusLabel, "Fora do ar");
+  assert.equal(offlineArtifact?.produced, false);
+
+  const kept = buildCourseJourney(source("sites-que-convertem", modules, [
+    page({ id: "old", status: "PUBLISHED", publishedPublicationId: "pub-1", updatedAt: new Date("2026-10-01") }),
+    page({ id: "draft", status: "DRAFT", updatedAt: new Date("2026-10-03") }),
+  ]));
+  const keptArtifact = kept?.construction?.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts)).find((item) => item.lessonId === "12");
+  assert.equal(keptArtifact?.produced, true);
+  assert.equal(keptArtifact?.statusLabel, "Landing page publicada");
 });
 
 test("os dois cursos usam os módulos recebidos e não travam a fase seguinte", () => {

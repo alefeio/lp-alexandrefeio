@@ -94,26 +94,59 @@ export type ConstructionMap = {
   groups: ConstructionGroup[];
 };
 
-/** Metadado editorial. Não altera acesso, ordem obrigatória nem conclusão. */
-const TRAFFIC_PARALLEL_GROUP = {
-  id: "escolha-seu-caminho",
-  title: "Escolha seu caminho",
-  note: "Você pode seguir Google, Meta ou os dois caminhos. Um não bloqueia o outro.",
-  tracks: {
-    "google-ads-na-pratica": true,
-    "meta-ads-na-pratica": true,
+/** Metadado editorial de apresentação. Não altera acesso, ordem obrigatória nem conclusão. */
+type ConstructionProfile = {
+  title: string;
+  intro: string;
+  groupTitle: Record<string, string>;
+  stepTitle: Record<string, string>;
+  parallel: { id: string; title: string; note: string; tracks: Record<string, true> } | null;
+  publication: boolean;
+};
+
+const TRAFFIC_PROFILE: ConstructionProfile = {
+  title: "O que você está construindo",
+  intro: "Cada etapa transforma o que você aprende em uma parte do seu plano de tráfego.",
+  groupTitle: {
+    "antes-de-investir": "Antes de investir",
+    "planeje-antes-de-anunciar": "Preparar a campanha",
+    "entenda-e-melhore": "Aprender com os resultados",
   },
-} as const;
-
-const TRAFFIC_STEP_TITLE: Record<string, string> = {
-  "negocio-pronto-para-anunciar": "Diagnóstico de Prontidão",
+  stepTitle: {
+    "negocio-pronto-para-anunciar": "Diagnóstico de Prontidão",
+  },
+  parallel: {
+    id: "escolha-seu-caminho",
+    title: "Escolha seu caminho",
+    note: "Você pode seguir Google, Meta ou os dois caminhos. Um não bloqueia o outro.",
+    tracks: {
+      "google-ads-na-pratica": true,
+      "meta-ads-na-pratica": true,
+    },
+  },
+  publication: false,
 };
 
-const TRAFFIC_GROUP_TITLE: Record<string, string> = {
-  "antes-de-investir": "Antes de investir",
-  "planeje-antes-de-anunciar": "Preparar a campanha",
-  "entenda-e-melhore": "Aprender com os resultados",
+const SITES_PROFILE: ConstructionProfile = {
+  title: "O que você está construindo",
+  intro: "Cada etapa transforma decisões do seu negócio em uma parte real da sua landing page.",
+  groupTitle: {
+    "antes-de-construir": "Entender o cenário",
+    "planeje-antes-de-desenhar": "Planejar a página",
+    "estruture-e-comunique": "Estruturar e comunicar",
+    "atencao-e-confianca": "Criar atenção e confiança",
+    "publique-mea-e-melhore": "Revisar e publicar",
+  },
+  stepTitle: {},
+  parallel: null,
+  publication: true,
 };
+
+function constructionProfile(slug: string): ConstructionProfile | null {
+  if (slug === TRAFFIC_COURSE_SLUG) return TRAFFIC_PROFILE;
+  if (slug === SITES_COURSE_SLUG) return SITES_PROFILE;
+  return null;
+}
 
 export type CourseJourneyView = {
   slug: string;
@@ -140,6 +173,14 @@ export type CourseJourneyView = {
   landing: CourseLandingPicture | null;
   artifacts: Array<{ id: string; title: string; label: string; produced: boolean }>;
   construction: ConstructionMap | null;
+  complementary: {
+    slug: string;
+    headline: string;
+    body: string;
+    cta: string;
+    href: string;
+    purchaseHref: string | null;
+  } | null;
   phases: Array<{
     id: string;
     index: number;
@@ -225,6 +266,7 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
 
   const sites = source.course.slug === SITES_COURSE_SLUG;
   const traffic = source.course.slug === TRAFFIC_COURSE_SLUG;
+  const profile = constructionProfile(source.course.slug);
   const landing = sites ? courseLandingPicture(source.viewerId, source.landingPages) : null;
 
   const publishedLessonCount = lessons.length;
@@ -313,7 +355,17 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
       : null,
     landing,
     artifacts: lessons.map((lesson) => artifactOf(lesson, sites, landing)),
-    construction: traffic ? buildTrafficConstruction(source.modules, lessons, position, landing) : null,
+    construction: profile ? buildConstruction(profile, source.modules, lessons, position, landing) : null,
+    complementary: experience
+      ? {
+          slug: experience.complementary.slug,
+          headline: experience.complementary.headline,
+          body: experience.complementary.body,
+          cta: experience.complementary.cta,
+          href: `/app/cursos/${experience.complementary.slug}`,
+          purchaseHref: accessible.length < publishedLessonCount ? `/cursos/${experience.complementary.slug}` : null,
+        }
+      : null,
     phases,
   };
 }
@@ -444,7 +496,8 @@ function phaseObjective(description: string, lessons: FlatLesson[]): string {
   return "As aulas publicadas desta fase aparecem abaixo.";
 }
 
-function buildTrafficConstruction(
+function buildConstruction(
+  profile: ConstructionProfile,
   modules: JourneyModuleInput[],
   lessons: FlatLesson[],
   position: Position | null,
@@ -455,18 +508,20 @@ function buildTrafficConstruction(
     const track: ConstructionTrack = {
       id: moduleRow.id,
       title: moduleRow.title,
-      artifacts: lessons.filter((lesson) => lesson.phaseId === moduleRow.id).map((lesson) => constructionArtifact(lesson, modules, position, landing)),
+      artifacts: lessons
+        .filter((lesson) => lesson.phaseId === moduleRow.id)
+        .map((lesson) => constructionArtifact(profile, lesson, modules, position, landing)),
     };
-    const parallel = moduleRow.slug in TRAFFIC_PARALLEL_GROUP.tracks;
-    if (parallel) {
-      const existing = groups.find((group) => group.id === TRAFFIC_PARALLEL_GROUP.id);
+    const parallel = profile.parallel != null && moduleRow.slug in profile.parallel.tracks;
+    if (parallel && profile.parallel) {
+      const existing = groups.find((group) => group.id === profile.parallel?.id);
       if (existing) {
         existing.tracks.push(track);
       } else {
         groups.push({
-          id: TRAFFIC_PARALLEL_GROUP.id,
-          title: TRAFFIC_PARALLEL_GROUP.title,
-          note: TRAFFIC_PARALLEL_GROUP.note,
+          id: profile.parallel.id,
+          title: profile.parallel.title,
+          note: profile.parallel.note,
           parallel: true,
           tracks: [track],
         });
@@ -475,45 +530,56 @@ function buildTrafficConstruction(
     }
     groups.push({
       id: moduleRow.id,
-      title: TRAFFIC_GROUP_TITLE[moduleRow.slug] ?? moduleRow.title,
+      title: profile.groupTitle[moduleRow.slug] ?? moduleRow.title,
       note: null,
       parallel: false,
       tracks: [track],
     });
   }
-  return {
-    title: "O que você está construindo",
-    intro: "Cada etapa transforma o que você aprende em uma parte do seu plano de tráfego.",
-    groups,
-  };
+  return { title: profile.title, intro: profile.intro, groups };
 }
 
 function constructionArtifact(
+  profile: ConstructionProfile,
   lesson: FlatLesson,
   modules: JourneyModuleInput[],
   position: Position | null,
   landing: CourseLandingPicture | null,
 ): ConstructionArtifact {
-  const detail = artifactOf(lesson, false, landing);
+  const detail = artifactOf(lesson, profile.publication, landing);
   const current = position?.lesson.id === lesson.id;
   const completed = lesson.study === "completed";
   const accessible = lesson.access !== "locked";
+  const publication = publicationConstruction(profile, lesson, landing);
   return {
     id: lesson.id,
     lessonId: lesson.id,
     phaseId: lesson.phaseId,
-    title: TRAFFIC_STEP_TITLE[lesson.slug] ?? detail.title,
+    title: profile.stepTitle[lesson.slug] ?? detail.title,
     label: detail.label,
-    statusLabel: constructionStatus(lesson, modules, position, current, completed, accessible),
+    statusLabel: publication?.statusLabel ?? constructionStatus(profile, lesson, modules, position, current, completed, accessible),
     href: lessonHref(lesson),
     current,
     completed,
     accessible,
-    produced: detail.produced,
+    produced: publication?.produced ?? detail.produced,
   };
 }
 
+function publicationConstruction(
+  profile: ConstructionProfile,
+  lesson: FlatLesson,
+  landing: CourseLandingPicture | null,
+): { statusLabel: string; produced: boolean } | null {
+  if (!profile.publication || lesson.slug !== JOURNEY_PUBLICATION_LESSON_SLUG || !landing || landing.state === "none") return null;
+  if (landing.published) return { statusLabel: "Landing page publicada", produced: true };
+  if (landing.state === "READY_TO_PREVIEW") return { statusLabel: "Pronta para visualizar", produced: false };
+  if (landing.state === "DRAFT") return null;
+  return { statusLabel: "Fora do ar", produced: false };
+}
+
 function constructionStatus(
+  profile: ConstructionProfile,
   lesson: FlatLesson,
   modules: JourneyModuleInput[],
   position: Position | null,
@@ -525,16 +591,21 @@ function constructionStatus(
   if (lesson.resultSaved) return "Resultado salvo";
   if (completed) return "Concluído";
   if (!accessible) return "Não adquirida";
-  if (isUpcomingConstruction(lesson, modules, position)) return "Próxima etapa";
+  if (isUpcomingConstruction(profile, lesson, modules, position)) return "Próxima etapa";
   return "Resultado esperado";
 }
 
-function isUpcomingConstruction(lesson: FlatLesson, modules: JourneyModuleInput[], position: Position | null): boolean {
+function isUpcomingConstruction(
+  profile: ConstructionProfile,
+  lesson: FlatLesson,
+  modules: JourneyModuleInput[],
+  position: Position | null,
+): boolean {
   if (!position || lesson.id === position.lesson.id) return false;
   const currentModule = modules.find((moduleRow) => moduleRow.id === position.lesson.phaseId);
   const lessonModule = modules.find((moduleRow) => moduleRow.id === lesson.phaseId);
   if (!currentModule || !lessonModule) return false;
-  if (sameParallelGroup(currentModule.slug, lessonModule.slug)) return false;
+  if (sameParallelGroup(profile, currentModule.slug, lessonModule.slug)) return false;
   if (lesson.phaseId === position.lesson.phaseId) {
     const ids = lessonModule.lessons.map((item) => item.id);
     return ids.indexOf(lesson.id) > ids.indexOf(position.lesson.id);
@@ -542,8 +613,9 @@ function isUpcomingConstruction(lesson: FlatLesson, modules: JourneyModuleInput[
   return modules.findIndex((moduleRow) => moduleRow.id === lesson.phaseId) > modules.findIndex((moduleRow) => moduleRow.id === position.lesson.phaseId);
 }
 
-function sameParallelGroup(left: string, right: string): boolean {
-  return left in TRAFFIC_PARALLEL_GROUP.tracks && right in TRAFFIC_PARALLEL_GROUP.tracks;
+function sameParallelGroup(profile: ConstructionProfile, left: string, right: string): boolean {
+  const tracks = profile.parallel?.tracks;
+  return tracks != null && left in tracks && right in tracks;
 }
 
 function artifactOf(lesson: FlatLesson, sites: boolean, landing: CourseLandingPicture | null): { id: string; title: string; label: string; produced: boolean } {

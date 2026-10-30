@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Compass, Flag, Map } from "lucide-react";
 import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import type { ConstructionMap, CourseJourneyView } from "@/lib/learning/course-journey";
+import type { CourseMaterial } from "@/lib/learning/course-material";
 
 function ConstructionMapView({ map }: { map: ConstructionMap }) {
   return (
@@ -41,7 +42,7 @@ function ConstructionMapView({ map }: { map: ConstructionMap }) {
   );
 }
 
-export function CourseJourney({ view }: { view: CourseJourneyView }) {
+export function CourseJourney({ view, material = { notes: [], bookmarks: [] } }: { view: CourseJourneyView; material?: CourseMaterial }) {
   return (
     <div className="mx-auto w-full max-w-3xl">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Jornada do curso</p>
@@ -176,6 +177,68 @@ export function CourseJourney({ view }: { view: CourseJourneyView }) {
           ))}
         </ol>
       </section>
+
+      <details className="mt-10 rounded-xl border border-border bg-surface">
+        <summary className="cursor-pointer list-none rounded-xl px-4 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta [&::-webkit-details-marker]:hidden">
+          <h2 className="text-xl font-semibold tracking-tight">Seu material neste curso</h2>
+          <p className="mt-1 text-sm text-muted">Notas e marcadores das aulas deste curso.</p>
+        </summary>
+        <div className="border-t border-border px-4 py-4">
+          <h3 className="text-sm font-medium">Notas recentes</h3>
+          {material.notes.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">Nenhuma nota neste curso.</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {material.notes.map((note) => (
+                <li key={note.id}>
+                  <Link className="underline underline-offset-4" href={note.href}>
+                    {note.lessonTitle}
+                  </Link>
+                  {note.sectionTitle ? <p className="mt-1 text-xs text-muted">{note.sectionTitle}</p> : null}
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{note.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h3 className="mt-5 text-sm font-medium">Marcadores</h3>
+          {material.bookmarks.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">Nenhum marcador neste curso.</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {material.bookmarks.map((bookmark) => (
+                <li key={bookmark.id}>
+                  <Link className="underline underline-offset-4" href={bookmark.href}>
+                    {bookmark.lessonTitle}
+                  </Link>
+                  <p className="mt-1 text-sm text-muted">
+                    {bookmark.sectionTitle ? `${bookmark.sectionTitle}. Marcado para revisar.` : "Marcado para revisar."}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
+
+      {view.complementary ? (
+        <section className="mt-10 border-t border-border pt-8" aria-labelledby="next-course-heading">
+          <h2 id="next-course-heading" className="text-xl font-semibold tracking-tight">Continue sua evolução</h2>
+          <p className="mt-3 text-base leading-relaxed">{view.complementary.headline}</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{view.complementary.body}</p>
+          <p className="mt-5">
+            <Link className={buttonClass("secondary")} href={view.complementary.href}>
+              {view.complementary.cta}
+            </Link>
+          </p>
+          {view.complementary.purchaseHref ? (
+            <p className="mt-3">
+              <Link className={navigationLinkClass()} href={view.complementary.purchaseHref}>
+                Ver detalhes e opções de compra
+              </Link>
+            </p>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }

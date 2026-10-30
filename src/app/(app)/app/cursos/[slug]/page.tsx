@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
 export default async function CourseJourneyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const session = await requireSession();
-  const view = await loadCourseJourney(session.user.id, slug);
-  if (!view) notFound();
+  const loaded = await loadCourseJourney(session.user.id, slug);
+  if (!loaded) notFound();
 
   return (
     <Container>
-      <CourseJourney view={view} />
+      <CourseJourney view={loaded.view} material={loaded.material} />
     </Container>
   );
 }
