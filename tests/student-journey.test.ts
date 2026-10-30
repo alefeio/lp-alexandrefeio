@@ -231,5 +231,5 @@ test("navegação persistente marca a seção atual", () => {
   assert.match(nav, /Meu negócio/);
   assert.match(nav, /Alertas/);
   assert.match(nav, /Compras/);
-  assert.doesNotMatch(nav, /\/app\/diagnosticos/);
+  assert.match(nav, /Diagnósticos/);
 });

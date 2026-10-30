@@ -2,11 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
+import { DIAGNOSTIC_RESULT_TITLE } from "@/lib/diagnostic/center";
 import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from "@/lib/diagnostic/definition";
 import { dimensionLabel, resultSnapshotSchema } from "@/lib/diagnostic/score";
 import { getDiagnosticForUser } from "@/lib/diagnostic/service";
 import { RecommendationPlanButton } from "@/components/plan/PlanForms";
 import { ReturnToLesson } from "@/components/app/ReturnToLesson";
+import { navigationLinkClass } from "@/lib/button-styles";
+import { safeReturnPath } from "@/lib/auth/messages";
 
 export const metadata = { title: "Resultado do diagnóstico" };
 
@@ -30,11 +33,17 @@ export default async function DiagnosticResultPage({
   if (!snapshot.success) notFound();
   const result = snapshot.data;
   const bottleneck = asDimension(result.primaryBottleneck);
+  const completedLabel = diagnostic.completedAt
+    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(diagnostic.completedAt)
+    : null;
+  const back = safeReturnPath(query.returnTo);
 
   return (
     <Container className="max-w-2xl">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Diagnóstico de Prontidão</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">Principal gargalo: {dimensionLabel(bottleneck)}</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">{diagnostic.project.name}</h1>
+      <p className="mt-2 text-base">{DIAGNOSTIC_RESULT_TITLE}</p>
+      <p className="mt-1 text-sm text-muted">Concluído{completedLabel ? ` em ${completedLabel}` : ""}</p>
+      <h2 className="mt-6 text-2xl font-semibold tracking-tight">Principal gargalo: {dimensionLabel(bottleneck)}</h2>
       <p className="mt-4 text-base leading-relaxed">
         Próximo passo: <strong>{result.nextStepTitle}</strong>
       </p>
@@ -101,6 +110,16 @@ export default async function DiagnosticResultPage({
       </section>
 
       <ReturnToLesson returnTo={query.returnTo} fallbackHref={`/app/projetos/${id}`} fallbackLabel="Voltar ao projeto" />
+      <p className="mt-3">
+        <Link className={navigationLinkClass()} href="/app/diagnosticos">
+          Meus diagnósticos
+        </Link>
+      </p>
+      <p className="mt-1">
+        <Link className={navigationLinkClass()} href={`/app/diagnosticos/novo?projeto=${id}${back ? `&returnTo=${encodeURIComponent(back)}` : ""}`}>
+          Fazer novo diagnóstico
+        </Link>
+      </p>
     </Container>
   );
 }

@@ -44,7 +44,7 @@ test("transições de telemetria do diagnóstico são atômicas e idempotentes",
   const { assertMigrationTargetAllowed } = await import("../../src/lib/db/urls");
   assertMigrationTargetAllowed();
   const { getPrisma } = await import("../../src/lib/db/prisma");
-  const { resumeDiagnosticForUser, saveDiagnosticProgress, completeDiagnosticForUser } = await import("../../src/lib/diagnostic/service");
+  const { findInProgressDiagnosticForUser, startDiagnosticForUser, saveDiagnosticProgress, completeDiagnosticForUser } = await import("../../src/lib/diagnostic/service");
   const prisma = getPrisma();
   const stamp = Date.now();
   const userId = `diag-telemetry-${stamp}`;
@@ -63,9 +63,10 @@ test("transições de telemetria do diagnóstico são atômicas e idempotentes",
 
   try {
     // Abrir/criar sem responder não significa início.
-    const diagnostic = await resumeDiagnosticForUser(userId, project.id);
-    assert.ok(diagnostic);
-    if (!diagnostic) return;
+    const started = await startDiagnosticForUser(userId, project.id);
+    assert.equal(started.ok, true);
+    if (!started.ok) return;
+    const diagnostic = started.diagnostic;
     assert.deepEqual(diagnostic.answers, {});
 
     // Observação isolada não é resposta válida e não consome a transição de início.
@@ -85,7 +86,7 @@ test("transições de telemetria do diagnóstico são atômicas e idempotentes",
     if (!second.ok) return;
     assert.equal(second.startedNow, false);
 
-    const resumed = await resumeDiagnosticForUser(userId, project.id);
+    const resumed = await findInProgressDiagnosticForUser(userId, project.id);
     assert.equal(resumed?.id, diagnostic.id);
     const afterResume = await saveDiagnosticProgress(userId, project.id, diagnostic.id, { q1: "leads", q2: "clear", q3: "yes" }, 2);
     assert.equal(afterResume.ok, true);
