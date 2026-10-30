@@ -13,6 +13,7 @@ export type StudentNavId = (typeof STUDENT_NAV)[number]["id"];
 export function activeStudentItem(pathname: string): StudentNavId | null {
   if (pathname === "/app") return "inicio";
   if (pathname === "/app/aprendizado" || pathname.startsWith("/app/aprendizado/")) return "cursos";
+  if (pathname === "/app/cursos" || pathname.startsWith("/app/cursos/")) return "cursos";
   if (pathname === "/app/diagnosticos" || pathname.startsWith("/app/diagnosticos/")) return "diagnosticos";
   if (/^\/app\/projetos\/[^/]+\/diagnostico$/.test(pathname)) return "diagnosticos";
   if (/^\/app\/projetos\/[^/]+\/diagnosticos\/[^/]+$/.test(pathname)) return "diagnosticos";
