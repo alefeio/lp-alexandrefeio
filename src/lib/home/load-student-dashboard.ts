@@ -92,14 +92,16 @@ export async function loadStudentDashboard(userId: string, name: string, now = n
   });
   const lessons = courses.find((course) => course.slug === FIRST_COURSE_SLUG)?.lessons ?? courses[0]?.lessons ?? [];
 
+  const openDiagnostic = project?.diagnostics.find((item) => item.status === "IN_PROGRESS") ?? null;
   const completedDiagnosticRow = project?.diagnostics.find((item) => item.status === "COMPLETED") ?? null;
   const completedDiagnostic = Boolean(completedDiagnosticRow);
-  const inProgressDiagnostic = project?.diagnostics.some((item) => item.status === "IN_PROGRESS") ?? false;
   const diagnosticHref = !project
     ? null
-    : completedDiagnosticRow
-      ? `/app/projetos/${project.id}/diagnosticos/${completedDiagnosticRow.id}`
-      : `/app/projetos/${project.id}/diagnostico`;
+    : openDiagnostic
+      ? `/app/projetos/${project.id}/diagnostico`
+      : completedDiagnosticRow
+        ? `/app/projetos/${project.id}/diagnosticos/${completedDiagnosticRow.id}`
+        : `/app/projetos/${project.id}/diagnostico`;
   const diagnosticCompletedLabel = completedDiagnosticRow?.completedAt
     ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(completedDiagnosticRow.completedAt)
     : null;
@@ -141,7 +143,7 @@ export async function loadStudentDashboard(userId: string, name: string, now = n
     name,
     lessons,
     project: project ? { id: project.id, name: project.name } : null,
-    diagnostic: !project ? "none" : completedDiagnostic ? "completed" : inProgressDiagnostic ? "in_progress" : "none",
+    diagnostic: !project ? "none" : openDiagnostic ? "in_progress" : completedDiagnostic ? "completed" : "none",
     importSummary: {
       total: importRows.length,
       ready: importRows.filter((row) => row.status === "READY").length,

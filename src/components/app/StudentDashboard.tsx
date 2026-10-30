@@ -102,12 +102,12 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
         )}
       </section>
 
-      {hasProject && view.businessNextAction?.kind !== "diagnostic" ? (
+      {hasProject ? (
         <section aria-labelledby="diagnostic-heading" className="mt-8">
           <h2 id="diagnostic-heading" className="text-sm font-medium text-foreground">
             Diagnóstico
           </h2>
-          {view.diagnostic === "completed" ? (
+          {view.businessNextAction?.kind === "diagnostic" ? null : view.diagnostic === "completed" ? (
             <p className="mt-3 text-sm text-muted">
               Concluído{view.diagnosticCompletedLabel ? ` · ${view.diagnosticCompletedLabel}` : ""}.{" "}
               {view.diagnosticHref ? (
@@ -129,6 +129,11 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
               </Link>
             </p>
           ) : null}
+          <p className="mt-3 text-sm">
+            <Link className="underline underline-offset-4" href="/app/diagnosticos">
+              Ver todos os diagnósticos
+            </Link>
+          </p>
         </section>
       ) : null}
 
