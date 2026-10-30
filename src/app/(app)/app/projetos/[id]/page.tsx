@@ -59,7 +59,7 @@ export default async function ProjectPage({
             <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/plano#recarga`}>Planejar recarga</Link>
             <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/editar`}>Completar contexto</Link>
             <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/dados`}>Dados da campanha</Link>
-            <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/diagnostico`}>
+            <Link className={buttonClass("secondary")} href={`/app/projetos/${project.id}/diagnostico${backToLesson ? `?returnTo=${encodeURIComponent(backToLesson)}` : ""}`}>
               {inProgress ? "Continuar diagnóstico" : latest ? "Fazer novo diagnóstico" : "Fazer diagnóstico"}
             </Link>
           </>
