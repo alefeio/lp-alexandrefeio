@@ -8,11 +8,12 @@ import { activeStudentItem } from "../src/lib/home/student-nav";
 import {
   buildCourseJourney,
   JOURNEY_PUBLICATION_LESSON_SLUG,
-  landingPageJourneyState,
+  courseLandingPicture,
   lessonStudyFromRecord,
   type CourseJourneySource,
   type JourneyLessonInput,
   type JourneyModuleInput,
+  type LandingPageJourneyInput,
 } from "../src/lib/learning/course-journey";
 import { isLessonComplete, type ProgressRuleBlock } from "../src/lib/learning/progress";
 import { SITE_PUBLICATION_SLUG } from "../src/lib/landing-page/publication/lesson-flow";
@@ -46,12 +47,16 @@ function moduleRow(id: string, title: string, lessons: JourneyLessonInput[], des
   return { id, title, description, lessons };
 }
 
-function source(slug: string, modules: JourneyModuleInput[], landing: CourseJourneySource["landingPage"] = null): CourseJourneySource {
+function page(patch: Partial<LandingPageJourneyInput> & Pick<LandingPageJourneyInput, "id" | "status" | "updatedAt">): LandingPageJourneyInput {
+  return { title: patch.id, userId: "user-a", publishedPublicationId: null, ...patch };
+}
+
+function source(slug: string, modules: JourneyModuleInput[], landingPages: LandingPageJourneyInput[] = []): CourseJourneySource {
   return {
     viewerId: "user-a",
     course: { slug, title: slug === "trafego-pago-na-pratica" ? "Tráfego Pago na Prática" : "Sites que Convertem", subtitle: null, description: "Descrição." },
     modules,
-    landingPage: landing,
+    landingPages,
   };
 }
 
@@ -192,7 +197,7 @@ test("sites separa rascunho, prévia e publicação e não vaza projeto de outro
     moduleRow("m2", "Publique, meça e melhore", [lesson("pub", JOURNEY_PUBLICATION_LESSON_SLUG, { entitled: true, completed: true, resultSaved: true, title: "Publicar" })]),
   ];
   const preview = buildCourseJourney(
-    source("sites-que-convertem", modules, { userId: "user-a", status: "READY_TO_PREVIEW", publishedPublicationId: null }),
+    source("sites-que-convertem", modules, [page({ id: "preview", status: "READY_TO_PREVIEW", updatedAt: new Date("2026-10-02") })]),
   );
   assert.equal(preview?.coursePromiseMet, false);
   assert.equal(preview?.status, "lessons_complete");
@@ -200,25 +205,23 @@ test("sites separa rascunho, prévia e publicação e não vaza projeto de outro
   assert.equal(preview?.artifacts.find((item) => item.id === "pub")?.produced, false);
   assert.match(preview?.artifacts.find((item) => item.id === "pub")?.label ?? "", /ainda não publicada/);
 
-  const draft = buildCourseJourney(source("sites-que-convertem", modules, { userId: "user-a", status: "DRAFT", publishedPublicationId: null }));
+  const draft = buildCourseJourney(source("sites-que-convertem", modules, [page({ id: "draft", status: "DRAFT", updatedAt: new Date("2026-10-02") })]));
   assert.match(draft?.landing?.label ?? "", /rascunho/i);
   assert.equal(draft?.coursePromiseMet, false);
 
   const live = buildCourseJourney(
-    source("sites-que-convertem", modules, { userId: "user-a", status: "PUBLISHED", publishedPublicationId: "pub-1" }),
+    source("sites-que-convertem", modules, [page({ id: "live", status: "PUBLISHED", publishedPublicationId: "pub-1", updatedAt: new Date("2026-10-02") })]),
   );
   assert.equal(live?.coursePromiseMet, true);
   assert.equal(live?.artifacts.find((item) => item.id === "pub")?.produced, true);
-  assert.equal(live?.artifacts.find((item) => item.id === "pub")?.label, "Publicada");
+  assert.equal(live?.artifacts.find((item) => item.id === "pub")?.label, "Landing page publicada");
 
-  const missingPointer = landingPageJourneyState({
-    viewerId: "user-a",
-    project: { userId: "user-a", status: "PUBLISHED", publishedPublicationId: null },
-  });
-  assert.notEqual(missingPointer, "PUBLISHED");
+  const missingPointer = courseLandingPicture("user-a", [page({ id: "broken", status: "PUBLISHED", publishedPublicationId: null, updatedAt: new Date("2026-10-02") })]);
+  assert.equal(missingPointer.published, false);
+  assert.notEqual(missingPointer.state, "PUBLISHED");
 
   const foreign = buildCourseJourney(
-    source("sites-que-convertem", modules, { userId: "user-b", status: "PUBLISHED", publishedPublicationId: "pub-1" }),
+    source("sites-que-convertem", modules, [page({ id: "foreign", userId: "user-b", status: "PUBLISHED", publishedPublicationId: "pub-1", updatedAt: new Date("2026-10-02") })]),
   );
   assert.equal(foreign?.landing?.state, "none");
   assert.match(foreign?.landing?.label ?? "", /ainda não começou/);
@@ -228,6 +231,67 @@ test("sites separa rascunho, prévia e publicação e não vaza projeto de outro
   assert.match(empty?.landing?.label ?? "", /ainda não começou/);
   assert.equal(empty?.artifacts[0]?.label, "Resultado esperado");
   assert.equal(empty?.artifacts[0]?.produced, false);
+});
+
+test("várias landing pages preservam uma publicação anterior e ignoram outro aluno", () => {
+  const modules = [
+    moduleRow("m1", "Antes de construir", [lesson("a", "site-ajuda-a-vender", { accessType: "FREE", completed: true, resultSaved: true })]),
+    moduleRow("m2", "Publique, meça e melhore", [lesson("pub", JOURNEY_PUBLICATION_LESSON_SLUG, { entitled: true, completed: true, resultSaved: true })]),
+  ];
+  const publishedThenDraft = buildCourseJourney(
+    source("sites-que-convertem", modules, [
+      page({ id: "old", status: "PUBLISHED", publishedPublicationId: "pub-1", updatedAt: new Date("2026-08-01") }),
+      page({ id: "new", status: "DRAFT", updatedAt: new Date("2026-10-20") }),
+    ]),
+  );
+  assert.equal(publishedThenDraft?.landing?.published, true);
+  assert.equal(publishedThenDraft?.coursePromiseMet, true);
+  assert.equal(publishedThenDraft?.artifacts.find((item) => item.id === "pub")?.produced, true);
+  assert.equal(publishedThenDraft?.artifacts.find((item) => item.id === "pub")?.label, "Landing page publicada");
+  assert.equal(`${publishedThenDraft?.landing?.label} ${publishedThenDraft?.outcomeNote}`.includes("a landing page ainda não está publicada"), false);
+
+  const publishedThenPreview = buildCourseJourney(
+    source("sites-que-convertem", modules, [
+      page({ id: "old", status: "PUBLISHED", publishedPublicationId: "pub-1", updatedAt: new Date("2026-08-01") }),
+      page({ id: "new", status: "READY_TO_PREVIEW", updatedAt: new Date("2026-10-21") }),
+    ]),
+  );
+  assert.equal(publishedThenPreview?.landing?.published, true);
+  assert.equal(publishedThenPreview?.coursePromiseMet, true);
+  assert.equal(publishedThenPreview?.artifacts.find((item) => item.id === "pub")?.produced, true);
+  assert.equal(`${publishedThenPreview?.landing?.label} ${publishedThenPreview?.outcomeNote}`.includes("a landing page ainda não está publicada"), false);
+
+  const nonePublished = buildCourseJourney(
+    source("sites-que-convertem", modules, [
+      page({ id: "draft", status: "DRAFT", updatedAt: new Date("2026-09-01") }),
+      page({ id: "preview", status: "READY_TO_PREVIEW", updatedAt: new Date("2026-10-22") }),
+    ]),
+  );
+  assert.equal(nonePublished?.coursePromiseMet, false);
+  assert.equal(nonePublished?.landing?.published, false);
+  assert.equal(nonePublished?.landing?.state, "READY_TO_PREVIEW");
+  assert.match(nonePublished?.landing?.label ?? "", /não é uma publicação/);
+  assert.equal(nonePublished?.artifacts.find((item) => item.id === "pub")?.produced, false);
+
+  const unpublishedHistory = buildCourseJourney(
+    source("sites-que-convertem", modules, [
+      page({ id: "retired", status: "UNPUBLISHED", publishedPublicationId: "pub-old", updatedAt: new Date("2026-10-23") }),
+    ]),
+  );
+  assert.equal(unpublishedHistory?.landing?.published, false);
+  assert.equal(unpublishedHistory?.coursePromiseMet, false);
+  assert.equal(unpublishedHistory?.artifacts.find((item) => item.id === "pub")?.produced, false);
+  assert.match(unpublishedHistory?.landing?.label ?? "", /fora do ar/i);
+
+  const foreignPublished = buildCourseJourney(
+    source("sites-que-convertem", modules, [
+      page({ id: "other", userId: "user-b", status: "PUBLISHED", publishedPublicationId: "pub-b", updatedAt: new Date("2026-10-24") }),
+      page({ id: "mine", status: "DRAFT", updatedAt: new Date("2026-10-01") }),
+    ]),
+  );
+  assert.equal(foreignPublished?.landing?.published, false);
+  assert.equal(foreignPublished?.landing?.state, "DRAFT");
+  assert.equal(foreignPublished?.coursePromiseMet, false);
 });
 
 test("os dois cursos usam os módulos recebidos e não travam a fase seguinte", () => {
@@ -260,7 +324,8 @@ test("os dois cursos usam os módulos recebidos e não travam a fase seguinte", 
   assert.equal(traffic?.phases[3]?.lessons[0]?.cta, "Começar");
   assert.equal(sites?.phases[4]?.lessons[0]?.cta, "Começar");
   assert.equal(traffic?.artifacts[0]?.title, "Meu primeiro mapa de tráfego");
-  assert.equal(sites?.sharedProjectNote !== null, true);
+  assert.match(sites?.sharedProjectNote ?? "", /projeto separado/);
+  assert.equal((sites?.sharedProjectNote ?? "").includes("a mesma landing page"), false);
   assert.equal(buildCourseJourney(source("trafego-pago-na-pratica", [])), null);
 });
 
@@ -272,6 +337,8 @@ test("a rota autenticada lê o catálogo do próprio aluno e a navegação marca
   assert.match(page, /notFound/);
   assert.match(loader, /getPublishedCourse/);
   assert.match(loader, /userId/);
+  assert.match(loader, /landingPageProject.findMany/);
+  assert.equal(loader.includes("findFirst"), false);
   assert.equal(loader.includes("diagnostic.create"), false);
   assert.equal(publicPage.includes("loadCourseJourney"), false);
   assert.equal(needsSession("/app/cursos/trafego-pago-na-pratica"), true);

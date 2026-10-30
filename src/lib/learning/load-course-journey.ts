@@ -27,10 +27,9 @@ export async function loadCourseJourney(userId: string, slug: string): Promise<C
       where: { userId, lessonId: { in: lessonIds } },
       select: { lessonId: true },
     }),
-    prisma.landingPageProject.findFirst({
+    prisma.landingPageProject.findMany({
       where: { userId, courseId: course.id },
-      orderBy: { updatedAt: "desc" },
-      select: { userId: true, status: true, publishedPublicationId: true },
+      select: { id: true, title: true, userId: true, status: true, publishedPublicationId: true, updatedAt: true },
     }),
   ]);
   const progressByLesson = new Map(progress.map((row) => [row.lessonId, row]));
@@ -66,12 +65,19 @@ export async function loadCourseJourney(userId: string, slug: string): Promise<C
         };
       }),
     })),
-    landingPage: landing
-      ? {
-          userId: landing.userId,
-          status: knownLandingStatus(landing.status),
-          publishedPublicationId: landing.publishedPublicationId,
-        }
-      : null,
+    landingPages: landing.flatMap((page) => {
+      const status = knownLandingStatus(page.status);
+      if (status === "none") return [];
+      return [
+        {
+          id: page.id,
+          title: page.title,
+          userId: page.userId,
+          status,
+          publishedPublicationId: page.publishedPublicationId,
+          updatedAt: page.updatedAt,
+        },
+      ];
+    }),
   });
 }

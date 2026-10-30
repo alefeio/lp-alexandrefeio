@@ -30,6 +30,21 @@ export type JourneyModuleInput = {
   lessons: JourneyLessonInput[];
 };
 
+export type LandingPageJourneyInput = {
+  id: string;
+  title: string;
+  userId: string;
+  status: Exclude<LandingPageJourneyState, "none">;
+  publishedPublicationId: string | null;
+  updatedAt: Date;
+};
+
+export type CourseLandingPicture = {
+  published: boolean;
+  state: LandingPageJourneyState;
+  label: string;
+};
+
 export type CourseJourneySource = {
   viewerId: string;
   course: {
@@ -39,7 +54,7 @@ export type CourseJourneySource = {
     description: string;
   };
   modules: JourneyModuleInput[];
-  landingPage: { userId: string; status: LandingPageJourneyState; publishedPublicationId: string | null } | null;
+  landingPages: LandingPageJourneyInput[];
 };
 
 export type JourneyAction = { label: string; href: string };
@@ -66,7 +81,7 @@ export type CourseJourneyView = {
   sharedProjectNote: string | null;
   primary: JourneyAction | null;
   here: { phaseTitle: string; lessonTitle: string; detail: string; href: string; linkLabel: string } | null;
-  landing: { state: LandingPageJourneyState; label: string } | null;
+  landing: CourseLandingPicture | null;
   artifacts: Array<{ id: string; title: string; label: string; produced: boolean }>;
   phases: Array<{
     id: string;
@@ -116,15 +131,24 @@ export function knownLandingStatus(status: string): LandingPageJourneyState {
   return "none";
 }
 
-export function landingPageJourneyState(input: {
-  viewerId: string;
-  project: { userId: string; status: Exclude<LandingPageJourneyState, "none">; publishedPublicationId: string | null } | null;
-}): LandingPageJourneyState {
-  const project = input.project;
-  if (!project || project.userId !== input.viewerId) return "none";
-  if (project.status === "PUBLISHED" && project.publishedPublicationId) return "PUBLISHED";
-  if (project.status === "PUBLISHED") return "UNPUBLISHED";
-  return project.status;
+function isActivePublication(page: LandingPageJourneyInput): boolean {
+  return page.status === "PUBLISHED" && page.publishedPublicationId != null;
+}
+
+/** Publicação do curso: qualquer página ativa conta. Sem publicação, o contexto é só o projeto mais recente. */
+export function courseLandingPicture(viewerId: string, pages: readonly LandingPageJourneyInput[]): CourseLandingPicture {
+  const owned = pages.filter((page) => page.userId === viewerId);
+  if (owned.length === 0) {
+    return { published: false, state: "none", label: "Você ainda não começou uma landing page neste curso." };
+  }
+  const published = owned.some(isActivePublication);
+  const latest = [...owned].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())[0];
+  if (!latest) return { published: false, state: "none", label: "Você ainda não começou uma landing page neste curso." };
+  if (published) {
+    return { published: true, state: "PUBLISHED", label: publishedCourseLabel(latest) };
+  }
+  const state = latest.status === "DRAFT" || latest.status === "READY_TO_PREVIEW" ? latest.status : "UNPUBLISHED";
+  return { published: false, state, label: unpublishedLatestLabel(state) };
 }
 
 type FlatLesson = JourneyLessonInput & {
@@ -144,19 +168,7 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
 
   const sites = source.course.slug === SITES_COURSE_SLUG;
   const traffic = source.course.slug === TRAFFIC_COURSE_SLUG;
-  const landingState = sites
-    ? landingPageJourneyState({
-        viewerId: source.viewerId,
-        project:
-          source.landingPage && source.landingPage.status !== "none"
-            ? {
-                userId: source.landingPage.userId,
-                status: source.landingPage.status,
-                publishedPublicationId: source.landingPage.publishedPublicationId,
-              }
-            : null,
-      })
-    : "none";
+  const landing = sites ? courseLandingPicture(source.viewerId, source.landingPages) : null;
 
   const publishedLessonCount = lessons.length;
   const completedLessonCount = lessons.filter((lesson) => lesson.study === "completed").length;
@@ -173,11 +185,11 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
         ? "in_progress"
         : "not_started";
 
-  const position = pickPosition(lessons, status, sites, landingState);
+  const position = pickPosition(lessons, status, sites, landing?.published ?? false);
   const phases = source.modules.map((moduleRow, index) => {
     const phaseLessons = lessons.filter((lesson) => lesson.phaseId === moduleRow.id);
     const phaseStatus = phaseStatusOf(phaseLessons);
-    const phasePosition = pickPosition(phaseLessons, phaseStatus === "completed" ? "lessons_complete" : phaseStatus === "available_complete" ? "available_complete" : phaseStatus === "in_progress" ? "in_progress" : "not_started", false, "none");
+    const phasePosition = pickPosition(phaseLessons, phaseStatus === "completed" ? "lessons_complete" : phaseStatus === "available_complete" ? "available_complete" : phaseStatus === "in_progress" ? "in_progress" : "not_started", false, false);
     return {
       id: moduleRow.id,
       index,
@@ -200,15 +212,14 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
   });
 
   const promise = experience?.transformation ?? (source.course.subtitle?.trim() || firstSentence(source.course.description));
-  const published = landingState === "PUBLISHED";
-  const coursePromiseMet = traffic ? lessonsComplete : sites ? lessonsComplete && published : lessonsComplete;
+  const coursePromiseMet = traffic ? lessonsComplete : sites ? lessonsComplete && landing?.published === true : lessonsComplete;
 
   return {
     slug: source.course.slug,
     title: source.course.title,
     promise,
     finalOutcome: experience?.shortOutcome ?? promise,
-    outcomeNote: outcomeNote(traffic, sites, lessonsComplete, landingState),
+    outcomeNote: outcomeNote(traffic, sites, lessonsComplete, landing?.published === true),
     moduleCount: source.modules.length,
     publishedLessonCount,
     completedLessonCount,
@@ -229,7 +240,9 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
     independenceNote: traffic
       ? "Google e Meta são caminhos recomendados. Nenhum deles trava o outro."
       : null,
-    sharedProjectNote: sites ? "As ferramentas deste curso alimentam a mesma landing page." : null,
+    sharedProjectNote: sites
+      ? "Cada landing page é um projeto separado. Ao continuar uma página, as ferramentas das etapas seguintes trabalham sobre esse mesmo projeto."
+      : null,
     primary: position ? { label: position.primaryLabel, href: position.lessonHref } : null,
     here: position
       ? {
@@ -240,8 +253,8 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
           linkLabel: position.linkLabel,
         }
       : null,
-    landing: sites ? { state: landingState, label: landingLabel(landingState) } : null,
-    artifacts: lessons.map((lesson) => artifactOf(lesson, sites, landingState)),
+    landing,
+    artifacts: lessons.map((lesson) => artifactOf(lesson, sites, landing)),
     phases,
   };
 }
@@ -287,7 +300,7 @@ function pickPosition(
   lessons: FlatLesson[],
   status: JourneyCourseStatus,
   sites: boolean,
-  landing: LandingPageJourneyState,
+  landingPublished: boolean,
 ): Position | null {
   if (lessons.length === 0) return null;
   const resume = [...lessons]
@@ -326,10 +339,10 @@ function pickPosition(
     );
   }
 
-  const publication = sites && landing !== "PUBLISHED" ? lessons.find((lesson) => lesson.slug === JOURNEY_PUBLICATION_LESSON_SLUG) : null;
+  const publication = sites && !landingPublished ? lessons.find((lesson) => lesson.slug === JOURNEY_PUBLICATION_LESSON_SLUG) : null;
   const review = publication ?? lessons[lessons.length - 1];
   if (!review) return null;
-  const unpublished = sites && landing !== "PUBLISHED";
+  const unpublished = sites && !landingPublished;
   return place(
     review,
     unpublished ? "Revisar a publicação" : "Revisar",
@@ -372,32 +385,38 @@ function phaseObjective(description: string, lessons: FlatLesson[]): string {
   return "As aulas publicadas desta fase aparecem abaixo.";
 }
 
-function artifactOf(lesson: FlatLesson, sites: boolean, landing: LandingPageJourneyState): { id: string; title: string; label: string; produced: boolean } {
+function artifactOf(lesson: FlatLesson, sites: boolean, landing: CourseLandingPicture | null): { id: string; title: string; label: string; produced: boolean } {
   const title = lesson.outcome ?? "Esta aula não declara um entregável específico.";
   const publication = sites && lesson.slug === JOURNEY_PUBLICATION_LESSON_SLUG;
-  if (publication) {
-    if (landing === "PUBLISHED") return { id: lesson.id, title, label: "Publicada", produced: true };
-    if (landing === "READY_TO_PREVIEW") return { id: lesson.id, title, label: "Pronta para visualizar, ainda não publicada", produced: false };
-    if (landing === "DRAFT") return { id: lesson.id, title, label: "Rascunho salvo, ainda não publicada", produced: false };
-    if (landing === "UNPUBLISHED") return { id: lesson.id, title, label: "Fora do ar", produced: false };
+  if (publication && landing) {
+    if (landing.published) return { id: lesson.id, title, label: "Landing page publicada", produced: true };
+    if (landing.state === "READY_TO_PREVIEW") return { id: lesson.id, title, label: "Pronta para visualizar, ainda não publicada", produced: false };
+    if (landing.state === "DRAFT") return { id: lesson.id, title, label: "Rascunho salvo, ainda não publicada", produced: false };
+    if (landing.state === "UNPUBLISHED") return { id: lesson.id, title, label: "Fora do ar", produced: false };
   }
   if (lesson.resultSaved) return { id: lesson.id, title, label: "Resultado salvo", produced: false };
   if (lesson.study === "completed") return { id: lesson.id, title, label: "Aula concluída", produced: false };
   return { id: lesson.id, title, label: "Resultado esperado", produced: false };
 }
 
-function landingLabel(state: LandingPageJourneyState): string {
-  if (state === "PUBLISHED") return "Sua landing page está publicada.";
-  if (state === "READY_TO_PREVIEW") return "A página está pronta para visualizar. Isso ainda não é uma publicação.";
-  if (state === "DRAFT") return "Existe um rascunho da página. Ele ainda não está publicado.";
-  if (state === "UNPUBLISHED") return "A página saiu do ar. A versão pública não está ativa.";
-  return "Você ainda não começou a página neste curso.";
+function publishedCourseLabel(latest: LandingPageJourneyInput): string {
+  const base = "Você já publicou uma landing page neste curso.";
+  if (isActivePublication(latest)) return base;
+  if (latest.status === "DRAFT") return `${base} O projeto mais recente ainda é um rascunho.`;
+  if (latest.status === "READY_TO_PREVIEW") return `${base} O projeto mais recente está pronto para visualizar.`;
+  return `${base} O projeto mais recente está fora do ar.`;
 }
 
-function outcomeNote(traffic: boolean, sites: boolean, lessonsComplete: boolean, landing: LandingPageJourneyState): string | null {
+function unpublishedLatestLabel(state: "DRAFT" | "READY_TO_PREVIEW" | "UNPUBLISHED"): string {
+  if (state === "DRAFT") return "O projeto mais recente é um rascunho. Nenhuma landing page deste curso está publicada.";
+  if (state === "READY_TO_PREVIEW") return "O projeto mais recente está pronto para visualizar. Isso ainda não é uma publicação.";
+  return "O projeto mais recente está fora do ar. Nenhuma landing page deste curso está publicada.";
+}
+
+function outcomeNote(traffic: boolean, sites: boolean, lessonsComplete: boolean, landingPublished: boolean): string | null {
   if (traffic) return "Concluir as aulas não registra uma campanha executada.";
-  if (sites && lessonsComplete && landing !== "PUBLISHED") return "As aulas publicadas estão concluídas. A landing page ainda não está publicada.";
-  if (sites && landing === "PUBLISHED") return "A landing page deste curso está publicada.";
+  if (sites && landingPublished) return "Você já publicou uma landing page neste curso.";
+  if (sites && lessonsComplete) return "As aulas publicadas estão concluídas. Nenhuma landing page deste curso está publicada.";
   return null;
 }
 
