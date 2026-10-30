@@ -25,6 +25,7 @@ export type JourneyLessonInput = {
 
 export type JourneyModuleInput = {
   id: string;
+  slug: string;
   title: string;
   description: string;
   lessons: JourneyLessonInput[];
@@ -59,6 +60,61 @@ export type CourseJourneySource = {
 
 export type JourneyAction = { label: string; href: string };
 
+export type ConstructionArtifact = {
+  id: string;
+  lessonId: string;
+  phaseId: string;
+  title: string;
+  label: string;
+  statusLabel: string;
+  href: string;
+  current: boolean;
+  completed: boolean;
+  accessible: boolean;
+  produced: boolean;
+};
+
+export type ConstructionTrack = {
+  id: string;
+  title: string;
+  artifacts: ConstructionArtifact[];
+};
+
+export type ConstructionGroup = {
+  id: string;
+  title: string;
+  note: string | null;
+  parallel: boolean;
+  tracks: ConstructionTrack[];
+};
+
+export type ConstructionMap = {
+  title: string;
+  intro: string;
+  groups: ConstructionGroup[];
+};
+
+/** Metadado editorial. Não altera acesso, ordem obrigatória nem conclusão. */
+const TRAFFIC_PARALLEL_GROUP = {
+  id: "escolha-seu-caminho",
+  title: "Escolha seu caminho",
+  note: "Você pode seguir Google, Meta ou os dois caminhos. Um não bloqueia o outro.",
+  tracks: {
+    "google-ads-na-pratica": true,
+    "meta-ads-na-pratica": true,
+  },
+} as const;
+
+const TRAFFIC_STEP_TITLE: Record<string, string> = {
+  "negocio-pronto-para-anunciar": "Diagnóstico de Prontidão",
+};
+
+const TRAFFIC_GROUP_TITLE: Record<string, string> = {
+  "antes-de-investir": "Antes de investir",
+  "planeje-antes-de-anunciar": "Preparar a campanha",
+  "entenda-e-melhore": "Aprender com os resultados",
+};
+
 export type CourseJourneyView = {
   slug: string;
   title: string;
@@ -80,9 +136,10 @@ export type CourseJourneyView = {
   independenceNote: string | null;
   sharedProjectNote: string | null;
   primary: JourneyAction | null;
-  here: { phaseTitle: string; lessonTitle: string; detail: string; href: string; linkLabel: string } | null;
+  here: { phaseTitle: string; lessonId: string; lessonTitle: string; detail: string; href: string; linkLabel: string } | null;
   landing: CourseLandingPicture | null;
   artifacts: Array<{ id: string; title: string; label: string; produced: boolean }>;
+  construction: ConstructionMap | null;
   phases: Array<{
     id: string;
     index: number;
@@ -247,6 +304,7 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
     here: position
       ? {
           phaseTitle: position.lesson.phaseTitle,
+          lessonId: position.lesson.id,
           lessonTitle: position.lesson.title,
           detail: position.detail,
           href: position.lessonHref,
@@ -255,6 +313,7 @@ export function buildCourseJourney(source: CourseJourneySource): CourseJourneyVi
       : null,
     landing,
     artifacts: lessons.map((lesson) => artifactOf(lesson, sites, landing)),
+    construction: traffic ? buildTrafficConstruction(source.modules, lessons, position, landing) : null,
     phases,
   };
 }
@@ -383,6 +442,108 @@ function phaseObjective(description: string, lessons: FlatLesson[]): string {
   const outcome = lessons.find((lesson) => lesson.outcome)?.outcome;
   if (outcome) return `Nesta fase, um resultado esperado é: ${outcome}.`;
   return "As aulas publicadas desta fase aparecem abaixo.";
+}
+
+function buildTrafficConstruction(
+  modules: JourneyModuleInput[],
+  lessons: FlatLesson[],
+  position: Position | null,
+  landing: CourseLandingPicture | null,
+): ConstructionMap {
+  const groups: ConstructionGroup[] = [];
+  for (const moduleRow of modules) {
+    const track: ConstructionTrack = {
+      id: moduleRow.id,
+      title: moduleRow.title,
+      artifacts: lessons.filter((lesson) => lesson.phaseId === moduleRow.id).map((lesson) => constructionArtifact(lesson, modules, position, landing)),
+    };
+    const parallel = moduleRow.slug in TRAFFIC_PARALLEL_GROUP.tracks;
+    if (parallel) {
+      const existing = groups.find((group) => group.id === TRAFFIC_PARALLEL_GROUP.id);
+      if (existing) {
+        existing.tracks.push(track);
+      } else {
+        groups.push({
+          id: TRAFFIC_PARALLEL_GROUP.id,
+          title: TRAFFIC_PARALLEL_GROUP.title,
+          note: TRAFFIC_PARALLEL_GROUP.note,
+          parallel: true,
+          tracks: [track],
+        });
+      }
+      continue;
+    }
+    groups.push({
+      id: moduleRow.id,
+      title: TRAFFIC_GROUP_TITLE[moduleRow.slug] ?? moduleRow.title,
+      note: null,
+      parallel: false,
+      tracks: [track],
+    });
+  }
+  return {
+    title: "O que você está construindo",
+    intro: "Cada etapa transforma o que você aprende em uma parte do seu plano de tráfego.",
+    groups,
+  };
+}
+
+function constructionArtifact(
+  lesson: FlatLesson,
+  modules: JourneyModuleInput[],
+  position: Position | null,
+  landing: CourseLandingPicture | null,
+): ConstructionArtifact {
+  const detail = artifactOf(lesson, false, landing);
+  const current = position?.lesson.id === lesson.id;
+  const completed = lesson.study === "completed";
+  const accessible = lesson.access !== "locked";
+  return {
+    id: lesson.id,
+    lessonId: lesson.id,
+    phaseId: lesson.phaseId,
+    title: TRAFFIC_STEP_TITLE[lesson.slug] ?? detail.title,
+    label: detail.label,
+    statusLabel: constructionStatus(lesson, modules, position, current, completed, accessible),
+    href: lessonHref(lesson),
+    current,
+    completed,
+    accessible,
+    produced: detail.produced,
+  };
+}
+
+function constructionStatus(
+  lesson: FlatLesson,
+  modules: JourneyModuleInput[],
+  position: Position | null,
+  current: boolean,
+  completed: boolean,
+  accessible: boolean,
+): string {
+  if (current && !completed) return "Em construção";
+  if (lesson.resultSaved) return "Resultado salvo";
+  if (completed) return "Concluído";
+  if (!accessible) return "Não adquirida";
+  if (isUpcomingConstruction(lesson, modules, position)) return "Próxima etapa";
+  return "Resultado esperado";
+}
+
+function isUpcomingConstruction(lesson: FlatLesson, modules: JourneyModuleInput[], position: Position | null): boolean {
+  if (!position || lesson.id === position.lesson.id) return false;
+  const currentModule = modules.find((moduleRow) => moduleRow.id === position.lesson.phaseId);
+  const lessonModule = modules.find((moduleRow) => moduleRow.id === lesson.phaseId);
+  if (!currentModule || !lessonModule) return false;
+  if (sameParallelGroup(currentModule.slug, lessonModule.slug)) return false;
+  if (lesson.phaseId === position.lesson.phaseId) {
+    const ids = lessonModule.lessons.map((item) => item.id);
+    return ids.indexOf(lesson.id) > ids.indexOf(position.lesson.id);
+  }
+  return modules.findIndex((moduleRow) => moduleRow.id === lesson.phaseId) > modules.findIndex((moduleRow) => moduleRow.id === position.lesson.phaseId);
+}
+
+function sameParallelGroup(left: string, right: string): boolean {
+  return left in TRAFFIC_PARALLEL_GROUP.tracks && right in TRAFFIC_PARALLEL_GROUP.tracks;
 }
 
 function artifactOf(lesson: FlatLesson, sites: boolean, landing: CourseLandingPicture | null): { id: string; title: string; label: string; produced: boolean } {

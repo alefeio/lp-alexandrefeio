@@ -46,6 +46,7 @@ export async function loadCourseJourney(userId: string, slug: string): Promise<C
     },
     modules: course.modules.map((moduleRow) => ({
       id: moduleRow.id,
+      slug: moduleRow.slug,
       title: moduleRow.title,
       description: moduleRow.description,
       lessons: moduleRow.lessons.map((lesson) => {

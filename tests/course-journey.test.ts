@@ -43,8 +43,8 @@ function lesson(id: string, slug: string, patch: Partial<JourneyLessonInput> = {
   };
 }
 
-function moduleRow(id: string, title: string, lessons: JourneyLessonInput[], description = `Objetivo de ${title}.`): JourneyModuleInput {
-  return { id, title, description, lessons };
+function moduleRow(id: string, title: string, lessons: JourneyLessonInput[], description = `Objetivo de ${title}.`, slug = id): JourneyModuleInput {
+  return { id, slug, title, description, lessons };
 }
 
 function page(patch: Partial<LandingPageJourneyInput> & Pick<LandingPageJourneyInput, "id" | "status" | "updatedAt">): LandingPageJourneyInput {
@@ -292,6 +292,101 @@ test("várias landing pages preservam uma publicação anterior e ignoram outro 
   assert.equal(foreignPublished?.landing?.published, false);
   assert.equal(foreignPublished?.landing?.state, "DRAFT");
   assert.equal(foreignPublished?.coursePromiseMet, false);
+});
+
+test("a trilha de tráfego agrupa os 12 resultados e destaca a aula atual", () => {
+  const modules = [
+    moduleRow("antes", "Antes de investir", [
+      lesson("1", "como-funciona-o-trafego-pago", { accessType: "FREE", completed: true, resultSaved: true, title: "Mapa" }),
+      lesson("2", "google-ads-ou-meta-ads", { entitled: true, title: "Canal" }),
+      lesson("3", "negocio-pronto-para-anunciar", { title: "Prontidão" }),
+    ], "Antes.", "antes-de-investir"),
+    moduleRow("plano", "Planeje antes de anunciar", [
+      lesson("4", "objetivo-oferta-orcamento", { entitled: true, inProgress: true, lastActiveAt: new Date("2026-10-20"), title: "Brief" }),
+      lesson("5", "destino-e-mensuracao", { entitled: true, title: "Destino" }),
+    ], "Plano.", "planeje-antes-de-anunciar"),
+    moduleRow("google", "Google Ads na prática", [
+      lesson("6", "campanha-de-pesquisa", { entitled: true, title: "Blueprint" }),
+      lesson("7", "palavras-chave-com-intencao", { entitled: true, title: "Palavras" }),
+      lesson("8", "anuncios-alinhados-a-conversao", { entitled: true, title: "Anúncios" }),
+    ], "Google.", "google-ads-na-pratica"),
+    moduleRow("meta", "Meta Ads na prática", [
+      lesson("9", "objetivo-publico-estrutura", { entitled: true, title: "Estrutura" }),
+      lesson("10", "campanhas-leads-whatsapp", { entitled: true, title: "Leads" }),
+    ], "Meta.", "meta-ads-na-pratica"),
+    moduleRow("analise", "Entenda e melhore os resultados", [
+      lesson("11", "leia-os-numeros", { entitled: true, completed: true, title: "Números" }),
+      lesson("12", "o-que-mudar", { entitled: true, title: "Ação" }),
+    ], "Análise.", "entenda-e-melhore"),
+  ];
+  const view = buildCourseJourney(source("trafego-pago-na-pratica", modules));
+  assert.ok(view?.construction);
+  const artifacts = view.construction.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts));
+  assert.equal(artifacts.length, 12);
+  assert.equal(new Set(artifacts.map((item) => item.title)).size, 12);
+  assert.deepEqual(view.construction.groups[0]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Meu primeiro mapa de tráfego",
+    "Indicação inicial de canal",
+    "Diagnóstico de Prontidão",
+  ]);
+  assert.deepEqual(view.construction.groups[1]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Brief Inicial de Campanha",
+    "Plano de Destino e Mensuração",
+  ]);
+  const choice = view.construction.groups.find((group) => group.parallel);
+  assert.equal(choice?.title, "Escolha seu caminho");
+  assert.equal(choice?.tracks.length, 2);
+  assert.deepEqual(choice?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Blueprint de Campanha de Pesquisa",
+    "Plano inicial de palavras-chave",
+    "Plano de anúncios responsivos",
+  ]);
+  assert.deepEqual(choice?.tracks[1]?.artifacts.map((item) => item.title), [
+    "Plano inicial de campanha Meta",
+    "Plano de geração e atendimento de leads",
+  ]);
+  assert.equal(choice?.tracks.some((track) => track.artifacts.length > 3), false);
+  assert.deepEqual(view.construction.groups[3]?.tracks[0]?.artifacts.map((item) => item.title), [
+    "Diagnóstico dos resultados da campanha",
+    "Plano de próxima ação",
+  ]);
+  const current = artifacts.filter((item) => item.current);
+  assert.equal(current.length, 1);
+  assert.equal(current[0]?.lessonId, view.here?.lessonId);
+  assert.equal(current[0]?.title, "Brief Inicial de Campanha");
+  assert.equal(current[0]?.statusLabel, "Em construção");
+  assert.equal(artifacts.find((item) => item.lessonId === "1")?.statusLabel, "Resultado salvo");
+  assert.equal(artifacts.find((item) => item.lessonId === "1")?.produced, false);
+  assert.equal(artifacts.find((item) => item.lessonId === "3")?.accessible, false);
+  assert.equal(artifacts.find((item) => item.lessonId === "3")?.statusLabel, "Não adquirida");
+  assert.equal(artifacts.find((item) => item.lessonId === "11")?.statusLabel, "Concluído");
+  assert.equal(artifacts.find((item) => item.lessonId === "11")?.produced, false);
+  assert.equal(artifacts.find((item) => item.lessonId === "5")?.statusLabel, "Próxima etapa");
+  assert.equal(view.campaignExecuted, false);
+  const onGoogle = buildCourseJourney(
+    source("trafego-pago-na-pratica", [
+      moduleRow("google", "Google Ads na prática", [
+        lesson("6", "campanha-de-pesquisa", { entitled: true, inProgress: true, lastActiveAt: new Date("2026-10-20") }),
+      ], "Google.", "google-ads-na-pratica"),
+      moduleRow("meta", "Meta Ads na prática", [
+        lesson("9", "objetivo-publico-estrutura", { entitled: true }),
+      ], "Meta.", "meta-ads-na-pratica"),
+    ]),
+  );
+  const metaWhileOnGoogle = onGoogle?.construction?.groups.flatMap((group) => group.tracks.flatMap((track) => track.artifacts)).find((item) => item.lessonId === "9");
+  assert.equal(metaWhileOnGoogle?.statusLabel, "Resultado esperado");
+  assert.equal(onGoogle?.construction?.groups.some((group) => group.parallel), true);
+  const html = renderToStaticMarkup(createElement(CourseJourney, { view }));
+  assert.match(html, /O que você está construindo/);
+  assert.match(html, /overflow-x-auto/);
+  assert.match(html, /snap-x/);
+  assert.equal(html.includes("Google → Meta"), false);
+
+  const sites = buildCourseJourney(source("sites-que-convertem", [moduleRow("a", "Antes de construir", [lesson("s1", "site-ajuda-a-vender", { accessType: "FREE" })])]));
+  assert.equal(sites?.construction, null);
+  const sitesHtml = renderToStaticMarkup(createElement(CourseJourney, { view: sites! }));
+  assert.match(sitesHtml, /O que você vai construir/);
+  assert.equal(sitesHtml.includes("O que você está construindo"), false);
 });
 
 test("os dois cursos usam os módulos recebidos e não travam a fase seguinte", () => {

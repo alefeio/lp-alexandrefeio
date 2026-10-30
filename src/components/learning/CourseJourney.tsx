@@ -1,7 +1,45 @@
 import Link from "next/link";
 import { Compass, Flag, Map } from "lucide-react";
 import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
-import type { CourseJourneyView } from "@/lib/learning/course-journey";
+import type { ConstructionMap, CourseJourneyView } from "@/lib/learning/course-journey";
+
+function ConstructionMapView({ map }: { map: ConstructionMap }) {
+  return (
+    <div className="mt-6 space-y-6">
+      {map.groups.map((group) => (
+        <section key={group.id} aria-labelledby={`build-${group.id}`}>
+          <h3 id={`build-${group.id}`} className="text-base font-semibold tracking-tight">{group.title}</h3>
+          {group.note ? <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted">{group.note}</p> : null}
+          <div className={group.parallel ? "mt-3 space-y-4" : "mt-3"}>
+            {group.tracks.map((track) => (
+              <div key={track.id}>
+                {group.parallel ? <h4 className="mb-2 text-sm font-medium">{track.title}</h4> : null}
+                <ol aria-label={group.parallel ? track.title : group.title} className="flex snap-x snap-mandatory items-stretch gap-2 overflow-x-auto pb-2">
+                  {track.artifacts.map((artifact, index) => (
+                    <li key={artifact.id} className="flex shrink-0 snap-start items-center gap-2">
+                      <Link
+                        href={artifact.href}
+                        aria-current={artifact.current ? "step" : undefined}
+                        className={`flex min-h-24 w-[10.5rem] flex-col justify-between rounded-xl border p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta ${
+                          artifact.current ? "border-cta bg-cta/10" : "border-border bg-surface"
+                        }`}
+                      >
+                        {artifact.current ? <span className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-cta">Você está aqui</span> : null}
+                        <span className="mt-2 text-sm font-semibold leading-snug">{artifact.title}</span>
+                        <span className="mt-2 text-xs text-muted">{artifact.statusLabel}</span>
+                      </Link>
+                      {index < track.artifacts.length - 1 ? <span className="text-sm text-muted" aria-hidden="true">→</span> : null}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 export function CourseJourney({ view }: { view: CourseJourneyView }) {
   return (
@@ -58,18 +96,24 @@ export function CourseJourney({ view }: { view: CourseJourneyView }) {
       ) : null}
 
       <section className="mt-10" aria-labelledby="build-heading">
-        <h2 id="build-heading" className="text-xl font-semibold tracking-tight">O que você vai construir</h2>
+        <h2 id="build-heading" className="text-xl font-semibold tracking-tight">
+          {view.construction ? view.construction.title : "O que você vai construir"}
+        </h2>
+        {view.construction ? <p className="mt-2 text-sm leading-relaxed text-muted">{view.construction.intro}</p> : null}
         {view.sharedProjectNote ? <p className="mt-2 text-sm leading-relaxed text-muted">{view.sharedProjectNote}</p> : null}
-        {view.independenceNote ? <p className="mt-2 text-sm leading-relaxed text-muted">{view.independenceNote}</p> : null}
         {view.landing ? <p className="mt-3 text-sm leading-relaxed">{view.landing.label}</p> : null}
-        <ul className="mt-4 space-y-2">
-          {view.artifacts.map((artifact) => (
-            <li key={artifact.id} className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
-              <p className="font-medium">{artifact.title}</p>
-              <p className="mt-1 text-muted">{artifact.label}</p>
-            </li>
-          ))}
-        </ul>
+        {view.construction ? (
+          <ConstructionMapView map={view.construction} />
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {view.artifacts.map((artifact) => (
+              <li key={artifact.id} className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
+                <p className="font-medium">{artifact.title}</p>
+                <p className="mt-1 text-muted">{artifact.label}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mt-10" aria-labelledby="map-heading">
