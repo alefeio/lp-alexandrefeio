@@ -5,8 +5,11 @@ import type { LandingPageProjectView } from "@/lib/landing-page/service";
 import type { LandingPageStore } from "@/lib/landing-page/types";
 import { COPY_PROVIDER_TIMEOUT_MS, COPY_VARIANT_MAX, LANDING_PAGE_COPY_PROMPT_V1, type CopyIntent, type CopyMissingFact } from "@/lib/landing-page/copy/constants";
 import { buildCopyContextForSection } from "@/lib/landing-page/copy/context";
+import { LANDING_PAGE_COPY_FEATURE_KEY } from "@/lib/ai/features";
+import { recordAiProviderCall, type AiLedgerWriter, type AiProviderCallDraft } from "@/lib/ai/ledger";
+import { estimateAiProviderCost } from "@/lib/ai/pricing";
 import { emitCopyAssistLog, type CopyAssistOperationalEvent } from "@/lib/landing-page/copy/log";
-import type { CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
+import type { CopyProviderCallObservation, CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
 import { benefitCountAllowed, claimViolations, factLineCount, sectionPreconditions } from "@/lib/landing-page/copy/policy";
 import { copySuggestionContentSchemas, copySuggestionResponseSchema, type CopySuggestionResponseV1 } from "@/lib/landing-page/copy/schemas";
 
@@ -99,7 +102,12 @@ export async function generateLandingPageCopySuggestions(
     variantCount?: number;
   },
   provider: LandingPageCopyProvider,
-  options?: { log?: (event: CopyAssistOperationalEvent) => void; timeoutMs?: number },
+  options?: {
+    log?: (event: CopyAssistOperationalEvent) => void;
+    timeoutMs?: number;
+    recordProviderCall?: AiLedgerWriter;
+    onLedgerFailure?: (notice: { requestId: string; attempt: number }) => void;
+  },
 ): Promise<LandingPageResult<CopySuggestionResponseV1>> {
   if (input.variantCount !== undefined && (input.variantCount < 1 || input.variantCount > COPY_VARIANT_MAX)) return fail("INVALID_INPUT");
   const record = await store.findByIdForUser(input.landingPageProjectId, input.userId);
@@ -126,6 +134,46 @@ export async function generateLandingPageCopySuggestions(
 
   const requestId = crypto.randomUUID();
   const variantCount = input.variantCount ?? COPY_VARIANT_MAX;
+  const allocateAttempt = sequence();
+  const persistCall = async (observation: CopyProviderCallObservation) => {
+    const priced = estimateAiProviderCost(observation.modelId, observation.usage);
+    const draft: AiProviderCallDraft = {
+      requestId,
+      attempt: observation.attempt,
+      featureKey: LANDING_PAGE_COPY_FEATURE_KEY,
+      providerId: provider.id,
+      modelId: observation.modelId,
+      providerResponseId: observation.providerResponseId ?? null,
+      promptVersion: LANDING_PAGE_COPY_PROMPT_V1,
+      operationType: observation.operationType,
+      sectionType: built.context.sectionType,
+      userId: input.userId,
+      projectId: record.projectId,
+      courseId: record.courseId,
+      landingPageProjectId: input.landingPageProjectId,
+      status: observation.status,
+      errorCode: observation.errorCode ?? null,
+      inputTokens: observation.usage?.inputTokens ?? null,
+      cachedInputTokens: observation.usage?.cachedInputTokens ?? null,
+      cacheWriteTokens: observation.usage?.cacheWriteTokens ?? null,
+      cacheWrite30mTokens: observation.usage?.cacheWrite30mTokens ?? null,
+      cacheWrite12hTokens: observation.usage?.cacheWrite12hTokens ?? null,
+      outputTokens: observation.usage?.outputTokens ?? null,
+      reasoningTokens: observation.usage?.reasoningTokens ?? null,
+      totalTokens: observation.usage?.totalTokens ?? null,
+      estimatedCostUsdMicros: priced.estimatedCostUsdMicros,
+      pricingVersion: priced.pricingVersion,
+      latencyMs: observation.latencyMs,
+    };
+    const writer = options?.recordProviderCall ?? (process.env.UNIT_TEST_ISOLATION === "1" ? null : recordAiProviderCall);
+    if (!writer) return;
+    try {
+      const written = await writer(draft);
+      if (written === "failed") options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
+    } catch {
+      options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
+    }
+  };
   const logEvent = (status: CopyAssistOperationalEvent["status"], errorCode?: string, usage?: CopyProviderUsage) => {
     const inputTokens = usage?.inputTokens;
     const outputTokens = usage?.outputTokens;
@@ -150,6 +198,9 @@ export async function generateLandingPageCopySuggestions(
       repair,
       signal,
       variantCount,
+      requestId,
+      allocateAttempt,
+      onProviderCall: persistCall,
     });
   let providerResult: CopyProviderResult;
   try {
@@ -182,6 +233,11 @@ export async function generateLandingPageCopySuggestions(
   }
   logEvent("ok", undefined, usage);
   return ok(accepted);
+}
+
+function sequence(): () => number {
+  let attempt = 1;
+  return () => attempt++;
 }
 
 function labelOnly<T extends { type: string; label?: string }>(existing: T, label?: string): T {

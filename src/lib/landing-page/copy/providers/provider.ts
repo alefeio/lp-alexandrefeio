@@ -11,6 +11,23 @@ export type CopyProviderFailure = Extract<
 export type CopyProviderUsage = {
   inputTokens?: number;
   outputTokens?: number;
+  cachedInputTokens?: number;
+  cacheWriteTokens?: number;
+  cacheWrite30mTokens?: number;
+  cacheWrite12hTokens?: number;
+  reasoningTokens?: number;
+  totalTokens?: number;
+};
+
+export type CopyProviderCallObservation = {
+  attempt: number;
+  operationType: "generate" | "repair";
+  status: "responded" | "failed";
+  errorCode?: string;
+  usage?: CopyProviderUsage;
+  providerResponseId?: string;
+  modelId: string;
+  latencyMs: number;
 };
 
 export type CopyProviderResult =
@@ -26,6 +43,9 @@ export type LandingPageCopyProvider = {
     repair: boolean;
     signal?: AbortSignal;
     variantCount?: number;
+    requestId?: string;
+    allocateAttempt?: () => number;
+    onProviderCall?: (observation: CopyProviderCallObservation) => Promise<void>;
   }): Promise<CopyProviderResult>;
 };
 

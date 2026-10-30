@@ -3,7 +3,7 @@ import type { ResponseCreateParamsNonStreaming } from "openai/resources/response
 import { COPY_CLAIM_POLICY, LANDING_PAGE_COPY_PROMPT_V1 } from "@/lib/landing-page/copy/constants";
 import { copyMaxOutputTokens, COPY_LIVE_PROVIDER_TIMEOUT_MS, readOpenAICopyApiKey, resolveCopyModel } from "@/lib/landing-page/copy/config";
 import type { LandingPageCopyContextV1 } from "@/lib/landing-page/copy/context";
-import type { CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
+import type { CopyProviderCallObservation, CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
 import { COPY_RESPONSE_SCHEMA_NAME, COPY_RESPONSE_VARIANT_CAP, copyResponseJsonSchema } from "@/lib/landing-page/copy/providers/openai-schema";
 
 export type CopyResponsesClient = {
@@ -116,14 +116,43 @@ function stripNulls(value: unknown): unknown {
   return next;
 }
 
+function readCount(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) return undefined;
+  return value;
+}
+
 function readUsage(response: unknown): CopyProviderUsage | undefined {
   if (!response || typeof response !== "object" || !("usage" in response)) return undefined;
-  const usage = (response as { usage?: { input_tokens?: unknown; output_tokens?: unknown } }).usage;
+  const usage = (response as { usage?: Record<string, unknown> }).usage;
   if (!usage) return undefined;
-  const inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : undefined;
-  const outputTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : undefined;
-  if (inputTokens === undefined && outputTokens === undefined) return undefined;
-  return { inputTokens, outputTokens };
+  const inputDetails = usage.input_tokens_details;
+  const outputDetails = usage.output_tokens_details;
+  const inputRecord = inputDetails && typeof inputDetails === "object" ? (inputDetails as Record<string, unknown>) : undefined;
+  const outputRecord = outputDetails && typeof outputDetails === "object" ? (outputDetails as Record<string, unknown>) : undefined;
+  const parsed: CopyProviderUsage = {
+    inputTokens: readCount(usage.input_tokens),
+    outputTokens: readCount(usage.output_tokens),
+    cachedInputTokens: readCount(inputRecord?.cached_tokens),
+    cacheWriteTokens: readCount(inputRecord?.cache_write_tokens),
+    cacheWrite30mTokens: readCount(inputRecord?.cache_write_30m_tokens),
+    cacheWrite12hTokens: readCount(inputRecord?.cache_write_12h_tokens),
+    reasoningTokens: readCount(outputRecord?.reasoning_tokens),
+    totalTokens: readCount(usage.total_tokens),
+  };
+  if (Object.values(parsed).every((value) => value === undefined)) return undefined;
+  return Object.fromEntries(Object.entries(parsed).filter((entry) => entry[1] !== undefined)) as CopyProviderUsage;
+}
+
+function readResponseId(response: unknown): string | undefined {
+  if (!response || typeof response !== "object" || !("id" in response)) return undefined;
+  const id = (response as { id?: unknown }).id;
+  return typeof id === "string" && id.trim() ? id : undefined;
+}
+
+function readResponseModel(response: unknown, fallback: string): string {
+  if (!response || typeof response !== "object" || !("model" in response)) return fallback;
+  const model = (response as { model?: unknown }).model;
+  return typeof model === "string" && model.trim() ? model.trim() : fallback;
 }
 
 function refused(response: unknown): boolean {
@@ -171,6 +200,23 @@ function interpret(response: unknown): CopyProviderResult {
   }
 }
 
+function sequence(): () => number {
+  let attempt = 1;
+  return () => attempt++;
+}
+
+async function notify(
+  onProviderCall: ((observation: CopyProviderCallObservation) => Promise<void>) | undefined,
+  observation: CopyProviderCallObservation,
+) {
+  if (!onProviderCall) return;
+  try {
+    await onProviderCall(observation);
+  } catch {
+    // A falha do ledger não pode descartar a resposta já recebida do provedor.
+  }
+}
+
 export function createOpenAILandingPageCopyProvider(options?: {
   client?: CopyResponsesClient;
   apiKey?: string | null;
@@ -191,13 +237,41 @@ export function createOpenAILandingPageCopyProvider(options?: {
         repair: input.repair,
         variantCount: input.variantCount ?? COPY_RESPONSE_VARIANT_CAP,
       });
-      const call = () => client.responses.create(body, { signal: input.signal });
+      const allocateAttempt = input.allocateAttempt ?? sequence();
+      const operationType = input.repair ? "repair" : "generate";
+      const executeProviderCall = async () => {
+        const attempt = allocateAttempt();
+        const started = Date.now();
+        try {
+          const response = await client.responses.create(body, { signal: input.signal });
+          await notify(input.onProviderCall, {
+            attempt,
+            operationType,
+            status: "responded",
+            usage: readUsage(response),
+            providerResponseId: readResponseId(response),
+            modelId: readResponseModel(response, model),
+            latencyMs: Date.now() - started,
+          });
+          return response;
+        } catch (error) {
+          await notify(input.onProviderCall, {
+            attempt,
+            operationType,
+            status: "failed",
+            errorCode: mapError(error),
+            modelId: model,
+            latencyMs: Date.now() - started,
+          });
+          throw error;
+        }
+      };
       try {
-        return interpret(await call());
+        return interpret(await executeProviderCall());
       } catch (error) {
         if (!transient(error) || input.signal?.aborted) return { ok: false, code: mapError(error) };
         try {
-          return interpret(await call());
+          return interpret(await executeProviderCall());
         } catch (again) {
           return { ok: false, code: mapError(again) };
         }
