@@ -73,7 +73,7 @@ test("TOOL só vincula diagnóstico concluído do próprio aluno", async () => {
   const { assertMigrationTargetAllowed } = await import("../../src/lib/db/urls");
   assertMigrationTargetAllowed();
   const { getPrisma } = await import("../../src/lib/db/prisma");
-  const { completeDiagnosticForUser, resumeDiagnosticForUser, saveDiagnosticProgress } = await import("../../src/lib/diagnostic/service");
+  const { completeDiagnosticForUser, startDiagnosticForUser, saveDiagnosticProgress } = await import("../../src/lib/diagnostic/service");
   const { linkTrafficReadiness, loadTrafficToolPanel } = await import("../../src/lib/learning/tool");
   const { loadRuleBlocks, loadSnapshot } = await import("../../src/lib/learning/state");
   const prisma = getPrisma();
@@ -97,8 +97,10 @@ test("TOOL só vincula diagnóstico concluído do próprio aluno", async () => {
     assert.equal(anonymous.projects.length, 0);
   }
 
-  const progress = await resumeDiagnosticForUser(owner.id, clinic.id);
-  assert.ok(progress);
+  const progressStart = await startDiagnosticForUser(owner.id, clinic.id);
+  assert.equal(progressStart.ok, true);
+  if (!progressStart.ok) return;
+  const progress = progressStart.diagnostic;
   const rejected = await linkTrafficReadiness({
     userId: owner.id,
     slug: LESSON_03_SLUG,
@@ -112,8 +114,10 @@ test("TOOL só vincula diagnóstico concluído do próprio aluno", async () => {
   await saveDiagnosticProgress(owner.id, clinic.id, progress.id, full, 15);
   const completed = await completeDiagnosticForUser(owner.id, clinic.id, progress.id);
   assert.equal(completed.ok, true);
-  const foreignDiagnostic = await resumeDiagnosticForUser(other.id, foreign.id);
-  assert.ok(foreignDiagnostic);
+  const foreignStart = await startDiagnosticForUser(other.id, foreign.id);
+  assert.equal(foreignStart.ok, true);
+  if (!foreignStart.ok) return;
+  const foreignDiagnostic = foreignStart.diagnostic;
   await saveDiagnosticProgress(other.id, foreign.id, foreignDiagnostic.id, full, 15);
   await completeDiagnosticForUser(other.id, foreign.id, foreignDiagnostic.id);
   const stolen = await linkTrafficReadiness({
@@ -161,8 +165,11 @@ test("TOOL só vincula diagnóstico concluído do próprio aluno", async () => {
     assert.equal(panel.linked?.overallScore, (await prisma.diagnostic.findUniqueOrThrow({ where: { id: progress.id }, select: { overallScore: true } })).overallScore);
     assert.match(panel.linked?.channelExplanation ?? "", /Google Ads|inicial/i);
   }
-  const fresh = await resumeDiagnosticForUser(owner.id, clinic.id);
-  assert.ok(fresh);
+  const freshStart = await startDiagnosticForUser(owner.id, clinic.id);
+  assert.equal(freshStart.ok, true);
+  if (!freshStart.ok) return;
+  const fresh = freshStart.diagnostic;
+  assert.equal(freshStart.created, true);
   assert.notEqual(fresh.id, progress.id);
   assert.equal(fresh.status, "IN_PROGRESS");
 

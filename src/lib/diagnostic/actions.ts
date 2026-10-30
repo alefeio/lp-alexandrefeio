@@ -1,8 +1,20 @@
 "use server";
 
+import { redirect } from "next/navigation";
+import { safeReturnPath } from "@/lib/auth/messages";
 import { requireSession } from "@/lib/auth/session";
-import { completeDiagnosticForUser, saveDiagnosticProgress } from "@/lib/diagnostic/service";
+import { completeDiagnosticForUser, saveDiagnosticProgress, startDiagnosticForUser } from "@/lib/diagnostic/service";
 import { linkTrafficReadinessFromReturn } from "@/lib/learning/tool";
+
+export async function startDiagnosticAction(formData: FormData) {
+  const session = await requireSession();
+  const projectId = String(formData.get("projectId") ?? "");
+  const returnTo = safeReturnPath(String(formData.get("returnTo") ?? ""));
+  const result = await startDiagnosticForUser(session.user.id, projectId);
+  if (!result.ok) redirect("/app/diagnosticos");
+  const destination = `/app/projetos/${result.diagnostic.projectId}/diagnostico`;
+  redirect(returnTo ? `${destination}?returnTo=${encodeURIComponent(returnTo)}` : destination);
+}
 
 export async function saveDiagnosticAction(projectId: string, diagnosticId: string, answers: unknown, step: number) {
   const session = await requireSession();

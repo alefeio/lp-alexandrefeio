@@ -28,7 +28,7 @@ test("projeto, diagnóstico e resultado por negócio ficam isolados no banco de 
   assertMigrationTargetAllowed();
   const { getPrisma } = await import("../../src/lib/db/prisma");
   const { createProjectForUser, updateProjectForUser, archiveProjectForUser, getProjectForUser, listProjectsForUser } = await import("../../src/lib/project/service");
-  const { resumeDiagnosticForUser, saveDiagnosticProgress, completeDiagnosticForUser, getDiagnosticForUser } = await import("../../src/lib/diagnostic/service");
+  const { findInProgressDiagnosticForUser, startDiagnosticForUser, saveDiagnosticProgress, completeDiagnosticForUser, getDiagnosticForUser } = await import("../../src/lib/diagnostic/service");
   const prisma = getPrisma();
   const stamp = Date.now();
   const userA = `proj-a-${stamp}`;
@@ -71,13 +71,15 @@ test("projeto, diagnóstico e resultado por negócio ficam isolados no banco de 
     assert.equal(edited.ok, true);
     if (edited.ok) assert.equal(edited.project.monthlyMediaBudgetCents, 60000);
 
-    const started = await resumeDiagnosticForUser(userA, projectId);
-    assert.ok(started);
-    if (!started) return;
-    assert.equal(await resumeDiagnosticForUser(userB, projectId), null);
+    const startedResult = await startDiagnosticForUser(userA, projectId);
+    assert.equal(startedResult.ok, true);
+    if (!startedResult.ok) return;
+    const started = startedResult.diagnostic;
+    assert.equal(await findInProgressDiagnosticForUser(userB, projectId), null);
+    assert.equal((await startDiagnosticForUser(userB, projectId)).ok, false);
     const saved = await saveDiagnosticProgress(userA, projectId, started.id, { q1: "leads" }, 1);
     assert.equal(saved.ok, true);
-    const resumed = await resumeDiagnosticForUser(userA, projectId);
+    const resumed = await findInProgressDiagnosticForUser(userA, projectId);
     assert.equal(resumed?.id, started.id);
     assert.equal((resumed?.answers as { q1?: string }).q1, "leads");
 
@@ -90,8 +92,11 @@ test("projeto, diagnóstico e resultado por negócio ficam isolados no banco de 
     assert.equal(first?.overallScore, 100);
     assert.equal(await getDiagnosticForUser(userB, projectId, started.id), null);
 
-    const second = await resumeDiagnosticForUser(userA, projectId);
-    assert.ok(second);
+    const secondResult = await startDiagnosticForUser(userA, projectId);
+    assert.equal(secondResult.ok, true);
+    if (!secondResult.ok) return;
+    const second = secondResult.diagnostic;
+    assert.equal(secondResult.created, true);
     assert.notEqual(second?.id, started.id);
     await saveDiagnosticProgress(userA, projectId, second!.id, { ...full, q1: "unknown", q2: "no" }, 15);
     await completeDiagnosticForUser(userA, projectId, second!.id);
@@ -115,7 +120,8 @@ test("projeto, diagnóstico e resultado por negócio ficam isolados no banco de 
     const archived = await archiveProjectForUser(userA, projectId);
     assert.equal(archived.ok, true);
     if (archived.ok) assert.equal(archived.project.status, "ARCHIVED");
-    assert.equal(await resumeDiagnosticForUser(userA, projectId), null);
+    assert.equal(await findInProgressDiagnosticForUser(userA, projectId), null);
+    assert.equal((await startDiagnosticForUser(userA, projectId)).ok, false);
   } finally {
     await prisma.course.delete({ where: { id: courseId } });
     await prisma.user.deleteMany({ where: { id: { in: [userA, userB] } } });

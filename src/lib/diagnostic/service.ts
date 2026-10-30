@@ -1,5 +1,6 @@
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { getPrisma } from "@/lib/db/prisma";
+import { planDiagnosticStart, withSerializableRetry } from "@/lib/diagnostic/center";
 import { DIAGNOSTIC_VERSION, QUESTIONS } from "@/lib/diagnostic/definition";
 import { answersComplete, parseAnswers, resultSnapshotSchema, scoreDiagnostic, type DiagnosticAnswers } from "@/lib/diagnostic/score";
 import { ownedProject } from "@/lib/project/service";
@@ -12,6 +13,7 @@ export async function getDiagnosticForUser(userId: string, projectId: string, di
   return getPrisma().diagnostic.findFirst({
     where: { id: diagnosticId, userId, projectId },
     include: {
+      project: { select: { id: true, name: true } },
       recommendations: {
         orderBy: { createdAt: "asc" },
         include: {
@@ -23,24 +25,84 @@ export async function getDiagnosticForUser(userId: string, projectId: string, di
   });
 }
 
-export async function resumeDiagnosticForUser(userId: string, projectId: string) {
-  const project = await getPrisma().project.findFirst({ where: { ...ownedProject(userId, projectId), status: "ACTIVE" } });
+/** Leitura. Não cria nem atualiza. */
+export async function findInProgressDiagnosticForUser(userId: string, projectId: string) {
+  const project = await getPrisma().project.findFirst({ where: ownedProject(userId, projectId), select: { id: true } });
   if (!project) return null;
-  const existing = await getPrisma().diagnostic.findFirst({
-    where: { projectId: project.id, userId, status: "IN_PROGRESS" },
+  return getPrisma().diagnostic.findFirst({
+    where: { projectId: project.id, userId, status: "IN_PROGRESS", version: DIAGNOSTIC_VERSION },
     orderBy: { updatedAt: "desc" },
   });
-  if (existing) return existing;
-  return getPrisma().diagnostic.create({
-    data: {
-      projectId: project.id,
-      userId,
-      version: DIAGNOSTIC_VERSION,
-      status: "IN_PROGRESS",
-      answers: {},
-      currentStep: 0,
-    },
+}
+
+export async function listDiagnosticsForUser(userId: string) {
+  return getPrisma().diagnostic.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    include: { project: { select: { id: true, name: true, status: true } } },
   });
+}
+
+export async function listActiveProjectsForDiagnostics(userId: string) {
+  const prisma = getPrisma();
+  const [projects, open] = await Promise.all([
+    prisma.project.findMany({
+      where: { userId, status: "ACTIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, status: true },
+    }),
+    prisma.diagnostic.findMany({
+      where: { userId, status: "IN_PROGRESS", version: DIAGNOSTIC_VERSION },
+      select: { id: true, projectId: true },
+    }),
+  ]);
+  return { projects, open };
+}
+
+/** Criação explícita. Reutiliza o IN_PROGRESS da versão atual e não grava em projeto inativo. */
+export async function startDiagnosticForUser(userId: string, projectId: string) {
+  const prisma = getPrisma();
+  return withSerializableRetry(() =>
+    prisma.$transaction(
+      async (tx) => {
+        const project = await tx.project.findFirst({
+          where: ownedProject(userId, projectId),
+          select: { id: true, userId: true, status: true },
+        });
+        const existing = project
+          ? await tx.diagnostic.findFirst({
+              where: { projectId: project.id, userId, status: "IN_PROGRESS", version: DIAGNOSTIC_VERSION },
+              orderBy: { updatedAt: "desc" },
+            })
+          : null;
+        const decision = planDiagnosticStart({
+          actorId: userId,
+          project,
+          inProgressId: existing?.id ?? null,
+        });
+        if (decision.action === "not_found" || decision.action === "inactive") {
+          return { ok: false as const, reason: decision.action };
+        }
+        if (decision.action === "reuse") {
+          const diagnostic = existing ?? (await tx.diagnostic.findFirst({ where: { id: decision.diagnosticId, userId, projectId } }));
+          if (!diagnostic) return { ok: false as const, reason: "not_found" as const };
+          return { ok: true as const, created: false, diagnostic };
+        }
+        const diagnostic = await tx.diagnostic.create({
+          data: {
+            projectId,
+            userId,
+            version: DIAGNOSTIC_VERSION,
+            status: "IN_PROGRESS",
+            answers: {},
+            currentStep: 0,
+          },
+        });
+        return { ok: true as const, created: true, diagnostic };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
 }
 
 export async function saveDiagnosticProgress(userId: string, projectId: string, diagnosticId: string, rawAnswers: unknown, step: number) {
