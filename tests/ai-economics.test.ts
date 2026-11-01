@@ -59,9 +59,17 @@ function keysOf(value: unknown, found = new Set<string>()): Set<string> {
 }
 
 test("formata USD a partir de micros inteiros", () => {
+  assert.equal(formatUsdMicros(null), "—");
+  assert.equal(formatUsdMicros(0), "US$ 0,00");
   assert.equal(formatUsdMicros(10_000), "US$ 0,01");
   assert.equal(formatUsdMicros(USD_MICROS_PER_DOLLAR), "US$ 1,00");
-  assert.equal(formatUsdMicros(null), "—");
+  const subcent = formatUsdMicros(350);
+  assert.notEqual(subcent, "US$ 0,00");
+  assert.match(subcent, /0,00035/);
+  const oneMicro = formatUsdMicros(1);
+  assert.notEqual(oneMicro, "US$ 0,00");
+  assert.equal(oneMicro, "US$ 0,000001");
+  assert.equal(formatUsdMicros(-350), "-US$ 0,00035");
   assert.equal(formatCoverage(null), "—");
   assert.equal(formatCoverage(0.934), "93,4% das provider calls registradas");
 });
@@ -290,6 +298,7 @@ test("painel lê o ledger, exige admin e não usa jornada como verdade de custo"
   assert.match(page, /loadAiEconomics/);
   assert.match(layout, /Jornada[\s\S]*href="\/admin\/ia"[\s\S]*Usuários/);
   assert.match(dashboard, /Custo médio por ação totalmente precificada/);
+  assert.match(dashboard, /Pedidos pagos criados no período/);
   assert.match(dashboard, /AI_ECONOMICS_EMPTY/);
   assert.equal(
     readFileSync(new URL("../src/lib/admin/ai-economics.ts", import.meta.url), "utf8").includes("Ainda não há chamadas de IA registradas neste período."),

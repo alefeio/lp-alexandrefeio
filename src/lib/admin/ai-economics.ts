@@ -90,11 +90,23 @@ export function featureLabel(featureKey: string): string {
 
 export function formatUsdMicros(micros: number | null): string {
   if (micros == null) return "—";
+  if (micros === 0) return "US$ 0,00";
   const negative = micros < 0;
-  const cents = Math.round(Math.abs(micros) / 10_000);
+  const absolute = Math.abs(micros);
+  const body = absolute >= 10_000 ? formatUsdFromCents(absolute) : formatUsdSubcent(absolute);
+  return `${negative ? "-" : ""}US$ ${body}`;
+}
+
+function formatUsdFromCents(absoluteMicros: number): string {
+  const cents = Math.round(absoluteMicros / 10_000);
   const whole = Math.floor(cents / 100);
   const fraction = String(cents % 100).padStart(2, "0");
-  return `${negative ? "-" : ""}US$ ${whole.toLocaleString("pt-BR")},${fraction}`;
+  return `${whole.toLocaleString("pt-BR")},${fraction}`;
+}
+
+function formatUsdSubcent(absoluteMicros: number): string {
+  const digits = String(Math.trunc(absoluteMicros)).padStart(6, "0").replace(/0+$/, "");
+  return `0,${digits}`;
 }
 
 export function formatCoverage(ratio: number | null): string {

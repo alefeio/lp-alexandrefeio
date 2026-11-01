@@ -189,7 +189,7 @@ export function AiEconomicsDashboard({ view }: { view: AiEconomicsView }) {
         <div className="grid gap-3 sm:grid-cols-3">
           <Card label="Receita operacional recebida no período" value={view.revenue.label} />
           <Card label="Pagamentos com receita reconhecida" value={String(view.revenue.recognizedPayments)} />
-          <Card label="Pedidos pagos" value={String(view.revenue.paidOrders)} />
+          <Card label="Pedidos pagos criados no período" value={String(view.revenue.paidOrders)} />
         </div>
         <p className="max-w-3xl text-sm leading-relaxed text-muted">{AI_ECONOMICS_CURRENCY_NOTE}</p>
       </section>
