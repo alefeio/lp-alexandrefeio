@@ -5,11 +5,15 @@ export function CourseArtifacts({
   featured,
   artifacts,
   note,
+  collapseRest = false,
 }: {
   featured: FeaturedArtifact[];
   artifacts: string[];
   note: string | null;
+  collapseRest?: boolean;
 }) {
+  const featuredTitles = new Set(featured.map((artifact) => artifact.title));
+  const rest = artifacts.filter((artifact) => !featuredTitles.has(artifact));
   return (
     <section className="overflow-x-clip border-t border-border py-16">
       <Container>
@@ -23,9 +27,20 @@ export function CourseArtifacts({
             </li>
           ))}
         </ul>
-        <p className="mt-6 text-sm leading-relaxed text-muted">
-          Ao longo da formação também ficam: {artifacts.join(" · ")}.
-        </p>
+        {collapseRest ? (
+          <details className="mt-6">
+            <summary className="cursor-pointer text-sm font-medium underline underline-offset-4">Ver todas as entregas da formação</summary>
+            <ul className="mt-4 space-y-2 text-sm leading-relaxed text-muted">
+              {rest.map((artifact) => (
+                <li key={artifact}>{artifact}</li>
+              ))}
+            </ul>
+          </details>
+        ) : (
+          <p className="mt-6 text-sm leading-relaxed text-muted">
+            Ao longo da formação também ficam: {artifacts.join(" · ")}.
+          </p>
+        )}
         {note ? <p className="mt-3 text-sm leading-relaxed text-muted">{note}</p> : null}
       </Container>
     </section>

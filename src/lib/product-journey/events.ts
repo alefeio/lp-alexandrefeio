@@ -1,6 +1,7 @@
 /**
  * Decisões e progressão da jornada. Visualização genérica fica só no GA4.
- * JourneyEvent não é a verdade de Order, Payment, LessonProgress, Diagnostic, Entitlement nem LandingPageProject.
+ * JourneyEvent não é a verdade de Order, Payment, LessonProgress, Diagnostic, Entitlement, User nem LandingPageProject.
+ * sign_up aqui é a cópia analítica do cadastro concluído. Better Auth continua sendo a autoridade da conta.
  * A ausência de purchase_completed aqui não significa que a compra não existiu.
  * anonymousId identifica o navegador ou perfil, não uma pessoa, e não equivale a userId.
  */
@@ -18,6 +19,7 @@ export const STRATEGIC_JOURNEY_EVENTS = [
   "checkout_started",
   "purchase_completed",
   "service_interest",
+  "sign_up",
 ] as const;
 
 export type StrategicJourneyEvent = (typeof STRATEGIC_JOURNEY_EVENTS)[number];

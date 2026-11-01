@@ -77,7 +77,11 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
         title={copy.heroTitle}
         support={copy.heroSupport}
         primaryCta={copy.primaryCta}
+        primaryCtaName={copy.primaryCtaName}
         secondaryCta={copy.secondaryCta}
+        secondaryHref={copy.secondaryHref}
+        secondaryCtaName={copy.secondaryCtaName}
+        riskNote={copy.heroRiskNote}
         primaryHref={firstFree ? `/aulas/${firstFree.slug}` : "#aulas-gratuitas"}
         ownsAllPaid={ownsAllPaid}
         priceLabel={formatHeroPrice(course.bundlePriceCents, courseOpen && !hidePrices)}
@@ -85,7 +89,24 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
       {experience ? (
         <CourseOutcome headline={experience.outcomeHeadline} transformation={experience.transformation} steps={experience.outcomeSteps} />
       ) : null}
-      {experience ? <CourseArtifacts featured={experience.featuredArtifacts} artifacts={experience.artifacts} note={artifactNote} /> : null}
+      {course.slug === TRAFFIC_COURSE_SLUG ? (
+        <CourseFreeLessons
+          courseSlug={course.slug}
+          title={copy.freeSectionTitle}
+          intro={copy.freeSectionIntro}
+          lessons={freeLessons}
+          experiences={lessonsBySlug}
+          ownedLessonIds={ownedLessonIds}
+        />
+      ) : null}
+      {experience ? (
+        <CourseArtifacts
+          featured={experience.featuredArtifacts}
+          artifacts={experience.artifacts}
+          note={artifactNote}
+          collapseRest={course.slug === TRAFFIC_COURSE_SLUG}
+        />
+      ) : null}
       <CourseCurriculum
         courseSlug={course.slug}
         modules={course.modules}
@@ -94,7 +115,7 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
         ownedLessonIds={ownedLessonIds}
         hidePrices={hidePrices}
       />
-      {experience ? (
+      {course.slug === TRAFFIC_COURSE_SLUG ? null : experience ? (
         <ComplementaryCourse
           sourceSlug={course.slug}
           targetSlug={experience.complementary.slug}
@@ -104,13 +125,16 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
           cta={experience.complementary.cta}
         />
       ) : null}
-      <CourseFreeLessons
-        courseSlug={course.slug}
-        title={copy.freeSectionTitle}
-        lessons={freeLessons}
-        experiences={lessonsBySlug}
-        ownedLessonIds={ownedLessonIds}
-      />
+      {course.slug === TRAFFIC_COURSE_SLUG ? null : (
+        <CourseFreeLessons
+          courseSlug={course.slug}
+          title={copy.freeSectionTitle}
+          intro={copy.freeSectionIntro}
+          lessons={freeLessons}
+          experiences={lessonsBySlug}
+          ownedLessonIds={ownedLessonIds}
+        />
+      )}
       <CoursePurchasePanel
         courseId={course.id}
         courseSlug={course.slug}
@@ -161,6 +185,16 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
           </div>
         </Container>
       </section>
+      {course.slug === TRAFFIC_COURSE_SLUG && experience ? (
+        <ComplementaryCourse
+          sourceSlug={course.slug}
+          targetSlug={experience.complementary.slug}
+          targetTitle={COURSE_TITLES[experience.complementary.slug] ?? experience.complementary.cta}
+          headline={experience.complementary.headline}
+          body={experience.complementary.body}
+          cta={experience.complementary.cta}
+        />
+      ) : null}
       <section className="border-t border-border py-16">
         <Container className="max-w-3xl">
           <h2 className="text-2xl font-semibold tracking-tight">{copy.serviceTitle}</h2>

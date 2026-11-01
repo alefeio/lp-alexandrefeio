@@ -631,6 +631,7 @@ test("modelo, migration e privacidade não guardam IP, agente nem metadata livre
     checkout_started: "src/components/commerce/CheckoutScreen.tsx",
     purchase_completed: "src/components/commerce/PurchaseBeacon.tsx",
     service_interest: "src/components/ui/ContactLink.tsx",
+    sign_up: "src/components/auth/AuthForms.tsx",
   } as const;
   for (const [event, file] of Object.entries(emitted)) {
     assert.equal(readFileSync(file, "utf8").includes(event), true, event);
