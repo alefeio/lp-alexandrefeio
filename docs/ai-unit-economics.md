@@ -47,3 +47,11 @@ A observação de cada `responses.create()` fica em memória durante a chamada a
 ## Novo modelo
 
 Adicione a tabela de preços em `src/lib/ai/pricing.ts` com uma nova `pricingVersion`. Não reaproveite a versão anterior. Modelos ausentes continuam funcionando e ficam `unpriced`.
+
+## Painel `/admin/ia`
+
+O painel administrativo lê somente `AiProviderCall` para consumo e custo, e `Payment`/`Order` para o contexto de receita. `JourneyEvent` não entra em custo, volume, cobertura nem receita.
+
+Uma ação de IA é um `requestId` distinto. Uma provider call é uma linha do ledger. Chamadas adicionais são `max(0, provider calls − ações)`. Repair é `operationType = repair`. `attempt > 1` não é exibido como retry.
+
+`estimatedCostUsdMicros` nulo é `unpriced`: custo não calculado, não US$ 0. O custo conhecido soma apenas os micros já gravados no ledger e não reprecifica o histórico. Uma ação só entra no custo médio quando todas as suas provider calls têm custo. Custo fica em USD e receita operacional em BRL, sem câmbio e sem margem entre as duas moedas. O painel mostra só agregados e não expõe usuário, prompt nem resposta.
