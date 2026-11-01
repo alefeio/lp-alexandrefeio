@@ -28,6 +28,7 @@ test("inventário leva publicados, rascunhos, pautas e descartes sem id interno"
   assert.equal(inventory.dismissed.length, 1);
   assert.equal(JSON.stringify(inventory).includes("cuid-secret"), false);
   const request = buildEditorialRequest({ action: "coverage", model: "test-model", inventory });
+  assert.equal(request.service_tier, "default");
   assert.equal(request.store, false);
   assert.equal(requestUsesWebSearch(request), false);
   const raw = JSON.stringify(request.input);
@@ -96,6 +97,7 @@ test("falha da OpenAI não derruba o CMS e a chave fica no servidor", async () =
   const failed = await runEditorialAction({
     action: "titles",
     inventory,
+    userId: "admin-1",
     client: { responses: { create: async () => { throw new Error("down"); } } },
   });
   assert.deepEqual(failed, { ok: false, message: BLOG_AI_FAILURE });
@@ -138,6 +140,7 @@ async function awaitFailure() {
   const failed = await runEditorialAction({
     action: "next",
     inventory,
+    userId: "admin-1",
     client: { responses: { create: async () => ({ output_text: "não é json" }) } },
   });
   assert.equal(failed.ok, false);

@@ -77,7 +77,7 @@ export async function editorialAction(action: BlogAiAction, focus: Record<string
   const allowed = action === "trends" ? await consumeBlogTrendRateLimit(session.user.id) : await consumeBlogAiRateLimit(session.user.id);
   if (!allowed) return { ok: false as const, message: "Muitas solicitações em pouco tempo. Tente de novo mais tarde." };
   const inventory = await loadEditorialInventory();
-  const result = await runEditorialAction({ action, inventory, focus });
+  const result = await runEditorialAction({ action, inventory, focus, userId: session.user.id });
   if (!result.ok) return { ok: false as const, message: result.message || BLOG_AI_FAILURE };
   return result;
 }
