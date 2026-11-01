@@ -28,6 +28,7 @@ export type CopyProviderCallObservation = {
   providerResponseId?: string;
   modelId: string;
   serviceTier?: string;
+  webSearchCalls?: number;
   latencyMs: number;
 };
 

@@ -6,7 +6,7 @@ import type { LandingPageStore } from "@/lib/landing-page/types";
 import { COPY_PROVIDER_TIMEOUT_MS, COPY_VARIANT_MAX, LANDING_PAGE_COPY_PROMPT_V1, type CopyIntent, type CopyMissingFact } from "@/lib/landing-page/copy/constants";
 import { buildCopyContextForSection } from "@/lib/landing-page/copy/context";
 import { LANDING_PAGE_COPY_FEATURE_KEY } from "@/lib/ai/features";
-import { LEDGER_WRITE_TIMEOUT_MS, recordAiProviderCall, reportLedgerPersistFailure, settleLedgerWrite, type AiLedgerWriter, type AiProviderCallDraft } from "@/lib/ai/ledger";
+import { persistLedgerDraft, type AiLedgerWriter, type AiProviderCallDraft } from "@/lib/ai/ledger";
 import { estimateAiProviderCost } from "@/lib/ai/pricing";
 import { emitCopyAssistLog, type CopyAssistOperationalEvent } from "@/lib/landing-page/copy/log";
 import type { CopyProviderCallObservation, CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
@@ -142,11 +142,13 @@ export async function generateLandingPageCopySuggestions(
   };
   const flushLedger = async () => {
     const batch = observed.splice(0);
-    const writer = options?.recordProviderCall ?? (process.env.UNIT_TEST_ISOLATION === "1" ? null : recordAiProviderCall);
-    if (!writer || batch.length === 0) return;
-    const timeoutMs = options?.ledgerTimeoutMs ?? LEDGER_WRITE_TIMEOUT_MS;
     for (const observation of batch) {
-      const priced = estimateAiProviderCost(observation.modelId, observation.usage, observation.serviceTier);
+      const priced = estimateAiProviderCost(
+        observation.modelId,
+        observation.usage,
+        observation.serviceTier,
+        observation.webSearchCalls === undefined ? null : observation.webSearchCalls,
+      );
       const draft: AiProviderCallDraft = {
         requestId,
         attempt: observation.attempt,
@@ -172,17 +174,18 @@ export async function generateLandingPageCopySuggestions(
         outputTokens: observation.usage?.outputTokens ?? null,
         reasoningTokens: observation.usage?.reasoningTokens ?? null,
         totalTokens: observation.usage?.totalTokens ?? null,
+        webSearchCalls: observation.webSearchCalls ?? null,
+        estimatedModelCostUsdMicros: priced.estimatedModelCostUsdMicros,
+        estimatedToolCostUsdMicros: priced.estimatedToolCostUsdMicros,
         estimatedCostUsdMicros: priced.estimatedCostUsdMicros,
         pricingVersion: priced.pricingVersion,
         latencyMs: observation.latencyMs,
       };
-      try {
-        const written = await settleLedgerWrite(writer(draft), timeoutMs);
-        if (written === "failed") options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
-      } catch {
-        reportLedgerPersistFailure({ requestId, attempt: observation.attempt, featureKey: draft.featureKey });
-        options?.onLedgerFailure?.({ requestId, attempt: observation.attempt });
-      }
+      await persistLedgerDraft(draft, {
+        writer: options?.recordProviderCall,
+        timeoutMs: options?.ledgerTimeoutMs,
+        onFailure: options?.onLedgerFailure,
+      });
     }
   };
   const logEvent = (status: CopyAssistOperationalEvent["status"], errorCode?: string, usage?: CopyProviderUsage) => {

@@ -1050,6 +1050,9 @@ model AiProviderCall {
   outputTokens           Int?
   reasoningTokens        Int?
   totalTokens            Int?
+  webSearchCalls         Int?
+  estimatedModelCostUsdMicros Int?
+  estimatedToolCostUsdMicros  Int?
   estimatedCostUsdMicros Int?
   pricingVersion         String?
   latencyMs              Int?

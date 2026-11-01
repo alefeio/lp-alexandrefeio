@@ -1,9 +1,10 @@
 import OpenAI from "openai";
 import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
+import { countOpenAIWebSearchCalls, readOpenAIModel, readOpenAIResponseId, readOpenAIServiceTier, readOpenAIUsage } from "@/lib/ai/openai-usage";
 import { COPY_CLAIM_POLICY, LANDING_PAGE_COPY_PROMPT_V1 } from "@/lib/landing-page/copy/constants";
 import { copyMaxOutputTokens, COPY_LIVE_PROVIDER_TIMEOUT_MS, readOpenAICopyApiKey, resolveCopyModel } from "@/lib/landing-page/copy/config";
 import type { LandingPageCopyContextV1 } from "@/lib/landing-page/copy/context";
-import type { CopyProviderCallObservation, CopyProviderResult, CopyProviderUsage, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
+import type { CopyProviderCallObservation, CopyProviderResult, LandingPageCopyProvider } from "@/lib/landing-page/copy/providers/provider";
 import { COPY_RESPONSE_SCHEMA_NAME, COPY_RESPONSE_VARIANT_CAP, copyResponseJsonSchema } from "@/lib/landing-page/copy/providers/openai-schema";
 
 export type CopyResponsesClient = {
@@ -117,59 +118,6 @@ function stripNulls(value: unknown): unknown {
   return next;
 }
 
-function readCount(value: unknown): number | undefined {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) return undefined;
-  return value;
-}
-
-function readUsage(response: unknown): CopyProviderUsage | undefined {
-  if (!response || typeof response !== "object" || !("usage" in response)) return undefined;
-  const usage = (response as { usage?: Record<string, unknown> }).usage;
-  if (!usage) return undefined;
-  const inputDetails = usage.input_tokens_details;
-  const outputDetails = usage.output_tokens_details;
-  const inputRecord = inputDetails && typeof inputDetails === "object" ? (inputDetails as Record<string, unknown>) : undefined;
-  const outputRecord = outputDetails && typeof outputDetails === "object" ? (outputDetails as Record<string, unknown>) : undefined;
-  const parsed: CopyProviderUsage = {
-    inputTokens: readCount(usage.input_tokens),
-    outputTokens: readCount(usage.output_tokens),
-    cachedInputTokens: readCount(inputRecord?.cached_tokens),
-    cacheWriteTokens: readCount(inputRecord?.cache_write_tokens),
-    cacheWrite30mTokens: readCount(writeDetails(inputRecord)?.ttl_30m_tokens),
-    cacheWrite12hTokens: readCount(writeDetails(inputRecord)?.ttl_12h_tokens),
-    reasoningTokens: readCount(outputRecord?.reasoning_tokens),
-    totalTokens: readCount(usage.total_tokens),
-  };
-  if (Object.values(parsed).every((value) => value === undefined)) return undefined;
-  return Object.fromEntries(Object.entries(parsed).filter((entry) => entry[1] !== undefined)) as CopyProviderUsage;
-}
-
-function writeDetails(inputRecord: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
-  const details = inputRecord?.cache_write_tokens_details;
-  if (!details || typeof details !== "object") return undefined;
-  return details as Record<string, unknown>;
-}
-
-function readServiceTier(response: unknown): string | undefined {
-  if (!response || typeof response !== "object" || !("service_tier" in response)) return undefined;
-  const tier = (response as { service_tier?: unknown }).service_tier;
-  if (typeof tier !== "string") return undefined;
-  const trimmed = tier.trim();
-  return /^[a-z0-9_-]{1,32}$/i.test(trimmed) ? trimmed : undefined;
-}
-
-function readResponseId(response: unknown): string | undefined {
-  if (!response || typeof response !== "object" || !("id" in response)) return undefined;
-  const id = (response as { id?: unknown }).id;
-  return typeof id === "string" && id.trim() ? id : undefined;
-}
-
-function readResponseModel(response: unknown, fallback: string): string {
-  if (!response || typeof response !== "object" || !("model" in response)) return fallback;
-  const model = (response as { model?: unknown }).model;
-  return typeof model === "string" && model.trim() ? model.trim() : fallback;
-}
-
 function refused(response: unknown): boolean {
   if (!response || typeof response !== "object" || !("output" in response)) return false;
   const output = (response as { output?: unknown }).output;
@@ -204,7 +152,7 @@ function outputText(response: unknown): string | null {
 }
 
 function interpret(response: unknown): CopyProviderResult {
-  const usage = readUsage(response);
+  const usage = readOpenAIUsage(response);
   if (refused(response)) return { ok: false, code: "COPY_ASSIST_PROVIDER_ERROR" };
   const text = outputText(response);
   if (!text) return { ok: true, raw: null, usage };
@@ -263,10 +211,11 @@ export function createOpenAILandingPageCopyProvider(options?: {
             attempt,
             operationType,
             status: "responded",
-            usage: readUsage(response),
-            providerResponseId: readResponseId(response),
-            modelId: readResponseModel(response, model),
-            serviceTier: readServiceTier(response),
+            usage: readOpenAIUsage(response),
+            providerResponseId: readOpenAIResponseId(response),
+            modelId: readOpenAIModel(response, model),
+            serviceTier: readOpenAIServiceTier(response),
+            webSearchCalls: countOpenAIWebSearchCalls(response),
             latencyMs: Date.now() - started,
           });
           return response;

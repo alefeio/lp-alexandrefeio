@@ -1,8 +1,11 @@
 import OpenAI from "openai";
+import { persistLedgerDraft, type AiLedgerWriter, type AiProviderCallDraft } from "@/lib/ai/ledger";
+import { countOpenAIWebSearchCalls, readOpenAIModel, readOpenAIResponseId, readOpenAIServiceTier, readOpenAIUsage } from "@/lib/ai/openai-usage";
+import { estimateAiProviderCost } from "@/lib/ai/pricing";
+import { BLOG_AI_FEATURE_KEYS, buildEditorialRequest, parseEditorialOutput, type BlogAiAction } from "@/lib/blog/ai-request";
 import { BLOG_AI_FAILURE } from "@/lib/blog/catalog";
 import { acceptSuggestions, acceptTitles, acceptTrendItem, type EditorialSuggestion } from "@/lib/blog/editorial";
 import { demoteMarkdownH1 } from "@/lib/blog/rules";
-import { buildEditorialRequest, parseEditorialOutput, type BlogAiAction } from "@/lib/blog/ai-request";
 import type { EditorialInventory } from "@/lib/blog/inventory";
 import { readOpenAICopyApiKey, resolveCopyModel } from "@/lib/landing-page/copy/config";
 
@@ -22,18 +25,62 @@ export type BlogAiSuccess =
 export async function runEditorialAction(input: {
   action: BlogAiAction;
   inventory: EditorialInventory;
+  userId: string;
   focus?: Record<string, string>;
   client?: ResponsesClient;
   now?: Date;
+  requestId?: string;
+  attempt?: number;
+  recordProviderCall?: AiLedgerWriter;
+  ledgerTimeoutMs?: number;
+  onLedgerFailure?: (notice: { requestId: string; attempt: number }) => void;
 }): Promise<BlogAiSuccess | { ok: false; message: string }> {
   const now = input.now ?? new Date();
+  const requestId = input.requestId ?? crypto.randomUUID();
+  const attempt = input.attempt ?? 1;
+  const model = resolveCopyModel();
+  const record = (draft: AiProviderCallDraft) => persistLedgerDraft(draft, {
+    writer: input.recordProviderCall,
+    timeoutMs: input.ledgerTimeoutMs,
+    onFailure: input.onLedgerFailure,
+  });
   try {
     const apiKey = readOpenAICopyApiKey();
     if (!input.client && !apiKey) return { ok: false, message: BLOG_AI_FAILURE };
     const client = input.client ?? defaultClient(apiKey as string);
-    const body = buildEditorialRequest({ action: input.action, model: resolveCopyModel(), inventory: input.inventory, focus: input.focus });
+    const body = buildEditorialRequest({ action: input.action, model, inventory: input.inventory, focus: input.focus });
     const timeout = input.action === "trends" ? 70_000 : 45_000;
-    const response = await client.responses.create(body, { signal: AbortSignal.timeout(timeout) });
+    const started = Date.now();
+    let response: unknown;
+    try {
+      response = await client.responses.create(body, { signal: AbortSignal.timeout(timeout) });
+    } catch (error) {
+      await record(blogDraft({
+        requestId,
+        attempt,
+        action: input.action,
+        userId: input.userId,
+        modelId: model,
+        status: "failed",
+        errorCode: "PROVIDER_ERROR",
+        latencyMs: Date.now() - started,
+      }));
+      console.error("blog editorial assist failed", { action: input.action, name: error instanceof Error ? error.name : "Error" });
+      return { ok: false, message: BLOG_AI_FAILURE };
+    }
+    await record(blogDraft({
+      requestId,
+      attempt,
+      action: input.action,
+      userId: input.userId,
+      modelId: readOpenAIModel(response, model),
+      serviceTier: readOpenAIServiceTier(response) ?? null,
+      providerResponseId: readOpenAIResponseId(response) ?? null,
+      status: "responded",
+      usage: readOpenAIUsage(response),
+      webSearchCalls: countOpenAIWebSearchCalls(response),
+      latencyMs: Date.now() - started,
+    }));
     const parsed = parseEditorialOutput(response);
     if (!parsed.ok) return parsed;
     return shape(input.action, parsed.value, input.inventory, now);
@@ -41,6 +88,56 @@ export async function runEditorialAction(input: {
     console.error("blog editorial assist failed", { action: input.action, name: error instanceof Error ? error.name : "Error" });
     return { ok: false, message: BLOG_AI_FAILURE };
   }
+}
+
+function blogDraft(input: {
+  requestId: string;
+  attempt: number;
+  action: BlogAiAction;
+  userId: string;
+  modelId: string;
+  status: "responded" | "failed";
+  errorCode?: string;
+  serviceTier?: string | null;
+  providerResponseId?: string | null;
+  usage?: ReturnType<typeof readOpenAIUsage>;
+  webSearchCalls?: number | null;
+  latencyMs: number;
+}): AiProviderCallDraft {
+  const webSearchCalls = input.status === "responded" ? input.webSearchCalls ?? 0 : null;
+  const priced = estimateAiProviderCost(input.modelId, input.usage, input.serviceTier, webSearchCalls);
+  return {
+    requestId: input.requestId,
+    attempt: input.attempt,
+    featureKey: BLOG_AI_FEATURE_KEYS[input.action],
+    providerId: "openai",
+    modelId: input.modelId,
+    serviceTier: input.serviceTier ?? null,
+    providerResponseId: input.providerResponseId ?? null,
+    promptVersion: null,
+    operationType: input.action,
+    sectionType: null,
+    userId: input.userId,
+    projectId: null,
+    courseId: null,
+    landingPageProjectId: null,
+    status: input.status,
+    errorCode: input.errorCode ?? null,
+    inputTokens: input.usage?.inputTokens ?? null,
+    cachedInputTokens: input.usage?.cachedInputTokens ?? null,
+    cacheWriteTokens: input.usage?.cacheWriteTokens ?? null,
+    cacheWrite30mTokens: input.usage?.cacheWrite30mTokens ?? null,
+    cacheWrite12hTokens: input.usage?.cacheWrite12hTokens ?? null,
+    outputTokens: input.usage?.outputTokens ?? null,
+    reasoningTokens: input.usage?.reasoningTokens ?? null,
+    totalTokens: input.usage?.totalTokens ?? null,
+    webSearchCalls,
+    estimatedModelCostUsdMicros: priced.estimatedModelCostUsdMicros,
+    estimatedToolCostUsdMicros: priced.estimatedToolCostUsdMicros,
+    estimatedCostUsdMicros: priced.estimatedCostUsdMicros,
+    pricingVersion: priced.pricingVersion,
+    latencyMs: input.latencyMs,
+  };
 }
 
 function shape(action: BlogAiAction, value: unknown, inventory: EditorialInventory, now: Date): BlogAiSuccess | { ok: false; message: string } {

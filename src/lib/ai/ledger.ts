@@ -25,6 +25,9 @@ export const AI_PROVIDER_CALL_FIELDS = [
   "outputTokens",
   "reasoningTokens",
   "totalTokens",
+  "webSearchCalls",
+  "estimatedModelCostUsdMicros",
+  "estimatedToolCostUsdMicros",
   "estimatedCostUsdMicros",
   "pricingVersion",
   "latencyMs",
@@ -55,6 +58,9 @@ export type AiProviderCallDraft = {
   outputTokens: number | null;
   reasoningTokens: number | null;
   totalTokens: number | null;
+  webSearchCalls: number | null;
+  estimatedModelCostUsdMicros: number | null;
+  estimatedToolCostUsdMicros: number | null;
   estimatedCostUsdMicros: number | null;
   pricingVersion: string | null;
   latencyMs: number | null;
@@ -87,6 +93,27 @@ export function settleLedgerWrite(work: Promise<LedgerWriteResult>, timeoutMs = 
       },
     );
   });
+}
+
+export async function persistLedgerDraft(
+  draft: AiProviderCallDraft,
+  options?: {
+    writer?: AiLedgerWriter | null;
+    timeoutMs?: number;
+    onFailure?: (notice: { requestId: string; attempt: number }) => void;
+  },
+): Promise<void> {
+  const writer = options?.writer !== undefined
+    ? options.writer
+    : process.env.UNIT_TEST_ISOLATION === "1" ? null : recordAiProviderCall;
+  if (!writer) return;
+  try {
+    const written = await settleLedgerWrite(writer(draft), options?.timeoutMs ?? LEDGER_WRITE_TIMEOUT_MS);
+    if (written === "failed") options?.onFailure?.({ requestId: draft.requestId, attempt: draft.attempt });
+  } catch {
+    reportLedgerPersistFailure({ requestId: draft.requestId, attempt: draft.attempt, featureKey: draft.featureKey });
+    options?.onFailure?.({ requestId: draft.requestId, attempt: draft.attempt });
+  }
 }
 
 export type AiLedgerWriter = (record: AiProviderCallDraft) => Promise<LedgerWriteResult>;

@@ -5,6 +5,17 @@ import type { EditorialInventory } from "@/lib/blog/inventory";
 export const BLOG_AI_ACTIONS = ["coverage", "next", "trends", "titles", "outline", "draft", "review", "seo"] as const;
 export type BlogAiAction = (typeof BLOG_AI_ACTIONS)[number];
 
+export const BLOG_AI_FEATURE_KEYS: Record<BlogAiAction, string> = {
+  coverage: "blog_coverage",
+  next: "blog_next",
+  trends: "blog_trends",
+  titles: "blog_titles",
+  outline: "blog_outline",
+  draft: "blog_draft",
+  review: "blog_review",
+  seo: "blog_seo",
+};
+
 const INSTRUCTIONS = [
   "Você é o assistente de inteligência editorial do site Alexandre Feio.",
   "Você sugere. O administrador decide. Você não publica, não despublica e não altera artigo publicado.",
@@ -115,6 +126,7 @@ export function buildEditorialRequest(input: {
   const focus = input.focus ?? {};
   const body: ResponseCreateParamsNonStreaming = {
     model: input.model,
+    service_tier: "default",
     store: false,
     max_output_tokens: input.action === "draft" ? 2500 : input.action === "trends" ? 1800 : 1400,
     reasoning: { effort: "none" },

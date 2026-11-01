@@ -114,8 +114,18 @@ async function heroProject() {
   return { store, landingPageProjectId: updated.value.id };
 }
 
-function lunaCost(usage: AiTokenUsage | undefined, serviceTier: string | null = "default") {
-  return estimateAiProviderCost("gpt-6-luna", usage, serviceTier);
+function lunaCost(usage: AiTokenUsage | undefined, serviceTier: string | null = "default", webSearchCalls: number | null = 0) {
+  return estimateAiProviderCost("gpt-6-luna", usage, serviceTier, webSearchCalls);
+}
+
+function costQuote(model: number | null, tool: number | null = 0) {
+  const complete = model !== null && tool !== null;
+  return {
+    estimatedModelCostUsdMicros: model,
+    estimatedToolCostUsdMicros: tool,
+    estimatedCostUsdMicros: complete ? model + tool : null,
+    pricingVersion: complete ? AI_PRICING_VERSION : null,
+  };
 }
 
 function draft(patch: Partial<AiProviderCallDraft> = {}): AiProviderCallDraft {
@@ -144,6 +154,9 @@ function draft(patch: Partial<AiProviderCallDraft> = {}): AiProviderCallDraft {
     outputTokens: 4,
     reasoningTokens: null,
     totalTokens: null,
+    webSearchCalls: 0,
+    estimatedModelCostUsdMicros: 1,
+    estimatedToolCostUsdMicros: 0,
     estimatedCostUsdMicros: 1,
     pricingVersion: AI_PRICING_VERSION,
     latencyMs: 12,
@@ -152,32 +165,20 @@ function draft(patch: Partial<AiProviderCallDraft> = {}): AiProviderCallDraft {
 }
 
 test("o preço do Luna usa inteiros e não cobra reasoning de novo", () => {
-  assert.deepEqual(lunaCost( { inputTokens: 1_000_000, outputTokens: 0 }), {
-    estimatedCostUsdMicros: 200_000,
-    pricingVersion: AI_PRICING_VERSION,
-  });
-  assert.deepEqual(lunaCost( { inputTokens: 1_000_000, cachedInputTokens: 1_000_000, outputTokens: 0 }), {
-    estimatedCostUsdMicros: 20_000,
-    pricingVersion: AI_PRICING_VERSION,
-  });
+  assert.deepEqual(lunaCost( { inputTokens: 1_000_000, outputTokens: 0 }), costQuote(200_000));
+  assert.deepEqual(lunaCost( { inputTokens: 1_000_000, cachedInputTokens: 1_000_000, outputTokens: 0 }), costQuote(20_000));
   assert.deepEqual(lunaCost( {
     inputTokens: 1_000_000,
     cacheWriteTokens: 1_000_000,
     cacheWrite30mTokens: 1_000_000,
     outputTokens: 0,
-  }), {
-    estimatedCostUsdMicros: 250_000,
-    pricingVersion: AI_PRICING_VERSION,
-  });
+  }), costQuote(250_000));
   assert.deepEqual(lunaCost( {
     inputTokens: 1_000_000,
     cacheWriteTokens: 1_000_000,
     cacheWrite12hTokens: 1_000_000,
     outputTokens: 0,
-  }), {
-    estimatedCostUsdMicros: 500_000,
-    pricingVersion: AI_PRICING_VERSION,
-  });
+  }), costQuote(500_000));
   assert.deepEqual(lunaCost( {
     inputTokens: 1_000,
     cachedInputTokens: 200,
@@ -186,18 +187,12 @@ test("o preço do Luna usa inteiros e não cobra reasoning de novo", () => {
     cacheWrite12hTokens: 50,
     outputTokens: 10,
     reasoningTokens: 9,
-  }), {
-    estimatedCostUsdMicros: 97,
-    pricingVersion: AI_PRICING_VERSION,
-  });
+  }), costQuote(97));
   const outputOnly = lunaCost( { inputTokens: 0, outputTokens: 1_000_000, reasoningTokens: 900_000 });
   const sameOutput = lunaCost( { inputTokens: 0, outputTokens: 1_000_000 });
   assert.equal(outputOnly.estimatedCostUsdMicros, 500_000);
   assert.equal(outputOnly.estimatedCostUsdMicros, sameOutput.estimatedCostUsdMicros);
-  assert.deepEqual(estimateAiProviderCost("gpt-6-sol", { inputTokens: 20, outputTokens: 5 }, "default"), {
-    estimatedCostUsdMicros: null,
-    pricingVersion: null,
-  });
+  assert.deepEqual(estimateAiProviderCost("gpt-6-sol", { inputTokens: 20, outputTokens: 5 }, "default"), costQuote(null));
   for (const tier of ["flex", "priority", "scale", "auto", "ultrafast", null]) {
     assert.equal(lunaCost({ inputTokens: 1_000, outputTokens: 10 }, tier).estimatedCostUsdMicros, null);
   }
@@ -213,7 +208,7 @@ test("o preço do Luna usa inteiros e não cobra reasoning de novo", () => {
     cacheWrite30mTokens: 0,
     cacheWrite12hTokens: 0,
     outputTokens: 0,
-  }), { estimatedCostUsdMicros: 100, pricingVersion: AI_PRICING_VERSION });
+  }), costQuote(100));
   assert.equal(lunaCost({
     inputTokens: 15_000,
     cachedInputTokens: 4_000,
@@ -222,15 +217,18 @@ test("o preço do Luna usa inteiros e não cobra reasoning de novo", () => {
     cacheWrite12hTokens: 1_000,
     outputTokens: 10,
   }).pricingVersion, null);
-  assert.deepEqual(lunaCost( undefined), {
-    estimatedCostUsdMicros: null,
-    pricingVersion: null,
-  });
+  assert.deepEqual(lunaCost( undefined), costQuote(null));
   assert.equal(lunaCost( { inputTokens: 0, outputTokens: 0 }).estimatedCostUsdMicros, 0);
-  assert.deepEqual(lunaCost( { inputTokens: 100, cacheWriteTokens: 40, outputTokens: 1 }), {
-    estimatedCostUsdMicros: null,
-    pricingVersion: null,
-  });
+  assert.deepEqual(lunaCost( { inputTokens: 100, cacheWriteTokens: 40, outputTokens: 1 }), costQuote(null));
+  const withSearch = lunaCost({ inputTokens: 1_000, outputTokens: 2 }, "default", 2);
+  assert.equal(withSearch.estimatedModelCostUsdMicros, 101);
+  assert.equal(withSearch.estimatedToolCostUsdMicros, 20_000);
+  assert.equal(withSearch.estimatedCostUsdMicros, 20_101);
+  const partial = lunaCost({ inputTokens: 1_000, outputTokens: 2 }, "flex", 1);
+  assert.equal(partial.estimatedModelCostUsdMicros, null);
+  assert.equal(partial.estimatedToolCostUsdMicros, 10_000);
+  assert.equal(partial.estimatedCostUsdMicros, null);
+  assert.equal(partial.pricingVersion, null);
 });
 
 test("cada responses.create vira uma provider call, inclusive repair e retry", async () => {
@@ -257,6 +255,9 @@ test("cada responses.create vira uma provider call, inclusive repair e retry", a
   assert.equal(acceptedLedger.rows[0]?.status, "responded");
   assert.equal(acceptedLedger.rows[0]?.operationType, "generate");
   assert.equal(acceptedLedger.rows[0]?.estimatedCostUsdMicros, 101);
+  assert.equal(acceptedLedger.rows[0]?.estimatedModelCostUsdMicros, 101);
+  assert.equal(acceptedLedger.rows[0]?.estimatedToolCostUsdMicros, 0);
+  assert.equal(acceptedLedger.rows[0]?.webSearchCalls, 0);
   assert.equal(acceptedLedger.rows[0]?.serviceTier, "default");
   assert.equal(acceptedLedger.rows[0]?.providerResponseId, "resp-1");
 
