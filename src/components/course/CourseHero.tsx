@@ -37,13 +37,13 @@ export function CourseHero({
   priceLabel: string | null;
 }) {
   return (
-    <section className="hero-stage final-stage overflow-x-clip py-4 text-on-ink sm:py-16 lg:py-20">
-      <Container className="grid min-w-0 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
+    <section className="hero-stage final-stage overflow-x-clip py-4 text-on-ink max-[380px]:py-2 sm:py-16 lg:py-20">
+      <Container className="grid min-w-0 items-center gap-10 max-[380px]:px-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
         <div className="min-w-0 max-w-xl">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-on-ink">{eyebrow}</p>
-          <h1 className="mt-3 text-balance break-words text-[1.65rem] font-semibold leading-tight tracking-tight sm:mt-4 sm:text-5xl sm:leading-[1.12]">{title}</h1>
-          <p className="mt-3 max-w-lg text-sm leading-relaxed text-on-ink-muted sm:mt-4 sm:text-base">{support}</p>
-          <div className="mt-5 flex flex-col items-start gap-3 sm:mt-6">
+          <p className="text-xs font-medium uppercase leading-snug tracking-[0.16em] text-on-ink max-[380px]:tracking-[0.08em]">{eyebrow}</p>
+          <h1 className="mt-3 text-balance break-words text-[1.65rem] font-semibold leading-tight tracking-tight max-[380px]:mt-1.5 max-[380px]:text-[1.35rem] max-[380px]:leading-[1.15] sm:mt-4 sm:text-5xl sm:leading-[1.12]">{title}</h1>
+          <p className="mt-3 max-w-lg text-sm leading-relaxed text-on-ink-muted max-[380px]:mt-1.5 max-[380px]:text-[0.8125rem] max-[380px]:leading-snug sm:mt-4 sm:text-base">{support}</p>
+          <div className="mt-5 flex flex-col items-start gap-3 max-[380px]:mt-2.5 max-[380px]:gap-1 sm:mt-6">
             {ownsAllPaid ? (
               <Link className={buttonClass("primary")} href="/app/aprendizado">
                 Continuar curso
