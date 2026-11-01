@@ -7,12 +7,14 @@ import type { SalesLesson } from "@/components/course/sales-types";
 export function CourseFreeLessons({
   courseSlug,
   title,
+  intro,
   lessons,
   experiences,
   ownedLessonIds,
 }: {
   courseSlug: string;
   title: string;
+  intro: string;
   lessons: SalesLesson[];
   experiences: Record<string, LessonExperience>;
   ownedLessonIds: string[];
@@ -22,7 +24,7 @@ export function CourseFreeLessons({
     <section id="aulas-gratuitas" className="scroll-mt-24 overflow-x-clip border-t border-border py-16">
       <Container>
         <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">Experimente a metodologia com seu próprio negócio.</p>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">{intro}</p>
         <ol className="mt-6 grid gap-4 md:grid-cols-3">
           {lessons.map((lesson) => {
             const experience = experiences[lesson.slug];

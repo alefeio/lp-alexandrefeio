@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth/auth-client";
 import { AUTH_MESSAGES, mapAuthError, safeNextPath, verificationCallbackPath } from "@/lib/auth/messages";
 import { accountLookupFeedback } from "@/lib/auth/policy";
@@ -96,6 +97,7 @@ export function SignUpForm({ nextPath }: { nextPath?: string }) {
       return;
     }
 
+    trackEvent("sign_up", { method: "email" });
     router.push(nextPath ? `/verificar-email?enviado=1&next=${encodeURIComponent(destination)}` : "/verificar-email?enviado=1");
   }
 

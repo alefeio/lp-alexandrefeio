@@ -5,9 +5,14 @@ export type CourseSalesCopy = {
   heroEyebrow: string;
   heroTitle: string;
   heroSupport: string;
+  heroRiskNote: string | null;
   primaryCta: string;
+  primaryCtaName: string;
   secondaryCta: string;
+  secondaryHref: string;
+  secondaryCtaName: string;
   freeSectionTitle: string;
+  freeSectionIntro: string;
   fullCourseTitle: string;
   fullCourseSupport: string;
   hidePricesWhenNotForSale: boolean;
@@ -23,12 +28,17 @@ export type CourseSalesCopy = {
 };
 
 const TRAFFIC_COPY: CourseSalesCopy = {
-  heroEyebrow: "Curso · 3 aulas gratuitas",
-  heroTitle: "",
-  heroSupport: "Planeje a campanha, leia os seus dados e decida o próximo passo com critério.",
-  primaryCta: "Começar gratuitamente",
-  secondaryCta: "Ver programa completo",
+  heroEyebrow: "Curso prático de tráfego pago · 3 aulas gratuitas",
+  heroTitle: "Aprenda a planejar campanhas, entender os números e saber o que melhorar.",
+  heroSupport: "Mesmo começando do zero, você aprende a tomar decisões de Google Ads e Meta Ads para um pequeno negócio sem depender de achismo.",
+  heroRiskNote: "3 aulas gratuitas · sem cartão · sem cadastro para começar",
+  primaryCta: "Começar a 1ª aula grátis",
+  primaryCtaName: "comecar_primeira_aula",
+  secondaryCta: "Ver as 3 aulas gratuitas",
+  secondaryHref: "#aulas-gratuitas",
+  secondaryCtaName: "ver_aulas_gratuitas",
   freeSectionTitle: "Três aulas gratuitas",
+  freeSectionIntro: "Comece sem cadastro. Faça as três primeiras aulas e aplique as decisões ao seu próprio negócio.",
   fullCourseTitle: "Faça a jornada completa",
   fullCourseSupport: "Do planejamento da campanha até a leitura dos seus próprios resultados.",
   hidePricesWhenNotForSale: false,
@@ -47,9 +57,14 @@ const SITES_COPY: CourseSalesCopy = {
   heroEyebrow: "Sites que Convertem para Pequenos Negócios",
   heroTitle: "Planeje, construa e publique sua própria landing page enquanto aprende.",
   heroSupport: "Você constrói e publica uma landing page real na plataforma, sem programar.",
+  heroRiskNote: null,
   primaryCta: "Começar gratuitamente",
+  primaryCtaName: "aulas_gratuitas",
   secondaryCta: "Ver programa completo",
+  secondaryHref: "#programa",
+  secondaryCtaName: "ver_programa",
   freeSectionTitle: "Três aulas gratuitas",
+  freeSectionIntro: "Experimente a metodologia com seu próprio negócio.",
   fullCourseTitle: "A formação completa",
   fullCourseSupport: "Depois de descobrir o caminho, você constrói e publica a página passo a passo.",
   hidePricesWhenNotForSale: true,
@@ -66,8 +81,8 @@ const SITES_COPY: CourseSalesCopy = {
 
 export function courseSalesCopy(slug: string, courseTitle: string): CourseSalesCopy {
   if (slug === SITES_COURSE_SLUG) return SITES_COPY;
-  if (slug === TRAFFIC_COURSE_SLUG) return { ...TRAFFIC_COPY, heroTitle: courseTitle };
-  return { ...TRAFFIC_COPY, heroTitle: courseTitle };
+  if (slug === TRAFFIC_COURSE_SLUG) return TRAFFIC_COPY;
+  return { ...TRAFFIC_COPY, heroTitle: courseTitle, heroRiskNote: null, secondaryHref: "#programa", secondaryCtaName: "ver_programa" };
 }
 
 export function courseMetadataDescription(slug: string, subtitle: string | null, description: string): string {

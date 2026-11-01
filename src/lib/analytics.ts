@@ -34,7 +34,8 @@ export type AnalyticsEventName =
   | "diagnostic_completed"
   | "checkout_started"
   | "purchase_completed"
-  | "auth_cta_click";
+  | "auth_cta_click"
+  | "sign_up";
 
 export type AuthCtaSource = "lesson_header" | "public_header";
 export type AuthCtaAction = "login" | "signup";

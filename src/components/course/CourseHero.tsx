@@ -13,7 +13,11 @@ export function CourseHero({
   title,
   support,
   primaryCta,
+  primaryCtaName,
   secondaryCta,
+  secondaryHref,
+  secondaryCtaName,
+  riskNote,
   primaryHref,
   ownsAllPaid,
   priceLabel,
@@ -23,7 +27,11 @@ export function CourseHero({
   title: string;
   support: string;
   primaryCta: string;
+  primaryCtaName: string;
   secondaryCta: string;
+  secondaryHref: string;
+  secondaryCtaName: string;
+  riskNote: string | null;
   primaryHref: string;
   ownsAllPaid: boolean;
   priceLabel: string | null;
@@ -33,8 +41,9 @@ export function CourseHero({
       <Container className="grid min-w-0 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
         <div className="min-w-0 max-w-xl">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-on-ink">{eyebrow}</p>
-          <h1 className="mt-4 text-[1.85rem] font-semibold leading-[1.12] tracking-tight sm:text-5xl">{title}</h1>
-          <div className="mt-3 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <h1 className="mt-3 text-balance break-words text-[1.65rem] font-semibold leading-tight tracking-tight sm:mt-4 sm:text-5xl sm:leading-[1.12]">{title}</h1>
+          <p className="mt-3 max-w-lg text-sm leading-relaxed text-on-ink-muted sm:mt-4 sm:text-base">{support}</p>
+          <div className="mt-5 flex flex-col items-start gap-3 sm:mt-6">
             {ownsAllPaid ? (
               <Link className={buttonClass("primary")} href="/app/aprendizado">
                 Continuar curso
@@ -45,23 +54,23 @@ export function CourseHero({
                   className={buttonClass("primary")}
                   href={primaryHref}
                   event="course_free_start"
-                  payload={{ course_slug: slug, cta_name: "aulas_gratuitas" }}
+                  payload={{ course_slug: slug, cta_name: primaryCtaName }}
                 >
                   {primaryCta}
                 </AcquisitionLink>
                 <AcquisitionLink
                   className={navigationLinkClass("on-ink")}
-                  href="#programa"
+                  href={secondaryHref}
                   event="course_cta_click"
-                  payload={{ course_slug: slug, cta_name: "ver_programa" }}
+                  payload={{ course_slug: slug, cta_name: secondaryCtaName }}
                 >
                   {secondaryCta}
                 </AcquisitionLink>
               </>
             )}
           </div>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-on-ink-muted">{support}</p>
-          {priceLabel ? <p className="mt-4 text-sm text-on-ink-muted">Formação completa · {priceLabel}</p> : null}
+          {riskNote ? <p className="mt-3 max-w-lg text-sm leading-relaxed text-on-ink-muted">{riskNote}</p> : null}
+          {priceLabel ? <p className="mt-3 text-sm text-on-ink-muted">Formação completa · {priceLabel}</p> : null}
         </div>
         <div className="min-w-0">
           {slug === TRAFFIC_COURSE_SLUG ? <TrafficCampaignVisual /> : null}

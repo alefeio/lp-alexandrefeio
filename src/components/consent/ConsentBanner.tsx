@@ -66,7 +66,7 @@ export function ConsentBanner({
   return (
     <div
       ref={panelRef}
-      className="fixed inset-x-0 bottom-0 z-50 max-h-[min(92vh,40rem)] overflow-y-auto border-t border-border bg-surface/95 p-4 shadow-[0_-18px_40px_-24px_rgba(11,18,32,0.45)] backdrop-blur-sm sm:p-5"
+      className="fixed inset-x-0 bottom-0 z-50 max-h-[min(70vh,40rem)] overflow-y-auto border-t border-border bg-surface/95 p-3 shadow-[0_-18px_40px_-24px_rgba(11,18,32,0.45)] backdrop-blur-sm sm:p-5"
       role="dialog"
       aria-labelledby={titleId}
       aria-modal="true"

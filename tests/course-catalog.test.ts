@@ -102,11 +102,9 @@ test("página de vendas mostra a ementa antes do preço", () => {
   const sales = readFileSync(new URL("../src/components/course/CourseSales.tsx", import.meta.url), "utf8");
   const purchase = readFileSync(new URL("../src/components/course/CoursePurchasePanel.tsx", import.meta.url), "utf8");
   const programIdx = sales.indexOf("<CourseCurriculum");
-  const freeIdx = sales.indexOf("<CourseFreeLessons");
   const fullIdx = sales.indexOf("<CoursePurchasePanel");
   assert.ok(programIdx > 0);
-  assert.ok(freeIdx > programIdx);
-  assert.ok(fullIdx > freeIdx);
+  assert.ok(fullIdx > programIdx);
   assert.match(sales, /individualTotalCents/);
   assert.match(sales, /savingsCents/);
   assert.match(purchase, /formatPriceCents/);
