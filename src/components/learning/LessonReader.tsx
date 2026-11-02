@@ -402,6 +402,11 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   function showStage(stageId: string) {
     const index = stageIndexById(stages, stageId);
     if (index < 0) return;
+    if (stageId === activeStageId) {
+      setStagesOpen(false);
+      return;
+    }
+    jumpLock.current = true;
     stageMoved.current = true;
     setActiveStageId(stageId);
     setOpenedIndexes((current) => (current.includes(index) ? current : [...current, index]));

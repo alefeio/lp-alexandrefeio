@@ -93,6 +93,7 @@ function hasContext(blocks: readonly StageSourceBlock[]): boolean {
 function stageTitle(blocks: readonly StageSourceBlock[], index: number): string {
   const heading = blocks.find((block) => block.data.type === "HEADING" && block.data.text?.trim());
   if (heading?.data.text) return heading.data.text.trim();
+  if (blocks.some((block) => block.data.type === "CONCLUSION")) return "Conclusão";
   const action = blocks.find((block) => ACTION_TYPES.has(block.data.type));
   const label = action?.data.question?.trim() || action?.data.prompt?.trim() || action?.data.title?.trim() || action?.data.text?.trim();
   if (label) return label;

@@ -65,6 +65,15 @@ test("aula sem heading, com um bloco ou só com conclusão continua válida", ()
   const ending = buildLessonStages([block("fim", "CONCLUSION", { text: "acabou" })]);
   assert.equal(ending.length, 1);
   assert.equal(ending[0].blocks[0].data.type, "CONCLUSION");
+  assert.equal(ending[0].title, "Conclusão");
+  assert.equal(ending[0].id, "stage:fim");
+  const named = buildLessonStages([
+    block("h", "HEADING", { text: "Fechamento" }),
+    block("c", "CONCLUSION"),
+  ]);
+  assert.equal(named.length, 1);
+  assert.equal(named[0].title, "Fechamento");
+  assert.equal(named[0].id, "stage:h");
 });
 
 test("a navegação visual não conclui a aula nem reduz o alcance", () => {
@@ -106,6 +115,7 @@ test("a retomada abre a etapa do bloco, não a primeira nem a última", () => {
   assert.notEqual(stageId, stages[0].id);
   assert.notEqual(stageId, stages.at(-1)?.id);
   assert.equal(stages.at(-1)?.blocks.some((item) => item.data.type === "CONCLUSION"), true);
+  assert.equal(stages.at(-1)?.title, "Conclusão");
   assert.equal(stages.flatMap((stage) => stage.blocks).length, lesson01Blocks.length);
 });
 
@@ -146,4 +156,14 @@ test("a sala não duplica interação, não cria rota de etapa e não muda o con
   assert.match(wireframe, /Processando\.\.\./);
   assert.match(wireframe, /aria-busy=\{pending\}/);
   assert.match(wireframe, /generating\.current/);
+  const showStage = reader.slice(reader.indexOf("function showStage"), reader.indexOf("function onCheckpoint"));
+  const sameStage = showStage.indexOf("stageId === activeStageId");
+  const lock = showStage.indexOf("jumpLock.current = true");
+  const activate = showStage.indexOf("setActiveStageId(stageId)");
+  const guardReturn = showStage.indexOf("return", sameStage);
+  assert.ok(sameStage >= 0 && guardReturn > sameStage && lock > guardReturn && activate > lock);
+  assert.equal(showStage.includes("saveViewedBlocks"), false);
+  assert.equal(showStage.includes("markViewed"), false);
+  assert.equal(showStage.includes("readingKeysFromUserScroll"), false);
+  assert.match(reader, /if \(jumpLock\.current\) \{\s*scheduleJumpRelease\(\);\s*return;\s*\}/);
 });
