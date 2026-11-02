@@ -7,6 +7,9 @@ export function StudentCourseHub({ hub }: { hub: StudentCourseHubView }) {
     <div>
       <h1 className="text-3xl font-semibold tracking-tight">{hub.title}</h1>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">{hub.subtitle}</p>
+      <p className="mt-4">
+        <Link className={buttonClass("secondary")} href="/app/aprendizado/mesa">Abrir Mesa de estudo</Link>
+      </p>
       <ul className="mt-8 grid gap-4 sm:grid-cols-2">
         {hub.courses.map((course) => (
           <li key={course.slug} className="flex flex-col rounded-xl border border-border bg-surface p-5">

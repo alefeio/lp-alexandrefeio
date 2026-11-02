@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { LessonStageRail } from "@/components/learning/LessonStageRail";
 import { LessonStepNav } from "@/components/learning/LessonStepNav";
@@ -82,8 +82,9 @@ import type { MetaCampaignPanel } from "@/lib/learning/meta-campaign-plan";
 import type { ResponsiveAdPanel } from "@/lib/learning/responsive-ad-plan";
 import type { SearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { authNextHref } from "@/lib/auth/messages";
-import { buttonClass } from "@/lib/button-styles";
-import { buildLessonStages, firstPendingStageId, resumeStageId, stageIndexById } from "@/lib/learning/lesson-stages";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
+import { blockKeyFromHash } from "@/lib/learning/lesson-hash";
+import { buildLessonStages, firstPendingStageId, resumeStageId, stageContaining, stageIndexById } from "@/lib/learning/lesson-stages";
 import { nextLessonContinuationLabel } from "@/lib/learning/lesson-nav";
 
 type ToolPanel =
@@ -150,11 +151,20 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   const notifyJump = useRef<() => void>(() => {});
   const stageMoved = useRef(false);
   const stages = useMemo(() => buildLessonStages(blocks), [blocks]);
-  const [activeStageId, setActiveStageId] = useState(() => {
-    const built = buildLessonStages(blocks);
-    if (resume && initial.lastBlockKey) return resumeStageId(built, initial.lastBlockKey) ?? built[0]?.id ?? "";
-    return built[0]?.id ?? "";
-  });
+  const blockKeys = useMemo(() => blocks.map((block) => block.blockKey), [blocks]);
+  const locationHash = useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("hashchange", onStoreChange);
+      return () => window.removeEventListener("hashchange", onStoreChange);
+    },
+    () => window.location.hash,
+    () => "",
+  );
+  const hashKey = blockKeyFromHash(locationHash, blockKeys);
+  const hashStageId = hashKey ? stageContaining(stages, hashKey)?.id ?? null : null;
+  const resumeStage = resume && initial.lastBlockKey ? resumeStageId(stages, initial.lastBlockKey) ?? stages[0]?.id ?? "" : stages[0]?.id ?? "";
+  const [chosenStageId, setChosenStageId] = useState<string | null>(null);
+  const activeStageId = chosenStageId ?? hashStageId ?? resumeStage;
   const [openedIndexes, setOpenedIndexes] = useState<number[]>(() => {
     const built = buildLessonStages(blocks);
     const id = resume && initial.lastBlockKey ? (resumeStageId(built, initial.lastBlockKey) ?? built[0]?.id ?? "") : (built[0]?.id ?? "");
@@ -213,10 +223,16 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   }, [authenticated, blocks, lesson.slug, preview]);
 
   useEffect(() => {
-    if (!resume || resumed.current || !initial.lastBlockKey) return;
+    if (hashKey && !chosenStageId && stageContaining(stages, hashKey)?.id === activeStageId) {
+      if (document.activeElement?.id === `b-${hashKey}`) return;
+      jumpLock.current = true;
+      focusBlock(hashKey);
+      return;
+    }
+    if (hashKey || chosenStageId || !resume || resumed.current || !initial.lastBlockKey) return;
     resumed.current = true;
     focusStage(false);
-  }, [resume, initial.lastBlockKey]);
+  }, [activeStageId, chosenStageId, hashKey, initial.lastBlockKey, resume, stages]);
 
   useEffect(() => {
     if (!stageMoved.current) return;
@@ -242,9 +258,10 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     let flushTimer = 0;
     let jumpTimer = 0;
     let frame = 0;
-    const hash = window.location.hash.slice(1);
-    const hashNode = hash ? document.getElementById(hash) : null;
-    if (hashNode) {
+    const hashKey = blockKeyFromHash(window.location.hash, blocks.map((block) => block.blockKey));
+    const hashNode = hashKey ? document.getElementById(`b-${hashKey}`) : null;
+    const hashVisible = Boolean(hashNode && !hashNode.closest("[hidden]"));
+    if (hashNode && hashVisible) {
       jumpLock.current = true;
       hashNode.scrollIntoView({ behavior: "instant", block: "start" });
     }
@@ -315,7 +332,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
       );
     }
 
-    let holdForHash = Boolean(hashNode);
+    let holdForHash = hashVisible;
     let arrivedAt = 0;
     const hashDeadline = Date.now() + 4000;
 
@@ -408,7 +425,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     }
     jumpLock.current = true;
     stageMoved.current = true;
-    setActiveStageId(stageId);
+    setChosenStageId(stageId);
     setOpenedIndexes((current) => (current.includes(index) ? current : [...current, index]));
     setCurrentKey(stages[index]?.firstBlockId ?? null);
     setStagesOpen(false);
@@ -588,6 +605,11 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   return (
     <div className="mx-auto grid w-full min-w-0 max-w-6xl gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-10">
       <div className="min-w-0">
+        {authenticated ? (
+          <p className="mb-3">
+            <Link className={navigationLinkClass()} href="/app/aprendizado/mesa">Mesa de estudo</Link>
+          </p>
+        ) : null}
         <button type="button" className={`${buttonClass("secondary")} w-full lg:hidden`} aria-expanded={stagesOpen} onClick={() => setStagesOpen((open) => !open)}>
           Ver etapas
         </button>
@@ -1595,6 +1617,14 @@ function focusStage(move: boolean) {
   if (!node) return;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (move) node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  node.focus({ preventScroll: true });
+}
+
+function focusBlock(blockKey: string) {
+  const node = document.getElementById(`b-${blockKey}`);
+  if (!node || node.closest("[hidden]")) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   node.focus({ preventScroll: true });
 }
 
