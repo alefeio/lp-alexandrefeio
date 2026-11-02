@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Wordmark } from "@/components/ui/Wordmark";
-import { lessonRail, lessonRailSectionState } from "@/lib/learning/lesson-rail";
+import { LessonStageRail } from "@/components/learning/LessonStageRail";
+import { LessonStepNav } from "@/components/learning/LessonStepNav";
 import { authCtaParams, trackEvent } from "@/lib/analytics";
 import { CONSENT_STORAGE_KEY, parseConsent } from "@/lib/consent";
 import {
@@ -83,6 +83,8 @@ import type { ResponsiveAdPanel } from "@/lib/learning/responsive-ad-plan";
 import type { SearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { authNextHref } from "@/lib/auth/messages";
 import { buttonClass } from "@/lib/button-styles";
+import { buildLessonStages, firstPendingStageId, resumeStageId, stageIndexById } from "@/lib/learning/lesson-stages";
+import { nextLessonContinuationLabel } from "@/lib/learning/lesson-nav";
 
 type ToolPanel =
   | TrafficToolPanel
@@ -118,8 +120,14 @@ type Props = {
   resume: boolean;
   preview?: boolean;
   toolPanel?: ToolPanel;
+  neighbors?: {
+    courseSlug: string;
+    courseTitle: string;
+    previous: { slug: string; title: string; access?: "open" | "preview" } | null;
+    next: { slug: string; title: string; access?: "open" | "preview" } | null;
+  } | null;
 };
-export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null }: Props) {
+export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, authenticated, resume, preview = false, toolPanel = null, neighbors = null }: Props) {
   const [snapshot, setSnapshot] = useState(initial);
   const [explanations, setExplanations] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -140,14 +148,20 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   const jumpLock = useRef(Boolean(resume && initial.lastBlockKey));
   const lastScrollY = useRef(0);
   const notifyJump = useRef<() => void>(() => {});
-
-  const headings = useMemo(() => blocks.filter((block) => block.data.type === "HEADING"), [blocks]);
-  const currentHeading = useMemo(() => {
-    const current = blocks.find((block) => block.blockKey === currentKey);
-    if (!current) return headings[0]?.blockKey ?? null;
-    const previous = [...headings].reverse().find((heading) => heading.position <= current.position);
-    return previous?.blockKey ?? headings[0]?.blockKey ?? null;
-  }, [blocks, currentKey, headings]);
+  const stageMoved = useRef(false);
+  const stages = useMemo(() => buildLessonStages(blocks), [blocks]);
+  const [activeStageId, setActiveStageId] = useState(() => {
+    const built = buildLessonStages(blocks);
+    if (resume && initial.lastBlockKey) return resumeStageId(built, initial.lastBlockKey) ?? built[0]?.id ?? "";
+    return built[0]?.id ?? "";
+  });
+  const [openedIndexes, setOpenedIndexes] = useState<number[]>(() => {
+    const built = buildLessonStages(blocks);
+    const id = resume && initial.lastBlockKey ? (resumeStageId(built, initial.lastBlockKey) ?? built[0]?.id ?? "") : (built[0]?.id ?? "");
+    const index = Math.max(0, stageIndexById(built, id));
+    return Array.from({ length: index + 1 }, (_, item) => item);
+  });
+  const [stagesOpen, setStagesOpen] = useState(false);
 
   useEffect(() => {
     if (preview) return;
@@ -201,10 +215,14 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   useEffect(() => {
     if (!resume || resumed.current || !initial.lastBlockKey) return;
     resumed.current = true;
-    jumpLock.current = true;
-    scrollToBlock(initial.lastBlockKey);
-    notifyJump.current();
+    focusStage(false);
   }, [resume, initial.lastBlockKey]);
+
+  useEffect(() => {
+    if (!stageMoved.current) return;
+    stageMoved.current = false;
+    focusStage(true);
+  }, [activeStageId]);
 
   useEffect(() => {
     if (preview) return;
@@ -379,13 +397,21 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
       window.clearTimeout(jumpTimer);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, [authenticated, blocks, lesson.slug, preview]);
+  }, [authenticated, blocks, lesson.slug, preview, activeStageId]);
 
-  function beginJump(key: string) {
+  function showStage(stageId: string) {
+    const index = stageIndexById(stages, stageId);
+    if (index < 0) return;
+    if (stageId === activeStageId) {
+      setStagesOpen(false);
+      return;
+    }
     jumpLock.current = true;
-    setCurrentKey(key);
-    scrollToBlock(key);
-    notifyJump.current();
+    stageMoved.current = true;
+    setActiveStageId(stageId);
+    setOpenedIndexes((current) => (current.includes(index) ? current : [...current, index]));
+    setCurrentKey(stages[index]?.firstBlockId ?? null);
+    setStagesOpen(false);
   }
 
   function onCheckpoint(blockKey: string, optionId: string) {
@@ -538,8 +564,15 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     });
   }
 
-  const resumeSection = useMemo(() => sectionName(blocks, headings, snapshot.lastBlockKey), [blocks, headings, snapshot.lastBlockKey]);
   const requiredLeft = blocks.filter((block) => block.required && !snapshot.completedBlockKeys.includes(block.blockKey)).length;
+  const activeIndex = Math.max(0, stageIndexById(stages, activeStageId));
+  const activeStage = stages[activeIndex] ?? null;
+  const isLastStage = stages.length > 0 && activeIndex === stages.length - 1;
+  const pendingIds = blocks.filter((block) => block.required && !snapshot.completedBlockKeys.includes(block.blockKey)).map((block) => block.blockKey);
+  const gapIds = pendingIds.length > 0
+    ? pendingIds
+    : blocks.filter((block) => block.countsForProgress && !snapshot.completedBlockKeys.includes(block.blockKey)).map((block) => block.blockKey);
+  const reviewStageId = firstPendingStageId(stages, gapIds);
   const unreadEarlier = hasUnreadEarlierReading(
     blocks.map((block) => ({
       blockKey: block.blockKey,
@@ -553,15 +586,24 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   const remaining = remainingMinutes(lesson.estimatedMinutes, snapshot.percent, snapshot.completed);
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:py-14">
-      <LessonIndex headings={headings} current={currentHeading} onJump={beginJump} />
-      <article className="min-w-0 max-w-[40rem]">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">{lesson.moduleTitle}</p>
-        <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">{lesson.title}</h1>
-        <p className="mt-4 text-[1.0625rem] leading-[1.7] text-muted">{lesson.summary}</p>
-        <p className="mt-4 text-sm leading-relaxed text-muted">
-          {lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min de leitura` : "Leitura"}
-          {snapshot.completed ? " · aula concluída" : ` · ${snapshot.percent}% do conteúdo percorrido`}
+    <div className="mx-auto grid w-full min-w-0 max-w-6xl gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-10">
+      <div className="min-w-0">
+        <button type="button" className={`${buttonClass("secondary")} w-full lg:hidden`} aria-expanded={stagesOpen} onClick={() => setStagesOpen((open) => !open)}>
+          Ver etapas
+        </button>
+        <div className={stagesOpen ? "mt-3 lg:mt-0" : "mt-3 hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto"}>
+          <LessonStageRail stages={stages} activeId={activeStage?.id ?? ""} openedIndexes={openedIndexes} onSelect={showStage} />
+        </div>
+      </div>
+      <article className="min-w-0 max-w-3xl">
+        <p className="text-sm text-muted">
+          <Link className="underline underline-offset-4" href={`/cursos/${lesson.courseSlug}`}>{lesson.courseTitle}</Link>
+          {lesson.moduleTitle ? ` · ${lesson.moduleTitle}` : ""}
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">{lesson.title}</h1>
+        {stages.length > 0 ? <p className="mt-3 text-sm font-medium">Etapa {activeIndex + 1} de {stages.length}</p> : null}
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Conteúdo percorrido: {snapshot.completed ? "aula concluída" : `${snapshot.percent}%`}
           {!snapshot.completed && requiredLeft > 0
             ? ` · ${requiredLeft === 1 ? "falta 1 atividade para concluir" : `faltam ${requiredLeft} atividades para concluir`}`
             : ""}
@@ -580,12 +622,11 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
         >
           <div className="h-full bg-cta" style={{ width: `${snapshot.percent}%` }} />
         </div>
-        {snapshot.lastBlockKey && !snapshot.completed ? (
+        {snapshot.lastBlockKey && !snapshot.completed && resumeStageId(stages, snapshot.lastBlockKey) !== activeStage?.id ? (
           <div className="mt-6">
-            <button type="button" className={buttonClass("secondary")} onClick={() => beginJump(snapshot.lastBlockKey as string)}>
+            <button type="button" className={buttonClass("secondary")} onClick={() => showStage(resumeStageId(stages, snapshot.lastBlockKey) ?? stages[0]?.id ?? "")}>
               Continuar de onde você parou
             </button>
-            {resumeSection ? <p className="mt-2 text-sm text-muted">{resumeSection}</p> : null}
           </div>
         ) : null}
         {showAnonymousStudyCard({ authenticated, preview, accessType: lesson.accessType }) ? (
@@ -615,8 +656,39 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
             {message}
           </p>
         ) : null}
-        <div className="mt-12 space-y-12">
-          {blocks.map((block) => (
+        {snapshot.completed && neighbors ? (
+          <section className="mt-8 rounded-lg border border-border bg-surface px-5 py-5" aria-label="Aula concluída">
+            <h2 className="text-xl font-semibold tracking-tight">Aula concluída</h2>
+            <p className="mt-2 text-base leading-relaxed">Você terminou esta etapa da formação.</p>
+            {neighbors.courseSlug === "sites-que-convertem" && !neighbors.next ? (
+              <p className="mt-3 text-sm leading-relaxed text-muted">Você concluiu a etapa gratuita.</p>
+            ) : null}
+            <LessonStepNav
+              previous={neighbors.previous}
+              next={neighbors.next?.access === "preview" ? null : neighbors.next}
+            />
+            {neighbors.next?.access === "preview" ? (
+              <p className="mt-3 text-sm">
+                <Link className="underline underline-offset-4" href={`/aulas/${neighbors.next.slug}`}>
+                  {nextLessonContinuationLabel("preview")}: {neighbors.next.title}
+                </Link>
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+        <div className="mt-8">
+          {stages.length === 0 ? <p className="text-base leading-relaxed">Esta aula ainda não tem conteúdo para percorrer.</p> : null}
+          {stages.map((stage) => (
+            <section
+              key={stage.id}
+              id={stage.id === activeStage?.id ? "etapa-atual" : undefined}
+              tabIndex={stage.id === activeStage?.id ? -1 : undefined}
+              hidden={stage.id !== activeStage?.id}
+              aria-labelledby={stage.titleBlockId ? `b-${stage.titleBlockId}` : undefined}
+              className="min-w-0 outline-none"
+            >
+              <div className="space-y-10">
+          {stage.blocks.map((block) => (
             <div key={block.blockKey}>
               <BlockView
                 block={block}
@@ -707,67 +779,39 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
               ) : null}
             </div>
           ))}
+              </div>
+              {stage.id === activeStage?.id && isLastStage && !snapshot.completed ? (
+                <div className="mt-10 rounded-lg border border-border px-5 py-5">
+                  <p className="font-medium">Você chegou ao final do conteúdo.</p>
+                  {requiredLeft > 0 ? (
+                    <p className="mt-2 text-sm leading-relaxed text-muted">Ainda existem atividades necessárias para concluir esta aula.</p>
+                  ) : (
+                    <p className="mt-2 text-sm leading-relaxed text-muted">Ainda falta percorrer o conteúdo desta aula para concluí-la.</p>
+                  )}
+                  {reviewStageId ? (
+                    <button type="button" className={`${buttonClass("primary")} mt-4`} onClick={() => showStage(reviewStageId)}>
+                      Revisar pendências
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          ))}
         </div>
+        {stages.length > 0 ? (
+          <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" className={`${buttonClass("secondary")} order-2 w-full sm:order-1 sm:w-auto`} disabled={activeIndex === 0} onClick={() => showStage(stages[activeIndex - 1]?.id ?? activeStageId)}>
+              Voltar
+            </button>
+            {isLastStage ? <span className="hidden sm:block" /> : (
+              <button type="button" className={`${buttonClass("primary")} order-1 w-full sm:order-2 sm:w-auto`} onClick={() => showStage(stages[activeIndex + 1]?.id ?? activeStageId)} aria-label="Continuar para a próxima etapa">
+                Continuar
+              </button>
+            )}
+          </div>
+        ) : null}
       </article>
     </div>
-  );
-}
-
-function LessonIndex({
-  headings,
-  current,
-  onJump,
-}: {
-  headings: ReaderBlock[];
-  current: string | null;
-  onJump: (key: string) => void;
-}) {
-  const detailsRef = useRef<HTMLDetailsElement>(null);
-  const currentIndex = headings.findIndex((heading) => heading.blockKey === current);
-
-  function jump(key: string) {
-    const details = detailsRef.current;
-    if (details?.open && window.matchMedia("(max-width: 1023px)").matches) details.open = false;
-    onJump(key);
-  }
-
-  const list = (
-    <ol className="space-y-3 text-sm">
-      {headings.map((heading, index) => {
-        if (heading.data.type !== "HEADING") return null;
-        const active = heading.blockKey === current;
-        const state = lessonRailSectionState(index, currentIndex);
-        return (
-          <li key={heading.blockKey}>
-            <button
-              type="button"
-              className={active ? "break-words text-left font-medium text-foreground" : "break-words text-left text-muted"}
-              onClick={() => jump(heading.blockKey)}
-              aria-current={active ? "true" : undefined}
-            >
-              {heading.data.text}
-              <span className="mt-0.5 block text-xs">{state}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
-  );
-
-  return (
-    <nav aria-label="Índice da aula" className="min-w-0">
-      <details ref={detailsRef} className={lessonRail.mobileClass}>
-        <summary className="cursor-pointer text-sm font-medium">Índice da aula</summary>
-        <div className="mt-4">{list}</div>
-      </details>
-      <div className={lessonRail.desktopClass}>
-        <Link href={lessonRail.logoHref} aria-label={lessonRail.logoLabel} className="inline-flex max-w-full">
-          <Wordmark />
-        </Link>
-        <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-muted">Nesta aula</p>
-        <div className="mt-4">{list}</div>
-      </div>
-    </nav>
   );
 }
 
@@ -1409,8 +1453,8 @@ function NoteField({
 function Prose({ body }: { body: string }) {
   return (
     <div className="space-y-5 text-[1.0625rem] leading-[1.75] text-foreground">
-      {body.split(/\n\n+/).map((paragraph) => (
-        <p key={paragraph.slice(0, 24)} className="break-words whitespace-pre-wrap">
+      {body.split(/\n\n+/).map((paragraph, index) => (
+        <p key={`${index}:${paragraph.slice(0, 24)}`} className="break-words whitespace-pre-wrap">
           {paragraph}
         </p>
       ))}
@@ -1542,23 +1586,15 @@ function advanceKey(blocks: ReaderBlock[], current: string | null, incoming: str
   );
 }
 
-function sectionName(blocks: ReaderBlock[], headings: ReaderBlock[], blockKey: string | null) {
-  if (!blockKey) return null;
-  const current = blocks.find((block) => block.blockKey === blockKey);
-  if (!current) return null;
-  const heading = [...headings].reverse().find((item) => item.position <= current.position);
-  return heading && heading.data.type === "HEADING" ? heading.data.text : null;
-}
-
 function interactiveType(type: ReaderBlock["data"]["type"]) {
   return type === "CHECKPOINT" || type === "ACTIVITY" || type === "CHECKLIST" || type === "RESULT" || type === "TOOL";
 }
 
-function scrollToBlock(key: string) {
-  const node = document.getElementById(`b-${key}`);
+function focusStage(move: boolean) {
+  const node = document.getElementById("etapa-atual");
   if (!node) return;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  if (move) node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   node.focus({ preventScroll: true });
 }
 
