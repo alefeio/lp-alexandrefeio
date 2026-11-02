@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { buttonClass } from "@/lib/button-styles";
 import { authNextHref } from "@/lib/auth/messages";
@@ -72,19 +72,26 @@ export function LandingPageWireframeTool({
     setEditOrder(next?.sections.map((section) => section.id) ?? []);
   }
 
+  const generating = useRef(false);
+
   async function generate() {
-    if (preview || !panel || !pageId) return;
+    if (generating.current || preview || !panel || !pageId) return;
+    generating.current = true;
     setPending(true);
     setMessage(null);
-    const result = await proposeLandingPageWireframe(panel.blockKey, pageId);
-    setPending(false);
-    if (!result.ok || !result.proposal) {
-      setMessage(result.ok ? "Não foi possível montar a estrutura." : result.message);
-      return;
+    try {
+      const result = await proposeLandingPageWireframe(panel.blockKey, pageId);
+      if (!result.ok || !result.proposal) {
+        setMessage(result.ok ? "Não foi possível montar a estrutura." : result.message);
+        return;
+      }
+      setProposal(result.proposal);
+      setReviewed(result.proposal.reviewed);
+      setBaseline(result.proposal.reviewed);
+    } finally {
+      generating.current = false;
+      setPending(false);
     }
-    setProposal(result.proposal);
-    setReviewed(result.proposal.reviewed);
-    setBaseline(result.proposal.reviewed);
   }
 
   async function apply() {
@@ -180,8 +187,8 @@ export function LandingPageWireframeTool({
       ) : null}
 
       {!preview && page && page.sectionCount === 0 ? (
-        <button type="button" className={`${buttonClass("primary")} w-full sm:w-auto`} disabled={pending || !page.hasBrief} onClick={() => void generate()}>
-          Montar estrutura recomendada
+        <button type="button" className={`${buttonClass("primary")} w-full sm:w-auto`} disabled={pending || !page.hasBrief} aria-busy={pending} onClick={() => void generate()}>
+          {pending ? "Processando..." : "Montar estrutura recomendada"}
         </button>
       ) : null}
 

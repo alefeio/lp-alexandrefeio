@@ -268,10 +268,13 @@ async function FullLesson({
         authenticated={authenticated}
         resume={resume}
         toolPanel={toolPanel}
+        neighbors={{
+          courseSlug: lesson.courseSlug,
+          courseTitle: lesson.courseTitle,
+          previous: neighbors.previous,
+          next: neighbors.next,
+        }}
       />
-      <Container className="max-w-3xl pb-16">
-        <LessonNeighbors courseSlug={lesson.courseSlug} courseTitle={lesson.courseTitle} previous={neighbors.previous} next={neighbors.next} />
-      </Container>
     </>
   );
 }
