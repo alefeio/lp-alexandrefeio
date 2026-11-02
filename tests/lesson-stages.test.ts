@@ -159,7 +159,7 @@ test("a sala não duplica interação, não cria rota de etapa e não muda o con
   const showStage = reader.slice(reader.indexOf("function showStage"), reader.indexOf("function onCheckpoint"));
   const sameStage = showStage.indexOf("stageId === activeStageId");
   const lock = showStage.indexOf("jumpLock.current = true");
-  const activate = showStage.indexOf("setActiveStageId(stageId)");
+  const activate = showStage.indexOf("setChosenStageId(stageId)");
   const guardReturn = showStage.indexOf("return", sameStage);
   assert.ok(sameStage >= 0 && guardReturn > sameStage && lock > guardReturn && activate > lock);
   assert.equal(showStage.includes("saveViewedBlocks"), false);
