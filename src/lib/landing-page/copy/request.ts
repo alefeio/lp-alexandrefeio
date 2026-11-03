@@ -34,7 +34,7 @@ function publicationStatus(value: string | undefined): "DRAFT" | "PUBLISHED" | n
 
 function blockCode(block: AiIdempotencyBlockKind): LandingPageCode {
   if (block === "missing_key") return "COPY_ASSIST_IDEMPOTENCY_REQUIRED";
-  if (block === "in_progress") return "COPY_ASSIST_IN_PROGRESS";
+  if (block === "in_progress" || block === "ownership_lost") return "COPY_ASSIST_IN_PROGRESS";
   if (block === "completed") return "COPY_ASSIST_ALREADY_COMPLETED";
   if (block === "fingerprint_conflict") return "COPY_ASSIST_FINGERPRINT_CONFLICT";
   if (block === "unknown_blocked") return "COPY_ASSIST_OPERATION_UNKNOWN";
@@ -95,7 +95,7 @@ export async function requestLandingPageCopySuggestions(input: unknown): Promise
       variantCount: parsed.data.variantCount,
     }),
     store: createPrismaAiIdempotencyStore(),
-    execute: async ({ requestId, markDispatched }) => {
+    execute: async ({ requestId, confirmDispatch }) => {
       const generated = await generateLandingPageCopySuggestions(store, {
         userId: session.user.id,
         landingPageProjectId: parsed.data.landingPageProjectId,
@@ -105,13 +105,15 @@ export async function requestLandingPageCopySuggestions(input: unknown): Promise
       }, resolveLandingPageCopyProvider(), {
         timeoutMs: COPY_LIVE_PROVIDER_TIMEOUT_MS,
         requestId,
-        onBeforeProvider: markDispatched,
+        onBeforeProvider: confirmDispatch,
       });
       if (generated.ok) return { ok: true as const, value: generated.value };
       generationFailure = generated;
+      const uncertain = "uncertain" in generated ? Boolean(generated.uncertain) : false;
       return {
         ok: false as const,
-        uncertain: "uncertain" in generated ? Boolean(generated.uncertain) : false,
+        uncertain,
+        failureKind: uncertain ? "uncertain" as const : "definitive" as const,
       };
     },
   });

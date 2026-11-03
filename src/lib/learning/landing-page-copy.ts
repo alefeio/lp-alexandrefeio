@@ -222,23 +222,28 @@ export async function suggestCopyForUser(
       intent: input.intent,
     }),
     store: createPrismaAiIdempotencyStore(),
-    execute: async ({ requestId, markDispatched }) => {
+    execute: async ({ requestId, confirmDispatch }) => {
       const generated = await generateLandingPageCopySuggestions(
         store,
         { userId, landingPageProjectId: input.landingPageProjectId, sectionId: input.sectionId, intent: input.intent },
         resolveLandingPageCopyProvider(),
-        { timeoutMs: COPY_LIVE_PROVIDER_TIMEOUT_MS, requestId, onBeforeProvider: markDispatched },
+        { timeoutMs: COPY_LIVE_PROVIDER_TIMEOUT_MS, requestId, onBeforeProvider: confirmDispatch },
       );
       if (generated.ok) return { ok: true as const, value: generated.value };
       generationCode = generated.code;
-      return { ok: false as const, uncertain: "uncertain" in generated ? Boolean(generated.uncertain) : false };
+      const uncertain = "uncertain" in generated ? Boolean(generated.uncertain) : false;
+      return {
+        ok: false as const,
+        uncertain,
+        failureKind: uncertain ? "uncertain" as const : "definitive" as const,
+      };
     },
   });
 
   if (!guarded.ok) {
     if ("block" in guarded && guarded.block) {
       if (guarded.block === "missing_key") return failure("COPY_ASSIST_IDEMPOTENCY_REQUIRED");
-      if (guarded.block === "in_progress") return failure("COPY_ASSIST_IN_PROGRESS");
+      if (guarded.block === "in_progress" || guarded.block === "ownership_lost") return failure("COPY_ASSIST_IN_PROGRESS");
       if (guarded.block === "completed") return failure("COPY_ASSIST_ALREADY_COMPLETED");
       if (guarded.block === "fingerprint_conflict") return failure("COPY_ASSIST_FINGERPRINT_CONFLICT");
       if (guarded.block === "unknown_blocked") return failure("COPY_ASSIST_OPERATION_UNKNOWN");

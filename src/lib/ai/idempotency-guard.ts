@@ -1,4 +1,5 @@
 import {
+  AiIdempotencyOwnershipError,
   completeAiOperation,
   failAiOperation,
   markAiOperationProviderDispatched,
@@ -15,20 +16,37 @@ export type AiIdempotencyBlockKind =
   | "completed"
   | "unknown_blocked"
   | "fingerprint_conflict"
-  | "store_unavailable";
+  | "store_unavailable"
+  | "ownership_lost";
+
+/** Classificação do resultado da execução protegida. */
+export type AiExecutionFailureKind =
+  /** Falha antes de confirmar despacho no banco — recuperável. */
+  | "before_dispatch"
+  /** Resposta definitiva do provedor ou rejeição de validação com evidência. */
+  | "definitive"
+  /** Timeout/transporte após possível envio — não recuperar com a mesma chave. */
+  | "uncertain";
 
 export type GuardedAiExecution<T> =
   | { ok: true; value: T; reservation: AiOperationReservationRecord }
   | { ok: false; block: AiIdempotencyBlockKind; reservation?: AiOperationReservationRecord }
-  | { ok: false; executionFailed: true; uncertain: boolean; reservation: AiOperationReservationRecord; error?: unknown };
+  | {
+    ok: false;
+    executionFailed: true;
+    failureKind: AiExecutionFailureKind;
+    uncertain: boolean;
+    reservation: AiOperationReservationRecord;
+    error?: unknown;
+  };
 
 function blockFromReserve(result: Exclude<ReserveAiOperationResult, { kind: "authorized" }>): AiIdempotencyBlockKind {
   return result.kind;
 }
 
 /**
- * Reserva → marca despacho → executa → completa/falha/unknown.
- * Não chama o provedor se a reserva não autorizar.
+ * Reserva → confirma despacho (fencing) → executa → completa/falha/unknown.
+ * Não chama o provedor se a reserva não autorizar ou se a confirmação de despacho falhar.
  */
 export async function runGuardedAiOperation<T>(input: {
   userId: string;
@@ -42,8 +60,12 @@ export async function runGuardedAiOperation<T>(input: {
   execute: (ctx: {
     requestId: string;
     reservation: AiOperationReservationRecord;
-    markDispatched: () => Promise<void>;
-  }) => Promise<{ ok: true; value: T } | { ok: false; uncertain?: boolean }>;
+    /** Confirma despacho no banco. Lança OwnershipError se a geração não for mais dona. */
+    confirmDispatch: () => Promise<void>;
+  }) => Promise<
+    | { ok: true; value: T }
+    | { ok: false; failureKind?: AiExecutionFailureKind; uncertain?: boolean }
+  >;
 }): Promise<GuardedAiExecution<T>> {
   const reserved = await reserveAiOperation({
     userId: input.userId,
@@ -66,9 +88,9 @@ export async function runGuardedAiOperation<T>(input: {
 
   const reservation = reserved.reservation;
   let dispatched = false;
-  const markDispatched = async () => {
+  const confirmDispatch = async () => {
     if (dispatched) return;
-    await markAiOperationProviderDispatched(input.store, reservation.id, input.now);
+    await markAiOperationProviderDispatched(input.store, reservation, input.now);
     dispatched = true;
   };
 
@@ -76,24 +98,51 @@ export async function runGuardedAiOperation<T>(input: {
     const outcome = await input.execute({
       requestId: reservation.requestId,
       reservation,
-      markDispatched,
+      confirmDispatch,
     });
     if (outcome.ok) {
-      await completeAiOperation(input.store, reservation.id, input.now);
+      // Resposta válida não é descartada se a atualização final da reserva falhar.
+      await completeAiOperation(input.store, reservation, input.now);
       return { ok: true, value: outcome.value, reservation };
     }
-    if (outcome.uncertain) {
-      await unknownAiOperation(input.store, reservation.id, input.now);
-      return { ok: false, executionFailed: true, uncertain: true, reservation };
+
+    const failureKind: AiExecutionFailureKind = outcome.failureKind
+      ?? (outcome.uncertain ? "uncertain" : dispatched ? "definitive" : "before_dispatch");
+    const uncertain = failureKind === "uncertain";
+
+    if (uncertain) {
+      await unknownAiOperation(input.store, reservation, input.now);
+      return { ok: false, executionFailed: true, failureKind, uncertain: true, reservation };
     }
-    await failAiOperation(input.store, reservation.id, input.now);
-    return { ok: false, executionFailed: true, uncertain: false, reservation };
+    await failAiOperation(input.store, reservation, input.now);
+    return { ok: false, executionFailed: true, failureKind, uncertain: false, reservation };
   } catch (error) {
-    if (dispatched) {
-      await unknownAiOperation(input.store, reservation.id, input.now);
-      return { ok: false, executionFailed: true, uncertain: true, reservation, error };
+    if (error instanceof AiIdempotencyOwnershipError) {
+      return {
+        ok: false,
+        block: "ownership_lost",
+        reservation,
+      };
     }
-    await failAiOperation(input.store, reservation.id, input.now);
-    return { ok: false, executionFailed: true, uncertain: false, reservation, error };
+    if (dispatched) {
+      await unknownAiOperation(input.store, reservation, input.now);
+      return {
+        ok: false,
+        executionFailed: true,
+        failureKind: "uncertain",
+        uncertain: true,
+        reservation,
+        error,
+      };
+    }
+    await failAiOperation(input.store, reservation, input.now);
+    return {
+      ok: false,
+      executionFailed: true,
+      failureKind: "before_dispatch",
+      uncertain: false,
+      reservation,
+      error,
+    };
   }
 }

@@ -101,23 +101,33 @@ export async function editorialAction(
     idempotencyKey: options?.idempotencyKey,
     fingerprintHash: blogAiFingerprint({ action, inventory, focus }),
     store: createPrismaAiIdempotencyStore(),
-    execute: async ({ requestId, markDispatched }) => {
-      await markDispatched();
+    execute: async ({ requestId, confirmDispatch }) => {
       const result = await runEditorialAction({
         action,
         inventory,
         focus,
         userId: session.user.id,
         requestId,
+        onBeforeProvider: confirmDispatch,
       });
       if (result.ok) return { ok: true as const, value: result };
       generationMessage = result.message || BLOG_AI_FAILURE;
-      return { ok: false as const, uncertain: "uncertain" in result ? Boolean(result.uncertain) : false };
+      const uncertain = "uncertain" in result ? Boolean(result.uncertain) : false;
+      return {
+        ok: false as const,
+        uncertain,
+        failureKind: uncertain ? "uncertain" as const : "definitive" as const,
+      };
     },
   });
 
   if (guarded.ok) return guarded.value;
-  if ("block" in guarded && guarded.block) return { ok: false as const, message: blogIdempotencyMessage(guarded.block) };
+  if ("block" in guarded && guarded.block) {
+    if (guarded.block === "ownership_lost") {
+      return { ok: false as const, message: "Esta geração foi substituída. Peça uma nova sugestão." };
+    }
+    return { ok: false as const, message: blogIdempotencyMessage(guarded.block) };
+  }
   return { ok: false as const, message: generationMessage || BLOG_AI_FAILURE };
 }
 

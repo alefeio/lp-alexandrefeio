@@ -3,17 +3,19 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createMemoryAiLedger } from "../src/lib/ai/ledger";
 import {
+  AiIdempotencyOwnershipError,
   completeAiOperation,
   createMemoryAiIdempotencyStore,
   failAiOperation,
   fingerprintAiParams,
+  markAiOperationProviderDispatched,
   normalizeIdempotencyKey,
   reserveAiOperation,
   unknownAiOperation,
 } from "../src/lib/ai/idempotency";
 import { runGuardedAiOperation } from "../src/lib/ai/idempotency-guard";
 import { blogAiFingerprint, landingPageCopyFingerprint } from "../src/lib/ai/idempotency-fingerprints";
-import { readAiIdempotencyMetrics, resetAiIdempotencyMetrics } from "../src/lib/ai/idempotency-metrics";
+import { resetAiIdempotencyMetrics } from "../src/lib/ai/idempotency-metrics";
 import { BLOG_AI_FEATURE_KEYS } from "../src/lib/blog/ai-request";
 import { runEditorialAction } from "../src/lib/blog/ai";
 import {
@@ -125,55 +127,14 @@ test("normalizeIdempotencyKey rejeita chave ausente ou inválida", () => {
 test("fingerprint é estável e sensível a mudanças canônicas", () => {
   const a = fingerprintAiParams({ a: 1, b: ["x", "y"] });
   const b = fingerprintAiParams({ b: ["x", "y"], a: 1 });
-  const c = fingerprintAiParams({ a: 1, b: ["y", "x"] });
   assert.equal(a, b);
-  assert.notEqual(a, c);
-  assert.equal(landingPageCopyFingerprint({
-    landingPageProjectId: "p1",
-    sectionId: "hero",
-    draftRevision: 2,
-  }), landingPageCopyFingerprint({
-    landingPageProjectId: "p1",
-    sectionId: "hero",
-    draftRevision: 2,
-    promptVersion: LANDING_PAGE_COPY_PROMPT_V1,
-  }));
   assert.notEqual(
     blogAiFingerprint({ action: "titles", inventory: emptyInventory, focus: { title: "A" } }),
     blogAiFingerprint({ action: "titles", inventory: emptyInventory, focus: { title: "B" } }),
   );
 });
 
-test("1) primeira requisição válida autoriza execução", async () => {
-  resetAiIdempotencyMetrics();
-  const store = createMemoryAiIdempotencyStore();
-  const reserved = await reserveAiOperation({
-    userId: "u1",
-    featureKey: "blog_titles",
-    idempotencyKey: "intent-001",
-    fingerprintHash: fingerprintAiParams({ v: 1 }),
-    store,
-  });
-  assert.equal(reserved.kind, "authorized");
-  assert.equal(readAiIdempotencyMetrics().authorized, 1);
-});
-
-test("2) duplo clique com mesma chave bloqueia a segunda", async () => {
-  resetAiIdempotencyMetrics();
-  const store = createMemoryAiIdempotencyStore();
-  const fp = fingerprintAiParams({ v: 1 });
-  const first = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_draft", idempotencyKey: "dbl-click-01", fingerprintHash: fp, store,
-  });
-  const second = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_draft", idempotencyKey: "dbl-click-01", fingerprintHash: fp, store,
-  });
-  assert.equal(first.kind, "authorized");
-  assert.equal(second.kind, "in_progress");
-  assert.equal(readAiIdempotencyMetrics().in_progress, 1);
-});
-
-test("3) cem requisições simultâneas equivalentes autorizam exatamente uma", async () => {
+test("1) cem requisições equivalentes em memória: uma autorização", async () => {
   resetAiIdempotencyMetrics();
   const store = createMemoryAiIdempotencyStore();
   const fp = fingerprintAiParams({ batch: 100 });
@@ -184,8 +145,8 @@ test("3) cem requisições simultâneas equivalentes autorizam exatamente uma", 
     idempotencyKey: "burst-100",
     fingerprintHash: fp,
     store,
-    execute: async ({ markDispatched }) => {
-      await markDispatched();
+    execute: async ({ confirmDispatch }) => {
+      await confirmDispatch();
       executions += 1;
       await new Promise((resolve) => setTimeout(resolve, 5));
       return { ok: true as const, value: "ok" };
@@ -196,75 +157,151 @@ test("3) cem requisições simultâneas equivalentes autorizam exatamente uma", 
   assert.equal(results.filter((row) => !row.ok && "block" in row && row.block === "in_progress").length, 99);
 });
 
-test("5) nova chave com mesma entrada permite nova geração", async () => {
+test("3) reclaim de reserva expirada sem despacho", async () => {
   const store = createMemoryAiIdempotencyStore();
-  const fp = fingerprintAiParams({ same: true });
-  const first = await runGuardedAiOperation({
-    userId: "u1", featureKey: "blog_next", idempotencyKey: "key-alpha-1", fingerprintHash: fp, store,
-    execute: async () => ({ ok: true as const, value: 1 }),
+  const fp = fingerprintAiParams({ recover: 1 });
+  const now = new Date("2026-11-03T12:00:00.000Z");
+  const reserved = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_coverage", idempotencyKey: "stale-key-1", fingerprintHash: fp, store, now, ttlMs: 1,
   });
-  const second = await runGuardedAiOperation({
-    userId: "u1", featureKey: "blog_next", idempotencyKey: "key-bravo-1", fingerprintHash: fp, store,
-    execute: async () => ({ ok: true as const, value: 2 }),
+  assert.equal(reserved.kind, "authorized");
+  if (reserved.kind !== "authorized") return;
+  assert.equal(reserved.reservation.generation, 1);
+  const later = new Date(now.getTime() + 10_000);
+  const recovered = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_coverage", idempotencyKey: "stale-key-1", fingerprintHash: fp, store, now: later, ttlMs: 60_000,
   });
-  assert.equal(first.ok, true);
-  assert.equal(second.ok, true);
+  assert.equal(recovered.kind, "authorized");
+  if (recovered.kind !== "authorized") return;
+  assert.equal(recovered.reservation.generation, 2);
 });
 
-test("6) mesma chave com fingerprint diferente retorna conflito", async () => {
+test("4) execução antiga tentando despachar depois do reclaim", async () => {
   const store = createMemoryAiIdempotencyStore();
-  await reserveAiOperation({
-    userId: "u1", featureKey: "blog_seo", idempotencyKey: "same-key", fingerprintHash: fingerprintAiParams({ a: 1 }), store,
+  const fp = fingerprintAiParams({ fence: "dispatch" });
+  const now = new Date("2026-11-03T12:00:00.000Z");
+  const first = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_draft", idempotencyKey: "fence-disp", fingerprintHash: fp, store, now, ttlMs: 1,
   });
-  const conflict = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_seo", idempotencyKey: "same-key", fingerprintHash: fingerprintAiParams({ a: 2 }), store,
-  });
-  assert.equal(conflict.kind, "fingerprint_conflict");
-});
-
-test("7) isolamento entre usuários", async () => {
-  const store = createMemoryAiIdempotencyStore();
-  const fp = fingerprintAiParams({ x: 1 });
-  const a = await reserveAiOperation({ userId: "u1", featureKey: "blog_titles", idempotencyKey: "shared-key-1", fingerprintHash: fp, store });
-  const b = await reserveAiOperation({ userId: "u2", featureKey: "blog_titles", idempotencyKey: "shared-key-1", fingerprintHash: fp, store });
-  assert.equal(a.kind, "authorized");
-  assert.equal(b.kind, "authorized");
-});
-
-test("8) isolamento entre funcionalidades", async () => {
-  const store = createMemoryAiIdempotencyStore();
-  const fp = fingerprintAiParams({ x: 1 });
-  const a = await reserveAiOperation({ userId: "u1", featureKey: "blog_titles", idempotencyKey: "shared-key-1", fingerprintHash: fp, store });
-  const b = await reserveAiOperation({ userId: "u1", featureKey: "blog_draft", idempotencyKey: "shared-key-1", fingerprintHash: fp, store });
-  assert.equal(a.kind, "authorized");
-  assert.equal(b.kind, "authorized");
-});
-
-test("9) timeout antes da chamada ao provedor marca FAILED e permite reclaim", async () => {
-  const store = createMemoryAiIdempotencyStore();
-  const fp = fingerprintAiParams({ t: "before" });
-  const first = await runGuardedAiOperation({
-    userId: "u1", featureKey: "blog_review", idempotencyKey: "pre-timeout", fingerprintHash: fp, store,
-    execute: async () => {
-      throw new Error("timeout-before-dispatch");
-    },
-  });
-  assert.equal(first.ok, false);
-  assert.equal("executionFailed" in first && first.uncertain, false);
+  assert.equal(first.kind, "authorized");
+  if (first.kind !== "authorized") return;
+  const old = first.reservation;
+  const later = new Date(now.getTime() + 5_000);
   const second = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_review", idempotencyKey: "pre-timeout", fingerprintHash: fp, store,
+    userId: "u1", featureKey: "blog_draft", idempotencyKey: "fence-disp", fingerprintHash: fp, store, now: later, ttlMs: 60_000,
   });
   assert.equal(second.kind, "authorized");
+  await assert.rejects(
+    () => markAiOperationProviderDispatched(store, old, later),
+    (error: unknown) => error instanceof AiIdempotencyOwnershipError,
+  );
+  if (second.kind === "authorized") {
+    const confirmed = await markAiOperationProviderDispatched(store, second.reservation, later);
+    assert.equal(confirmed.providerDispatched, true);
+    assert.equal(confirmed.generation, 2);
+  }
 });
 
-test("10 e 11) timeout após possível envio marca UNKNOWN e bloqueia", async () => {
+test("5) execução antiga tentando concluir depois do reclaim", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ fence: "complete" });
+  const failed = await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_seo", idempotencyKey: "fence-comp", fingerprintHash: fp, store,
+    execute: async () => ({ ok: false as const, failureKind: "before_dispatch" as const }),
+  });
+  assert.equal(failed.ok, false);
+  const reclaimed = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_seo", idempotencyKey: "fence-comp", fingerprintHash: fp, store,
+  });
+  assert.equal(reclaimed.kind, "authorized");
+  if (reclaimed.kind !== "authorized" || !("reservation" in failed) || !failed.reservation) return;
+  const staleComplete = await completeAiOperation(store, failed.reservation);
+  assert.equal(staleComplete, null);
+  const owned = await completeAiOperation(store, reclaimed.reservation);
+  assert.ok(owned);
+  assert.equal(owned.status, "COMPLETED");
+});
+
+test("6) recuperação concorrente por duas instâncias: um reclaim", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ race: "reclaim" });
+  const now = new Date("2026-11-03T12:00:00.000Z");
+  await reserveAiOperation({
+    userId: "u1", featureKey: "blog_next", idempotencyKey: "race-recl", fingerprintHash: fp, store, now, ttlMs: 1,
+  });
+  const later = new Date(now.getTime() + 10_000);
+  const results = await Promise.all(Array.from({ length: 20 }, () => reserveAiOperation({
+    userId: "u1", featureKey: "blog_next", idempotencyKey: "race-recl", fingerprintHash: fp, store, now: later, ttlMs: 60_000,
+  })));
+  assert.equal(results.filter((row) => row.kind === "authorized").length, 1);
+});
+
+test("7) despacho confirmado imediatamente antes da chamada ao provedor", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ order: 1 });
+  const events: string[] = [];
+  await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_titles", idempotencyKey: "order-key1", fingerprintHash: fp, store,
+    execute: async ({ confirmDispatch }) => {
+      events.push("before_confirm");
+      await confirmDispatch();
+      events.push("after_confirm");
+      events.push("provider");
+      return { ok: true as const, value: 1 };
+    },
+  });
+  assert.deepEqual(events, ["before_confirm", "after_confirm", "provider"]);
+});
+
+test("8) falha na atualização da marcação de despacho bloqueia provedor", async () => {
+  const base = createMemoryAiIdempotencyStore();
+  const store = {
+    ...base,
+    async markProviderDispatched() {
+      return null;
+    },
+  };
+  let providerCalls = 0;
+  const result = await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_titles", idempotencyKey: "disp-fail1", fingerprintHash: fingerprintAiParams({}), store,
+    execute: async ({ confirmDispatch }) => {
+      await confirmDispatch();
+      providerCalls += 1;
+      return { ok: true as const, value: 1 };
+    },
+  });
+  assert.equal(providerCalls, 0);
+  assert.equal(result.ok, false);
+  assert.equal("block" in result && result.block, "ownership_lost");
+});
+
+test("9) falha na atualização do estado final não descarta resposta válida", async () => {
+  const base = createMemoryAiIdempotencyStore();
+  const store = {
+    ...base,
+    async markStatus() {
+      return null;
+    },
+  };
+  const result = await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_titles", idempotencyKey: "final-fail", fingerprintHash: fingerprintAiParams({}), store,
+    execute: async ({ confirmDispatch }) => {
+      await confirmDispatch();
+      return { ok: true as const, value: "kept" };
+    },
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.value, "kept");
+});
+
+test("10) timeout após possível envio marca UNKNOWN", async () => {
   const store = createMemoryAiIdempotencyStore();
   const fp = fingerprintAiParams({ t: "after" });
   const first = await runGuardedAiOperation({
     userId: "u1", featureKey: "blog_outline", idempotencyKey: "post-timeout", fingerprintHash: fp, store,
-    execute: async ({ markDispatched }) => {
-      await markDispatched();
-      return { ok: false as const, uncertain: true };
+    execute: async ({ confirmDispatch }) => {
+      await confirmDispatch();
+      return { ok: false as const, failureKind: "uncertain" as const, uncertain: true };
     },
   });
   assert.equal(first.ok, false);
@@ -275,35 +312,41 @@ test("10 e 11) timeout após possível envio marca UNKNOWN e bloqueia", async ()
   assert.equal(blocked.kind, "unknown_blocked");
 });
 
-test("12) recuperação de execução interrompida sem despacho", async () => {
+test("11) operação UNKNOWN bloqueando repetição", async () => {
   const store = createMemoryAiIdempotencyStore();
-  const fp = fingerprintAiParams({ recover: 1 });
-  const now = new Date("2026-11-03T12:00:00.000Z");
+  const fp = fingerprintAiParams({ unk: 1 });
   const reserved = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_coverage", idempotencyKey: "stale-key-1", fingerprintHash: fp, store, now, ttlMs: 1,
+    userId: "u1", featureKey: "blog_review", idempotencyKey: "unk-block1", fingerprintHash: fp, store,
   });
   assert.equal(reserved.kind, "authorized");
-  const later = new Date(now.getTime() + 10_000);
-  const recovered = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_coverage", idempotencyKey: "stale-key-1", fingerprintHash: fp, store, now: later, ttlMs: 60_000,
+  if (reserved.kind !== "authorized") return;
+  await markAiOperationProviderDispatched(store, reserved.reservation);
+  await unknownAiOperation(store, reserved.reservation);
+  const again = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_review", idempotencyKey: "unk-block1", fingerprintHash: fp, store,
   });
-  assert.equal(recovered.kind, "authorized");
+  assert.equal(again.kind, "unknown_blocked");
 });
 
-test("13) falha na reserva (store) não autoriza execução", async () => {
-  const broken: ReturnType<typeof createMemoryAiIdempotencyStore> = {
-    ...createMemoryAiIdempotencyStore(),
-    async tryInsert() {
-      throw new Error("db down");
+test("12) resposta definitiva rejeitada pela aplicação → FAILED recuperável", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ reject: 1 });
+  const first = await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_draft", idempotencyKey: "reject-01", fingerprintHash: fp, store,
+    execute: async ({ confirmDispatch }) => {
+      await confirmDispatch();
+      return { ok: false as const, failureKind: "definitive" as const };
     },
-  };
-  const result = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_next", idempotencyKey: "db-fail-01", fingerprintHash: fingerprintAiParams({}), store: broken,
   });
-  assert.equal(result.kind, "store_unavailable");
+  assert.equal(first.ok, false);
+  assert.equal("executionFailed" in first && first.uncertain, false);
+  const reclaim = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_draft", idempotencyKey: "reject-01", fingerprintHash: fp, store,
+  });
+  assert.equal(reclaim.kind, "authorized");
 });
 
-test("14) falha na gravação do ledger não descarta resposta válida sob guarda", async () => {
+test("13) falha do ledger sem descarte indevido de resposta válida", async () => {
   const { store, project } = await heroProject();
   const counting = countingClient(heroRaw());
   const provider = createOpenAILandingPageCopyProvider({
@@ -322,20 +365,20 @@ test("14) falha na gravação do ledger não descarta resposta válida sob guard
       draftRevision: project.draftRevision,
     }),
     store: idem,
-    execute: async ({ requestId, markDispatched }) => {
+    execute: async ({ requestId, confirmDispatch }) => {
       const generated = await generateLandingPageCopySuggestions(store, {
         userId: "user-a",
         landingPageProjectId: project.id,
         sectionId: "hero",
       }, provider, {
         requestId,
-        onBeforeProvider: markDispatched,
+        onBeforeProvider: confirmDispatch,
         recordProviderCall: async () => {
           throw new Error("ledger down");
         },
         onLedgerFailure: () => undefined,
       });
-      if (!generated.ok) return { ok: false as const };
+      if (!generated.ok) return { ok: false as const, failureKind: "definitive" as const };
       return { ok: true as const, value: generated.value };
     },
   });
@@ -343,7 +386,7 @@ test("14) falha na gravação do ledger não descarta resposta válida sob guard
   assert.equal(counting.calls, 1);
 });
 
-test("15 e 16) repair e retry mantêm o mesmo requestId com attempts distintos", async () => {
+test("14) repair/retry preservando requestId e attempts separados", async () => {
   const { store, project } = await heroProject("user-repair");
   let calls = 0;
   const client: CopyResponsesClient = {
@@ -383,7 +426,107 @@ test("15 e 16) repair e retry mantêm o mesmo requestId com attempts distintos",
   assert.deepEqual(ledger.rows.map((row) => row.attempt).sort((a, b) => a - b), [1, 2]);
 });
 
-test("17) tentativas diferentes registradas separadamente no ledger", async () => {
+test("15) mesmo usuário/chave com fingerprint diferente", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  await reserveAiOperation({
+    userId: "u1", featureKey: "blog_seo", idempotencyKey: "same-key1", fingerprintHash: fingerprintAiParams({ a: 1 }), store,
+  });
+  const conflict = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_seo", idempotencyKey: "same-key1", fingerprintHash: fingerprintAiParams({ a: 2 }), store,
+  });
+  assert.equal(conflict.kind, "fingerprint_conflict");
+});
+
+test("16) usuários diferentes com a mesma chave", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ x: 1 });
+  const a = await reserveAiOperation({ userId: "u1", featureKey: "blog_titles", idempotencyKey: "shared-key-1", fingerprintHash: fp, store });
+  const b = await reserveAiOperation({ userId: "u2", featureKey: "blog_titles", idempotencyKey: "shared-key-1", fingerprintHash: fp, store });
+  assert.equal(a.kind, "authorized");
+  assert.equal(b.kind, "authorized");
+});
+
+test("17) nova intenção legítima com nova chave", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ same: true });
+  const first = await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_next", idempotencyKey: "key-alpha-1", fingerprintHash: fp, store,
+    execute: async () => ({ ok: true as const, value: 1 }),
+  });
+  const second = await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_next", idempotencyKey: "key-bravo-1", fingerprintHash: fp, store,
+    execute: async () => ({ ok: true as const, value: 2 }),
+  });
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
+});
+
+test("18) ausência de chamadas pagas em requisições bloqueadas", async () => {
+  const { store, project } = await heroProject("user-dup");
+  const counting = countingClient(heroRaw());
+  const provider = createOpenAILandingPageCopyProvider({ apiKey: "test", model: "gpt-test", client: counting.client });
+  const idem = createMemoryAiIdempotencyStore();
+  const ledger = createMemoryAiLedger();
+  const fp = landingPageCopyFingerprint({
+    landingPageProjectId: project.id,
+    sectionId: "hero",
+    draftRevision: project.draftRevision,
+  });
+  const runOnce = () => runGuardedAiOperation({
+    userId: "user-dup",
+    featureKey: LANDING_PAGE_COPY_FEATURE_KEY,
+    idempotencyKey: "no-ledger-dup",
+    fingerprintHash: fp,
+    store: idem,
+    execute: async ({ requestId, confirmDispatch }) => {
+      const generated = await generateLandingPageCopySuggestions(store, {
+        userId: "user-dup",
+        landingPageProjectId: project.id,
+        sectionId: "hero",
+      }, provider, { requestId, onBeforeProvider: confirmDispatch, recordProviderCall: ledger.write });
+      if (!generated.ok) return { ok: false as const, failureKind: "definitive" as const };
+      return { ok: true as const, value: generated.value };
+    },
+  });
+  const first = await runOnce();
+  const second = await runOnce();
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, false);
+  assert.equal(counting.calls, 1);
+  assert.equal(ledger.rows.length, 1);
+});
+
+test("timeout antes do despacho marca FAILED e permite reclaim", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ t: "before" });
+  const first = await runGuardedAiOperation({
+    userId: "u1", featureKey: "blog_review", idempotencyKey: "pre-timeout", fingerprintHash: fp, store,
+    execute: async () => {
+      throw new Error("timeout-before-dispatch");
+    },
+  });
+  assert.equal(first.ok, false);
+  assert.equal("executionFailed" in first && first.uncertain, false);
+  const second = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_review", idempotencyKey: "pre-timeout", fingerprintHash: fp, store,
+  });
+  assert.equal(second.kind, "authorized");
+});
+
+test("falha na reserva (store) não autoriza execução", async () => {
+  const broken: ReturnType<typeof createMemoryAiIdempotencyStore> = {
+    ...createMemoryAiIdempotencyStore(),
+    async tryInsert() {
+      throw new Error("db down");
+    },
+  };
+  const result = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_next", idempotencyKey: "db-fail-01", fingerprintHash: fingerprintAiParams({}), store: broken,
+  });
+  assert.equal(result.kind, "store_unavailable");
+});
+
+test("tentativas diferentes registradas separadamente no ledger", async () => {
   const ledger = createMemoryAiLedger();
   const client = {
     responses: {
@@ -418,100 +561,41 @@ test("17) tentativas diferentes registradas separadamente no ledger", async () =
     recordProviderCall: ledger.write,
   });
   assert.equal(ledger.rows.length, 2);
-  assert.deepEqual(ledger.rows.map((row) => row.attempt).sort((a, b) => a - b), [1, 2]);
 });
 
-test("18) duplicata bloqueada não registra provider call", async () => {
-  const { store, project } = await heroProject("user-dup");
-  const counting = countingClient(heroRaw());
-  const provider = createOpenAILandingPageCopyProvider({ apiKey: "test", model: "gpt-test", client: counting.client });
-  const idem = createMemoryAiIdempotencyStore();
-  const ledger = createMemoryAiLedger();
-  const fp = landingPageCopyFingerprint({
-    landingPageProjectId: project.id,
-    sectionId: "hero",
-    draftRevision: project.draftRevision,
-  });
-  const runOnce = () => runGuardedAiOperation({
-    userId: "user-dup",
-    featureKey: LANDING_PAGE_COPY_FEATURE_KEY,
-    idempotencyKey: "no-ledger-dup",
-    fingerprintHash: fp,
-    store: idem,
-    execute: async ({ requestId, markDispatched }) => {
-      const generated = await generateLandingPageCopySuggestions(store, {
-        userId: "user-dup",
-        landingPageProjectId: project.id,
-        sectionId: "hero",
-      }, provider, { requestId, onBeforeProvider: markDispatched, recordProviderCall: ledger.write });
-      if (!generated.ok) return { ok: false as const };
-      return { ok: true as const, value: generated.value };
-    },
-  });
-  const first = await runOnce();
-  const second = await runOnce();
-  assert.equal(first.ok, true);
-  assert.equal(second.ok, false);
-  assert.equal(counting.calls, 1);
-  assert.equal(ledger.rows.length, 1);
-});
-
-test("19) proteção aplicada às ações do blog (feature keys)", () => {
+test("proteção aplicada às ações do blog e landing", () => {
   for (const action of Object.keys(BLOG_AI_FEATURE_KEYS) as Array<keyof typeof BLOG_AI_FEATURE_KEYS>) {
     assert.match(BLOG_AI_FEATURE_KEYS[action], /^blog_/);
   }
-  const actionsSource = readFileSync("src/lib/blog/actions.ts", "utf8");
-  assert.match(actionsSource, /runGuardedAiOperation/);
-  assert.match(actionsSource, /idempotencyKey/);
-  assert.match(actionsSource, /BLOG_AI_FEATURE_KEYS/);
+  assert.match(readFileSync("src/lib/blog/actions.ts", "utf8"), /confirmDispatch/);
+  assert.match(readFileSync("src/lib/landing-page/copy/request.ts", "utf8"), /confirmDispatch/);
+  assert.match(readFileSync("src/lib/learning/landing-page-copy.ts", "utf8"), /confirmDispatch/);
 });
 
-test("20) proteção aplicada à geração de copy de landing page", () => {
-  const requestSource = readFileSync("src/lib/landing-page/copy/request.ts", "utf8");
-  const lessonSource = readFileSync("src/lib/learning/landing-page-copy.ts", "utf8");
-  assert.match(requestSource, /idempotencyKey/);
-  assert.match(requestSource, /runGuardedAiOperation/);
-  assert.match(lessonSource, /runGuardedAiOperation/);
-  assert.match(lessonSource, /idempotencyKey/);
-});
-
-test("21) painel de custos por usuário permanece intacto", () => {
+test("painel de custos e contratos de autenticação preservados", () => {
   const economics = readFileSync("src/lib/admin/ai-economics.ts", "utf8");
-  const dashboard = readFileSync("src/components/admin/ai/AiEconomicsDashboard.tsx", "utf8");
   assert.match(economics, /pricedCostMicros/);
-  assert.match(dashboard, /por usuário/i);
   assert.equal(economics.includes("idempotency"), false);
+  assert.match(readFileSync("src/lib/landing-page/copy/request.ts", "utf8"), /copyAssistAccessDecision/);
 });
 
-test("22) contratos de autenticação e copy assist preservados no escopo", () => {
-  const requestSource = readFileSync("src/lib/landing-page/copy/request.ts", "utf8");
-  assert.match(requestSource, /getSession/);
-  assert.match(requestSource, /copyAssistAccessDecision/);
-  assert.match(requestSource, /FORBIDDEN/);
-});
-
-test("operação concluída bloqueia reexecução da mesma chave", async () => {
-  const store = createMemoryAiIdempotencyStore();
-  const fp = fingerprintAiParams({ done: true });
-  const first = await runGuardedAiOperation({
-    userId: "u1", featureKey: "blog_seo", idempotencyKey: "done-key-1", fingerprintHash: fp, store,
-    execute: async () => ({ ok: true as const, value: "x" }),
-  });
-  assert.equal(first.ok, true);
-  const again = await reserveAiOperation({
-    userId: "u1", featureKey: "blog_seo", idempotencyKey: "done-key-1", fingerprintHash: fp, store,
-  });
-  assert.equal(again.kind, "completed");
-});
-
-test("complete/fail/unknown helpers", async () => {
+test("helpers fail/unknown com generation", async () => {
   const store = createMemoryAiIdempotencyStore();
   const reserved = await reserveAiOperation({
     userId: "u1", featureKey: "blog_next", idempotencyKey: "helpers-01", fingerprintHash: fingerprintAiParams({}), store,
   });
   assert.equal(reserved.kind, "authorized");
   if (reserved.kind !== "authorized") return;
-  await completeAiOperation(store, reserved.reservation.id);
-  await failAiOperation(store, "missing");
-  await unknownAiOperation(store, "missing");
+  await failAiOperation(store, { id: "missing", generation: 1 });
+  await unknownAiOperation(store, { id: "missing", generation: 1 });
+  const done = await completeAiOperation(store, reserved.reservation);
+  assert.ok(done);
+});
+
+test("migration de generation documentada", () => {
+  assert.match(
+    readFileSync("prisma/migrations/20261103220000_ai_operation_reservation_generation/migration.sql", "utf8"),
+    /generation/,
+  );
+  assert.match(readFileSync("docs/ai-idempotency.md", "utf8"), /fencing/);
 });

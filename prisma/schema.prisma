@@ -1071,6 +1071,7 @@ model AiProviderCall {
 
 /// Reserva atômica de intenção de geração de IA (idempotência operacional).
 /// Não armazena prompt, resposta nem conteúdo editorial — só hashes e metadados.
+/// `generation` é o fencing token: reclaim incrementa e invalida a geração anterior.
 model AiOperationReservation {
   id                 String   @id @default(cuid())
   userId             String
@@ -1078,6 +1079,7 @@ model AiOperationReservation {
   idempotencyKey     String
   fingerprintHash    String
   requestId          String
+  generation         Int      @default(1)
   status             String
   providerDispatched Boolean  @default(false)
   expiresAt          DateTime

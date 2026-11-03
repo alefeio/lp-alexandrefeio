@@ -8,6 +8,7 @@ type Row = {
   idempotencyKey: string;
   fingerprintHash: string;
   requestId: string;
+  generation: number;
   status: string;
   providerDispatched: boolean;
   expiresAt: Date;
@@ -24,6 +25,7 @@ function mapRow(row: Row): AiOperationReservationRecord {
     idempotencyKey: row.idempotencyKey,
     fingerprintHash: row.fingerprintHash,
     requestId: row.requestId,
+    generation: Number(row.generation),
     status: row.status as AiOperationStatus,
     providerDispatched: row.providerDispatched,
     expiresAt: row.expiresAt,
@@ -40,12 +42,12 @@ export function createPrismaAiIdempotencyStore(): AiIdempotencyStore {
       const rows = await prisma.$queryRaw<Row[]>`
         INSERT INTO "ai_operation_reservation" (
           "id", "userId", "featureKey", "idempotencyKey", "fingerprintHash", "requestId",
-          "status", "providerDispatched", "expiresAt", "createdAt", "updatedAt", "completedAt"
+          "generation", "status", "providerDispatched", "expiresAt", "createdAt", "updatedAt", "completedAt"
         )
         VALUES (
           ${record.id}, ${record.userId}, ${record.featureKey}, ${record.idempotencyKey},
-          ${record.fingerprintHash}, ${record.requestId}, ${record.status}, ${record.providerDispatched},
-          ${record.expiresAt}, ${record.createdAt}, ${record.updatedAt}, ${record.completedAt}
+          ${record.fingerprintHash}, ${record.requestId}, ${record.generation}, ${record.status},
+          ${record.providerDispatched}, ${record.expiresAt}, ${record.createdAt}, ${record.updatedAt}, ${record.completedAt}
         )
         ON CONFLICT ("userId", "featureKey", "idempotencyKey") DO NOTHING
         RETURNING *
@@ -71,6 +73,7 @@ export function createPrismaAiIdempotencyStore(): AiIdempotencyStore {
           "status" = 'IN_PROGRESS',
           "requestId" = ${input.requestId},
           "fingerprintHash" = ${input.fingerprintHash},
+          "generation" = "generation" + 1,
           "providerDispatched" = false,
           "expiresAt" = ${input.expiresAt},
           "updatedAt" = ${input.now},
@@ -92,6 +95,7 @@ export function createPrismaAiIdempotencyStore(): AiIdempotencyStore {
           "status" = 'IN_PROGRESS',
           "requestId" = ${input.requestId},
           "fingerprintHash" = ${input.fingerprintHash},
+          "generation" = "generation" + 1,
           "providerDispatched" = false,
           "expiresAt" = ${input.expiresAt},
           "updatedAt" = ${input.now},
@@ -107,24 +111,33 @@ export function createPrismaAiIdempotencyStore(): AiIdempotencyStore {
       `;
       return rows[0] ? mapRow(rows[0]) : null;
     },
-    async markProviderDispatched(id, now) {
+    async markProviderDispatched(input) {
       const prisma = getPrisma();
-      await prisma.$executeRaw`
+      const rows = await prisma.$queryRaw<Row[]>`
         UPDATE "ai_operation_reservation"
-        SET "providerDispatched" = true, "updatedAt" = ${now}
-        WHERE "id" = ${id}
+        SET "providerDispatched" = true, "updatedAt" = ${input.now}
+        WHERE "id" = ${input.id}
+          AND "generation" = ${input.generation}
+          AND "status" = 'IN_PROGRESS'
+          AND "providerDispatched" = false
+        RETURNING *
       `;
+      return rows[0] ? mapRow(rows[0]) : null;
     },
     async markStatus(input) {
       const prisma = getPrisma();
-      await prisma.$executeRaw`
+      const rows = await prisma.$queryRaw<Row[]>`
         UPDATE "ai_operation_reservation"
         SET
           "status" = ${input.status},
           "updatedAt" = ${input.now},
           "completedAt" = CASE WHEN ${input.status} = 'COMPLETED' THEN ${input.now} ELSE "completedAt" END
         WHERE "id" = ${input.id}
+          AND "generation" = ${input.generation}
+          AND "status" = 'IN_PROGRESS'
+        RETURNING *
       `;
+      return rows[0] ? mapRow(rows[0]) : null;
     },
     async promoteExpiredDispatchedToUnknown(input) {
       const prisma = getPrisma();

@@ -7,6 +7,14 @@ export type AiOperationStatus = (typeof AI_OPERATION_STATUSES)[number];
 /** Lease padrão: 3 minutos. */
 export const AI_IDEMPOTENCY_TTL_MS = 180_000;
 
+export class AiIdempotencyOwnershipError extends Error {
+  readonly code = "OWNERSHIP_LOST" as const;
+  constructor(message = "ai_idempotency_ownership_lost") {
+    super(message);
+    this.name = "AiIdempotencyOwnershipError";
+  }
+}
+
 export type AiOperationReservationRecord = {
   id: string;
   userId: string;
@@ -14,6 +22,8 @@ export type AiOperationReservationRecord = {
   idempotencyKey: string;
   fingerprintHash: string;
   requestId: string;
+  /** Fencing token. Reclaim incrementa e invalida a geração anterior. */
+  generation: number;
   status: AiOperationStatus;
   providerDispatched: boolean;
   expiresAt: Date;
@@ -47,12 +57,25 @@ export type AiIdempotencyStore = {
     expiresAt: Date;
     now: Date;
   }): Promise<AiOperationReservationRecord | null>;
-  markProviderDispatched(id: string, now: Date): Promise<void>;
+  /**
+   * Condicional: id + generation + IN_PROGRESS + ainda não despachado.
+   * Zero linhas = perda de propriedade (nunca sucesso).
+   */
+  markProviderDispatched(input: {
+    id: string;
+    generation: number;
+    now: Date;
+  }): Promise<AiOperationReservationRecord | null>;
+  /**
+   * Condicional: id + generation + IN_PROGRESS.
+   * Zero linhas = perda de propriedade (nunca sucesso).
+   */
   markStatus(input: {
     id: string;
+    generation: number;
     status: Extract<AiOperationStatus, "COMPLETED" | "FAILED" | "UNKNOWN">;
     now: Date;
-  }): Promise<void>;
+  }): Promise<AiOperationReservationRecord | null>;
   promoteExpiredDispatchedToUnknown(input: {
     userId: string;
     featureKey: string;
@@ -120,6 +143,7 @@ export async function reserveAiOperation(input: ReserveAiOperationInput): Promis
     idempotencyKey: key,
     fingerprintHash: input.fingerprintHash,
     requestId,
+    generation: 1,
     status: "IN_PROGRESS",
     providerDispatched: false,
     expiresAt: new Date(now.getTime() + ttlMs),
@@ -236,23 +260,70 @@ export async function reserveAiOperation(input: ReserveAiOperationInput): Promis
   }
 }
 
-export async function markAiOperationProviderDispatched(store: AiIdempotencyStore, reservationId: string, now = new Date()) {
-  await store.markProviderDispatched(reservationId, now);
+/** Confirma despacho no banco. Zero linhas → OwnershipError (não chamar provedor). */
+export async function markAiOperationProviderDispatched(
+  store: AiIdempotencyStore,
+  reservation: Pick<AiOperationReservationRecord, "id" | "generation">,
+  now = new Date(),
+): Promise<AiOperationReservationRecord> {
+  const updated = await store.markProviderDispatched({
+    id: reservation.id,
+    generation: reservation.generation,
+    now,
+  });
+  if (!updated) {
+    recordAiIdempotencyMetric("store_failure", { reason: "dispatch_ownership_lost" });
+    throw new AiIdempotencyOwnershipError("dispatch_ownership_lost");
+  }
+  return updated;
 }
 
-export async function completeAiOperation(store: AiIdempotencyStore, reservationId: string, now = new Date()) {
-  await store.markStatus({ id: reservationId, status: "COMPLETED", now });
-  recordAiIdempotencyMetric("completed");
+export async function completeAiOperation(
+  store: AiIdempotencyStore,
+  reservation: Pick<AiOperationReservationRecord, "id" | "generation">,
+  now = new Date(),
+): Promise<AiOperationReservationRecord | null> {
+  const updated = await store.markStatus({
+    id: reservation.id,
+    generation: reservation.generation,
+    status: "COMPLETED",
+    now,
+  });
+  if (updated) recordAiIdempotencyMetric("completed");
+  else recordAiIdempotencyMetric("store_failure", { reason: "complete_ownership_lost" });
+  return updated;
 }
 
-export async function failAiOperation(store: AiIdempotencyStore, reservationId: string, now = new Date()) {
-  await store.markStatus({ id: reservationId, status: "FAILED", now });
-  recordAiIdempotencyMetric("failed");
+export async function failAiOperation(
+  store: AiIdempotencyStore,
+  reservation: Pick<AiOperationReservationRecord, "id" | "generation">,
+  now = new Date(),
+): Promise<AiOperationReservationRecord | null> {
+  const updated = await store.markStatus({
+    id: reservation.id,
+    generation: reservation.generation,
+    status: "FAILED",
+    now,
+  });
+  if (updated) recordAiIdempotencyMetric("failed");
+  else recordAiIdempotencyMetric("store_failure", { reason: "fail_ownership_lost" });
+  return updated;
 }
 
-export async function unknownAiOperation(store: AiIdempotencyStore, reservationId: string, now = new Date()) {
-  await store.markStatus({ id: reservationId, status: "UNKNOWN", now });
-  recordAiIdempotencyMetric("unknown_marked");
+export async function unknownAiOperation(
+  store: AiIdempotencyStore,
+  reservation: Pick<AiOperationReservationRecord, "id" | "generation">,
+  now = new Date(),
+): Promise<AiOperationReservationRecord | null> {
+  const updated = await store.markStatus({
+    id: reservation.id,
+    generation: reservation.generation,
+    status: "UNKNOWN",
+    now,
+  });
+  if (updated) recordAiIdempotencyMetric("unknown_marked");
+  else recordAiIdempotencyMetric("store_failure", { reason: "unknown_ownership_lost" });
+  return updated;
 }
 
 export function createMemoryAiIdempotencyStore(): AiIdempotencyStore {
@@ -289,6 +360,7 @@ export function createMemoryAiIdempotencyStore(): AiIdempotencyStore {
         const next: AiOperationReservationRecord = {
           ...current,
           requestId: input.requestId,
+          generation: current.generation + 1,
           status: "IN_PROGRESS",
           providerDispatched: false,
           expiresAt: input.expiresAt,
@@ -315,6 +387,7 @@ export function createMemoryAiIdempotencyStore(): AiIdempotencyStore {
         const next: AiOperationReservationRecord = {
           ...current,
           requestId: input.requestId,
+          generation: current.generation + 1,
           status: "IN_PROGRESS",
           providerDispatched: false,
           expiresAt: input.expiresAt,
@@ -325,27 +398,35 @@ export function createMemoryAiIdempotencyStore(): AiIdempotencyStore {
         return { ...next };
       });
     },
-    async markProviderDispatched(id, now) {
-      await exclusive(() => {
+    async markProviderDispatched(input) {
+      return exclusive(() => {
         for (const [key, row] of rows) {
-          if (row.id !== id) continue;
-          rows.set(key, { ...row, providerDispatched: true, updatedAt: now });
-          return;
+          if (row.id !== input.id) continue;
+          if (row.generation !== input.generation) return null;
+          if (row.status !== "IN_PROGRESS" || row.providerDispatched) return null;
+          const next = { ...row, providerDispatched: true, updatedAt: input.now };
+          rows.set(key, next);
+          return { ...next };
         }
+        return null;
       });
     },
     async markStatus(input) {
-      await exclusive(() => {
+      return exclusive(() => {
         for (const [key, row] of rows) {
           if (row.id !== input.id) continue;
-          rows.set(key, {
+          if (row.generation !== input.generation) return null;
+          if (row.status !== "IN_PROGRESS") return null;
+          const next: AiOperationReservationRecord = {
             ...row,
             status: input.status,
             updatedAt: input.now,
             completedAt: input.status === "COMPLETED" ? input.now : row.completedAt,
-          });
-          return;
+          };
+          rows.set(key, next);
+          return { ...next };
         }
+        return null;
       });
     },
     async promoteExpiredDispatchedToUnknown(input) {
