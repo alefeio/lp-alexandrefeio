@@ -120,6 +120,7 @@ export function createPrismaAiIdempotencyStore(): AiIdempotencyStore {
           AND "generation" = ${input.generation}
           AND "status" = 'IN_PROGRESS'
           AND "providerDispatched" = false
+          AND "expiresAt" > ${input.now}
         RETURNING *
       `;
       return rows[0] ? mapRow(rows[0]) : null;

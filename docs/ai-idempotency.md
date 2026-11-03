@@ -30,13 +30,14 @@ Reserva atômica via `INSERT ... ON CONFLICT DO NOTHING` no PostgreSQL (multi-in
 Cada autorização carrega `{ id, generation }`.
 
 1. Despacho (`providerDispatched=true`) só com
-   `WHERE id AND generation AND status='IN_PROGRESS' AND providerDispatched=false RETURNING *`.
-2. Transições finais (`COMPLETED`/`FAILED`/`UNKNOWN`) só com
-   `WHERE id AND generation AND status='IN_PROGRESS' RETURNING *`.
-3. Zero linhas = perda de propriedade — **nunca** tratado como sucesso.
-4. Se a confirmação de despacho falhar, o provedor **não** é chamado.
-5. Execução antiga após reclaim não consegue despachar nem finalizar a geração nova.
-6. Expiração do lease **não** autoriza repetir chamada já despachada: promove a `UNKNOWN`.
+   `WHERE id AND generation AND status='IN_PROGRESS' AND providerDispatched=false AND expiresAt > now RETURNING *`.
+2. Lease expirado **não** pode iniciar chamada ao provedor (despacho tardio recusado).
+3. Transições finais (`COMPLETED`/`FAILED`/`UNKNOWN`) só com
+   `WHERE id AND generation AND status='IN_PROGRESS' RETURNING *` (a geração dona que já despachou ainda pode finalizar após o relógio do lease).
+4. Zero linhas = perda de propriedade — **nunca** tratado como sucesso.
+5. Se a confirmação de despacho falhar, o provedor **não** é chamado.
+6. Execução antiga após reclaim não consegue despachar nem finalizar a geração nova.
+7. Expiração do lease **não** autoriza repetir chamada já despachada: promove a `UNKNOWN`.
 
 ## Classificação de falhas
 
@@ -83,18 +84,61 @@ Não representam economia financeira nem entram em GA4/GTM/JourneyEvent.
 ## Teste PostgreSQL isolado
 
 O banco local compartilhado (`DATABASE_ENV=development` no mesmo Postgres de production)
-**não** é ambiente isolado. Não aplicar a migration de idempotência nem rodar o teste live nele
-sem autorização explícita de schema compartilhado.
+**não** é ambiente isolado. Não aplicar a migration de idempotência nem rodar o teste live nele.
 
-Para aprovar a atomicidade multi-instância:
+### Banco temporário recomendado
 
-1. Provisionar um Postgres **separado** (não production, não o pooled compartilhado do site).
-2. Definir `ISOLATED_AI_IDEMPOTENCY_DATABASE_URL` (URL desse banco).
-3. Definir `RUNTIME_DATABASE_URL` / `POSTGRES_URL` apontando **somente** para esse banco isolado na sessão de teste.
-4. `DATABASE_ENV=test`
-5. `SHARED_DATABASE_TEST_CONFIRM=true` (confirmação explícita do runner)
-6. `ISOLATED_AI_IDEMPOTENCY_TEST=1`
-7. Aplicar migrations **apenas** nesse banco: `npm run db:deploy`
-8. `npm run test:database-live` (o arquivo `ai-idempotency.live.test.ts` recusa host/produção compartilhada)
+Postgres descartável local (Docker) **ou** projeto Prisma/Neon/Supabase separado, dedicado a teste,
+com nome de database distinto (ex.: `ai_idempotency_test`). Não reutilizar o pooled `postgres` de production.
 
-Não imprimir credenciais. Não usar fallback silencioso para `DATABASE_URL` de production.
+Exemplo Docker (sessão local apenas):
+
+```bash
+docker run --rm -d --name ai-idem-pg -e POSTGRES_PASSWORD=test -e POSTGRES_DB=ai_idempotency_test -p 5433:5432 postgres:16
+```
+
+### Variáveis (somente na sessão de teste)
+
+Não gravar essas URLs em `.env.local` de development compartilhado.
+
+```text
+DATABASE_ENV=test
+VERCEL_ENV=          # vazio / não production
+SHARED_DATABASE_TEST_CONFIRM=true
+ISOLATED_AI_IDEMPOTENCY_TEST=1
+ISOLATED_AI_IDEMPOTENCY_DATABASE_URL=<url do banco isolado>
+RUNTIME_DATABASE_URL=<mesma url isolada>
+POSTGRES_URL=<mesma url isolada, conexão direta para migrate>
+```
+
+Proteções anti-fallback:
+
+- O client de runtime **só** lê `RUNTIME_DATABASE_URL` (não cai em `DATABASE_URL`).
+- O live test exige `ISOLATED_AI_IDEMPOTENCY_*` e recusa host Prisma compartilhado aparente (`db.prisma.io` + db `postgres`).
+- `UNIT_TEST_ISOLATION=1` no `npm test` impede acesso ao banco compartilhado.
+
+### Migrations só no destino isolado
+
+Com as variáveis acima na sessão:
+
+```bash
+npm run db:deploy
+```
+
+Não executar `db:deploy` com `RUNTIME_DATABASE_URL`/`POSTGRES_URL` do site em production.
+
+### Seed sintético mínimo
+
+Criar um `user` sintético (id/email fictícios) no banco isolado — o teste precisa de `prisma.user.findFirst()`.
+Não copiar usuários reais.
+
+### Executar e limpar
+
+```bash
+npx tsx --test tests/database-live/ai-idempotency.live.test.ts
+# ou a suíte completa com as mesmas variáveis:
+# npm run test:database-live
+```
+
+Os testes apagam as linhas de `ai_operation_reservation` criadas pela chave sintética.
+Ao terminar: derrubar o container / apagar o projeto de teste. Não deixar credenciais no histórico do shell.

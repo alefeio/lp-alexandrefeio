@@ -58,7 +58,8 @@ export type AiIdempotencyStore = {
     now: Date;
   }): Promise<AiOperationReservationRecord | null>;
   /**
-   * Condicional: id + generation + IN_PROGRESS + ainda não despachado.
+   * Condicional: id + generation + IN_PROGRESS + ainda não despachado + lease vigente (`expiresAt > now`).
+   * Lease expirado não autoriza iniciar chamada ao provedor.
    * Zero linhas = perda de propriedade (nunca sucesso).
    */
   markProviderDispatched(input: {
@@ -404,6 +405,7 @@ export function createMemoryAiIdempotencyStore(): AiIdempotencyStore {
           if (row.id !== input.id) continue;
           if (row.generation !== input.generation) return null;
           if (row.status !== "IN_PROGRESS" || row.providerDispatched) return null;
+          if (row.expiresAt.getTime() <= input.now.getTime()) return null;
           const next = { ...row, providerDispatched: true, updatedAt: input.now };
           rows.set(key, next);
           return { ...next };

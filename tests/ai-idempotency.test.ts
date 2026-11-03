@@ -176,6 +176,89 @@ test("3) reclaim de reserva expirada sem despacho", async () => {
   assert.equal(recovered.reservation.generation, 2);
 });
 
+test("despacho tardio após lease expirado é recusado sem chamar provedor", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ late: "dispatch" });
+  const now = new Date("2026-11-03T12:00:00.000Z");
+  const reserved = await reserveAiOperation({
+    userId: "u1", featureKey: "blog_titles", idempotencyKey: "late-disp1", fingerprintHash: fp, store, now, ttlMs: 1,
+  });
+  assert.equal(reserved.kind, "authorized");
+  if (reserved.kind !== "authorized") return;
+  const later = new Date(now.getTime() + 5_000);
+  let providerCalls = 0;
+  const guarded = await runGuardedAiOperation({
+    userId: "u1",
+    featureKey: "blog_titles",
+    idempotencyKey: "late-disp1",
+    fingerprintHash: fp,
+    store,
+    now: later,
+    ttlMs: 60_000,
+    execute: async ({ confirmDispatch }) => {
+      await confirmDispatch();
+      providerCalls += 1;
+      return { ok: true as const, value: "should-not-run" };
+    },
+  });
+  // Ou reclaim autoriza nova geração, ou a antiga perde o despacho.
+  if (guarded.ok) {
+    assert.equal(providerCalls, 1);
+    assert.ok(guarded.reservation.generation >= 2);
+  } else {
+    assert.equal(providerCalls, 0);
+  }
+  await assert.rejects(
+    () => markAiOperationProviderDispatched(store, reserved.reservation, later),
+    (error: unknown) => error instanceof AiIdempotencyOwnershipError,
+  );
+});
+
+test("A) cinquenta reservas iniciais simultâneas: uma autorização", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ scenario: "A" });
+  const results = await Promise.all(Array.from({ length: 50 }, () => reserveAiOperation({
+    userId: "u1",
+    featureKey: "landing_page_copy",
+    idempotencyKey: "scenario-a-50",
+    fingerprintHash: fp,
+    store,
+  })));
+  assert.equal(results.filter((row) => row.kind === "authorized").length, 1);
+  assert.equal(results.filter((row) => row.kind === "in_progress").length, 49);
+});
+
+test("B) cinquenta recuperações simultâneas de lease expirado: uma autorização", async () => {
+  const store = createMemoryAiIdempotencyStore();
+  const fp = fingerprintAiParams({ scenario: "B" });
+  const now = new Date("2026-11-03T13:00:00.000Z");
+  const seed = await reserveAiOperation({
+    userId: "u1",
+    featureKey: "landing_page_copy",
+    idempotencyKey: "scenario-b-50",
+    fingerprintHash: fp,
+    store,
+    now,
+    ttlMs: 1,
+  });
+  assert.equal(seed.kind, "authorized");
+  const later = new Date(now.getTime() + 10_000);
+  const results = await Promise.all(Array.from({ length: 50 }, () => reserveAiOperation({
+    userId: "u1",
+    featureKey: "landing_page_copy",
+    idempotencyKey: "scenario-b-50",
+    fingerprintHash: fp,
+    store,
+    now: later,
+    ttlMs: 60_000,
+  })));
+  assert.equal(results.filter((row) => row.kind === "authorized").length, 1);
+  const winner = results.find((row) => row.kind === "authorized");
+  if (winner && winner.kind === "authorized" && seed.kind === "authorized") {
+    assert.equal(winner.reservation.generation, seed.reservation.generation + 1);
+  }
+});
+
 test("4) execução antiga tentando despachar depois do reclaim", async () => {
   const store = createMemoryAiIdempotencyStore();
   const fp = fingerprintAiParams({ fence: "dispatch" });
