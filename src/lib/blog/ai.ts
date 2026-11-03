@@ -34,7 +34,7 @@ export async function runEditorialAction(input: {
   recordProviderCall?: AiLedgerWriter;
   ledgerTimeoutMs?: number;
   onLedgerFailure?: (notice: { requestId: string; attempt: number }) => void;
-}): Promise<BlogAiSuccess | { ok: false; message: string }> {
+}): Promise<BlogAiSuccess | { ok: false; message: string; uncertain?: boolean }> {
   const now = input.now ?? new Date();
   const requestId = input.requestId ?? crypto.randomUUID();
   const attempt = input.attempt ?? 1;
@@ -65,7 +65,11 @@ export async function runEditorialAction(input: {
         errorCode: "PROVIDER_ERROR",
         latencyMs: Date.now() - started,
       }));
-      console.error("blog editorial assist failed", { action: input.action, name: error instanceof Error ? error.name : "Error" });
+      const name = error instanceof Error ? error.name : "Error";
+      console.error("blog editorial assist failed", { action: input.action, name });
+      if (name === "TimeoutError" || name === "AbortError") {
+        return { ok: false, message: BLOG_AI_FAILURE, uncertain: true };
+      }
       return { ok: false, message: BLOG_AI_FAILURE };
     }
     await record(blogDraft({

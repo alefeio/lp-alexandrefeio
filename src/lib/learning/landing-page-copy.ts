@@ -1,4 +1,8 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { LANDING_PAGE_COPY_FEATURE_KEY } from "@/lib/ai/features";
+import { runGuardedAiOperation } from "@/lib/ai/idempotency-guard";
+import { landingPageCopyFingerprint } from "@/lib/ai/idempotency-fingerprints";
+import { createPrismaAiIdempotencyStore } from "@/lib/ai/idempotency-prisma";
 import { hasActiveEntitlement } from "@/lib/commerce/access";
 import { getPrisma } from "@/lib/db/prisma";
 import { canReadLessonBody } from "@/lib/learning/access";
@@ -196,19 +200,54 @@ export async function suggestCopyForUser(
   userId: string,
   slug: string,
   blockKey: string,
-  input: { landingPageProjectId: string; sectionId: string; intent?: CopyIntent },
+  input: { landingPageProjectId: string; sectionId: string; intent?: CopyIntent; idempotencyKey: string },
 ): Promise<CopyToolSuccess | { ok: false; message: string; code?: string }> {
   const access = await lessonAccess(userId, slug, blockKey);
   if (!access.ok) return access;
   if (!(await consumeCopyAssistRateLimit(userId))) return failure("COPY_ASSIST_RATE_LIMITED");
-  const generated = await generateLandingPageCopySuggestions(
-    createPrismaLandingPageStore(),
-    { userId, ...input },
-    resolveLandingPageCopyProvider(),
-    { timeoutMs: COPY_LIVE_PROVIDER_TIMEOUT_MS },
-  );
-  if (!generated.ok) return failure(generated.code);
-  const record = await createPrismaLandingPageStore().findByIdForUser(input.landingPageProjectId, userId);
+
+  const store = createPrismaLandingPageStore();
+  const existing = await store.findByIdForUser(input.landingPageProjectId, userId);
+  if (!existing) return failure("NOT_FOUND");
+
+  let generationCode: string | null = null;
+  const guarded = await runGuardedAiOperation({
+    userId,
+    featureKey: LANDING_PAGE_COPY_FEATURE_KEY,
+    idempotencyKey: input.idempotencyKey,
+    fingerprintHash: landingPageCopyFingerprint({
+      landingPageProjectId: input.landingPageProjectId,
+      sectionId: input.sectionId,
+      draftRevision: existing.draftRevision,
+      intent: input.intent,
+    }),
+    store: createPrismaAiIdempotencyStore(),
+    execute: async ({ requestId, markDispatched }) => {
+      const generated = await generateLandingPageCopySuggestions(
+        store,
+        { userId, landingPageProjectId: input.landingPageProjectId, sectionId: input.sectionId, intent: input.intent },
+        resolveLandingPageCopyProvider(),
+        { timeoutMs: COPY_LIVE_PROVIDER_TIMEOUT_MS, requestId, onBeforeProvider: markDispatched },
+      );
+      if (generated.ok) return { ok: true as const, value: generated.value };
+      generationCode = generated.code;
+      return { ok: false as const, uncertain: "uncertain" in generated ? Boolean(generated.uncertain) : false };
+    },
+  });
+
+  if (!guarded.ok) {
+    if ("block" in guarded && guarded.block) {
+      if (guarded.block === "missing_key") return failure("COPY_ASSIST_IDEMPOTENCY_REQUIRED");
+      if (guarded.block === "in_progress") return failure("COPY_ASSIST_IN_PROGRESS");
+      if (guarded.block === "completed") return failure("COPY_ASSIST_ALREADY_COMPLETED");
+      if (guarded.block === "fingerprint_conflict") return failure("COPY_ASSIST_FINGERPRINT_CONFLICT");
+      if (guarded.block === "unknown_blocked") return failure("COPY_ASSIST_OPERATION_UNKNOWN");
+      return failure("COPY_ASSIST_IDEMPOTENCY_UNAVAILABLE");
+    }
+    return failure((generationCode as LandingPageCode | null) ?? "COPY_ASSIST_PROVIDER_ERROR");
+  }
+
+  const record = await store.findByIdForUser(input.landingPageProjectId, userId);
   if (!record) return failure("NOT_FOUND");
   const snapshot = (await getReaderSnapshot(userId, access.lessonId)).snapshot;
   const workspace = toCopyWorkspace(record);
@@ -219,7 +258,7 @@ export async function suggestCopyForUser(
     draftRevision: record.draftRevision,
     previewHref: workspace.previewHref,
     coverage: workspace.coverage,
-    suggestions: generated.value,
+    suggestions: guarded.value,
     workspace,
   };
 }

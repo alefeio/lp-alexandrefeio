@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { runGuardedAiOperation, type AiIdempotencyBlockKind } from "@/lib/ai/idempotency-guard";
+import { blogAiFingerprint } from "@/lib/ai/idempotency-fingerprints";
+import { createPrismaAiIdempotencyStore } from "@/lib/ai/idempotency-prisma";
 import { BLOG_AI_FAILURE } from "@/lib/blog/catalog";
 import { acceptSuggestion } from "@/lib/blog/editorial";
 import { runEditorialAction } from "@/lib/blog/ai";
-import type { BlogAiAction } from "@/lib/blog/ai-request";
+import { BLOG_AI_FEATURE_KEYS, type BlogAiAction } from "@/lib/blog/ai-request";
 import { consumeBlogAiRateLimit, consumeBlogTrendRateLimit } from "@/lib/blog/rate-limit";
 import { createDraftFromSavedIdea, dismissEditorialIdea, loadEditorialInventory, saveBlogPost, savePlannedIdea } from "@/lib/blog/service";
 import type { BlogWriteFields } from "@/lib/blog/rules";
@@ -71,15 +74,51 @@ export async function unpublishBlogAction(id: string) {
   return saved;
 }
 
-export async function editorialAction(action: BlogAiAction, focus: Record<string, string> = {}) {
+function blogIdempotencyMessage(block: AiIdempotencyBlockKind): string {
+  if (block === "missing_key") return "Atualize a página e tente gerar novamente.";
+  if (block === "in_progress") return "Uma geração já está em andamento. Aguarde e tente de novo.";
+  if (block === "completed") return "Esta geração já foi concluída. Solicite uma nova se quiser outra versão.";
+  if (block === "fingerprint_conflict") return "Os dados mudaram desde o início desta geração. Peça uma nova sugestão.";
+  if (block === "unknown_blocked") return "A geração anterior ficou inconclusiva. Peça uma nova sugestão com outro clique.";
+  return "Não foi possível iniciar a geração com segurança agora.";
+}
+
+export async function editorialAction(
+  action: BlogAiAction,
+  focus: Record<string, string> = {},
+  options?: { idempotencyKey?: string },
+) {
   const session = await admin();
   if (!session) return { ok: false as const, message: "Sem acesso." };
   const allowed = action === "trends" ? await consumeBlogTrendRateLimit(session.user.id) : await consumeBlogAiRateLimit(session.user.id);
   if (!allowed) return { ok: false as const, message: "Muitas solicitações em pouco tempo. Tente de novo mais tarde." };
   const inventory = await loadEditorialInventory();
-  const result = await runEditorialAction({ action, inventory, focus, userId: session.user.id });
-  if (!result.ok) return { ok: false as const, message: result.message || BLOG_AI_FAILURE };
-  return result;
+
+  let generationMessage: string | null = null;
+  const guarded = await runGuardedAiOperation({
+    userId: session.user.id,
+    featureKey: BLOG_AI_FEATURE_KEYS[action],
+    idempotencyKey: options?.idempotencyKey,
+    fingerprintHash: blogAiFingerprint({ action, inventory, focus }),
+    store: createPrismaAiIdempotencyStore(),
+    execute: async ({ requestId, markDispatched }) => {
+      await markDispatched();
+      const result = await runEditorialAction({
+        action,
+        inventory,
+        focus,
+        userId: session.user.id,
+        requestId,
+      });
+      if (result.ok) return { ok: true as const, value: result };
+      generationMessage = result.message || BLOG_AI_FAILURE;
+      return { ok: false as const, uncertain: "uncertain" in result ? Boolean(result.uncertain) : false };
+    },
+  });
+
+  if (guarded.ok) return guarded.value;
+  if ("block" in guarded && guarded.block) return { ok: false as const, message: blogIdempotencyMessage(guarded.block) };
+  return { ok: false as const, message: generationMessage || BLOG_AI_FAILURE };
 }
 
 export async function saveIdeaAction(payload: unknown) {

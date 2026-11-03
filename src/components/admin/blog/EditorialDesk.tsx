@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { blogCategoryLabel } from "@/lib/blog/catalog";
 import { dismissIdeaAction, draftFromIdeaAction, editorialAction, saveIdeaAction } from "@/lib/blog/actions";
@@ -26,12 +26,16 @@ export function EditorialDesk({ ideas }: { ideas: Array<{ id: string; title: str
   const [coverage, setCoverage] = useState<Record<string, unknown> | null>(null);
   const [suggestions, setSuggestions] = useState<EditorialSuggestion[]>([]);
   const [trends, setTrends] = useState<{ searchedAt: string; items: TrendItem[] } | null>(null);
+  const intentKeyRef = useRef<string | null>(null);
 
   async function run(action: "coverage" | "next" | "trends") {
+    if (!intentKeyRef.current) intentKeyRef.current = crypto.randomUUID();
+    const idempotencyKey = intentKeyRef.current;
     setPending(true);
     setMessage("");
-    const result = await editorialAction(action);
+    const result = await editorialAction(action, {}, { idempotencyKey });
     setPending(false);
+    intentKeyRef.current = null;
     if (!result.ok) {
       setMessage(result.message);
       return;

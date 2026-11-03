@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { buttonClass } from "@/lib/button-styles";
 import { authNextHref } from "@/lib/auth/messages";
@@ -30,6 +30,7 @@ export function LandingPageCopyTool({
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<CopySuggestionResponseV1 | null>(null);
+  const suggestKeyRef = useRef<string | null>(null);
   const page = pages.find((item) => item.id === pageId) ?? null;
   const blockKey = panel?.blockKey ?? "";
 
@@ -72,8 +73,18 @@ export function LandingPageCopyTool({
         loading={loading}
         suggestions={suggestions}
         onSuggest={(sectionId, intent) => {
+          if (!suggestKeyRef.current) suggestKeyRef.current = crypto.randomUUID();
+          const idempotencyKey = suggestKeyRef.current;
           setLoading(true);
-          void run(() => suggestLandingPageCopy(blockKey, { landingPageProjectId: pageId, sectionId, intent })).finally(() => setLoading(false));
+          void run(() => suggestLandingPageCopy(blockKey, {
+            landingPageProjectId: pageId,
+            sectionId,
+            intent,
+            idempotencyKey,
+          })).finally(() => {
+            setLoading(false);
+            suggestKeyRef.current = null;
+          });
         }}
         onApply={(sectionId, content, origin) => {
           if (!page) return;

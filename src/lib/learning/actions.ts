@@ -42,6 +42,7 @@ import {
   suggestCopyForUser,
   type CopyPanel,
 } from "@/lib/learning/landing-page-copy";
+import { copyAssistUserMessage } from "@/lib/landing-page/copy/lesson-flow";
 import { saveVisualDirectionForUser, SITE_VISUAL_SLUG } from "@/lib/learning/landing-page-visual";
 import {
   beginTrustMediaUploadForUser,
@@ -539,10 +540,13 @@ export async function saveLandingPageWireframeStructure(
 
 export async function suggestLandingPageCopy(
   blockKey: string,
-  input: { landingPageProjectId: string; sectionId: string; intent?: CopyIntent },
+  input: { landingPageProjectId: string; sectionId: string; intent?: CopyIntent; idempotencyKey: string },
 ): Promise<LearningActionResult> {
   const session = await getSession();
   if (!session) return { ok: false, message: "Entre na sua conta para salvar." };
+  if (typeof input.idempotencyKey !== "string" || input.idempotencyKey.trim().length < 8) {
+    return { ok: false, message: copyAssistUserMessage("COPY_ASSIST_IDEMPOTENCY_REQUIRED"), code: "COPY_ASSIST_IDEMPOTENCY_REQUIRED" };
+  }
   const suggested = await suggestCopyForUser(session.user.id, SITE_COPY_SLUG, blockKey, input);
   if (!suggested.ok) return { ok: false, message: suggested.message, code: suggested.code };
   return {

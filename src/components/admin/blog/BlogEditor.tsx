@@ -167,6 +167,7 @@ export function BlogEditor({ initial = EMPTY, initialFeedback = null }: { initia
   }
 
   async function assistWith(action: "titles" | "outline" | "draft" | "review" | "seo") {
+    const idempotencyKey = crypto.randomUUID();
     const outcome = await runGuardedBlogAction({
       gate,
       action,
@@ -179,7 +180,7 @@ export function BlogEditor({ initial = EMPTY, initialFeedback = null }: { initia
         seoTitle: post.seoTitle,
         seoDescription: post.seoDescription,
         ctaKey: post.ctaKey,
-      }),
+      }, { idempotencyKey }),
     });
     if (!outcome.started) return;
     if (!outcome.ok) {
