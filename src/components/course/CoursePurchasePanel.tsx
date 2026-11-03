@@ -15,7 +15,6 @@ export function CoursePurchasePanel({
   moduleCount,
   freeCount,
   outcome,
-  artifacts,
   benefits,
   bundlePriceCents,
   individualTotalCents,
@@ -36,7 +35,7 @@ export function CoursePurchasePanel({
   moduleCount: number;
   freeCount: number;
   outcome: string;
-  artifacts: string[];
+  artifacts?: string[];
   benefits: string[];
   bundlePriceCents: number | null;
   individualTotalCents: number;
@@ -56,20 +55,19 @@ export function CoursePurchasePanel({
         <p className="mt-3 text-base leading-relaxed text-muted">{support}</p>
         <div className="mt-8 border-t border-border pt-6">
           <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">{courseTitle}</h3>
+          <p className="mt-3 text-sm leading-relaxed">{outcome}</p>
           <p className="mt-3 text-sm text-muted">
             {lessonCount} aulas · {moduleCount} módulos
-            {freeCount > 0 ? ` · ${freeCount} aulas gratuitas` : ""}
+            {freeCount > 0 ? ` · ${freeCount} grátis` : ""}
           </p>
-          <p className="mt-4 text-sm leading-relaxed">{outcome}</p>
-          <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-            {benefits.slice(0, 6).map((benefit) => (
+          <ul className="mt-5 grid gap-2">
+            {benefits.slice(0, 3).map((benefit) => (
               <li key={benefit} className="text-sm">
                 <span className="mr-2 text-cta" aria-hidden>✓</span>
                 {benefit}
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-sm leading-relaxed text-muted">Inclui {artifacts.slice(0, 4).join(", ")}.</p>
           {!hidePrices && bundlePriceCents != null ? (
             <div className="mt-6 space-y-2 border-t border-border pt-5">
               {individualTotalCents > 0 ? (

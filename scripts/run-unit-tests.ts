@@ -19,9 +19,9 @@ for (const key of [
   delete env[key];
 }
 
-const child = spawn("npx", ["tsx", "--test", ...files], {
+const child = spawn(process.execPath, ["--import", "tsx", "--test", ...files], {
   stdio: "inherit",
-  shell: true,
+  shell: false,
   env,
 });
 

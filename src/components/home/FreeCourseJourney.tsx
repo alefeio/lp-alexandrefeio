@@ -1,11 +1,25 @@
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { Container } from "@/components/ui/Container";
 import { buttonClass } from "@/lib/button-styles";
+import { publicHomeCopy } from "@/lib/home/public-home";
 import type { CourseCatalogCard } from "@/lib/learning/course-catalog";
 import { courseExperience, TRAFFIC_COURSE_SLUG } from "@/lib/learning/course-experience";
 import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 
-const order = [TRAFFIC_COURSE_SLUG, SITES_COURSE_SLUG];
+const order = [TRAFFIC_COURSE_SLUG, SITES_COURSE_SLUG] as const;
+
+const labels: Record<(typeof order)[number], { title: string; cta: string; highlights: string[] }> = {
+  [TRAFFIC_COURSE_SLUG]: {
+    title: "TRÁFEGO PAGO",
+    cta: "Começar Tráfego Pago",
+    highlights: ["Mapa de tráfego", "Escolha de canal", "Diagnóstico de prontidão"],
+  },
+  [SITES_COURSE_SLUG]: {
+    title: "SITES QUE CONVERTEM",
+    cta: "Começar Sites que Convertem",
+    highlights: ["Mapa de conversão", "Estrutura digital ideal", "Diagnóstico da página"],
+  },
+};
 
 export function FreeCourseJourney({ courses }: { courses: CourseCatalogCard[] }) {
   const columns = order.flatMap((slug) => {
@@ -18,48 +32,39 @@ export function FreeCourseJourney({ courses }: { courses: CourseCatalogCard[] })
   return (
     <section id="aulas-gratuitas" className="scroll-mt-24 border-t border-border py-16">
       <Container>
-        <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">Descubra seu gargalo antes de comprar.</h2>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">São seis aulas gratuitas para aplicar no seu próprio negócio.</p>
+        <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">{publicHomeCopy.freeTitle}</h2>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">{publicHomeCopy.freeSupport}</p>
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           {columns.map((course) => {
+            const meta = labels[course.slug as (typeof order)[number]];
+            const first = course.freeLessons[0];
+            if (!meta || !first) return null;
             const experience = courseExperience(course.slug);
+            const outcomes = meta.highlights.length
+              ? meta.highlights
+              : (experience?.lessons.slice(0, 3).map((lesson) => lesson.outcome) ?? []);
             return (
-              <div key={course.id} className="min-w-0">
-                <h3 className="text-sm font-medium uppercase tracking-[0.14em] text-cta">{course.title}</h3>
-                <ol className="mt-4 grid gap-3">
-                  {course.freeLessons.map((lesson) => {
-                    const detail = experience?.lessons.find((item) => item.slug === lesson.slug);
-                    return (
-                      <li key={lesson.slug} className="min-w-0 rounded-xl border border-border bg-surface p-4">
-                        <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Aula {lesson.number}</p>
-                        <h4 className="mt-1 text-base font-medium leading-snug">{lesson.title}</h4>
-                        {detail ? (
-                          <div className="mt-3 grid gap-3">
-                            <p className="text-sm leading-relaxed">
-                              <span className="font-medium">Aprende </span>
-                              {detail.learns[0]}
-                            </p>
-                            <p className="text-sm leading-relaxed">
-                              <span className="font-medium">Leva </span>
-                              {detail.outcome}
-                            </p>
-                          </div>
-                        ) : null}
-                        <p className="mt-4">
-                          <AcquisitionLink
-                            className={buttonClass("primary", "w-full sm:w-auto")}
-                            href={`/aulas/${lesson.slug}`}
-                            event="course_free_start"
-                            payload={{ course_slug: course.slug, lesson_slug: lesson.slug, cta_name: "comecar_gratuitamente" }}
-                          >
-                            Começar aula gratuita
-                          </AcquisitionLink>
-                        </p>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
+              <article key={course.id} className="min-w-0 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+                <h3 className="text-sm font-medium uppercase tracking-[0.14em] text-cta">{meta.title}</h3>
+                <p className="mt-3 text-base font-medium">{course.freeLessonCount} aulas gratuitas</p>
+                <ul className="mt-4 grid gap-2">
+                  {outcomes.map((item) => (
+                    <li key={item} className="text-sm leading-relaxed">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-6">
+                  <AcquisitionLink
+                    className={buttonClass("primary", "w-full sm:w-auto")}
+                    href={`/aulas/${first.slug}`}
+                    event="course_free_start"
+                    payload={{ course_slug: course.slug, lesson_slug: first.slug, cta_name: "comecar_gratuitamente" }}
+                  >
+                    {meta.cta}
+                  </AcquisitionLink>
+                </p>
+              </article>
             );
           })}
         </div>

@@ -1,18 +1,16 @@
+import Image from "next/image";
 import Link from "next/link";
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { ViewEvent } from "@/components/analytics/ViewEvent";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { ComplementaryCourse } from "@/components/course/ComplementaryCourse";
-import { CourseArtifacts } from "@/components/course/CourseArtifacts";
 import { CourseCurriculum } from "@/components/course/CourseCurriculum";
 import { CourseFreeLessons } from "@/components/course/CourseFreeLessons";
 import { CourseHero, formatHeroPrice } from "@/components/course/CourseHero";
-import { CourseOutcome } from "@/components/course/CourseOutcome";
 import { CoursePurchasePanel } from "@/components/course/CoursePurchasePanel";
+import { CourseResults } from "@/components/course/CourseResults";
 import type { SalesCourse } from "@/components/course/sales-types";
 import { Container } from "@/components/ui/Container";
-import { aboutContent } from "@/data/home";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { isCommerceEnabled, isProductForSale } from "@/lib/commerce/config";
 import { courseExperience, TRAFFIC_COURSE_SLUG, type LessonExperience } from "@/lib/learning/course-experience";
 import { courseSalesCopy } from "@/lib/learning/course-sales-copy";
@@ -86,27 +84,15 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
         ownsAllPaid={ownsAllPaid}
         priceLabel={formatHeroPrice(course.bundlePriceCents, courseOpen && !hidePrices)}
       />
-      {experience ? (
-        <CourseOutcome headline={experience.outcomeHeadline} transformation={experience.transformation} steps={experience.outcomeSteps} />
-      ) : null}
-      {course.slug === TRAFFIC_COURSE_SLUG ? (
-        <CourseFreeLessons
-          courseSlug={course.slug}
-          title={copy.freeSectionTitle}
-          intro={copy.freeSectionIntro}
-          lessons={freeLessons}
-          experiences={lessonsBySlug}
-          ownedLessonIds={ownedLessonIds}
-        />
-      ) : null}
-      {experience ? (
-        <CourseArtifacts
-          featured={experience.featuredArtifacts}
-          artifacts={experience.artifacts}
-          note={artifactNote}
-          collapseRest={course.slug === TRAFFIC_COURSE_SLUG}
-        />
-      ) : null}
+      {experience ? <CourseResults courseSlug={course.slug} featured={experience.featuredArtifacts} note={artifactNote} /> : null}
+      <CourseFreeLessons
+        courseSlug={course.slug}
+        title={copy.freeSectionTitle}
+        intro={copy.freeSectionIntro}
+        lessons={freeLessons}
+        experiences={lessonsBySlug}
+        ownedLessonIds={ownedLessonIds}
+      />
       <CourseCurriculum
         courseSlug={course.slug}
         modules={course.modules}
@@ -115,26 +101,6 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
         ownedLessonIds={ownedLessonIds}
         hidePrices={hidePrices}
       />
-      {course.slug === TRAFFIC_COURSE_SLUG ? null : experience ? (
-        <ComplementaryCourse
-          sourceSlug={course.slug}
-          targetSlug={experience.complementary.slug}
-          targetTitle={COURSE_TITLES[experience.complementary.slug] ?? experience.complementary.cta}
-          headline={experience.complementary.headline}
-          body={experience.complementary.body}
-          cta={experience.complementary.cta}
-        />
-      ) : null}
-      {course.slug === TRAFFIC_COURSE_SLUG ? null : (
-        <CourseFreeLessons
-          courseSlug={course.slug}
-          title={copy.freeSectionTitle}
-          intro={copy.freeSectionIntro}
-          lessons={freeLessons}
-          experiences={lessonsBySlug}
-          ownedLessonIds={ownedLessonIds}
-        />
-      )}
       <CoursePurchasePanel
         courseId={course.id}
         courseSlug={course.slug}
@@ -145,8 +111,7 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
         moduleCount={course.modules.length}
         freeCount={freeReady.length}
         outcome={experience?.shortOutcome ?? course.description}
-        artifacts={experience?.artifacts ?? []}
-        benefits={experience?.benefits ?? []}
+        benefits={copy.offerBenefits}
         bundlePriceCents={course.bundlePriceCents}
         individualTotalCents={individualTotalCents}
         savingsCents={savingsCents}
@@ -157,60 +122,88 @@ export function CourseSales({ course, ownedLessonIds = [] }: { course: SalesCour
         paidLessonIds={paidLessons.map((lesson) => lesson.id)}
         firstFreeHref={firstFree?.hasBody ? `/aulas/${firstFree.slug}` : null}
       />
-      <section className="border-t border-border py-16">
-        <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight">Conteúdo por Alexandre Feio</h2>
-          <p className="mt-3 text-base leading-relaxed">{aboutContent.description}</p>
-          <p className="mt-4">
-            <Link className="text-sm font-medium underline underline-offset-4" href="/#sobre">
-              Sobre Alexandre Feio
-            </Link>
-          </p>
+      <section className="border-t border-border py-14">
+        <Container className="flex max-w-3xl flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border">
+            <Image src="/alexandre.jpg" alt="Alexandre Feio" fill sizes="80px" className="object-cover" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold tracking-tight">Conteúdo por Alexandre Feio</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Desenvolvimento, marketing e produto para transformar atenção em ação.
+            </p>
+            <p className="mt-3">
+              <Link className={navigationLinkClass()} href="/#sobre">
+                Sobre Alexandre
+              </Link>
+            </p>
+          </div>
         </Container>
       </section>
-      <section className="border-t border-border py-16">
-        <Container className="max-w-3xl space-y-6">
+      <section className="border-t border-border py-14">
+        <Container className="max-w-3xl">
           <h2 className="text-2xl font-semibold tracking-tight">Perguntas frequentes</h2>
-          <div>
-            <h3 className="font-medium">Preciso de conta para as aulas gratuitas?</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted">Não. O texto completo abre sem login. A conta serve para guardar progresso, notas e resultados no projeto.</p>
-          </div>
-          <div>
-            <h3 className="font-medium">{copy.faqBuyTitle}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{salesOpen ? copy.faqBuyBodyOpen : copy.faqBuyBodyClosed}</p>
-          </div>
-          <div>
-            <h3 className="font-medium">{copy.faqReplaceTitle}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{copy.faqReplaceBody}</p>
+          <div className="mt-6 divide-y divide-border border-y border-border">
+            <FaqItem question="Preciso de conta para as aulas gratuitas?">
+              Não. O texto completo abre sem login. A conta serve para guardar progresso, notas e resultados no projeto.
+            </FaqItem>
+            <FaqItem question={copy.faqBuyTitle}>{salesOpen ? copy.faqBuyBodyOpen : copy.faqBuyBodyClosed}</FaqItem>
+            <FaqItem question={copy.faqReplaceTitle}>{copy.faqReplaceBody}</FaqItem>
           </div>
         </Container>
       </section>
-      {course.slug === TRAFFIC_COURSE_SLUG && experience ? (
-        <ComplementaryCourse
-          sourceSlug={course.slug}
-          targetSlug={experience.complementary.slug}
-          targetTitle={COURSE_TITLES[experience.complementary.slug] ?? experience.complementary.cta}
-          headline={experience.complementary.headline}
-          body={experience.complementary.body}
-          cta={experience.complementary.cta}
-        />
-      ) : null}
       <section className="border-t border-border py-16">
         <Container className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight">{copy.serviceTitle}</h2>
-          <p className="mt-3 text-base leading-relaxed">{copy.serviceBody}</p>
-          <p className="mt-6">
-            <AcquisitionLink
-              className={buttonClass("secondary")}
-              href={copy.serviceHref}
-              event="service_from_course_click"
-              payload={{ course_slug: course.slug, cta_name: "conhecer_servico" }}
-            >
-              {copy.serviceCta}
-            </AcquisitionLink>
-          </p>
+          <h2 className="text-2xl font-semibold tracking-tight">{copy.nextStepTitle}</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {experience ? (
+              <article className="rounded-2xl border border-border bg-surface p-5">
+                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Continuar aprendendo</h3>
+                <p className="mt-3 text-sm leading-relaxed">{COURSE_TITLES[experience.complementary.slug] ?? experience.complementary.cta}</p>
+                <p className="mt-4">
+                  <AcquisitionLink
+                    className={buttonClass("secondary")}
+                    href={`/cursos/${experience.complementary.slug}`}
+                    event="course_complementary_click"
+                    payload={{ source_course_slug: course.slug, target_course_slug: experience.complementary.slug, cta_name: "curso_complementar" }}
+                  >
+                    {experience.complementary.cta}
+                  </AcquisitionLink>
+                </p>
+              </article>
+            ) : null}
+            <article className="rounded-2xl border border-border bg-surface p-5">
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-cta">{copy.serviceTitle}</h3>
+              <p className="mt-3 text-sm leading-relaxed">{copy.serviceBody}</p>
+              <p className="mt-4">
+                <AcquisitionLink
+                  className={buttonClass("secondary")}
+                  href={copy.serviceHref}
+                  event="service_from_course_click"
+                  payload={{ course_slug: course.slug, cta_name: "conhecer_servico" }}
+                >
+                  {copy.serviceCta}
+                </AcquisitionLink>
+              </p>
+            </article>
+          </div>
         </Container>
       </section>
     </>
+  );
+}
+
+function FaqItem({ question, children }: { question: string; children: string }) {
+  return (
+    <details className="group py-4">
+      <summary className="cursor-pointer list-none text-base font-medium marker:content-none [&::-webkit-details-marker]:hidden">
+        <span className="flex items-start justify-between gap-4">
+          <span>{question}</span>
+          <span className="text-muted group-open:hidden" aria-hidden>+</span>
+          <span className="hidden text-muted group-open:inline" aria-hidden>−</span>
+        </span>
+      </summary>
+      <p className="mt-3 text-sm leading-relaxed text-muted">{children}</p>
+    </details>
   );
 }

@@ -14,6 +14,7 @@ export function HomeHero() {
             <h1 className="mt-4 max-w-xl text-[2.05rem] font-semibold leading-[1.08] tracking-tight text-on-ink sm:text-5xl">
               {publicHomeCopy.hero}
             </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-on-ink-muted sm:text-lg">{publicHomeCopy.support}</p>
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center">
               <Link className={buttonClass("primary", "w-full sm:w-auto")} href="#formacoes">
                 {publicHomeCopy.primaryCta}
@@ -22,8 +23,6 @@ export function HomeHero() {
                 {publicHomeCopy.secondaryCta}
               </Link>
             </div>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-on-ink-muted sm:text-lg">{publicHomeCopy.support}</p>
-            <p className="mt-3 max-w-xl text-sm font-medium text-on-ink">{publicHomeCopy.complement}</p>
           </div>
           <AcquisitionConversionFlow />
         </div>

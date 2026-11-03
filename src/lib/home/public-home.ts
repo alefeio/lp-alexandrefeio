@@ -1,11 +1,22 @@
 export const publicHomeCopy = {
   hero: "Transforme tráfego em oportunidades.",
-  support: "Aprenda a atrair as pessoas certas, construir a página para onde elas vão e usar os resultados para decidir o que melhorar.",
-  complement: "Duas formações práticas. Um sistema aplicado ao seu negócio.",
+  support: "Atraia as pessoas certas, leve-as a uma página clara e saiba o que melhorar.",
   primaryCta: "Conhecer as formações",
   secondaryCta: "Começar gratuitamente",
-  finalTitle: "Descubra qual parte do sistema seu negócio precisa fortalecer agora.",
-  finalPrimaryCta: "Ver as formações",
+  formationsTitle: "Escolha o resultado que precisa agora.",
+  trafficPromise: "Planeje campanhas e tome decisões com os seus próprios dados.",
+  sitesPromise: "Construa e publique uma landing page para o seu negócio.",
+  resultsTitle: "Você sai com algo pronto para usar.",
+  resultsSupport: "Decisões, planos e páginas construídos com o seu próprio negócio.",
+  freeTitle: "Comece grátis e descubra seu próximo passo.",
+  freeSupport: "Três aulas abertas em cada formação.",
+  aboutName: "Alexandre Feio",
+  aboutLine: "Desenvolvimento, marketing e produto no mesmo sistema.",
+  aboutSupport: "Você pode aprender a executar ou delegar a estratégia e a gestão.",
+  learnLabel: "APRENDER",
+  learnCta: "Ver as formações",
+  delegateLabel: "DELEGAR",
+  delegateCta: "Conhecer a gestão",
 } as const;
 
 export const publicHomeMetadata = {

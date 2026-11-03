@@ -18,7 +18,11 @@ test("home posiciona as duas formações e não a landing de um único curso", (
   assert.match(home, /HomeHero/);
   assert.match(home, /ConnectedCourses/);
   assert.match(home, /FreeCourseJourney/);
+  assert.match(home, /HomeResults/);
+  assert.match(home, /HomeAbout/);
   assert.equal(home.includes("HomeCourseSummaries"), false);
+  assert.equal(home.includes("SystemStages"), false);
+  assert.equal(home.includes("CourseDecisionGuide"), false);
   assert.match(connected, /href="\/cursos"/);
   assert.match(connected, /freeLessonCount/);
   assert.equal(home.includes("Porta de entrada do curso de Tráfego Pago"), false);
@@ -53,8 +57,9 @@ test("página do curso preserva aulas gratuitas e oferta completa", () => {
   assert.match(sales, /CourseCurriculum/);
   assert.match(sales, /courseSalesCopy/);
   assert.match(copy, /Três aulas gratuitas/);
-  assert.match(copy, /Faça a jornada completa/);
+  assert.match(copy, /Formação completa/);
   assert.match(copy, /Começar gratuitamente/);
+  assert.match(copy, /comecar_primeira_aula/);
   assert.equal(copy.includes("page builder estão sendo preparados"), false);
   assert.equal(copy.includes("fora do catálogo"), false);
 });

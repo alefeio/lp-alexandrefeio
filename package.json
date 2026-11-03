@@ -15,7 +15,7 @@
     "blog:seed": "tsx scripts/seed-blog.ts",
     "catalog:deploy": "tsx scripts/catalog-deploy.ts",
     "commerce:products": "tsx scripts/commerce-products.ts",
-    "test": "tsx scripts/run-unit-tests.ts",
+    "test": "node --import tsx scripts/run-unit-tests.ts",
     "landing:retention": "tsx scripts/landing-page-retention.ts",
     "journey:retention": "tsx scripts/product-journey-retention.ts",
     "test:database-live": "tsx scripts/run-database-live-tests.ts",

@@ -44,38 +44,44 @@ test("a home mostra o sistema, as duas formações e as aulas gratuitas do catá
   const traffic = card(TRAFFIC_COURSE_SLUG, "Tráfego Pago na Prática para Pequenos Negócios", freeLessons(TRAFFIC_COURSE_SLUG));
   const sites = card(SITES_COURSE_SLUG, "Sites que Convertem para Pequenos Negócios", freeLessons(SITES_COURSE_SLUG));
   const html = home([sites, traffic], createElement("p", null, "Continuar de onde parei"));
-  const experience = courseExperience(TRAFFIC_COURSE_SLUG);
-  assert.ok(experience);
 
   assert.match(html, /Transforme tráfego em oportunidades/);
+  assert.match(html, /Atraia as pessoas certas, leve-as a uma página clara e saiba o que melhorar/);
   assert.match(html, /#formacoes/);
   assert.match(html, /#aulas-gratuitas/);
-  assert.match(html, /Atrair/);
-  assert.match(html, /Converter/);
-  assert.match(html, /Medir/);
-  assert.match(html, /Melhorar/);
-  assert.match(html, /Duas formações\. Um único sistema/);
-  assert.match(html, /O anúncio leva até a página/);
+  assert.match(html, /id="como-funciona"/);
+  assert.match(html, /Tráfego/);
+  assert.match(html, /Página/);
+  assert.match(html, /Contato/);
+  assert.match(html, /Dados/);
+  assert.match(html, /Próxima decisão/);
+  assert.match(html, /Escolha o resultado que precisa agora/);
   assert.match(html, new RegExp(`/cursos/${TRAFFIC_COURSE_SLUG}`));
   assert.match(html, new RegExp(`/cursos/${SITES_COURSE_SLUG}`));
   assert.match(html, /Conhecer Tráfego Pago/);
   assert.match(html, /Conhecer Sites que Convertem/);
-  assert.match(html, /Você não termina só com conhecimento/);
-  assert.match(html, /Demonstração ilustrativa/);
-  assert.match(html, /Qual é o seu gargalo agora/);
-  assert.match(html, /Talvez você não precise dos dois agora/);
-  assert.equal(html.match(/Começar gratuitamente/g)?.length, 2);
-  assert.equal(html.match(/Começar aula gratuita/g)?.length, 6);
-  assert.match(html, /Catálogo como-funciona-o-trafego-pago/);
-  assert.match(html, new RegExp(experience.lessons[0].learns[0].slice(0, 24)));
+  assert.match(html, /Você sai com algo pronto para usar/);
+  assert.match(html, /Diagnóstico da campanha/);
+  assert.match(html, /Landing page publicada/);
+  assert.match(html, /Comece grátis e descubra seu próximo passo/);
+  assert.match(html, /Começar Tráfego Pago/);
+  assert.match(html, /Começar Sites que Convertem/);
+  assert.match(html, /Alexandre Feio/);
+  assert.match(html, /APRENDER/);
+  assert.match(html, /DELEGAR/);
   assert.match(html, /Continuar de onde parei/);
-  assert.match(html, /12 aulas · 5 módulos · 3 gratuitas/);
+  assert.match(html, /3 aulas grátis · 12 aulas · 5 módulos/);
   assert.equal(html.includes("ROAS"), false);
   assert.equal(html.includes("8,3%"), false);
   assert.equal(html.includes("LandingPage"), false);
-  assert.ok(html.indexOf("Transforme tráfego") < html.indexOf("Da atenção à próxima decisão"));
-  assert.ok(html.indexOf("Da atenção à próxima decisão") < html.indexOf("Continuar de onde parei"));
-  assert.ok(html.indexOf("Continuar de onde parei") < html.indexOf("Duas formações. Um único sistema."));
+  assert.equal(html.includes("Qual é o seu gargalo agora"), false);
+  assert.equal(html.includes("Da atenção à próxima decisão"), false);
+  assert.equal(html.includes("Duas formações práticas. Um sistema aplicado ao seu negócio."), false);
+  assert.equal(html.includes("Começar aula gratuita"), false);
+  assert.ok(html.indexOf("Transforme tráfego") < html.indexOf("Continuar de onde parei"));
+  assert.ok(html.indexOf("Continuar de onde parei") < html.indexOf("Escolha o resultado que precisa agora"));
+  assert.ok(html.indexOf("Escolha o resultado") < html.indexOf("Você sai com algo pronto"));
+  assert.ok(html.indexOf("Você sai com algo pronto") < html.indexOf("Comece grátis"));
 });
 
 test("curso fora do catálogo não gera link", () => {
@@ -92,12 +98,17 @@ test("a home não copia as 24 experiências e o caminho não leva dado privado",
     .map((name) => readFileSync(`src/components/home/${name}`, "utf8"))
     .join("\n");
   assert.match(source, /courseExperience\(/);
-  assert.equal(readFileSync("src/components/home/HomeArtifacts.tsx", "utf8").includes("SitesPageVisual"), false);
-  assert.match(readFileSync("src/components/home/ProductInAction.tsx", "utf8"), /SitesPageVisual/);
+  assert.match(readFileSync("src/components/home/HomeResults.tsx", "utf8"), /SitesPageVisual/);
   assert.match(readFileSync("src/components/home/ConnectedCourses.tsx", "utf8"), /href="\/cursos"/);
+  assert.match(readFileSync("src/components/home/ConnectedCourses.tsx", "utf8"), /home_course_path_click/);
   assert.equal(source.includes("Como avaliar objetivo, oferta, público, destino, mensuração e operação antes de investir."), false);
   assert.equal(source.includes("courses[0]"), false);
   assert.equal(source.includes("courses[1]"), false);
+  assert.equal(source.includes("CourseDecisionGuide"), false);
+  assert.equal(source.includes("SystemStages"), false);
+  assert.equal(source.includes("HomeArtifacts"), false);
+  assert.equal(source.includes("ProductInAction"), false);
+  assert.equal(source.includes("LearnOrDelegate"), false);
 
   const payload = acquisitionAnalyticsPayload({
     course_slug: TRAFFIC_COURSE_SLUG,
