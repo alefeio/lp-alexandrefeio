@@ -61,6 +61,7 @@ export function BlogEditor({ initial = EMPTY, initialFeedback = null }: { initia
   const [coverMeta, setCoverMeta] = useState<{ name: string; sizeLabel: string } | null>(null);
   const gate = useRef<BlogPendingAction | null>(null);
   const previewUrl = useRef<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const feedbackRef = useRef<HTMLParagraphElement>(null);
   const busy = pendingAction !== null;
 
@@ -96,6 +97,7 @@ export function BlogEditor({ initial = EMPTY, initialFeedback = null }: { initia
     setCoverMeta(null);
     replacePreview(null);
     setCoverNote(null);
+    if (coverInputRef.current) coverInputRef.current.value = "";
   }
 
   function onCoverChange(file: File | null) {
@@ -224,6 +226,7 @@ export function BlogEditor({ initial = EMPTY, initialFeedback = null }: { initia
       <label className="grid gap-1 text-sm">
         Capa
         <input
+          ref={coverInputRef}
           id="cover"
           name="cover"
           type="file"

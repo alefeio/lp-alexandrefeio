@@ -175,3 +175,19 @@ test("o editor guarda a capa no estado, avisa perto das ações e não publica t
   assert.equal(page.includes("{notice}"), false);
   assert.equal(readFileSync("src/lib/storage/apimg.ts", "utf8").includes("X-API-Key"), true);
 });
+
+test("após sucesso o input nativo de capa é resetado; após erro a seleção permanece", () => {
+  const editor = readFileSync("src/components/admin/blog/BlogEditor.tsx", "utf8");
+  assert.match(editor, /const coverInputRef = useRef<HTMLInputElement>\(null\)/);
+  assert.match(editor, /ref=\{coverInputRef\}/);
+  const clear = editor.slice(editor.indexOf("function clearSelectedCover"), editor.indexOf("function onCoverChange"));
+  assert.match(clear, /setSelectedCover\(null\)/);
+  assert.match(clear, /setCoverMeta\(null\)/);
+  assert.match(clear, /replacePreview\(null\)/);
+  assert.match(clear, /setCoverNote\(null\)/);
+  assert.match(clear, /coverInputRef\.current\.value = ""/);
+  const persist = editor.slice(editor.indexOf("async function persist"), editor.indexOf("async function unpublish"));
+  assert.match(persist, /if \(outcome\.ok && outcome\.value\.ok\) clearSelectedCover\(\)/);
+  assert.equal([...persist.matchAll(/clearSelectedCover\(\)/g)].length, 1);
+  assert.equal(persist.includes("else clearSelectedCover"), false);
+});
