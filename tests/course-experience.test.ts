@@ -108,8 +108,9 @@ test("páginas mostram resultado, ementa e curso complementar", () => {
   delete process.env.COMMERCE_PRODUCTION_READY;
   const traffic = renderToStaticMarkup(createElement(CourseSales, { course: pageCourse(firstCourseSeed) }));
   const sites = renderToStaticMarkup(createElement(CourseSales, { course: pageCourse(sitesCourseSeed) }));
-  assert.match(traffic, /Você não termina sabendo apenas onde clicar/);
-  assert.match(traffic, /O que você aprende e coloca em prática/);
+  assert.match(traffic, /O que fica pronto/);
+  assert.match(traffic, /O caminho até o resultado/);
+  assert.match(traffic, /Ver detalhes/);
   assert.match(traffic, /Aprende/);
   assert.match(traffic, /Pratica/);
   assert.match(traffic, /Leva/);
@@ -121,7 +122,7 @@ test("páginas mostram resultado, ementa e curso complementar", () => {
   assert.match(traffic, /"@type":"Course"/);
   assert.match(traffic, /"@type":"BreadcrumbList"/);
   assert.doesNotMatch(traffic, /Continuar curso/);
-  assert.match(sites, /Você não termina com um exercício/);
+  assert.match(sites, /O que fica pronto/);
   assert.match(sites, /Aprende/);
   assert.match(sites, /Conhecer Tráfego Pago/);
   assert.match(sites, /Começar gratuitamente/);

@@ -96,9 +96,9 @@ test("eventos estratégicos incluem as duas escolhas de caminho e deixam a visã
   assert.match(catalog, /event="course_catalog_path_click"/);
   assert.match(catalog, /course_slug: link\.slug, scenario: hint\.id/);
   assert.match(catalog, /event="course_catalog_view"/);
-  const home = readFileSync("src/components/home/CourseDecisionGuide.tsx", "utf8");
+  const home = readFileSync("src/components/home/ConnectedCourses.tsx", "utf8");
   assert.match(home, /event="home_course_path_click"/);
-  assert.match(home, /scenario: scenario\.id/);
+  assert.match(home, /scenario: pathScenario/);
   assert.equal(home.includes("course_catalog_path_click"), false);
 });
 
@@ -618,11 +618,11 @@ test("modelo, migration e privacidade não guardam IP, agente nem metadata livre
   const analytics = readFileSync("src/lib/analytics.ts", "utf8");
   assert.equal(analytics.includes("await persistJourneyEvent"), false);
   const emitted = {
-    home_course_path_click: "src/components/home/CourseDecisionGuide.tsx",
+    home_course_path_click: "src/components/home/ConnectedCourses.tsx",
     course_catalog_path_click: "src/components/course/CourseCatalog.tsx",
     course_catalog_click: "src/components/course/CourseCatalog.tsx",
     course_view: "src/components/course/CourseSales.tsx",
-    course_complementary_click: "src/components/course/ComplementaryCourse.tsx",
+    course_complementary_click: "src/components/course/CourseSales.tsx",
     course_free_start: "src/components/course/CourseHero.tsx",
     lesson_started: "src/components/learning/LessonReader.tsx",
     lesson_completed: "src/lib/learning/progress.ts",

@@ -7,6 +7,9 @@ import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 import { formatPriceCents } from "@/lib/learning/money";
 import Link from "next/link";
 
+const TRAFFIC_HERO_STEPS = ["Objetivo", "Canal", "Campanha", "Dados", "Próxima ação"];
+const SITES_HERO_STEPS = ["Oferta", "Estrutura", "Copy", "Página publicada"] as const;
+
 export function CourseHero({
   slug,
   eyebrow,
@@ -73,8 +76,20 @@ export function CourseHero({
           {priceLabel ? <p className="mt-3 text-sm text-on-ink-muted">Formação completa · {priceLabel}</p> : null}
         </div>
         <div className="min-w-0">
-          {slug === TRAFFIC_COURSE_SLUG ? <TrafficCampaignVisual /> : null}
-          {slug === SITES_COURSE_SLUG ? <SitesPageVisual /> : null}
+          {slug === TRAFFIC_COURSE_SLUG ? <TrafficCampaignVisual steps={TRAFFIC_HERO_STEPS} title="Da oferta à próxima ação" /> : null}
+          {slug === SITES_COURSE_SLUG ? (
+            <div className="grid gap-4">
+              <SitesPageVisual />
+              <ol className="flex min-w-0 flex-wrap items-center gap-2" aria-label="Oferta, estrutura, copy e página publicada">
+                {SITES_HERO_STEPS.map((step, index) => (
+                  <li key={step} className="flex min-w-0 items-center gap-2">
+                    <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-sm font-medium text-on-ink">{step}</span>
+                    {index < SITES_HERO_STEPS.length - 1 ? <span className="text-on-ink-muted" aria-hidden>→</span> : null}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
         </div>
       </Container>
     </section>

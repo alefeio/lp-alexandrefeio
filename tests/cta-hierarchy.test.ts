@@ -45,7 +45,7 @@ test("curso, aula gratuita e paywall separam compra, continuidade e navegação"
   assert.match(courseHero, /buttonClass\("primary"\)/);
   assert.match(courseHero, /navigationLinkClass\("on-ink"\)/);
   assert.match(courseHero, /Continuar curso/);
-  assert.match(freeLessons, /Começar aula gratuita/);
+  assert.match(freeLessons, /Começar aula grátis/);
   assert.match(freeLessons, /event="course_free_start"/);
   assert.match(paywall, /Comprar esta aula/);
   assert.match(paywall, /variant=\{lessonForSale \? "secondary" : "primary"\}/);

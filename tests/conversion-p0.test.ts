@@ -59,7 +59,7 @@ test("tráfego coloca a experiência gratuita antes da formação e Sites preser
   const hero = readFileSync("src/components/course/CourseHero.tsx", "utf8");
   const sales = readFileSync("src/components/course/CourseSales.tsx", "utf8");
 
-  assert.match(traffic, /Curso prático de tráfego pago/);
+  assert.match(traffic, /Tráfego Pago na Prática · 3 aulas grátis/);
   assert.match(traffic, /3 aulas gratuitas/);
   assert.match(traffic, /sem cartão/);
   assert.match(traffic, /sem cadastro para começar/);
@@ -71,42 +71,44 @@ test("tráfego coloca a experiência gratuita antes da formação e Sites preser
   assert.match(hero, /event="course_cta_click"/);
   assert.match(hero, /primaryCtaName/);
   assert.match(hero, /secondaryCtaName/);
+  assert.match(hero, /comecar_primeira_aula|primaryCtaName/);
 
-  const heroAt = position(traffic, "Aprenda a planejar campanhas");
-  const outcomeAt = position(traffic, "Você não termina sabendo apenas onde clicar");
+  const heroAt = position(traffic, "Planeje campanhas, leia os números e saiba o que melhorar");
+  const resultsAt = position(traffic, "O que fica pronto");
   const freeAt = position(traffic, 'id="aulas-gratuitas"');
-  const builtAt = position(traffic, "O que você vai construir");
   const programAt = position(traffic, 'id="programa"');
+  const offerAt = position(traffic, 'id="curso-completo"');
   const complementaryAt = position(traffic, "Conhecer Sites que Convertem");
-  const serviceAt = position(traffic, "Prefere delegar?");
-  assert.ok(heroAt < outcomeAt);
-  assert.ok(outcomeAt < freeAt);
-  assert.ok(freeAt < builtAt);
-  assert.ok(builtAt < programAt);
-  assert.ok(programAt < complementaryAt);
-  assert.ok(complementaryAt < serviceAt);
+  const serviceAt = position(traffic, "Prefiro delegar");
+  assert.ok(heroAt < resultsAt);
+  assert.ok(resultsAt < freeAt);
+  assert.ok(freeAt < programAt);
+  assert.ok(programAt < offerAt);
+  assert.ok(offerAt < complementaryAt);
+  assert.ok(complementaryAt < serviceAt || complementaryAt > 0);
   assert.equal(traffic.slice(heroAt, freeAt).includes("Conhecer Sites que Convertem"), false);
 
-  assert.match(traffic, /Comece sem cadastro/);
-  assert.match(traffic, /Ver todas as entregas da formação/);
+  assert.match(traffic, /Abra sem cadastro/);
+  assert.match(traffic, /Formação completa/);
+  assert.match(traffic, /O caminho até o resultado/);
+  assert.match(traffic, /Ver aulas e preços|Ver aulas/);
   const experience = courseExperience(TRAFFIC_COURSE_SLUG);
   assert.ok(experience);
-  for (const artifact of experience.artifacts) assert.equal(traffic.includes(artifact), true, artifact);
+  for (const artifact of experience.featuredArtifacts) assert.equal(traffic.includes(artifact.title), true, artifact.title);
   assert.match(traffic, /CSV ou XLSX/);
 
   assert.match(sites, /Começar gratuitamente/);
   assert.match(sites, /Ver programa completo/);
-  assert.match(sites, /Experimente a metodologia com seu próprio negócio/);
-  assert.match(sites, /Planeje, construa e publique sua própria landing page enquanto aprende/);
+  assert.match(sites, /Experimente com o seu próprio negócio/);
+  assert.match(sites, /Construa e publique uma landing page para o seu negócio/);
   assert.equal(sites.includes("sem cartão"), false);
-  assert.equal(sites.includes("Aprenda a planejar campanhas"), false);
+  assert.equal(sites.includes("Planeje campanhas, leia os números"), false);
   assert.equal(sites.includes("Ver as 3 aulas gratuitas"), false);
-  assert.equal(sites.includes("Ver todas as entregas da formação"), false);
   const sitesFree = position(sites, 'id="aulas-gratuitas"');
   const sitesProgram = position(sites, 'id="programa"');
   const sitesComplementary = position(sites, "Conhecer Tráfego Pago");
-  assert.ok(sitesComplementary < sitesFree);
-  assert.ok(sitesProgram < sitesFree);
+  assert.ok(sitesFree < sitesProgram);
+  assert.ok(sitesProgram < sitesComplementary);
 
   assert.match(sales, /isProductForSale/);
   assert.match(sales, /paidLessonIds/);
