@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   AI_ECONOMICS_CURRENCY_NOTE,
   USD_MICROS_PER_DOLLAR,
+  adminAiUserLabel,
   aiEconomicsWindow,
   belemDayKey,
   buildAiEconomicsView,
@@ -23,6 +24,7 @@ function call(overrides: Partial<AiEconomicsCall> = {}): AiEconomicsCall {
   return {
     requestId: "req-1",
     featureKey: "landing_page_copy",
+    userId: "user-1",
     providerId: "openai",
     modelId: "gpt-5.4-mini",
     serviceTier: "default",
@@ -300,15 +302,175 @@ test("painel lê o ledger, exige admin e não usa jornada como verdade de custo"
   assert.match(dashboard, /Custo médio por ação totalmente precificada/);
   assert.match(dashboard, /Pedidos pagos criados no período/);
   assert.match(dashboard, /AI_ECONOMICS_EMPTY/);
+  assert.match(dashboard, /Por usuário/);
   assert.equal(
     readFileSync(new URL("../src/lib/admin/ai-economics.ts", import.meta.url), "utf8").includes("Ainda não há chamadas de IA registradas neste período."),
     true,
   );
-  assert.equal(loader.includes("userId"), false);
+  assert.match(loader, /userId: true/);
+  assert.match(loader, /user\.findMany/);
   assert.equal(loader.includes("providerResponseId"), false);
   assert.equal(loader.includes("JourneyEvent"), false);
   assert.equal(loader.includes("Prisma.raw"), false);
   assert.equal(loader.includes("$queryRawUnsafe"), false);
-  assert.equal(dashboard.includes("userId"), false);
+  assert.match(dashboard, /Não inclui prompt, resposta nem fatos privados/);
+  assert.equal(dashboard.includes("providerResponseId"), false);
+  assert.equal(dashboard.includes("systemPrompt"), false);
   assert.equal(dashboard.includes("@/lib/ai/pricing"), false);
+});
+
+test("sem dados de usuário o breakdown por usuário fica vazio", () => {
+  const result = view();
+  assert.deepEqual(result.users, []);
+});
+
+test("um usuário agrega ações, features e média completa", () => {
+  const result = view({
+    calls: [
+      call({ requestId: "a1", featureKey: "landing_page_copy", estimatedCostUsdMicros: 400_000, estimatedModelCostUsdMicros: 400_000 }),
+      call({ requestId: "a1", featureKey: "landing_page_copy", estimatedCostUsdMicros: 100_000, estimatedModelCostUsdMicros: 100_000 }),
+      call({ requestId: "a2", featureKey: "blog_draft", estimatedCostUsdMicros: 200_000, estimatedModelCostUsdMicros: 200_000 }),
+    ],
+    userDirectory: { "user-1": { name: "Ana", email: "ana@example.com" } },
+  });
+  assert.equal(result.users.length, 1);
+  assert.equal(result.users[0].userId, "user-1");
+  assert.equal(result.users[0].adminLabel, "user-1 · ana@example.com");
+  assert.equal(result.users[0].actions, 2);
+  assert.equal(result.users[0].providerCalls, 3);
+  assert.equal(result.users[0].additionalCalls, 1);
+  assert.equal(result.users[0].pricedCostMicros, 700_000);
+  assert.equal(result.users[0].averageLabel, "US$ 0,35");
+  assert.deepEqual(
+    result.users[0].features.map((feature) => feature.featureKey),
+    ["landing_page_copy", "blog_draft"],
+  );
+  assert.equal(result.users[0].features[0].additionalCalls, 1);
+  assert.equal(result.users[0].features[0].averageLabel, "US$ 0,50");
+});
+
+test("vários usuários isolam custo e features sem misturar requestIds", () => {
+  const result = view({
+    calls: [
+      call({ userId: "user-a", requestId: "shared-looking", featureKey: "blog_seo", estimatedCostUsdMicros: 1_000_000, estimatedModelCostUsdMicros: 1_000_000 }),
+      call({ userId: "user-b", requestId: "other", featureKey: "blog_seo", estimatedCostUsdMicros: 250_000, estimatedModelCostUsdMicros: 250_000 }),
+      call({ userId: "user-b", requestId: "other-2", featureKey: "landing_page_copy", estimatedCostUsdMicros: null, estimatedModelCostUsdMicros: null, estimatedToolCostUsdMicros: null }),
+    ],
+  });
+  assert.equal(result.users.length, 2);
+  assert.equal(result.users[0].userId, "user-a");
+  assert.equal(result.users[0].pricedCostMicros, 1_000_000);
+  assert.equal(result.users[0].features.length, 1);
+  assert.equal(result.users[1].userId, "user-b");
+  assert.equal(result.users[1].actions, 2);
+  assert.equal(result.users[1].unpricedCalls, 1);
+  assert.equal(result.users[1].incompleteActions, 1);
+  assert.equal(result.users[1].averageLabel, "US$ 0,25");
+  assert.equal(result.summary.logicalActions, 3);
+  assert.equal(result.summary.pricedCostMicros, 1_250_000);
+});
+
+test("ação parcialmente precificada no usuário não entra na média", () => {
+  const result = view({
+    calls: [
+      call({ requestId: "mixed-user", estimatedCostUsdMicros: 80_000, estimatedModelCostUsdMicros: 80_000 }),
+      call({ requestId: "mixed-user", estimatedCostUsdMicros: null, estimatedModelCostUsdMicros: null, estimatedToolCostUsdMicros: null }),
+      call({ requestId: "ok-user", estimatedCostUsdMicros: 120_000, estimatedModelCostUsdMicros: 120_000 }),
+    ],
+  });
+  assert.equal(result.users[0].pricedCostMicros, 200_000);
+  assert.equal(result.users[0].fullyPricedActions, 1);
+  assert.equal(result.users[0].incompleteActions, 1);
+  assert.equal(result.users[0].averageLabel, "US$ 0,12");
+  assert.equal(result.unit.fullyPricedActions, 1);
+  assert.equal(result.unit.averageMicros, 120_000);
+});
+
+test("falha do provedor e custo nulo permanecem no usuário", () => {
+  const result = view({
+    calls: [
+      call({
+        requestId: "fail-1",
+        status: "failed",
+        operationType: "generate",
+        estimatedCostUsdMicros: null,
+        estimatedModelCostUsdMicros: null,
+        estimatedToolCostUsdMicros: null,
+      }),
+    ],
+  });
+  assert.equal(result.users[0].providerCalls, 1);
+  assert.equal(result.users[0].unpricedCalls, 1);
+  assert.equal(result.users[0].pricedCostMicros, 0);
+  assert.equal(result.users[0].averageLabel, "—");
+  assert.equal(result.summary.failedCalls, 1);
+});
+
+test("filtros de período aplicam-se também ao breakdown por usuário", () => {
+  const recent = call({ requestId: "in-window", userId: "user-recent", createdAt: new Date("2026-10-28T12:00:00.000Z") });
+  const old = call({
+    requestId: "out-window",
+    userId: "user-old",
+    createdAt: new Date("2026-09-01T12:00:00.000Z"),
+    estimatedCostUsdMicros: 9_000_000,
+    estimatedModelCostUsdMicros: 9_000_000,
+  });
+  const week = view({ period: "7", calls: [recent, old] });
+  assert.deepEqual(week.users.map((user) => user.userId), ["user-recent"]);
+  const month = view({ period: "30", calls: [recent, old] });
+  assert.equal(month.users.length, 1);
+  const quarter = view({ period: "90", calls: [recent, old] });
+  assert.equal(quarter.users.length, 2);
+  const all = view({ period: "all", calls: [recent, old] });
+  assert.equal(all.users.length, 2);
+});
+
+test("rótulo administrativo prioriza userId e não inventa dados", () => {
+  assert.equal(adminAiUserLabel("abc"), "abc");
+  assert.equal(adminAiUserLabel("abc", { abc: { name: "Ana", email: "ana@example.com" } }), "abc · ana@example.com");
+  assert.equal(adminAiUserLabel("abc", { abc: { name: "Ana", email: "  " } }), "abc · Ana");
+});
+
+test("indicadores globais existentes permanecem invariantes com users", () => {
+  const calls = [
+    call({ requestId: "g1", userId: "u1", estimatedCostUsdMicros: 500_000, estimatedModelCostUsdMicros: 500_000 }),
+    call({ requestId: "g1", userId: "u1", estimatedCostUsdMicros: 100_000, estimatedModelCostUsdMicros: 100_000 }),
+    call({ requestId: "g2", userId: "u2", featureKey: "blog_titles", estimatedCostUsdMicros: null, estimatedModelCostUsdMicros: null, estimatedToolCostUsdMicros: null }),
+  ];
+  const result = view({ calls });
+  assert.equal(result.summary.logicalActions, 2);
+  assert.equal(result.summary.providerCalls, 3);
+  assert.equal(result.summary.additionalCalls, 1);
+  assert.equal(result.summary.pricedCostMicros, 600_000);
+  assert.equal(result.summary.unpricedCalls, 1);
+  assert.equal(result.unit.fullyPricedActions, 1);
+  assert.equal(result.unit.incompleteActions, 1);
+  assert.equal(result.unit.averageMicros, 600_000);
+  assert.equal(result.features.length, 2);
+  assert.equal(result.users.reduce((sum, user) => sum + user.pricedCostMicros, 0), result.summary.pricedCostMicros);
+  assert.equal(result.users.reduce((sum, user) => sum + user.providerCalls, 0), result.summary.providerCalls);
+});
+
+test("Gate 1 não altera arquivos de UX-C nem telemetria de aquisição", () => {
+  const uxC = [
+    "src/components/home/CourseHome.tsx",
+    "src/components/home/HomeHero.tsx",
+    "src/components/course/CourseSales.tsx",
+    "src/components/course/CourseHero.tsx",
+    "src/lib/learning/course-sales-copy.ts",
+    "src/lib/home/public-home.ts",
+  ];
+  for (const path of uxC) {
+    assert.equal(readFileSync(new URL(`../${path}`, import.meta.url), "utf8").includes("buildAiEconomicsView"), false);
+  }
+  const economics = readFileSync(new URL("../src/lib/admin/ai-economics.ts", import.meta.url), "utf8");
+  const loader = readFileSync(new URL("../src/lib/admin/load-ai-economics.ts", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../src/components/admin/ai/AiEconomicsDashboard.tsx", import.meta.url), "utf8");
+  for (const source of [economics, loader, dashboard]) {
+    assert.equal(source.includes("JourneyEvent"), false);
+    assert.equal(source.includes("gtag"), false);
+    assert.equal(source.includes("GTM"), false);
+    assert.equal(source.includes("course_free_start"), false);
+    assert.equal(source.includes("MercadoPago"), false);
+  }
 });

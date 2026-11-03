@@ -5,12 +5,14 @@ import {
   parseAiEconomicsPeriod,
   type AiEconomicsCall,
   type AiEconomicsPayment,
+  type AiEconomicsUserDirectory,
 } from "@/lib/admin/ai-economics";
 import { getPrisma } from "@/lib/db/prisma";
 
 const callSelect = {
   requestId: true,
   featureKey: true,
+  userId: true,
   providerId: true,
   modelId: true,
   serviceTier: true,
@@ -51,11 +53,25 @@ export async function loadAiEconomics(query: { periodo?: string }, now = new Dat
     prisma.order.count({ where: { status: "PAID", createdAt } }),
   ]);
 
+  const userIds = [...new Set(calls.map((call) => call.userId))];
+  const users =
+    userIds.length === 0
+      ? []
+      : await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true },
+        });
+
+  const userDirectory: AiEconomicsUserDirectory = Object.fromEntries(
+    users.map((user) => [user.id, { name: user.name, email: user.email }]),
+  );
+
   return buildAiEconomicsView({
     period,
     now,
     calls: calls satisfies AiEconomicsCall[],
     payments: payments satisfies AiEconomicsPayment[],
     paidOrders,
+    userDirectory,
   });
 }
