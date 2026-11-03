@@ -1,9 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { BLOG_CATEGORIES, BLOG_CTA_KEYS } from "@/lib/blog/catalog";
 import { editorialAction, publishBlogAction, saveBlogAction, unpublishBlogAction } from "@/lib/blog/actions";
+import {
+  blogPersistFeedback,
+  blogPublishLabel,
+  blogSaveLabel,
+  blogSuccessMessage,
+  blogTransportMessage,
+  blogUnpublishLabel,
+  clientCoverSelection,
+  runGuardedBlogAction,
+  type BlogEditorFeedback,
+  type BlogPendingAction,
+} from "@/lib/blog/editor-feedback";
 
 export type BlogEditorValue = {
   id: string | null;
@@ -37,12 +49,32 @@ const EMPTY: BlogEditorValue = {
   slugLocked: false,
 };
 
-export function BlogEditor({ initial = EMPTY }: { initial?: BlogEditorValue }) {
+export function BlogEditor({ initial = EMPTY, initialFeedback = null }: { initial?: BlogEditorValue; initialFeedback?: BlogEditorFeedback | null }) {
   const router = useRouter();
   const [post, setPost] = useState(initial);
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState<BlogEditorFeedback | null>(initialFeedback);
   const [assist, setAssist] = useState("");
-  const [pending, setPending] = useState(false);
+  const [pendingAction, setPendingAction] = useState<BlogPendingAction | null>(null);
+  const [selectedCover, setSelectedCover] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [coverNote, setCoverNote] = useState<BlogEditorFeedback | null>(null);
+  const [coverMeta, setCoverMeta] = useState<{ name: string; sizeLabel: string } | null>(null);
+  const gate = useRef<BlogPendingAction | null>(null);
+  const previewUrl = useRef<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const feedbackRef = useRef<HTMLParagraphElement>(null);
+  const busy = pendingAction !== null;
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (feedback?.tone !== "error" && coverNote?.tone !== "error") return;
+    feedbackRef.current?.focus({ preventScroll: true });
+  }, [coverNote, feedback]);
 
   function formData(extra?: File | null) {
     const data = new FormData();
@@ -53,45 +85,110 @@ export function BlogEditor({ initial = EMPTY }: { initial?: BlogEditorValue }) {
     return data;
   }
 
+  function replacePreview(file: File | null) {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    const next = file ? URL.createObjectURL(file) : null;
+    previewUrl.current = next;
+    setCoverPreviewUrl(next);
+  }
+
+  function clearSelectedCover() {
+    setSelectedCover(null);
+    setCoverMeta(null);
+    replacePreview(null);
+    setCoverNote(null);
+    if (coverInputRef.current) coverInputRef.current.value = "";
+  }
+
+  function onCoverChange(file: File | null) {
+    if (!file) {
+      clearSelectedCover();
+      return false;
+    }
+    const selection = clientCoverSelection(file);
+    if (!selection.ok) {
+      setSelectedCover(null);
+      setCoverMeta(null);
+      replacePreview(null);
+      setCoverNote({ tone: "error", message: selection.message });
+      return false;
+    }
+    setSelectedCover(file);
+    setCoverMeta({ name: selection.name, sizeLabel: selection.sizeLabel });
+    replacePreview(file);
+    setCoverNote({ tone: "success", message: selection.message });
+    return true;
+  }
+
   async function persist(intent: "save" | "publish") {
-    setPending(true);
-    setMessage("");
-    const file = (document.getElementById("cover") as HTMLInputElement | null)?.files?.[0] ?? null;
-    const result = intent === "publish" ? await publishBlogAction(post.id, formData(file)) : await saveBlogAction(post.id, formData(file));
-    setPending(false);
-    if (!result.ok) {
-      setMessage(result.message);
+    const outcome = await runGuardedBlogAction({
+      gate,
+      action: intent,
+      setPending: setPendingAction,
+      run: async () => {
+        setFeedback(null);
+        return intent === "publish" ? publishBlogAction(post.id, formData(selectedCover)) : saveBlogAction(post.id, formData(selectedCover));
+      },
+    });
+    if (!outcome.started) return;
+    const next = blogPersistFeedback({
+      intent,
+      status: initial.status,
+      isNew: !post.id,
+      result: outcome.ok ? outcome.value : { thrown: true },
+    });
+    if (outcome.ok && outcome.value.ok) clearSelectedCover();
+    setFeedback(next);
+    if (!next.href) {
+      if (outcome.ok && outcome.value.ok) router.refresh();
       return;
     }
-    setMessage(intent === "publish" ? "Artigo publicado." : "Rascunho salvo.");
-    if (!post.id) router.push(`/admin/blog/${result.post.id}`);
-    else router.refresh();
+    router.push(next.href);
   }
 
   async function unpublish() {
     if (!post.id) return;
-    setPending(true);
-    const result = await unpublishBlogAction(post.id);
-    setPending(false);
-    setMessage(result.ok ? "Artigo despublicado. A data da primeira publicação foi mantida." : result.message);
-    if (result.ok) router.refresh();
+    const outcome = await runGuardedBlogAction({
+      gate,
+      action: "unpublish",
+      setPending: setPendingAction,
+      run: () => unpublishBlogAction(post.id as string),
+    });
+    if (!outcome.started) return;
+    if (!outcome.ok) {
+      setFeedback({ tone: "error", message: blogTransportMessage("unpublish") });
+      return;
+    }
+    setFeedback({
+      tone: outcome.value.ok ? "success" : "error",
+      message: outcome.value.ok ? blogSuccessMessage("unpublish", initial.status) : outcome.value.message,
+    });
+    if (outcome.value.ok) router.refresh();
   }
 
   async function assistWith(action: "titles" | "outline" | "draft" | "review" | "seo") {
-    setPending(true);
-    setAssist("");
-    const result = await editorialAction(action, {
-      title: post.title,
-      categorySlug: post.categorySlug,
-      excerpt: post.excerpt,
-      markdown: post.contentMarkdown,
-      seoTitle: post.seoTitle,
-      seoDescription: post.seoDescription,
-      ctaKey: post.ctaKey,
+    const outcome = await runGuardedBlogAction({
+      gate,
+      action,
+      setPending: setPendingAction,
+      run: () => editorialAction(action, {
+        title: post.title,
+        categorySlug: post.categorySlug,
+        excerpt: post.excerpt,
+        markdown: post.contentMarkdown,
+        seoTitle: post.seoTitle,
+        seoDescription: post.seoDescription,
+        ctaKey: post.ctaKey,
+      }),
     });
-    setPending(false);
+    if (!outcome.started) return;
+    if (!outcome.ok) {
+      setFeedback({ tone: "error", message: "Não foi possível concluir esta ação. Tente novamente." });
+      return;
+    }
+    const result = outcome.value;
     if (!result.ok) {
-      setMessage(result.message);
+      setFeedback({ tone: "error", message: result.message });
       return;
     }
     if (result.action === "titles") setAssist(result.titles.map((title) => `• ${title}`).join("\n"));
@@ -102,10 +199,13 @@ export function BlogEditor({ initial = EMPTY }: { initial?: BlogEditorValue }) {
     else if (result.action === "review" || result.action === "seo") setAssist(JSON.stringify(result.value, null, 2));
   }
 
+  const coverLabel = coverPreviewUrl ? "Nova capa selecionada" : initial.coverImageUrl ? "Capa atual" : null;
+  const coverSrc = coverPreviewUrl ?? initial.coverImageUrl;
+
   return (
-    <form className="mt-8 grid max-w-3xl gap-4" onSubmit={(event) => event.preventDefault()}>
+    <form className="mt-8 grid max-w-3xl gap-4" aria-busy={busy} onSubmit={(event) => event.preventDefault()}>
       <Field label="Título" value={post.title} onChange={(title) => setPost({ ...post, title })} name="title" />
-      <Field label="Slug" value={post.slug} onChange={(slug) => setPost({ ...post, slug })} name="slug" readOnly={post.slugLocked} note={post.slugLocked ? "O slug permanece o da primeira publicação." : undefined} />
+      <Field label="Slug" value={post.slug} onChange={(slug) => setPost({ ...post, slug })} name="slug" readOnly={initial.slugLocked} note={initial.slugLocked ? "O slug permanece o da primeira publicação." : undefined} />
       <label className="grid gap-1 text-sm">
         Categoria
         <select className="rounded-md border border-border bg-background px-3 py-2" value={post.categorySlug} onChange={(event) => setPost({ ...post, categorySlug: event.target.value })}>
@@ -125,29 +225,66 @@ export function BlogEditor({ initial = EMPTY }: { initial?: BlogEditorValue }) {
       <Field label="Descrição de SEO" value={post.seoDescription} onChange={(seoDescription) => setPost({ ...post, seoDescription })} name="seoDescription" />
       <label className="grid gap-1 text-sm">
         Capa
-        <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" className="text-sm" />
+        <input
+          ref={coverInputRef}
+          id="cover"
+          name="cover"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="text-sm"
+          disabled={busy}
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+            if (!onCoverChange(file)) event.target.value = "";
+          }}
+        />
       </label>
-      {post.coverImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.coverImageUrl} alt={post.coverImageAlt || ""} className="max-h-40 rounded-md object-cover" />
+      {coverMeta ? (
+        <p className="text-sm">
+          <span className="block">{coverMeta.name}</span>
+          <span className="block">{coverMeta.sizeLabel}</span>
+        </p>
+      ) : null}
+      {coverNote ? <FeedbackView feedback={coverNote} targetRef={coverNote.tone === "error" ? feedbackRef : undefined} /> : null}
+      {coverLabel && coverSrc ? (
+        <figure className="grid gap-2">
+          <figcaption className="text-sm">{coverLabel}</figcaption>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={coverSrc} alt={post.coverImageAlt || ""} className="max-h-40 rounded-md object-cover" />
+        </figure>
       ) : null}
       <Field label="Texto alternativo da capa" value={post.coverImageAlt} onChange={(coverImageAlt) => setPost({ ...post, coverImageAlt })} name="coverImageAlt" />
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="rounded-md border border-foreground px-3 py-2 text-sm" disabled={pending} onClick={() => persist("save")}>Salvar rascunho</button>
-        <button type="button" className="rounded-md border border-foreground px-3 py-2 text-sm" disabled={pending} onClick={() => persist("publish")}>Publicar</button>
-        {post.status === "PUBLISHED" && post.id ? <button type="button" className="rounded-md border border-border px-3 py-2 text-sm" disabled={pending} onClick={unpublish}>Despublicar</button> : null}
+        <button type="button" className="rounded-md border border-foreground px-3 py-2 text-sm" disabled={busy} onClick={() => persist("save")}>{blogSaveLabel(initial.status, pendingAction)}</button>
+        <button type="button" className="rounded-md border border-foreground px-3 py-2 text-sm" disabled={busy} onClick={() => persist("publish")}>{blogPublishLabel(pendingAction)}</button>
+        {initial.status === "PUBLISHED" && post.id ? <button type="button" className="rounded-md border border-border px-3 py-2 text-sm" disabled={busy} onClick={unpublish}>{blogUnpublishLabel(pendingAction)}</button> : null}
         {post.id ? <a className="rounded-md border border-border px-3 py-2 text-sm" href={`/admin/blog/${post.id}/preview`}>Pré-visualizar</a> : null}
       </div>
+      {feedback ? <FeedbackView feedback={feedback} targetRef={feedback.tone === "error" ? feedbackRef : undefined} /> : null}
       <div className="flex flex-wrap gap-2">
-        <AssistButton pending={pending} onClick={() => assistWith("titles")}>Sugerir títulos</AssistButton>
-        <AssistButton pending={pending} onClick={() => assistWith("outline")}>Criar estrutura</AssistButton>
-        <AssistButton pending={pending} onClick={() => assistWith("draft")}>Gerar rascunho com IA</AssistButton>
-        <AssistButton pending={pending} onClick={() => assistWith("review")}>Revisar conteúdo</AssistButton>
-        <AssistButton pending={pending} onClick={() => assistWith("seo")}>Revisar SEO</AssistButton>
+        <AssistButton pending={busy} onClick={() => assistWith("titles")}>Sugerir títulos</AssistButton>
+        <AssistButton pending={busy} onClick={() => assistWith("outline")}>Criar estrutura</AssistButton>
+        <AssistButton pending={busy} onClick={() => assistWith("draft")}>Gerar rascunho com IA</AssistButton>
+        <AssistButton pending={busy} onClick={() => assistWith("review")}>Revisar conteúdo</AssistButton>
+        <AssistButton pending={busy} onClick={() => assistWith("seo")}>Revisar SEO</AssistButton>
       </div>
-      {message ? <p className="text-sm" role="status">{message}</p> : null}
       {assist ? <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg border border-border p-4 text-sm">{assist}</pre> : null}
     </form>
+  );
+}
+
+function FeedbackView({ feedback, targetRef }: { feedback: BlogEditorFeedback; targetRef?: RefObject<HTMLParagraphElement | null> }) {
+  if (feedback.tone === "error") {
+    return (
+      <p ref={targetRef} tabIndex={-1} role="alert" className="text-sm focus:outline focus:outline-2 focus:outline-offset-2">
+        {feedback.message}
+      </p>
+    );
+  }
+  return (
+    <p role="status" aria-live="polite" className="text-sm">
+      {feedback.message}
+    </p>
   );
 }
 
