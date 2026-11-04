@@ -8,7 +8,7 @@ import { storeEditorialImage } from "../src/lib/editorial/service";
 import { uploadToApimg } from "../src/lib/storage/apimg";
 import { EDITORIAL_IMAGE_LIMIT_BYTES, validateEditorialImage } from "../src/lib/storage/image-file";
 import { prepareWebImageForUpload, WEB_IMAGE_PROFILES } from "../src/lib/storage/image-optimization";
-import { imageOptimizationNote } from "../src/lib/storage/image-optimization-note";
+import { imageOptimizationNote, imageSizeChangePercent } from "../src/lib/storage/image-optimization-note";
 
 const env = {
   APIMG_API_KEY: "server-secret",
@@ -265,9 +265,78 @@ test("o editor informa origem, resultado e redução sem nova etapa", () => {
   assert.equal(imageOptimizationNote({ originalBytes: 1200, optimizedBytes: 1200, reductionPercent: 0 }), "1,2 KB mantidos, já em tamanho adequado.");
 });
 
+test("a mensagem distingue redução, igualdade e crescimento", () => {
+  assert.equal(imageSizeChangePercent(2_400_000, 140 * 1024), 94);
+  assert.equal(
+    imageOptimizationNote({ originalBytes: 2_400_000, optimizedBytes: 140 * 1024, reductionPercent: 94 }),
+    "2,3 MB → 140 KB (94% menor).",
+  );
+  assert.equal(
+    imageOptimizationNote({ originalBytes: 1200, optimizedBytes: 1200, reductionPercent: 0 }),
+    "1,2 KB mantidos, já em tamanho adequado.",
+  );
+  const grown = imageOptimizationNote({ originalBytes: 1000, optimizedBytes: 1150, reductionPercent: 0 });
+  assert.equal(grown, "1000 B → 1,1 KB (15% maior).");
+  assert.equal(grown.includes("mantidos"), false);
+  const slight = imageOptimizationNote({ originalBytes: 10_000, optimizedBytes: 10_040, reductionPercent: 0 });
+  assert.match(slight, /9,8 KB → 9,8 KB \(menos de 1% maior\)/);
+  assert.equal(slight.includes("mantidos"), false);
+});
+
+test("arquivo final ligeiramente maior informa o crescimento e continua dentro do limite", async () => {
+  const source = await raster("png", 32, 32);
+  const larger = new Uint8Array(source.byteLength + 48);
+  larger.set(source);
+  const prepared = await prepareWebImageForUpload({
+    bytes: source,
+    declaredType: "image/png",
+    size: source.byteLength,
+    profile: "editorial",
+  }, async () => ({ bytes: larger, format: "png", width: 32, height: 32 }));
+  assert.equal(prepared.ok, true);
+  if (!prepared.ok) return;
+  assert.ok(prepared.bytes.byteLength > source.byteLength);
+  assert.ok(prepared.bytes.byteLength <= EDITORIAL_IMAGE_LIMIT_BYTES);
+  assert.ok(prepared.report.reductionPercent < 0);
+  const note = imageOptimizationNote(prepared.report);
+  assert.match(note, /maior/);
+  assert.equal(note.includes("mantidos"), false);
+});
+
+test("arquivo final acima do limite não segue para o APIMG", async () => {
+  const source = await raster("png", 16, 16);
+  let sent = false;
+  const prepared = await prepareWebImageForUpload({
+    bytes: source,
+    declaredType: "image/png",
+    size: source.byteLength,
+    profile: "blog-cover",
+  }, async () => ({
+    bytes: new Uint8Array(EDITORIAL_IMAGE_LIMIT_BYTES + 1),
+    format: "webp",
+    width: 16,
+    height: 16,
+  }));
+  if (prepared.ok) {
+    await uploadToApimg(prepared.bytes, prepared.format, env, async () => {
+      sent = true;
+      return new Response("no", { status: 500 });
+    });
+  } else {
+    assert.equal(prepared.message, "A imagem passa de 5 MB.");
+  }
+  assert.equal(prepared.ok, false);
+  assert.equal(sent, false);
+
+  const valid = await optimize(source, "image/png", "blog-cover");
+  assert.ok(valid.bytes.byteLength <= EDITORIAL_IMAGE_LIMIT_BYTES);
+  assert.ok(valid.report.optimizedBytes <= source.byteLength || valid.report.reductionPercent <= 0);
+});
+
 async function optimize(bytes: Uint8Array, declaredType: string, profile: keyof typeof WEB_IMAGE_PROFILES) {
   const result = await prepareWebImageForUpload({ bytes, declaredType, size: bytes.byteLength, profile });
   if (!result.ok) throw new Error(result.message);
+  assert.ok(result.bytes.byteLength <= EDITORIAL_IMAGE_LIMIT_BYTES);
   return result;
 }
 

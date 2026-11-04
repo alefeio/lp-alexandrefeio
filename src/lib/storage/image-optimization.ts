@@ -1,6 +1,6 @@
 import sharp from "sharp";
-import { validateEditorialImage, type EditorialImageFormat } from "@/lib/storage/image-file";
-import { type ImageOptimizationReport } from "@/lib/storage/image-optimization-note";
+import { EDITORIAL_IMAGE_LIMIT_BYTES, validateEditorialImage, type EditorialImageFormat } from "@/lib/storage/image-file";
+import { imageSizeChangePercent, type ImageOptimizationReport } from "@/lib/storage/image-optimization-note";
 
 sharp.cache(false);
 sharp.concurrency(1);
@@ -55,6 +55,9 @@ export async function prepareWebImageForUpload(
   try {
     const encoded = await encode(checked.bytes, WEB_IMAGE_PROFILES[input.profile], checked.format);
     const optimizedBytes = encoded.bytes.byteLength;
+    if (optimizedBytes > EDITORIAL_IMAGE_LIMIT_BYTES) {
+      return { ok: false, message: "A imagem passa de 5 MB." };
+    }
     return {
       ok: true,
       bytes: encoded.bytes,
@@ -62,9 +65,7 @@ export async function prepareWebImageForUpload(
       report: {
         originalBytes: checked.bytes.byteLength,
         optimizedBytes,
-        reductionPercent: checked.bytes.byteLength > 0
-          ? Math.max(0, Math.round((1 - optimizedBytes / checked.bytes.byteLength) * 100))
-          : 0,
+        reductionPercent: imageSizeChangePercent(checked.bytes.byteLength, optimizedBytes),
         width: encoded.width,
         height: encoded.height,
         format: encoded.format,
@@ -119,6 +120,14 @@ async function encodeWebImage(bytes: Uint8Array, profile: Profile, sourceFormat:
     const sameFormat = await encodeOriginalFormat(bytes, profile.maxWidth, sourceFormat);
     if (sameFormat.data.length < output.bytes.byteLength) output = toEncoded(sameFormat, sourceFormat);
   }
+  output = await fitUploadLimit(bytes, output, {
+    maxWidth: profile.maxWidth,
+    resized,
+    hasMetadata,
+    sourceFormat,
+    orientedWidth,
+    orientedHeight,
+  });
 
   if (output.width > profile.maxWidth) throw new Error("image exceeds pixel limit");
   if (output.width > orientedWidth || output.height > orientedHeight) throw new Error("image was enlarged");
@@ -161,8 +170,37 @@ function encodeOriginalFormat(bytes: Uint8Array, maxWidth: number, format: Edito
   return pipeline.webp({ quality: INITIAL_QUALITY, alphaQuality: 100, effort: 4 }).toBuffer({ resolveWithObject: true });
 }
 
+async function fitUploadLimit(
+  source: Uint8Array,
+  output: EncodedImage,
+  context: {
+    maxWidth: number;
+    resized: boolean;
+    hasMetadata: boolean;
+    sourceFormat: EditorialImageFormat;
+    orientedWidth: number;
+    orientedHeight: number;
+  },
+): Promise<EncodedImage> {
+  if (output.bytes.byteLength <= EDITORIAL_IMAGE_LIMIT_BYTES) return output;
+  if (!context.resized && !context.hasMetadata && source.byteLength <= EDITORIAL_IMAGE_LIMIT_BYTES) {
+    return {
+      bytes: new Uint8Array(source),
+      format: context.sourceFormat,
+      width: context.orientedWidth,
+      height: context.orientedHeight,
+    };
+  }
+  for (const quality of [60, 48, 36]) {
+    const next = toEncoded(await encodeWebp(source, context.maxWidth, quality), "webp");
+    if (next.bytes.byteLength <= EDITORIAL_IMAGE_LIMIT_BYTES) return next;
+  }
+  throw new Error("output exceeds upload limit");
+}
+
 function failureMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
+  if (/upload limit/i.test(message)) return "A imagem passa de 5 MB.";
   if (/pixel limit|exceeds pixel|too large|enlarged/i.test(message)) {
     return "A imagem é grande demais para ser processada com segurança.";
   }
