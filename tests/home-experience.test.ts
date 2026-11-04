@@ -82,6 +82,7 @@ test("a home mostra o sistema, as duas formações e as aulas gratuitas do catá
   assert.ok(html.indexOf("Continuar de onde parei") < html.indexOf("Escolha o resultado que precisa agora"));
   assert.ok(html.indexOf("Escolha o resultado") < html.indexOf("Você sai com algo pronto"));
   assert.ok(html.indexOf("Você sai com algo pronto") < html.indexOf("Comece grátis"));
+  assert.equal(html.includes("Aprenda a atrair e converter mais clientes"), false);
 });
 
 test("curso fora do catálogo não gera link", () => {

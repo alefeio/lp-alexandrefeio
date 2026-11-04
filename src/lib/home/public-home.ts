@@ -17,6 +17,9 @@ export const publicHomeCopy = {
   learnCta: "Ver as formações",
   delegateLabel: "DELEGAR",
   delegateCta: "Conhecer a gestão",
+  blogTitle: "Aprenda a atrair e converter mais clientes",
+  blogSupport: "Conteúdos práticos sobre sites, tráfego pago e estratégias para melhorar seus resultados.",
+  blogCta: "Ver todos os artigos",
 } as const;
 
 export const publicHomeMetadata = {

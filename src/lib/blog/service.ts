@@ -41,6 +41,36 @@ export async function listPublishedPosts() {
   });
 }
 
+/** Metadados para cards públicos. Não lê o Markdown completo. */
+const publishedCardSelect = {
+  slug: true,
+  title: true,
+  excerpt: true,
+  categorySlug: true,
+  coverImageUrl: true,
+  coverImageAlt: true,
+  publishedAt: true,
+} as const;
+
+export type PublishedBlogCard = {
+  slug: string;
+  title: string;
+  excerpt: string;
+  categorySlug: string;
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
+  publishedAt: Date | null;
+};
+
+export async function listPublishedPostCards(limit?: number): Promise<PublishedBlogCard[]> {
+  return getPrisma().blogPost.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: [{ publishedAt: "desc" }],
+    ...(typeof limit === "number" ? { take: limit } : {}),
+    select: publishedCardSelect,
+  });
+}
+
 export async function getPublishedPost(slug: string) {
   return getPrisma().blogPost.findFirst({ where: { slug, status: "PUBLISHED" }, select: postSelect });
 }
