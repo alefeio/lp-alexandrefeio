@@ -9,7 +9,7 @@ export const metadata = { title: "Jornada", robots: { index: false, follow: fals
 export default async function AdminJourneyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ periodo?: string; curso?: string }>;
+  searchParams: Promise<{ periodo?: string; curso?: string; marco?: string }>;
 }) {
   const session = await requireAdmin();
   if (!session) return null;

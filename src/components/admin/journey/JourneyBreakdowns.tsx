@@ -1,4 +1,4 @@
-import { JOURNEY_EMPTY, JOURNEY_SAMPLE_MIN, JOURNEY_SAMPLE_NOTE, type JourneyDashboardView } from "@/lib/admin/journey-report";
+import { JOURNEY_EMPTY, journeyReadingGuide, type JourneyDashboardView } from "@/lib/admin/journey-report";
 import { EmptyNote, ShareBar, maxCount } from "@/components/admin/journey/JourneyBars";
 
 export function JourneyScenarioBreakdown({ view }: { view: JourneyDashboardView }) {
@@ -78,18 +78,19 @@ export function JourneySources({ view }: { view: JourneyDashboardView }) {
 export function JourneyFreeLessons({ view }: { view: JourneyDashboardView }) {
   return (
     <section className="mt-10">
-      <h2 className="text-lg font-semibold">Quais aulas gratuitas iniciam a jornada?</h2>
+      <h2 className="text-lg font-semibold">Aulas gratuitas acessadas</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">Acesso é o clique para abrir a aula. Conclusão observada é outro evento, do mesmo slug, e não confirma o progresso do aluno.</p>
       {view.freeLessons.length === 0 ? <EmptyNote>{JOURNEY_EMPTY}</EmptyNote> : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
-            <caption className="sr-only">Aulas gratuitas que iniciam a jornada, com conclusões observadas do mesmo slug</caption>
+            <caption className="sr-only">Acessos à aula gratuita e conclusões observadas do mesmo slug</caption>
             <thead>
               <tr className="border-b border-border text-muted">
                 <th scope="col" className="py-2 pr-3 font-medium">Curso</th>
                 <th scope="col" className="px-3 py-2 font-medium">Aula</th>
                 <th scope="col" className="px-3 py-2 font-medium">Jornadas</th>
-                <th scope="col" className="px-3 py-2 font-medium">Inícios</th>
-                <th scope="col" className="px-3 py-2 font-medium">Concluíram</th>
+                <th scope="col" className="px-3 py-2 font-medium">Acessos</th>
+                <th scope="col" className="px-3 py-2 font-medium">Conclusões observadas</th>
               </tr>
             </thead>
             <tbody>
@@ -148,6 +149,6 @@ export function JourneyCourseTransitions({ view }: { view: JourneyDashboardView 
 
 function SampleNote({ counts }: { counts: number[] }) {
   const peak = maxCount(counts);
-  if (peak === 0 || peak >= JOURNEY_SAMPLE_MIN) return null;
-  return <p className="mt-3 text-sm text-muted">{JOURNEY_SAMPLE_NOTE}</p>;
+  if (peak === 0 || peak >= 100) return null;
+  return <p className="mt-3 text-sm text-muted">{journeyReadingGuide(peak)}</p>;
 }
