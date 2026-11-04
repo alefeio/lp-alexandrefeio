@@ -5,6 +5,8 @@ import { prepareBlogWrite, selectRelated, slugConflict, slugifyTitle, type BlogW
 import { getPrisma } from "@/lib/db/prisma";
 import { uploadToApimg } from "@/lib/storage/apimg";
 import { validateEditorialImage } from "@/lib/storage/image-file";
+import { prepareWebImageForUpload } from "@/lib/storage/image-optimization";
+import type { ImageOptimizationReport } from "@/lib/storage/image-optimization-note";
 
 const postSelect = {
   id: true,
@@ -161,11 +163,20 @@ export async function saveBlogPost(input: { id?: string; fields: BlogWriteFields
 
   let coverUrl = existing?.coverImageUrl ?? null;
   let coverId = existing?.coverImagePublicId ?? null;
-  if (checkedCover) {
-    const uploaded = await uploadToApimg(checkedCover.bytes, checkedCover.format, process.env, fetch, BLOG_COVER_FOLDER);
+  let coverOptimization: ImageOptimizationReport | null = null;
+  if (checkedCover && input.cover) {
+    const optimized = await prepareWebImageForUpload({
+      bytes: checkedCover.bytes,
+      declaredType: input.cover.type,
+      size: checkedCover.bytes.byteLength,
+      profile: "blog-cover",
+    });
+    if (!optimized.ok) return optimized;
+    const uploaded = await uploadToApimg(optimized.bytes, optimized.format, process.env, fetch, BLOG_COVER_FOLDER);
     if (!uploaded.ok) return uploaded;
     coverUrl = uploaded.asset.url;
     coverId = uploaded.asset.publicId;
+    coverOptimization = optimized.report;
   }
 
   const data = {
@@ -186,7 +197,7 @@ export async function saveBlogPost(input: { id?: string; fields: BlogWriteFields
   const saved = existing
     ? await prisma.blogPost.update({ where: { id: existing.id }, data, select: { id: true, slug: true, status: true } })
     : await prisma.blogPost.create({ data, select: { id: true, slug: true, status: true } });
-  return { ok: true as const, post: saved };
+  return { ok: true as const, post: saved, coverOptimization };
 }
 
 export async function savePlannedIdea(suggestion: EditorialSuggestion) {

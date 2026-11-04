@@ -5,7 +5,9 @@ import { inspectLessonDocument, type LessonDocument } from "@/lib/editorial/docu
 import { slugify } from "@/lib/editorial/keys";
 import { assessLesson, bundleSaleReady, lessonSaleReady, type ReadyBlock, type ReadyLesson } from "@/lib/editorial/readiness";
 import { uploadToApimg } from "@/lib/storage/apimg";
-import { validateEditorialImage, type EditorialImageFormat } from "@/lib/storage/image-file";
+import { validateEditorialImage } from "@/lib/storage/image-file";
+import { prepareWebImageForUpload } from "@/lib/storage/image-optimization";
+import { imageOptimizationNote } from "@/lib/storage/image-optimization-note";
 import { acceptsPublicPreview } from "@/lib/learning/public-preview";
 
 export type EditorialActor = { userId: string; role: string };
@@ -349,7 +351,14 @@ export async function storeEditorialImage(
   const checked = validateEditorialImage(input.bytes, input.declaredType, input.size);
   if (!checked.ok) return checked;
   if (!input.decorative && input.alt.trim().length === 0) return { ok: false, message: "Informe o texto alternativo ou marque a imagem como decorativa." };
-  const uploaded = await upload(checked.bytes, checked.format as EditorialImageFormat);
+  const prepared = await prepareWebImageForUpload({
+    bytes: input.bytes,
+    declaredType: input.declaredType,
+    size: input.size,
+    profile: "editorial",
+  });
+  if (!prepared.ok) return prepared;
+  const uploaded = await upload(prepared.bytes, prepared.format);
   if (!uploaded.ok) return uploaded;
   const asset = await getPrisma().mediaAsset.create({
     data: {
@@ -364,7 +373,7 @@ export async function storeEditorialImage(
       createdById: actor.userId,
     },
   });
-  return { ok: true, message: "Imagem enviada.", assetId: asset.id };
+  return { ok: true, message: `Imagem enviada. ${imageOptimizationNote(prepared.report)}`, assetId: asset.id };
 }
 
 export async function lessonReadiness(lessonId: string) {
