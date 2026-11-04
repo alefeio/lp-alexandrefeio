@@ -1,6 +1,6 @@
 import { landingPageSectionSchema, type LandingPageSection } from "@/lib/landing-page/components";
 import { parseLandingPageDocument, type LandingPageDocumentV1 } from "@/lib/landing-page/document";
-import { fail, ok, type LandingPageCode, type LandingPageResult } from "@/lib/landing-page/errors";
+import { fail, landingPageMessage, ok, type LandingPageCode, type LandingPageResult } from "@/lib/landing-page/errors";
 import type { LandingPageProjectView } from "@/lib/landing-page/service";
 import type { LandingPageStore } from "@/lib/landing-page/types";
 import { COPY_PROVIDER_TIMEOUT_MS, COPY_VARIANT_MAX, LANDING_PAGE_COPY_PROMPT_V1, type CopyIntent, type CopyMissingFact } from "@/lib/landing-page/copy/constants";
@@ -92,6 +92,14 @@ function acceptSuggestions(raw: unknown, sectionType: string, sectionId: string,
   return { ...parsed.data, suggestions };
 }
 
+export type CopyGenerationResult =
+  | LandingPageResult<CopySuggestionResponseV1>
+  | { ok: false; code: LandingPageCode; message: string; uncertain: true };
+
+function failUncertain(code: LandingPageCode): CopyGenerationResult {
+  return { ok: false, code, message: landingPageMessage(code), uncertain: true };
+}
+
 export async function generateLandingPageCopySuggestions(
   store: LandingPageStore,
   input: {
@@ -108,8 +116,10 @@ export async function generateLandingPageCopySuggestions(
     recordProviderCall?: AiLedgerWriter;
     ledgerTimeoutMs?: number;
     onLedgerFailure?: (notice: { requestId: string; attempt: number }) => void;
+    requestId?: string;
+    onBeforeProvider?: () => Promise<void> | void;
   },
-): Promise<LandingPageResult<CopySuggestionResponseV1>> {
+): Promise<CopyGenerationResult> {
   if (input.variantCount !== undefined && (input.variantCount < 1 || input.variantCount > COPY_VARIANT_MAX)) return fail("INVALID_INPUT");
   const record = await store.findByIdForUser(input.landingPageProjectId, input.userId);
   if (!record) return fail("NOT_FOUND");
@@ -133,7 +143,7 @@ export async function generateLandingPageCopySuggestions(
     return ok(missingResponse(built.section.id, built.context.sectionType, missing));
   }
 
-  const requestId = crypto.randomUUID();
+  const requestId = options?.requestId ?? crypto.randomUUID();
   const variantCount = input.variantCount ?? COPY_VARIANT_MAX;
   const allocateAttempt = sequence();
   const observed: CopyProviderCallObservation[] = [];
@@ -216,13 +226,16 @@ export async function generateLandingPageCopySuggestions(
       allocateAttempt,
       onProviderCall: collectCall,
     });
+  await options?.onBeforeProvider?.();
   let providerResult: CopyProviderResult;
+  let timedOut = false;
   try {
     providerResult = await withTimeout((signal) => ask(false, signal), options?.timeoutMs ?? COPY_PROVIDER_TIMEOUT_MS);
   } catch {
+    timedOut = true;
     await flushLedger();
     logEvent("error", "COPY_ASSIST_PROVIDER_ERROR");
-    return fail("COPY_ASSIST_PROVIDER_ERROR");
+    return failUncertain("COPY_ASSIST_PROVIDER_ERROR");
   }
   await flushLedger();
   if (!providerResult.ok) {
@@ -234,19 +247,21 @@ export async function generateLandingPageCopySuggestions(
   let accepted = acceptSuggestions(providerResult.raw, built.context.sectionType, built.section.id, built.context.userProvidedFacts, variantCount);
   if (!accepted) {
     try {
+      await options?.onBeforeProvider?.();
       const repaired = await withTimeout((signal) => ask(true, signal), options?.timeoutMs ?? COPY_PROVIDER_TIMEOUT_MS);
       if (repaired.ok) {
         usage = repaired.usage ?? usage;
         accepted = acceptSuggestions(repaired.raw, built.context.sectionType, built.section.id, built.context.userProvidedFacts, variantCount);
       }
     } catch {
+      timedOut = true;
       accepted = null;
     }
     await flushLedger();
   }
   if (!accepted) {
-    logEvent("error", "COPY_ASSIST_INVALID_RESPONSE", usage);
-    return fail("COPY_ASSIST_INVALID_RESPONSE");
+    logEvent("error", timedOut ? "COPY_ASSIST_PROVIDER_ERROR" : "COPY_ASSIST_INVALID_RESPONSE", usage);
+    return timedOut ? failUncertain("COPY_ASSIST_PROVIDER_ERROR") : fail("COPY_ASSIST_INVALID_RESPONSE");
   }
   logEvent("ok", undefined, usage);
   return ok(accepted);

@@ -34,6 +34,7 @@ const USD_MICROS = 1_000_000;
 export type AiEconomicsCall = {
   requestId: string;
   featureKey: string;
+  userId: string;
   providerId: string;
   modelId: string;
   serviceTier: string | null;
@@ -53,6 +54,8 @@ export type AiEconomicsCall = {
   latencyMs: number | null;
   createdAt: Date;
 };
+
+export type AiEconomicsUserDirectory = Record<string, { name: string; email: string }>;
 
 export type AiEconomicsPayment = {
   status: PaymentRevenueStatus;
@@ -137,15 +140,12 @@ export function buildAiEconomicsView(input: {
   calls: AiEconomicsCall[];
   payments: AiEconomicsPayment[];
   paidOrders: number;
+  userDirectory?: AiEconomicsUserDirectory;
 }) {
   const window = aiEconomicsWindow(input.period, input.now);
   const calls = input.calls.filter((call) => inAiEconomicsWindow(call.createdAt, window));
-  const byRequest = new Map<string, AiEconomicsCall[]>();
-  for (const call of calls) {
-    const group = byRequest.get(call.requestId) ?? [];
-    group.push(call);
-    byRequest.set(call.requestId, group);
-  }
+  const byRequest = groupByRequest(calls);
+  const actionStats = actionPricingStats(byRequest);
 
   const logicalActions = byRequest.size;
   const providerCalls = calls.length;
@@ -153,18 +153,6 @@ export function buildAiEconomicsView(input: {
   const unpricedCalls = providerCalls - pricedCalls;
   const pricedCostMicros = calls.reduce((sum, call) => sum + (call.estimatedCostUsdMicros ?? 0), 0);
   const coverage = providerCalls > 0 ? pricedCalls / providerCalls : null;
-
-  let fullyPricedActions = 0;
-  let fullyPricedCostMicros = 0;
-  let incompleteActions = 0;
-  for (const group of byRequest.values()) {
-    if (group.every((call) => call.estimatedCostUsdMicros != null)) {
-      fullyPricedActions += 1;
-      fullyPricedCostMicros += group.reduce((sum, call) => sum + (call.estimatedCostUsdMicros ?? 0), 0);
-    } else {
-      incompleteActions += 1;
-    }
-  }
 
   const modelCostMicros = sumKnown(calls.map((call) => call.estimatedModelCostUsdMicros));
   const toolCostMicros = sumKnown(calls.map((call) => call.estimatedToolCostUsdMicros));
@@ -201,12 +189,13 @@ export function buildAiEconomicsView(input: {
       webSearchCallsLabel: formatKnownCount(webSearchCalls),
     },
     unit: {
-      fullyPricedActions,
-      incompleteActions,
-      averageMicros: fullyPricedActions > 0 ? Math.round(fullyPricedCostMicros / fullyPricedActions) : null,
-      averageLabel: fullyPricedActions > 0 ? formatUsdMicros(Math.round(fullyPricedCostMicros / fullyPricedActions)) : "—",
+      fullyPricedActions: actionStats.fullyPricedActions,
+      incompleteActions: actionStats.incompleteActions,
+      averageMicros: actionStats.averageMicros,
+      averageLabel: actionStats.averageLabel,
     },
     features: featureRows(byRequest),
+    users: userRows(calls, input.userDirectory ?? {}),
     models: modelRows(calls),
     operation: {
       responded: calls.filter((call) => call.status === "responded").length,
@@ -228,6 +217,66 @@ export function buildAiEconomicsView(input: {
 
 export type AiEconomicsView = ReturnType<typeof buildAiEconomicsView>;
 
+export function adminAiUserLabel(userId: string, directory: AiEconomicsUserDirectory = {}): string {
+  const info = directory[userId];
+  if (!info) return userId;
+  const detail = info.email.trim() || info.name.trim();
+  return detail ? `${userId} · ${detail}` : userId;
+}
+
+function groupByRequest(calls: AiEconomicsCall[]) {
+  const byRequest = new Map<string, AiEconomicsCall[]>();
+  for (const call of calls) {
+    const group = byRequest.get(call.requestId) ?? [];
+    group.push(call);
+    byRequest.set(call.requestId, group);
+  }
+  return byRequest;
+}
+
+function actionPricingStats(byRequest: Map<string, AiEconomicsCall[]>) {
+  let fullyPricedActions = 0;
+  let fullyPricedCostMicros = 0;
+  let incompleteActions = 0;
+  for (const group of byRequest.values()) {
+    if (group.every((call) => call.estimatedCostUsdMicros != null)) {
+      fullyPricedActions += 1;
+      fullyPricedCostMicros += group.reduce((sum, call) => sum + (call.estimatedCostUsdMicros ?? 0), 0);
+    } else {
+      incompleteActions += 1;
+    }
+  }
+  const averageMicros = fullyPricedActions > 0 ? Math.round(fullyPricedCostMicros / fullyPricedActions) : null;
+  return {
+    fullyPricedActions,
+    incompleteActions,
+    averageMicros,
+    averageLabel: averageMicros == null ? "—" : formatUsdMicros(averageMicros),
+  };
+}
+
+function callBucketStats(rows: AiEconomicsCall[]) {
+  const byRequest = groupByRequest(rows);
+  const actions = byRequest.size;
+  const providerCalls = rows.length;
+  const priced = rows.filter((call) => call.estimatedCostUsdMicros != null);
+  const pricedCostMicros = priced.reduce((sum, call) => sum + (call.estimatedCostUsdMicros ?? 0), 0);
+  const unpricedCalls = providerCalls - priced.length;
+  const actionStats = actionPricingStats(byRequest);
+  return {
+    actions,
+    providerCalls,
+    pricedCostMicros,
+    pricedCostLabel: formatUsdMicros(pricedCostMicros),
+    unpricedCalls,
+    coverageLabel: formatCoverage(providerCalls > 0 ? priced.length / providerCalls : null),
+    additionalCalls: Math.max(0, providerCalls - actions),
+    fullyPricedActions: actionStats.fullyPricedActions,
+    incompleteActions: actionStats.incompleteActions,
+    averageLabel: actionStats.averageLabel,
+  };
+}
+
 function featureRows(byRequest: Map<string, AiEconomicsCall[]>) {
   const groups = new Map<string, AiEconomicsCall[]>();
   for (const group of byRequest.values()) {
@@ -239,24 +288,75 @@ function featureRows(byRequest: Map<string, AiEconomicsCall[]>) {
   }
   return [...groups.entries()]
     .map(([featureKey, rows]) => {
-      const requests = new Set(rows.map((call) => call.requestId));
-      const priced = rows.filter((call) => call.estimatedCostUsdMicros != null);
-      const pricedCostMicros = priced.reduce((sum, call) => sum + (call.estimatedCostUsdMicros ?? 0), 0);
-      const unpriced = rows.length - priced.length;
+      const stats = callBucketStats(rows);
       return {
         featureKey,
         label: featureLabel(featureKey),
-        actions: requests.size,
-        providerCalls: rows.length,
-        pricedCostMicros,
-        pricedCostLabel: formatUsdMicros(pricedCostMicros),
-        unpricedCalls: unpriced,
-        coverageLabel: formatCoverage(rows.length > 0 ? priced.length / rows.length : null),
+        actions: stats.actions,
+        providerCalls: stats.providerCalls,
+        pricedCostMicros: stats.pricedCostMicros,
+        pricedCostLabel: stats.pricedCostLabel,
+        unpricedCalls: stats.unpricedCalls,
+        coverageLabel: stats.coverageLabel,
         repairs: rows.filter((call) => call.operationType === "repair").length,
         webSearchCallsLabel: formatKnownCount(sumKnown(rows.map((call) => call.webSearchCalls))),
       };
     })
     .sort((left, right) => right.pricedCostMicros - left.pricedCostMicros || left.featureKey.localeCompare(right.featureKey));
+}
+
+function userRows(calls: AiEconomicsCall[], directory: AiEconomicsUserDirectory) {
+  const byUser = new Map<string, AiEconomicsCall[]>();
+  for (const call of calls) {
+    const list = byUser.get(call.userId) ?? [];
+    list.push(call);
+    byUser.set(call.userId, list);
+  }
+
+  return [...byUser.entries()]
+    .map(([userId, rows]) => {
+      const stats = callBucketStats(rows);
+      const byFeature = new Map<string, AiEconomicsCall[]>();
+      for (const call of rows) {
+        const list = byFeature.get(call.featureKey) ?? [];
+        list.push(call);
+        byFeature.set(call.featureKey, list);
+      }
+      const features = [...byFeature.entries()]
+        .map(([featureKey, featureRowsForUser]) => {
+          const featureStats = callBucketStats(featureRowsForUser);
+          return {
+            featureKey,
+            label: featureLabel(featureKey),
+            actions: featureStats.actions,
+            providerCalls: featureStats.providerCalls,
+            pricedCostMicros: featureStats.pricedCostMicros,
+            pricedCostLabel: featureStats.pricedCostLabel,
+            unpricedCalls: featureStats.unpricedCalls,
+            coverageLabel: featureStats.coverageLabel,
+            additionalCalls: featureStats.additionalCalls,
+            averageLabel: featureStats.averageLabel,
+          };
+        })
+        .sort((left, right) => right.pricedCostMicros - left.pricedCostMicros || left.featureKey.localeCompare(right.featureKey));
+
+      return {
+        userId,
+        adminLabel: adminAiUserLabel(userId, directory),
+        actions: stats.actions,
+        providerCalls: stats.providerCalls,
+        pricedCostMicros: stats.pricedCostMicros,
+        pricedCostLabel: stats.pricedCostLabel,
+        unpricedCalls: stats.unpricedCalls,
+        coverageLabel: stats.coverageLabel,
+        additionalCalls: stats.additionalCalls,
+        fullyPricedActions: stats.fullyPricedActions,
+        incompleteActions: stats.incompleteActions,
+        averageLabel: stats.averageLabel,
+        features,
+      };
+    })
+    .sort((left, right) => right.pricedCostMicros - left.pricedCostMicros || left.userId.localeCompare(right.userId));
 }
 
 function modelRows(calls: AiEconomicsCall[]) {

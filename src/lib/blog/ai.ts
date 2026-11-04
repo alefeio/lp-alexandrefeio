@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { AiIdempotencyOwnershipError } from "@/lib/ai/idempotency";
 import { persistLedgerDraft, type AiLedgerWriter, type AiProviderCallDraft } from "@/lib/ai/ledger";
 import { countOpenAIWebSearchCalls, readOpenAIModel, readOpenAIResponseId, readOpenAIServiceTier, readOpenAIUsage } from "@/lib/ai/openai-usage";
 import { estimateAiProviderCost } from "@/lib/ai/pricing";
@@ -12,6 +13,15 @@ import { readOpenAICopyApiKey, resolveCopyModel } from "@/lib/landing-page/copy/
 type ResponsesClient = {
   responses: { create: (body: unknown, options?: { signal?: AbortSignal }) => Promise<unknown> };
 };
+
+function isTransportUncertainty(error: unknown): boolean {
+  if (error instanceof OpenAI.APIError) return false;
+  const name = error instanceof Error ? error.name : "";
+  if (name === "TimeoutError" || name === "AbortError" || name === "FetchError") return true;
+  if (error instanceof TypeError) return true;
+  if (error instanceof Error && /timeout|network|ECONN|ETIMEDOUT|fetch failed/i.test(error.message)) return true;
+  return name === "TimeoutError" || name === "AbortError";
+}
 
 export type BlogAiSuccess =
   | { ok: true; action: "coverage"; value: Record<string, unknown> }
@@ -34,7 +44,8 @@ export async function runEditorialAction(input: {
   recordProviderCall?: AiLedgerWriter;
   ledgerTimeoutMs?: number;
   onLedgerFailure?: (notice: { requestId: string; attempt: number }) => void;
-}): Promise<BlogAiSuccess | { ok: false; message: string }> {
+  onBeforeProvider?: () => Promise<void> | void;
+}): Promise<BlogAiSuccess | { ok: false; message: string; uncertain?: boolean }> {
   const now = input.now ?? new Date();
   const requestId = input.requestId ?? crypto.randomUUID();
   const attempt = input.attempt ?? 1;
@@ -52,6 +63,7 @@ export async function runEditorialAction(input: {
     const timeout = input.action === "trends" ? 70_000 : 45_000;
     const started = Date.now();
     let response: unknown;
+    await input.onBeforeProvider?.();
     try {
       response = await client.responses.create(body, { signal: AbortSignal.timeout(timeout) });
     } catch (error) {
@@ -65,7 +77,12 @@ export async function runEditorialAction(input: {
         errorCode: "PROVIDER_ERROR",
         latencyMs: Date.now() - started,
       }));
-      console.error("blog editorial assist failed", { action: input.action, name: error instanceof Error ? error.name : "Error" });
+      const name = error instanceof Error ? error.name : "Error";
+      console.error("blog editorial assist failed", { action: input.action, name });
+      // HTTP definitivo do provedor → FAILED recuperável. Timeout/transporte → UNKNOWN.
+      if (isTransportUncertainty(error)) {
+        return { ok: false, message: BLOG_AI_FAILURE, uncertain: true };
+      }
       return { ok: false, message: BLOG_AI_FAILURE };
     }
     await record(blogDraft({
@@ -82,9 +99,11 @@ export async function runEditorialAction(input: {
       latencyMs: Date.now() - started,
     }));
     const parsed = parseEditorialOutput(response);
+    // Resposta recebida e rejeitada pela validação → definitiva (não UNKNOWN).
     if (!parsed.ok) return parsed;
     return shape(input.action, parsed.value, input.inventory, now);
   } catch (error) {
+    if (error instanceof AiIdempotencyOwnershipError) throw error;
     console.error("blog editorial assist failed", { action: input.action, name: error instanceof Error ? error.name : "Error" });
     return { ok: false, message: BLOG_AI_FAILURE };
   }

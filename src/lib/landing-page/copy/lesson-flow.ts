@@ -141,6 +141,12 @@ export function copyAssistUserMessage(code: string): string {
   if (code === "COPY_ASSIST_RATE_LIMITED") return "Você fez várias gerações em pouco tempo. Aguarde alguns minutos e tente novamente.";
   if (code === "COPY_ASSIST_UNAVAILABLE") return "As sugestões automáticas estão temporariamente indisponíveis. Você ainda pode escrever e editar seu texto manualmente.";
   if (code === "COPY_ASSIST_PROVIDER_ERROR" || code === "COPY_ASSIST_INVALID_RESPONSE") return "Não foi possível gerar sugestões agora. Tente novamente ou escreva manualmente.";
+  if (code === "COPY_ASSIST_IN_PROGRESS") return "Uma geração já está em andamento. Aguarde e tente de novo.";
+  if (code === "COPY_ASSIST_ALREADY_COMPLETED") return "Esta geração já foi concluída. Solicite uma nova se quiser outra versão.";
+  if (code === "COPY_ASSIST_FINGERPRINT_CONFLICT" || code === "COPY_ASSIST_OPERATION_UNKNOWN" || code === "COPY_ASSIST_IDEMPOTENCY_REQUIRED") {
+    return "Não foi possível repetir esta geração. Peça uma nova sugestão.";
+  }
+  if (code === "COPY_ASSIST_IDEMPOTENCY_UNAVAILABLE") return "Não foi possível iniciar a geração com segurança agora.";
   if (code === "LANDING_PAGE_DRAFT_CONFLICT") return "Esta página foi alterada em outro lugar. Atualize antes de salvar novamente.";
   if (code === "LANDING_PAGE_SECTION_INCOMPLETE") return "Esta seção ainda tem informações obrigatórias em aberto.";
   return "Não foi possível salvar agora.";

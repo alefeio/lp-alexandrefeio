@@ -110,6 +110,66 @@ export function AiEconomicsDashboard({ view }: { view: AiEconomicsView }) {
       </section>
 
       <section className="space-y-4">
+        <h2 className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Por usuário</h2>
+        <p className="max-w-3xl text-sm leading-relaxed text-muted">
+          Identificador interno do ledger, com e-mail administrativo quando disponível. Não inclui prompt, resposta nem fatos privados do aluno.
+        </p>
+        <div className="space-y-4">
+          {view.users.length === 0 ? (
+            <p className="text-sm text-muted">{AI_ECONOMICS_EMPTY}</p>
+          ) : (
+            view.users.map((user) => (
+              <article key={user.userId} className="rounded-lg border border-border p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium break-all">{user.adminLabel}</p>
+                    <p className="mt-1 text-xs text-muted">userId · {user.userId}</p>
+                  </div>
+                  <div className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                    <MiniStat label="Ações" value={String(user.actions)} />
+                    <MiniStat label="Provider calls" value={String(user.providerCalls)} />
+                    <MiniStat label="Custo conhecido" value={user.pricedCostLabel} />
+                    <MiniStat label="Média (ações completas)" value={user.averageLabel} />
+                  </div>
+                </div>
+                <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                  <MiniStat label="Calls unpriced" value={String(user.unpricedCalls)} />
+                  <MiniStat label="Cobertura" value={user.coverageLabel} />
+                  <MiniStat label="Chamadas adicionais" value={String(user.additionalCalls)} />
+                  <MiniStat label="Ações incompletas" value={String(user.incompleteActions)} />
+                </dl>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[44rem] text-left text-sm">
+                    <thead className="text-muted">
+                      <tr>
+                        {["Funcionalidade", "Ações", "Provider calls", "Custo conhecido", "Unpriced", "Cobertura", "Adicionais", "Média completa"].map((heading) => (
+                          <th key={heading} className="border-b border-border px-3 py-2 font-medium">{heading}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {user.features.map((feature) => (
+                        <tr key={`${user.userId}-${feature.featureKey}`}>
+                          <td className="border-b border-border px-3 py-2">{feature.label}</td>
+                          <td className="border-b border-border px-3 py-2 tabular-nums">{feature.actions}</td>
+                          <td className="border-b border-border px-3 py-2 tabular-nums">{feature.providerCalls}</td>
+                          <td className="border-b border-border px-3 py-2 tabular-nums">{feature.pricedCostLabel}</td>
+                          <td className="border-b border-border px-3 py-2 tabular-nums">{feature.unpricedCalls}</td>
+                          <td className="border-b border-border px-3 py-2">{feature.coverageLabel}</td>
+                          <td className="border-b border-border px-3 py-2 tabular-nums">{feature.additionalCalls}</td>
+                          <td className="border-b border-border px-3 py-2 tabular-nums">{feature.averageLabel}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-4">
         <h2 className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Modelos e precificação</h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[56rem] text-left text-sm">
@@ -204,6 +264,15 @@ function Card({ label, value, note }: { label: string; value: string; note?: str
       <p className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
       {note ? <p className="mt-2 text-xs leading-relaxed text-muted">{note}</p> : null}
     </article>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-1 font-medium tabular-nums break-words">{value}</p>
+    </div>
   );
 }
 
