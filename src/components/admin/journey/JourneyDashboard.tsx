@@ -8,10 +8,10 @@ export function JourneyDashboard({ view }: { view: JourneyDashboardView }) {
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Admin</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Jornada</h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
-        Como visitantes com consentimento avançam entre descoberta, cursos, aulas e intenção de compra. Resultados financeiros vêm das tabelas operacionais.
+        Visitantes com consentimento de analytics, ao lado de pedidos, pagamentos e progresso reais.
       </p>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed">Dados de jornada considerados desde {view.baselineLabel}.</p>
-      <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">Eventos técnicos anteriores permanecem armazenados, mas não entram neste painel.</p>
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed">{view.queryLabel}</p>
+      <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">O histórico do painel continua desde {view.baselineLabel}. Eventos anteriores permanecem armazenados e fora da consulta. O clique de CTA do curso existe só no GA4 e não aparece aqui como dado interno.</p>
       <JourneyFilters view={view} />
       <JourneySummary view={view} />
       <JourneyFunnel view={view} />

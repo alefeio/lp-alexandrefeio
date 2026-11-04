@@ -1,4 +1,4 @@
-import { JOURNEY_EMPTY, JOURNEY_SAMPLE_MIN, JOURNEY_SAMPLE_NOTE, type JourneyDashboardView } from "@/lib/admin/journey-report";
+import { JOURNEY_EMPTY, type JourneyDashboardView } from "@/lib/admin/journey-report";
 import { EmptyNote, ShareBar, maxCount } from "@/components/admin/journey/JourneyBars";
 
 export function JourneyScenarioBreakdown({ view }: { view: JourneyDashboardView }) {
@@ -40,7 +40,6 @@ export function JourneyScenarioBreakdown({ view }: { view: JourneyDashboardView 
           {view.courseChoices.map((row) => (
             <ShareBar key={row.slug} label={row.label} count={row.count} max={choiceMax} />
           ))}
-          <SampleNote counts={view.courseChoices.map((row) => row.count)} />
         </div>
       )}
     </section>
@@ -59,7 +58,6 @@ export function JourneySources({ view }: { view: JourneyDashboardView }) {
           {view.sources.map((row) => (
             <ShareBar key={row.label} label={row.label} count={row.count} max={sourceMax} />
           ))}
-          <SampleNote counts={view.sources.map((row) => row.count)} />
         </div>
       )}
       <h3 className="mt-6 text-base font-semibold">Campanhas observadas</h3>
@@ -68,7 +66,6 @@ export function JourneySources({ view }: { view: JourneyDashboardView }) {
           {view.campaigns.map((row) => (
             <ShareBar key={row.label} label={row.label} count={row.count} max={campaignMax} />
           ))}
-          <SampleNote counts={view.campaigns.map((row) => row.count)} />
         </div>
       )}
     </section>
@@ -78,7 +75,8 @@ export function JourneySources({ view }: { view: JourneyDashboardView }) {
 export function JourneyFreeLessons({ view }: { view: JourneyDashboardView }) {
   return (
     <section className="mt-10">
-      <h2 className="text-lg font-semibold">Quais aulas gratuitas iniciam a jornada?</h2>
+      <h2 className="text-lg font-semibold">Inícios observados de aulas gratuitas</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">Evento consentido de abertura. O usuário que começou de fato está no resultado operacional.</p>
       {view.freeLessons.length === 0 ? <EmptyNote>{JOURNEY_EMPTY}</EmptyNote> : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
@@ -104,7 +102,6 @@ export function JourneyFreeLessons({ view }: { view: JourneyDashboardView }) {
               ))}
             </tbody>
           </table>
-          <SampleNote counts={view.freeLessons.map((row) => row.journeys)} />
         </div>
       )}
     </section>
@@ -139,15 +136,8 @@ export function JourneyCourseTransitions({ view }: { view: JourneyDashboardView 
               ))}
             </tbody>
           </table>
-          <SampleNote counts={view.transitions.map((row) => row.journeys)} />
         </div>
       )}
     </section>
   );
-}
-
-function SampleNote({ counts }: { counts: number[] }) {
-  const peak = maxCount(counts);
-  if (peak === 0 || peak >= JOURNEY_SAMPLE_MIN) return null;
-  return <p className="mt-3 text-sm text-muted">{JOURNEY_SAMPLE_NOTE}</p>;
 }
