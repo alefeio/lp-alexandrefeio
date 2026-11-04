@@ -3,11 +3,17 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { receivedRevenueCents } from "../src/lib/admin/operations";
 import {
+  JOURNEY_CTA_NOTE,
+  JOURNEY_FUNNEL,
+  JOURNEY_SAMPLE_NOTE,
   PRODUCT_JOURNEY_REPORTING_START_AT,
+  UX_C_PRODUCTION_AT,
   buildJourneyDashboard,
   formatJourneyDateTime,
   journeyDashboardHref,
+  journeyReadingGuide,
   parseJourneyCourse,
+  parseJourneyEra,
   parseJourneyPeriod,
   type JourneyObservedEvent,
   type JourneyOrderFact,
@@ -80,18 +86,25 @@ test("filtro de período e curso cai no padrão quando o valor é inválido", ()
   assert.equal(parseJourneyCourse("inexistente"), "all");
   assert.equal(parseJourneyCourse(TRAFFIC), TRAFFIC);
   assert.equal(parseJourneyCourse(SITES), SITES);
+  assert.equal(parseJourneyEra(undefined), "ux-c");
+  assert.equal(parseJourneyEra("outro"), "ux-c");
   assert.equal(view({ query: {} }).period, "30");
+  assert.equal(view({ query: {} }).era, "ux-c");
   assert.equal(view({ query: { periodo: "ano" } }).period, "30");
   assert.equal(view({ query: { curso: "outro" } }).course, "all");
   assert.equal(journeyDashboardHref("7", TRAFFIC), `/admin/jornada?periodo=7&curso=${TRAFFIC}`);
   assert.equal(journeyDashboardHref("30", "all"), "/admin/jornada");
+  assert.equal(journeyDashboardHref("30", "all", "historico"), "/admin/jornada?marco=historico");
+  assert.equal(journeyDashboardHref("7", TRAFFIC, "completo"), `/admin/jornada?periodo=7&curso=${TRAFFIC}&marco=completo`);
   const recent = event({ anonymousId: "anon-secret-recent", eventName: "course_view", occurredAt: new Date("2026-12-10T12:00:00.000Z") });
   const month = event({ anonymousId: "anon-secret-month", eventName: "course_view", occurredAt: new Date("2026-12-01T12:00:00.000Z") });
   const quarter = event({ anonymousId: "anon-secret-quarter", eventName: "course_view", occurredAt: new Date("2026-11-01T12:00:00.000Z") });
   assert.equal(view({ events: [recent, month, quarter], query: { periodo: "7" } }).summary.journeys, 1);
   assert.equal(view({ events: [recent, month, quarter], query: { periodo: "30" } }).summary.journeys, 2);
-  assert.equal(view({ events: [recent, month, quarter], query: { periodo: "90" } }).summary.journeys, 3);
-  assert.equal(view({ events: [recent, month, quarter], query: { periodo: "all" } }).summary.journeys, 3);
+  assert.equal(view({ events: [recent, month, quarter], query: { periodo: "90" } }).summary.journeys, 2);
+  assert.equal(view({ events: [recent, month, quarter], query: { periodo: "all" } }).summary.journeys, 2);
+  assert.equal(view({ events: [recent, month, quarter], query: { periodo: "90", marco: "completo" } }).summary.journeys, 3);
+  assert.equal(view({ events: [recent, month, quarter], query: { periodo: "all", marco: "completo" } }).summary.journeys, 3);
 });
 
 test("baseline fixo exclui o que veio antes e inclui o instante oficial", () => {
@@ -105,10 +118,10 @@ test("baseline fixo exclui o que veio antes e inclui o instante oficial", () => 
     event({ anonymousId: "anon-secret-at", eventName: "course_view", occurredAt: PRODUCT_JOURNEY_REPORTING_START_AT }),
     event({ anonymousId: "anon-secret-after", eventName: "course_view", occurredAt: new Date("2026-10-26T17:42:00.001Z") }),
   ];
-  const all = view({ events, query: { periodo: "all" }, now: new Date("2026-10-27T00:00:00.000Z") });
+  const all = view({ events, query: { periodo: "all", marco: "completo" }, now: new Date("2026-10-27T00:00:00.000Z") });
   assert.equal(all.summary.journeys, 2);
   assert.equal(all.baselineLabel, "26/10/2026 14:42");
-  const ninety = view({ events, query: { periodo: "90" }, now: new Date("2026-10-27T00:00:00.000Z") });
+  const ninety = view({ events, query: { periodo: "90", marco: "completo" }, now: new Date("2026-10-27T00:00:00.000Z") });
   assert.equal(ninety.summary.journeys, 2);
   const atEnd = view({
     events: [event({ anonymousId: "anon-secret-end", eventName: "course_view", occurredAt: NOW })],
@@ -143,7 +156,8 @@ test("cada marco do funil deduplica a jornada e não vira taxa entre etapas", ()
   const checkout = dashboard.funnel.find((step) => step.key === "checkout_started");
   assert.equal(viewed?.count, 1);
   assert.equal(checkout?.count, 1);
-  assert.deepEqual(Object.keys(viewed ?? {}).sort(), ["count", "key", "label"]);
+  assert.deepEqual(Object.keys(viewed ?? {}).sort(), ["count", "definition", "key", "label"]);
+  assert.match(viewed?.definition ?? "", /consentiu analytics/);
   const funnelFile = readFileSync(new URL("../src/components/admin/journey/JourneySections.tsx", import.meta.url), "utf8");
   const funnel = funnelFile.slice(funnelFile.indexOf("export function JourneyFunnel"), funnelFile.indexOf("export function JourneyCommercial"));
   assert.match(funnel, /não é um funil fechado de cohort/);
@@ -347,7 +361,56 @@ test("amostra pequena avisa e amostra vazia não finge gráfico", () => {
   assert.equal(twenty.smallSample, false);
   const ui = readFileSync(new URL("../src/components/admin/journey/JourneyBreakdowns.tsx", import.meta.url), "utf8");
   assert.match(ui, /JOURNEY_EMPTY/);
-  assert.match(ui, /JOURNEY_SAMPLE_NOTE/);
+  assert.match(ui, /journeyReadingGuide/);
+  assert.equal(view({ events: [] }).readingNote, "");
+  assert.equal(journeyReadingGuide(1), JOURNEY_SAMPLE_NOTE);
+  assert.match(journeyReadingGuide(20), /hipóteses iniciais/);
+  assert.match(journeyReadingGuide(49), /hipóteses iniciais/);
+  assert.match(journeyReadingGuide(50), /cautela/);
+  assert.match(journeyReadingGuide(99), /cautela/);
+  assert.match(journeyReadingGuide(100), /representativa/);
+  assert.match(twenty.readingNote, /hipóteses iniciais/);
+});
+
+test("marco da UX-C separa o histórico sem somar os lados", () => {
+  assert.equal(UX_C_PRODUCTION_AT.toISOString(), "2026-11-03T16:32:04.000Z");
+  assert.equal(formatJourneyDateTime(UX_C_PRODUCTION_AT), "03/11/2026 13:32");
+  const source = readFileSync(new URL("../src/lib/admin/journey-report.ts", import.meta.url), "utf8");
+  assert.match(source, /new Date\("2026-11-03T16:32:04.000Z"\)/);
+  const before = event({ anonymousId: "anon-secret-old", eventName: "course_view", occurredAt: new Date(UX_C_PRODUCTION_AT.getTime() - 1) });
+  const at = event({ anonymousId: "anon-secret-at-ux", eventName: "course_view", occurredAt: UX_C_PRODUCTION_AT });
+  const shared = [
+    event({ anonymousId: "anon-secret-both", eventName: "course_view", occurredAt: new Date("2026-11-01T12:00:00.000Z") }),
+    event({ anonymousId: "anon-secret-both", eventName: "lesson_started", occurredAt: INSIDE }),
+  ];
+  const after = view({ events: [before, at, ...shared], query: { periodo: "all" } });
+  assert.equal(after.summary.journeys, 2);
+  assert.equal(after.journeySplit, null);
+  const historic = view({ events: [before, at, ...shared], query: { marco: "historico", periodo: "all" } });
+  assert.equal(historic.summary.journeys, 2);
+  assert.equal(historic.journeySplit, null);
+  const together = view({ events: [before, at, ...shared], query: { marco: "completo", periodo: "all" } });
+  assert.equal(together.summary.journeys, 3);
+  assert.deepEqual(together.journeySplit, { before: 2, after: 2 });
+  assert.match(together.eraNote, /soma dos dois não é o total/);
+  assert.equal(together.eraNote.includes("%"), false);
+  const recentOnly = view({ events: [before, at, ...shared], query: { marco: "completo", periodo: "7" } });
+  assert.equal(recentOnly.mixesPeriods, false);
+  assert.equal(recentOnly.journeySplit, null);
+  assert.match(recentOnly.eraNote, /inteiro de um lado do marco/);
+  const missed = view({ events: [before, at], query: { marco: "historico", periodo: "7" } });
+  assert.equal(missed.outsideEra, true);
+  assert.equal(missed.summary.journeys, 0);
+  assert.match(missed.eraNote, /não cruza este marco/);
+  assert.equal(JOURNEY_FUNNEL.some((step) => (step.events as readonly string[]).includes("course_cta_click")), false);
+  assert.match(readFileSync(new URL("../src/components/admin/journey/JourneyDashboard.tsx", import.meta.url), "utf8"), /JOURNEY_CTA_NOTE/);
+  assert.equal(JOURNEY_CTA_NOTE.includes("GA4"), true);
+  const loader = readFileSync(new URL("../src/lib/admin/journey-dashboard.ts", import.meta.url), "utf8");
+  assert.match(loader, /journeyReadingBounds/);
+  assert.match(loader, /UX_C_PRODUCTION_AT/);
+  const filters = readFileSync(new URL("../src/components/admin/journey/JourneySections.tsx", import.meta.url), "utf8");
+  assert.match(filters, /Marco da UX-C/);
+  assert.match(filters, /view\.era/);
 });
 
 test("painel é admin, sem API pública e sem identificador na consulta exposta", () => {

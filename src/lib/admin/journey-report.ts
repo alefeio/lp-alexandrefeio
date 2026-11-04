@@ -9,15 +9,32 @@ import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
  */
 export const PRODUCT_JOURNEY_REPORTING_START_AT = new Date("2026-10-26T17:42:00.000Z");
 
+/**
+ * Implantação da UX-C em Production: merge do PR #14 em main.
+ * Commit 9f6a2e8ee4782734654dd9a94c63f75065771de1, 2026-11-03T16:32:04.000Z.
+ * Não alterar depois do commit. Não é um carimbo de deploy observado fora do Git.
+ */
+export const UX_C_PRODUCTION_AT = new Date("2026-11-03T16:32:04.000Z");
+
 export const JOURNEY_SAMPLE_MIN = 20;
 export const JOURNEY_EMPTY = "Ainda não há dados suficientes neste período.";
-export const JOURNEY_SAMPLE_NOTE = "Amostra inicial: evite tirar conclusões definitivas.";
+export const JOURNEY_SAMPLE_NOTE = "De 1 a 19 jornadas: verifique a coleta e problemas evidentes. A amostra ainda não sustenta tendência.";
+export const JOURNEY_CTA_NOTE = "O clique de CTA do curso fica só no GA4. Neste painel ele está ausente e é diferente de aula iniciada.";
+export const JOURNEY_ERA_OUTSIDE = "O período escolhido não cruza este marco. Os zeros abaixo vêm desse recorte, não de uma falha automática da coleta.";
 export const JOURNEY_REVENUE_NOTE = "Receita financeira é exibida apenas na visão geral.";
 export const JOURNEY_DIAGNOSTIC_NOTE = "Diagnósticos operacionais não estão ligados a uma formação e aparecem só na visão geral.";
 
 export const JOURNEY_PERIODS = ["7", "30", "90", "all"] as const;
+export const JOURNEY_ERAS = ["ux-c", "historico", "completo"] as const;
 export type JourneyPeriod = (typeof JOURNEY_PERIODS)[number];
+export type JourneyEra = (typeof JOURNEY_ERAS)[number];
 export type JourneyCourse = "all" | typeof TRAFFIC_COURSE_SLUG | typeof SITES_COURSE_SLUG;
+
+export const JOURNEY_ERA_LABEL: Record<JourneyEra, string> = {
+  "ux-c": "Após a UX-C",
+  historico: "Antes da UX-C",
+  completo: "Períodos juntos",
+};
 
 export const JOURNEY_PERIOD_LABEL: Record<JourneyPeriod, string> = {
   "7": "7 dias",
@@ -32,13 +49,13 @@ const COURSE_SHORT_LABEL: Record<string, string> = {
 };
 
 export const JOURNEY_FUNNEL = [
-  { key: "path", label: "Escolheu um caminho", events: ["home_course_path_click", "course_catalog_path_click"] },
-  { key: "course_view", label: "Visualizou um curso", events: ["course_view"] },
-  { key: "free_start", label: "Começou aula gratuita", events: ["course_free_start"] },
-  { key: "lesson_started", label: "Iniciou aula", events: ["lesson_started"] },
-  { key: "lesson_completed", label: "Concluiu aula", events: ["lesson_completed"] },
-  { key: "diagnostic_completed", label: "Concluiu diagnóstico", events: ["diagnostic_completed"] },
-  { key: "checkout_started", label: "Iniciou checkout", events: ["checkout_started"] },
+  { key: "path", label: "Clique em um caminho", definition: "Clique na home ou no catálogo para escolher um percurso. Não é aluno e não é início de aula.", events: ["home_course_path_click", "course_catalog_path_click"] },
+  { key: "course_view", label: "Visualização do curso", definition: "Página de um curso vista por quem consentiu analytics. A visualização genérica de outras páginas fica só no GA4.", events: ["course_view"] },
+  { key: "free_start", label: "Acesso à aula gratuita", definition: "Clique para abrir a aula gratuita. Não significa que o estudo começou.", events: ["course_free_start"] },
+  { key: "lesson_started", label: "Início de aprendizagem observado", definition: "Evento de quem consentiu ao abrir a aula. O início efetivo do aluno está na contagem operacional.", events: ["lesson_started"] },
+  { key: "lesson_completed", label: "Conclusão de aula observada", definition: "Evento consentido de conclusão. A continuidade confirmada do aluno está na conclusão operacional.", events: ["lesson_completed"] },
+  { key: "diagnostic_completed", label: "Diagnóstico concluído observado", definition: "Evento consentido de conclusão. O início observado aparece à parte. A conclusão real só entra na visão geral.", events: ["diagnostic_completed"] },
+  { key: "checkout_started", label: "Checkout iniciado", definition: "Intenção de pagamento observada. Compra e acesso pago vêm do pedido pago, não deste clique.", events: ["checkout_started"] },
 ] as const;
 
 export type JourneyFunnelKey = (typeof JOURNEY_FUNNEL)[number]["key"];
@@ -89,10 +106,50 @@ export type JourneyDiagnosticFact = {
   completedAt: Date;
 };
 
-export type JourneyQuery = { periodo?: string; curso?: string };
+export type JourneyQuery = { periodo?: string; curso?: string; marco?: string };
 
 export function parseJourneyPeriod(raw: string | undefined): JourneyPeriod {
   return raw === "7" || raw === "30" || raw === "90" || raw === "all" ? raw : "30";
+}
+
+export function parseJourneyEra(raw: string | undefined): JourneyEra {
+  return raw === "historico" || raw === "completo" || raw === "ux-c" ? raw : "ux-c";
+}
+
+export type JourneyReadingBounds = {
+  start: Date;
+  end: Date;
+  mixesPeriods: boolean;
+  outsideEra: boolean;
+};
+
+export function journeyReadingBounds(period: JourneyPeriod, era: JourneyEra, now: Date): JourneyReadingBounds {
+  const window = journeyWindow(period, now);
+  if (era === "completo") {
+    return {
+      start: window.start,
+      end: window.end,
+      mixesPeriods: window.start.getTime() < UX_C_PRODUCTION_AT.getTime() && window.end.getTime() > UX_C_PRODUCTION_AT.getTime(),
+      outsideEra: false,
+    };
+  }
+  if (era === "historico") {
+    const end = window.end.getTime() < UX_C_PRODUCTION_AT.getTime() ? window.end : new Date(UX_C_PRODUCTION_AT.getTime());
+    const outside = window.start.getTime() >= end.getTime();
+    return { start: window.start, end: outside ? window.start : end, mixesPeriods: false, outsideEra: outside };
+  }
+  const start = window.start.getTime() > UX_C_PRODUCTION_AT.getTime() ? window.start : new Date(UX_C_PRODUCTION_AT.getTime());
+  const outside = start.getTime() >= window.end.getTime();
+  return { start: outside ? window.end : start, end: window.end, mixesPeriods: false, outsideEra: outside };
+}
+
+/** Referência operacional. Não é significância estatística. */
+export function journeyReadingGuide(journeys: number): string {
+  if (journeys <= 0) return JOURNEY_EMPTY;
+  if (journeys < 20) return JOURNEY_SAMPLE_NOTE;
+  if (journeys < 50) return "De 20 a 49 jornadas: formule hipóteses iniciais. A leitura ainda não confirma um padrão.";
+  if (journeys < 100) return "De 50 a 99 jornadas: procure padrões com cautela. Uma comparação categórica fica para uma amostra maior.";
+  return "100 jornadas ou mais: aprofunde a leitura se a amostra for representativa. Isso não garante significância estatística.";
 }
 
 export function parseJourneyCourse(raw: string | undefined): JourneyCourse {
@@ -106,10 +163,11 @@ export function journeyWindow(period: JourneyPeriod, now: Date): { start: Date; 
   return { start, end: now };
 }
 
-export function journeyDashboardHref(period: JourneyPeriod, course: JourneyCourse): string {
+export function journeyDashboardHref(period: JourneyPeriod, course: JourneyCourse, era: JourneyEra = "ux-c"): string {
   const params = new URLSearchParams();
   if (period !== "30") params.set("periodo", period);
   if (course !== "all") params.set("curso", course);
+  if (era !== "ux-c") params.set("marco", era);
   const query = params.toString();
   return query ? `/admin/jornada?${query}` : "/admin/jornada";
 }
@@ -170,6 +228,11 @@ export function attributionLabel(source: string | null, medium: string | null): 
 
 export type JourneyAggregateModel = {
   period: JourneyPeriod;
+  era: JourneyEra;
+  outsideEra: boolean;
+  mixesPeriods: boolean;
+  journeysBeforeUxC: number;
+  journeysAfterUxC: number;
   course: JourneyCourse;
   journeys: number;
   sessions: number;
@@ -194,6 +257,13 @@ export type JourneyAggregateModel = {
 
 export type JourneyDashboardView = {
   baselineLabel: string;
+  uxCLabel: string;
+  era: JourneyEra;
+  eraNote: string;
+  outsideEra: boolean;
+  mixesPeriods: boolean;
+  journeySplit: { before: number; after: number } | null;
+  readingNote: string;
   period: JourneyPeriod;
   course: JourneyCourse;
   smallSample: boolean;
@@ -205,7 +275,7 @@ export type JourneyDashboardView = {
     freeStarts: number;
     checkoutStarts: number;
   };
-  funnel: Array<{ key: JourneyFunnelKey; label: string; count: number }>;
+  funnel: Array<{ key: JourneyFunnelKey; label: string; definition: string; count: number }>;
   commercial: {
     paidOrders: number;
     paidBuyers: number;
@@ -239,14 +309,15 @@ export function buildJourneyDashboard(input: {
   now: Date;
 }): JourneyDashboardView {
   const period = parseJourneyPeriod(input.query.periodo);
+  const era = parseJourneyEra(input.query.marco);
   const course = parseJourneyCourse(input.query.curso);
-  const window = journeyWindow(period, input.now);
+  const bounds = journeyReadingBounds(period, era, input.now);
   const events = input.events
-    .filter((event) => journeyEventInRange(event.occurredAt, window.start, window.end))
+    .filter((event) => journeyEventInRange(event.occurredAt, bounds.start, bounds.end))
     .filter((event) => journeyEventMatchesCourse(event, course));
   const titles = input.courseTitles ?? {};
   const lessonTitles = input.lessonTitles ?? {};
-  const inWindow = (value: Date | null | undefined) => value != null && journeyEventInRange(value, window.start, window.end);
+  const inWindow = (value: Date | null | undefined) => value != null && journeyEventInRange(value, bounds.start, bounds.end);
 
   const funnel = JOURNEY_FUNNEL.map((step) => ({
     key: step.key,
@@ -259,6 +330,11 @@ export function buildJourneyDashboard(input: {
 
   return assembleJourneyView({
     period,
+    era,
+    outsideEra: bounds.outsideEra,
+    mixesPeriods: bounds.mixesPeriods,
+    journeysBeforeUxC: distinct(events.filter((event) => event.occurredAt.getTime() < UX_C_PRODUCTION_AT.getTime()).map((event) => event.anonymousId)),
+    journeysAfterUxC: distinct(events.filter((event) => event.occurredAt.getTime() >= UX_C_PRODUCTION_AT.getTime()).map((event) => event.anonymousId)),
     course,
     journeys: distinct(events.map((event) => event.anonymousId)),
     sessions: distinct(events.map((event) => event.sessionId).filter((id): id is string => Boolean(id))),
@@ -284,8 +360,20 @@ export function buildJourneyDashboard(input: {
 
 export function assembleJourneyView(model: JourneyAggregateModel): JourneyDashboardView {
   const diagnosticCompleted = model.funnel.find((step) => step.key === "diagnostic_completed")?.count ?? 0;
+  const uxCLabel = formatJourneyDateTime(UX_C_PRODUCTION_AT);
+  const baselineLabel = formatJourneyDateTime(PRODUCT_JOURNEY_REPORTING_START_AT);
+  const journeySplit = model.era === "completo" && model.mixesPeriods
+    ? { before: model.journeysBeforeUxC, after: model.journeysAfterUxC }
+    : null;
   return {
-    baselineLabel: formatJourneyDateTime(PRODUCT_JOURNEY_REPORTING_START_AT),
+    baselineLabel,
+    uxCLabel,
+    era: model.era,
+    eraNote: eraNote(model, baselineLabel, uxCLabel, journeySplit),
+    outsideEra: model.outsideEra,
+    mixesPeriods: model.mixesPeriods,
+    journeySplit,
+    readingNote: model.journeys > 0 ? journeyReadingGuide(model.journeys) : "",
     period: model.period,
     course: model.course,
     smallSample: model.journeys > 0 && model.journeys < JOURNEY_SAMPLE_MIN,
@@ -297,7 +385,10 @@ export function assembleJourneyView(model: JourneyAggregateModel): JourneyDashbo
       freeStarts: model.funnel.find((step) => step.key === "free_start")?.count ?? 0,
       checkoutStarts: model.funnel.find((step) => step.key === "checkout_started")?.count ?? 0,
     },
-    funnel: model.funnel,
+    funnel: model.funnel.map((step) => ({
+      ...step,
+      definition: JOURNEY_FUNNEL.find((item) => item.key === step.key)?.definition ?? "",
+    })),
     commercial: {
       paidOrders: model.paidOrders,
       paidBuyers: model.paidBuyers,
@@ -345,6 +436,23 @@ export function pivotScenarios(input: {
       sites: courseCount(id, SITES_COURSE_SLUG),
     }))
     .filter((row) => row.home + row.catalog + row.traffic + row.sites > 0);
+}
+
+function eraNote(
+  model: JourneyAggregateModel,
+  baselineLabel: string,
+  uxCLabel: string,
+  split: { before: number; after: number } | null,
+): string {
+  if (model.outsideEra) return JOURNEY_ERA_OUTSIDE;
+  if (model.era === "historico") return `Somente jornadas de ${baselineLabel} até ${uxCLabel}, antes da UX-C. O instante do marco não entra.`;
+  if (model.era === "completo" && split) {
+    return `Estes cartões somam os dois períodos. Antes da UX-C: ${split.before} jornadas com evento. Depois: ${split.after}. A mesma jornada pode aparecer nos dois lados. Leia cada lado em separado: a soma dos dois não é o total e não mede desempenho.`;
+  }
+  if (model.era === "completo") {
+    return "Este período fica inteiro de um lado do marco. Os cartões não misturam histórico e UX-C.";
+  }
+  return `Somente jornadas a partir de ${uxCLabel}, marco da UX-C em Production. O histórico anterior fica no filtro Antes da UX-C.`;
 }
 
 function scenarioRows(events: JourneyObservedEvent[]) {

@@ -5,9 +5,11 @@ import {
   assembleJourneyView,
   attributionLabel,
   journeyCourseLabel,
-  journeyWindow,
+  journeyReadingBounds,
   parseJourneyCourse,
+  parseJourneyEra,
   parseJourneyPeriod,
+  UX_C_PRODUCTION_AT,
   pivotScenarios,
   type JourneyAggregateModel,
   type JourneyCourse,
@@ -21,10 +23,11 @@ const PATH_EVENTS = JOURNEY_FUNNEL[0].events;
 
 export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()) {
   const period = parseJourneyPeriod(query.periodo);
+  const era = parseJourneyEra(query.marco);
   const course = parseJourneyCourse(query.curso);
-  const window = journeyWindow(period, now);
+  const bounds = journeyReadingBounds(period, era, now);
   const prisma = getPrisma();
-  const where = Prisma.sql`"occurredAt" >= ${window.start} AND "occurredAt" < ${window.end} AND ${journeyCourseSql(course)}`;
+  const where = Prisma.sql`"occurredAt" >= ${bounds.start} AND "occurredAt" < ${bounds.end} AND ${journeyCourseSql(course)}`;
   const funnelSelect = Prisma.join(
     JOURNEY_FUNNEL.map(
       (step) => Prisma.sql`COUNT(DISTINCT "anonymousId") FILTER (WHERE "eventName" IN (${Prisma.join(step.events)}))::int AS ${Prisma.raw(`"${step.key}"`)}`,
@@ -38,6 +41,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
         COUNT(DISTINCT "anonymousId")::int AS journeys,
         COUNT(DISTINCT "sessionId")::int AS sessions,
         COUNT(DISTINCT "userId")::int AS authenticated,
+        COUNT(DISTINCT "anonymousId") FILTER (WHERE "occurredAt" < ${UX_C_PRODUCTION_AT})::int AS before_ux_c,
+        COUNT(DISTINCT "anonymousId") FILTER (WHERE "occurredAt" >= ${UX_C_PRODUCTION_AT})::int AS after_ux_c,
         COUNT(DISTINCT "anonymousId") FILTER (WHERE "eventName" = 'diagnostic_started')::int AS diagnostic_started,
         ${funnelSelect}
       FROM journey_event
@@ -118,8 +123,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       SELECT COUNT(*)::int AS orders, COUNT(DISTINCT o."userId")::int AS buyers
       FROM "order" o
       WHERE o.status = 'PAID'
-        AND o."createdAt" >= ${window.start}
-        AND o."createdAt" < ${window.end}
+        AND o."createdAt" >= ${bounds.start}
+        AND o."createdAt" < ${bounds.end}
         AND ${orderCourseSql(course)}
     `),
     prisma.$queryRaw<Array<{ covered: number }>>(Prisma.sql`
@@ -127,8 +132,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
         SELECT DISTINCT o."userId" AS user_id
         FROM "order" o
         WHERE o.status = 'PAID'
-          AND o."createdAt" >= ${window.start}
-          AND o."createdAt" < ${window.end}
+          AND o."createdAt" >= ${bounds.start}
+          AND o."createdAt" < ${bounds.end}
           AND ${orderCourseSql(course)}
       ),
       journey AS (
@@ -136,8 +141,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
         FROM journey_event e
         WHERE e."eventName" = 'purchase_completed'
           AND e."userId" IS NOT NULL
-          AND e."occurredAt" >= ${window.start}
-          AND e."occurredAt" < ${window.end}
+          AND e."occurredAt" >= ${bounds.start}
+          AND e."occurredAt" < ${bounds.end}
           AND ${journeyCourseSql(course, "e")}
       )
       SELECT COUNT(*)::int AS covered
@@ -157,8 +162,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
           LEFT JOIN module lm ON lm.id = l."moduleId"
           LEFT JOIN course lc ON lc.id = lm."courseId"
           WHERE o.status = 'PAID'
-            AND o."createdAt" >= ${window.start}
-            AND o."createdAt" < ${window.end}
+            AND o."createdAt" >= ${bounds.start}
+            AND o."createdAt" < ${bounds.end}
             AND (c.slug = ${course} OR mc.slug = ${course} OR lc.slug = ${course})
         `),
     course === "all"
@@ -166,8 +171,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
           where: {
             status: { in: ["APPROVED", "PARTIALLY_REFUNDED"] },
             OR: [
-              { approvedAt: { gte: window.start, lt: window.end } },
-              { AND: [{ approvedAt: null }, { createdAt: { gte: window.start, lt: window.end } }] },
+              { approvedAt: { gte: bounds.start, lt: bounds.end } },
+              { AND: [{ approvedAt: null }, { createdAt: { gte: bounds.start, lt: bounds.end } }] },
             ],
           },
           select: { status: true, amountCents: true, refundedAmountCents: true },
@@ -179,8 +184,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       JOIN lesson l ON l.id = p."lessonId"
       JOIN module m ON m.id = l."moduleId"
       JOIN course c ON c.id = m."courseId"
-      WHERE p."startedAt" >= ${window.start}
-        AND p."startedAt" < ${window.end}
+      WHERE p."startedAt" >= ${bounds.start}
+        AND p."startedAt" < ${bounds.end}
         AND ${course === "all" ? Prisma.sql`TRUE` : Prisma.sql`c.slug = ${course}`}
     `),
     prisma.$queryRaw<Array<{ users: number }>>(Prisma.sql`
@@ -190,8 +195,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       JOIN module m ON m.id = l."moduleId"
       JOIN course c ON c.id = m."courseId"
       WHERE p."completedAt" IS NOT NULL
-        AND p."completedAt" >= ${window.start}
-        AND p."completedAt" < ${window.end}
+        AND p."completedAt" >= ${bounds.start}
+        AND p."completedAt" < ${bounds.end}
         AND ${course === "all" ? Prisma.sql`TRUE` : Prisma.sql`c.slug = ${course}`}
     `),
     course === "all"
@@ -199,8 +204,8 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
           SELECT COUNT(DISTINCT "userId")::int AS users
           FROM diagnostic
           WHERE status = 'COMPLETED'
-            AND "completedAt" >= ${window.start}
-            AND "completedAt" < ${window.end}
+            AND "completedAt" >= ${bounds.start}
+            AND "completedAt" < ${bounds.end}
         `)
       : Promise.resolve([]),
     prisma.course.findMany({
@@ -221,6 +226,11 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
 
   const model: JourneyAggregateModel = {
     period,
+    era,
+    outsideEra: bounds.outsideEra,
+    mixesPeriods: bounds.mixesPeriods,
+    journeysBeforeUxC: asInt(summary.before_ux_c),
+    journeysAfterUxC: asInt(summary.after_ux_c),
     course,
     journeys: asInt(summary.journeys),
     sessions: asInt(summary.sessions),
