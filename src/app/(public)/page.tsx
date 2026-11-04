@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CourseHome } from "@/components/home/CourseHome";
 import { HomeContinuation } from "@/components/home/HomeContinuation";
+import { listPublishedPostCards } from "@/lib/blog/service";
 import { loadHomeContinuation } from "@/lib/home/load-home-continuation";
 import { homeBelongsToViewer, publicHomeMetadata } from "@/lib/home/public-home";
 import { getSession } from "@/lib/auth/session";
@@ -21,7 +22,10 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const session = await getSession();
-  const courses = await loadCourseCatalog(session?.user.id);
+  const [courses, recentPosts] = await Promise.all([
+    loadCourseCatalog(session?.user.id),
+    listPublishedPostCards(3),
+  ]);
 
   let continuation = null;
   if (session?.user.id) {
@@ -31,5 +35,5 @@ export default async function Home() {
     }
   }
 
-  return <CourseHome courses={courses} continuation={continuation} />;
+  return <CourseHome courses={courses} continuation={continuation} recentPosts={recentPosts} />;
 }
