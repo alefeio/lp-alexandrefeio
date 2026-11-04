@@ -73,6 +73,13 @@ test("aside do blog aponta para cursos e gestão reais", () => {
 
 test("seção da home some sem posts e lista três com CTA para o blog", () => {
   assert.equal(renderToStaticMarkup(createElement(HomeRecentArticles, { posts: [] })), "");
+  const two = renderToStaticMarkup(
+    createElement(HomeRecentArticles, {
+      posts: [samplePost, { ...samplePost, slug: "segundo", title: "Segundo artigo" }],
+    }),
+  );
+  assert.match(two, /sm:grid-cols-2/);
+  assert.equal(two.includes("lg:grid-cols-3"), false);
   const html = renderToStaticMarkup(
     createElement(HomeRecentArticles, {
       posts: [
@@ -85,6 +92,7 @@ test("seção da home some sem posts e lista três com CTA para o blog", () => {
   assert.match(html, /Aprenda a atrair e converter mais clientes/);
   assert.match(html, /Ver todos os artigos/);
   assert.match(html, /href="\/blog"/);
+  assert.match(html, /lg:grid-cols-3/);
   assert.match(html, /Segundo artigo/);
   assert.match(html, /Terceiro artigo/);
 });

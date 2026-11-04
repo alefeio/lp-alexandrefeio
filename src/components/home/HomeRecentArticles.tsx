@@ -17,7 +17,15 @@ export function HomeRecentArticles({ posts }: { posts: PublishedBlogCard[] }) {
           </h2>
           <p className="mt-3 text-base leading-relaxed text-muted">{publicHomeCopy.blogSupport}</p>
         </div>
-        <ul className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <ul
+          className={
+            posts.length >= 3
+              ? "mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
+              : posts.length === 2
+                ? "mt-10 grid gap-8 sm:grid-cols-2"
+                : "mt-10 grid gap-8 sm:grid-cols-1 sm:max-w-xl"
+          }
+        >
           {posts.map((post) => (
             <li key={post.slug} className="min-w-0">
               <BlogPostCard post={post} headingLevel="h3" />
