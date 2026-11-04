@@ -1,4 +1,5 @@
 import { EDITORIAL_IMAGE_LIMIT_BYTES } from "@/lib/storage/image-file";
+import { formatByteSize, imageOptimizationNote, type ImageOptimizationReport } from "@/lib/storage/image-optimization-note";
 
 const CLIENT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -23,13 +24,7 @@ export function assessClientCoverFile(file: { type: string; size: number }): { o
   return { ok: true };
 }
 
-export function formatByteSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const kilobytes = bytes / 1024;
-  const format = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
-  if (kilobytes < 1024) return `${format.format(kilobytes)} KB`;
-  return `${format.format(bytes / (1024 * 1024))} MB`;
-}
+export { formatByteSize };
 
 export function clientCoverSelection(file: { name: string; type: string; size: number }):
   | { ok: true; name: string; sizeLabel: string; message: string }
@@ -79,11 +74,12 @@ export function blogPersistFeedback(input: {
   intent: "save" | "publish";
   status: BlogEditorStatus;
   isNew: boolean;
-  result: { ok: true; post: { id: string } } | { ok: false; message: string } | { thrown: true };
+  result: { ok: true; post: { id: string }; coverOptimization?: ImageOptimizationReport | null } | { ok: false; message: string } | { thrown: true };
 }): BlogEditorFeedback & { href: string | null } {
   if ("thrown" in input.result) return { tone: "error", message: blogTransportMessage(input.intent), href: null };
   if (!input.result.ok) return { tone: "error", message: input.result.message, href: null };
-  const message = blogSuccessMessage(input.intent, input.status);
+  const note = input.result.coverOptimization ? ` Capa: ${imageOptimizationNote(input.result.coverOptimization)}` : "";
+  const message = `${blogSuccessMessage(input.intent, input.status)}${note}`;
   if (!input.isNew) return { tone: "success", message, href: null };
   const notice: BlogEditorNotice = input.intent === "publish" ? "published" : "saved";
   return { tone: "success", message, href: `/admin/blog/${input.result.post.id}?notice=${notice}` };

@@ -8,7 +8,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["openai"],
+  serverExternalPackages: ["openai", "sharp"],
   experimental: {
     serverActions: {
       bodySizeLimit: "6mb",
