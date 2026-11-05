@@ -21,6 +21,7 @@ import {
   tickBlogReadingObserver,
 } from "../src/lib/blog/reading/observer-core";
 import { BLOG_READING_ACTIVITY_IDLE_MS, BLOG_READING_FLUSH_ACTIVE_MS, BLOG_READING_IDLE_MS } from "../src/lib/blog/reading/constants";
+// FLUSH_ACTIVE_MS=30s: cadência sustentável sob a cota 30/10min da M1A.
 import { clearBlogReadingIdentity, BLOG_READER_KEY, BLOG_SESSION_KEY } from "../src/lib/blog/reading/identity";
 
 const POST = "c123456789012345678901234";
@@ -126,6 +127,7 @@ test("abertura grava zero e flush consolida tempo acumulado", () => {
   assert.equal(shouldFlushObserver(state, "open"), true);
   assert.equal(state.activeTimeMs, 0);
   state = tickBlogReadingObserver(state, NOW + BLOG_READING_FLUSH_ACTIVE_MS, { visible: true });
+  assert.equal(state.activeTimeMs, BLOG_READING_FLUSH_ACTIVE_MS);
   assert.equal(shouldFlushObserver(state, "interval"), true);
   state = markObserverFlushed(state);
   assert.equal(shouldFlushObserver(state, "interval"), false);

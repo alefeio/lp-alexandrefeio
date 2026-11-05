@@ -16,8 +16,15 @@ export const BLOG_READING_RETENTION_MAX_BATCHES = 20;
 export const BLOG_READING_COMMIT_ATTEMPTS = 3;
 /** Pausa o relógio ativo sem interação recente. */
 export const BLOG_READING_ACTIVITY_IDLE_MS = 30_000;
-/** Consolida envio após este acúmulo de tempo ativo. */
-export const BLOG_READING_FLUSH_ACTIVE_MS = 15_000;
+/**
+ * Consolida envio após este acúmulo de tempo ativo.
+ * 30s deixa folga sob a cota M1A (30 req / 10 min) para abertura, marcos e cliques.
+ */
+export const BLOG_READING_FLUSH_ACTIVE_MS = 30_000;
+/** Espaçamento mínimo entre envios de intervalo (marcos de profundidade não esperam o gap). */
+export const BLOG_READING_MIN_SEND_GAP_MS = 20_000;
+/** Backoff base para rede/429. */
+export const BLOG_READING_RETRY_BACKOFF_MS = 2_000;
 export const BLOG_READING_TICK_MS = 1_000;
 export const BLOG_READING_DEPTH_MARKS = [25, 50, 75] as const;
 /** Abaixo disso o painel avisa amostra insuficiente. */

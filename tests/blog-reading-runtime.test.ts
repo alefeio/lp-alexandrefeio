@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readBlogReadingCheckpoint } from "../src/lib/blog/reading/checkpoint";
 import type { BlogReadingSendBody, BlogReadingSendResult } from "../src/lib/blog/reading/client";
-import { BLOG_READING_IDLE_MS } from "../src/lib/blog/reading/constants";
+import {
+  BLOG_READING_FLUSH_ACTIVE_MS,
+  BLOG_READING_IDLE_MS,
+  BLOG_READING_MIN_SEND_GAP_MS,
+  BLOG_READING_RATE_LIMIT,
+  BLOG_READING_RATE_WINDOW_SECONDS,
+} from "../src/lib/blog/reading/constants";
 import { createBlogReadingRuntime } from "../src/lib/blog/reading/runtime";
 
 const POST = "c123456789012345678901234";
@@ -24,12 +30,14 @@ function memory() {
 function harness(options?: {
   now?: { value: number };
   send?: (body: BlogReadingSendBody) => Promise<BlogReadingSendResult>;
+  instantRetry?: boolean;
 }) {
   const local = memory();
   const session = memory();
   const clock = options?.now ?? { value: NOW };
   const sent: BlogReadingSendBody[] = [];
   const beacons: BlogReadingSendBody[] = [];
+  const scheduled: Array<{ fn: () => void; ms: number }> = [];
   let n = 0;
   const runtime = createBlogReadingRuntime({
     blogPostId: POST,
@@ -47,8 +55,33 @@ function harness(options?: {
     beacon: (body) => {
       beacons.push(body);
     },
+    schedule: (fn, ms) => {
+      if (options?.instantRetry) {
+        const handle = setTimeout(fn, 0);
+        return { cancel: () => clearTimeout(handle) };
+      }
+      scheduled.push({ fn, ms });
+      return {
+        cancel: () => {
+          const index = scheduled.findIndex((row) => row.fn === fn);
+          if (index >= 0) scheduled.splice(index, 1);
+        },
+      };
+    },
   });
-  return { runtime, local, session, clock, sent, beacons };
+  return {
+    runtime,
+    local,
+    session,
+    clock,
+    sent,
+    beacons,
+    scheduled,
+    runScheduled() {
+      const rows = scheduled.splice(0, scheduled.length);
+      for (const row of rows) row.fn();
+    },
+  };
 }
 
 async function flush() {
@@ -236,7 +269,8 @@ test("retorno após 30 minutos inicia nova sessão", async () => {
 
 test("falha de rede reutiliza o mesmo eventId no retry", async () => {
   let fails = 1;
-  const { runtime, sent } = harness({
+  const { runtime, sent, runScheduled } = harness({
+    instantRetry: false,
     send: async (body) => {
       if (body.click && fails > 0) {
         fails -= 1;
@@ -254,9 +288,7 @@ test("falha de rede reutiliza o mesmo eventId no retry", async () => {
     eventId: "44444444-4444-4444-8444-444444444444",
   });
   await flush();
-  // Reprocessa a fila após network.
-  runtime.noteActivity();
-  runtime.tick();
+  runScheduled();
   await flush();
   const clicks = sent.filter((body) => body.click?.eventId === eventId);
   assert.ok(clicks.length >= 1);
@@ -281,4 +313,201 @@ test("checkpoint corrompido é descartado com segurança", () => {
   assert.equal(readBlogReadingCheckpoint(session, POST, NOW).kind, "fresh");
   session.setItem("af_blog_reading_index_v1", JSON.stringify({ [POST]: { clientReadingId: "bad" } }));
   assert.equal(readBlogReadingCheckpoint(session, POST, NOW).kind, "fresh");
+});
+
+test("fila cheia com request pendente não remove o item em voo", async () => {
+  const gate: { resolve: ((value: BlogReadingSendResult) => void) | null } = { resolve: null };
+  const { runtime, sent } = harness({
+    send: async (body) => {
+      if (!body.click && body.activeTimeMs === 0 && body.maxScrollPercent === 0) {
+        return await new Promise<BlogReadingSendResult>((resolve) => {
+          gate.resolve = resolve;
+        });
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  for (let i = 0; i < 20; i += 1) {
+    runtime.noteDepth({ percent: Math.min(100, 25 + i), reachedEnd: false });
+  }
+  assert.ok(runtime.getQueueSize() <= 8);
+  gate.resolve?.({ kind: "ok", status: 202 });
+  await flush();
+  assert.equal(sent[0]?.activeTimeMs, 0);
+  assert.ok(runtime.isOpened());
+});
+
+test("dois cliques sobem na fila e não são descartados por updates passivos", async () => {
+  const gate: { resolve: ((value: BlogReadingSendResult) => void) | null } = { resolve: null };
+  const { runtime, sent } = harness({
+    send: async (body) => {
+      if (body.activeTimeMs === 0 && !body.click) {
+        return await new Promise<BlogReadingSendResult>((resolve) => {
+          gate.resolve = resolve;
+        });
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  const a = runtime.reportClick({ ctaName: "traffic_course", destinationType: "course", targetPath: "/cursos/a" });
+  const b = runtime.reportClick({ ctaName: "traffic_service", destinationType: "service", targetPath: "/cursos/b" });
+  for (let i = 0; i < 12; i += 1) runtime.noteDepth({ percent: 40, reachedEnd: false });
+  gate.resolve?.({ kind: "ok", status: 202 });
+  await flush();
+  assert.ok(sent.some((body) => body.click?.eventId === a));
+  assert.ok(sent.some((body) => body.click?.eventId === b));
+});
+
+test("sessão ociosa por mais de 30 minutos não cria visita fantasma", async () => {
+  const { runtime, clock, sent } = harness();
+  runtime.start();
+  await flush();
+  const firstId = runtime.getState()?.clientReadingId;
+  const opensBefore = sent.filter((body) => body.activeTimeMs === 0 && !body.click && !body.ended).length;
+  clock.value = NOW + BLOG_READING_IDLE_MS;
+  runtime.tick();
+  await flush();
+  assert.equal(runtime.getState()?.sealed, true);
+  clock.value = NOW + BLOG_READING_IDLE_MS + 60_000;
+  runtime.tick();
+  await flush();
+  assert.equal(runtime.getState()?.clientReadingId, firstId);
+  assert.equal(runtime.getState()?.sealed, true);
+  const opensAfter = sent.filter((body) => body.activeTimeMs === 0 && !body.click && !body.ended).length;
+  assert.equal(opensAfter, opensBefore);
+  assert.equal(opensAfter, 1);
+});
+
+test("nova interação após idle abre outro clientReadingId", async () => {
+  const { runtime, clock } = harness();
+  runtime.start();
+  await flush();
+  const firstId = runtime.getState()?.clientReadingId;
+  clock.value = NOW + BLOG_READING_IDLE_MS;
+  runtime.tick();
+  await flush();
+  assert.equal(runtime.getState()?.sealed, true);
+  runtime.noteActivity();
+  await flush();
+  assert.equal(runtime.getState()?.sealed, false);
+  assert.notEqual(runtime.getState()?.clientReadingId, firstId);
+  assert.equal(runtime.getState()?.activeTimeMs, 0);
+});
+
+test("leitura ativa de 15 minutos respeita cadência sob a cota", async () => {
+  const { runtime, clock, sent } = harness();
+  runtime.start();
+  await flush();
+  const windowMs = BLOG_READING_RATE_WINDOW_SECONDS * 1000;
+  const sendTimes: number[] = [NOW];
+  for (let elapsed = BLOG_READING_FLUSH_ACTIVE_MS; elapsed <= 15 * 60_000; elapsed += BLOG_READING_FLUSH_ACTIVE_MS) {
+    clock.value = NOW + elapsed;
+    runtime.noteActivity();
+    runtime.tick();
+    await flush();
+    if (sent.length > sendTimes.length) {
+      for (let i = sendTimes.length; i < sent.length; i += 1) sendTimes.push(clock.value);
+    }
+    if (clock.value - sendTimes[sendTimes.length - 1]! < BLOG_READING_MIN_SEND_GAP_MS) {
+      clock.value = sendTimes[sendTimes.length - 1]! + BLOG_READING_MIN_SEND_GAP_MS;
+      await flush();
+      if (sent.length > sendTimes.length) {
+        for (let i = sendTimes.length; i < sent.length; i += 1) sendTimes.push(clock.value);
+      }
+    }
+  }
+  const nonClick = sent.filter((body) => !body.click);
+  let maxInWindow = 0;
+  for (let i = 0; i < sendTimes.length; i += 1) {
+    const start = sendTimes[i]!;
+    let count = 0;
+    for (let j = i; j < sendTimes.length; j += 1) {
+      if (sendTimes[j]! - start >= windowMs) break;
+      count += 1;
+    }
+    maxInWindow = Math.max(maxInWindow, count);
+  }
+  assert.ok(maxInWindow <= BLOG_READING_RATE_LIMIT);
+  assert.ok(nonClick.length < Math.ceil((15 * 60_000) / 15_000));
+  assert.ok(nonClick.length >= 1);
+});
+
+test("429 aplica backoff sem loop imediato", async () => {
+  let limited = true;
+  const { runtime, sent, scheduled, runScheduled } = harness({
+    send: async (body) => {
+      if (body.click) return { kind: "ok", status: 202 };
+      if (limited) {
+        limited = false;
+        return { kind: "limited", status: 429 };
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  assert.ok(scheduled.length >= 1);
+  assert.ok(scheduled[0]!.ms >= 2000);
+  const before = sent.length;
+  await flush();
+  assert.equal(sent.length, before);
+  runScheduled();
+  await flush();
+  assert.ok(runtime.isOpened());
+});
+
+test("progresso durante request pendente permanece elegível e só confirma o enviado", async () => {
+  const gate: { resolve: ((value: BlogReadingSendResult) => void) | null } = { resolve: null };
+  const { runtime, clock } = harness({
+    send: async (body) => {
+      if (body.activeTimeMs === 0 && body.maxScrollPercent === 0) return { kind: "ok", status: 202 };
+      if (body.activeTimeMs > 0 && !gate.resolve) {
+        return await new Promise<BlogReadingSendResult>((resolve) => {
+          gate.resolve = resolve;
+        });
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  clock.value = NOW + BLOG_READING_FLUSH_ACTIVE_MS;
+  runtime.noteActivity();
+  runtime.tick();
+  await flush();
+  clock.value = NOW + BLOG_READING_FLUSH_ACTIVE_MS + 5_000;
+  runtime.noteActivity();
+  runtime.tick();
+  assert.equal(runtime.getState()?.activeTimeMs, BLOG_READING_FLUSH_ACTIVE_MS + 5_000);
+  gate.resolve?.({ kind: "ok", status: 202 });
+  await flush();
+  assert.equal(runtime.getConfirmed()?.activeTimeMs, BLOG_READING_FLUSH_ACTIVE_MS);
+  assert.equal(runtime.getState()?.activeTimeMs, BLOG_READING_FLUSH_ACTIVE_MS + 5_000);
+});
+
+test("abertura reconstruída após falhas de rede volta a zero", async () => {
+  let fails = 2;
+  const { runtime, sent, runScheduled } = harness({
+    send: async (body) => {
+      if (body.activeTimeMs === 0 && !body.click && fails > 0) {
+        fails -= 1;
+        return { kind: "network" };
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  runScheduled();
+  await flush();
+  runScheduled();
+  await flush();
+  const opens = sent.filter((body) => body.activeTimeMs === 0 && body.maxScrollPercent === 0 && !body.click);
+  assert.ok(opens.length >= 2);
+  assert.ok(opens.every((body) => body.activeTimeMs === 0 && body.maxScrollPercent === 0));
+  assert.ok(runtime.isOpened());
 });
