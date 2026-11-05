@@ -40,3 +40,12 @@ export function blogReadingIngestEnabled(env?: { BLOG_READING_INGEST_ENABLED?: s
   const source = env ?? { BLOG_READING_INGEST_ENABLED: process.env.BLOG_READING_INGEST_ENABLED };
   return source.BLOG_READING_INGEST_ENABLED === "true";
 }
+
+/**
+ * Cron de retenção first-party. Independente de BLOG_READING_INGEST_ENABLED.
+ * Ausente ou qualquer valor diferente de "true" responde SKIPPED sem tocar no banco.
+ */
+export function blogReadingRetentionEnabled(env?: { BLOG_READING_RETENTION_ENABLED?: string }): boolean {
+  const source = env ?? { BLOG_READING_RETENTION_ENABLED: process.env.BLOG_READING_RETENTION_ENABLED };
+  return source.BLOG_READING_RETENTION_ENABLED === "true";
+}
