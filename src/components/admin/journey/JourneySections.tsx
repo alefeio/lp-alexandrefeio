@@ -3,10 +3,11 @@ import { formatPriceCents } from "@/lib/learning/money";
 import {
   JOURNEY_DIAGNOSTIC_NOTE,
   JOURNEY_EMPTY,
+  JOURNEY_ERA_LABEL,
+  JOURNEY_ERAS,
   JOURNEY_PERIOD_LABEL,
   JOURNEY_PERIODS,
   JOURNEY_REVENUE_NOTE,
-  JOURNEY_SAMPLE_NOTE,
   journeyDashboardHref,
   type JourneyCourse,
   type JourneyDashboardView,
@@ -24,16 +25,23 @@ const COURSES: Array<{ value: JourneyCourse; label: string }> = [
 export function JourneyFilters({ view }: { view: JourneyDashboardView }) {
   return (
     <div className="mt-6 flex flex-col gap-4">
+      <nav className="flex flex-wrap gap-2" aria-label="Contexto">
+        {JOURNEY_ERAS.map((era) => (
+          <FilterLink key={era} href={journeyDashboardHref(view.period, view.course, era)} current={view.era === era}>
+            {JOURNEY_ERA_LABEL[era]}
+          </FilterLink>
+        ))}
+      </nav>
       <nav className="flex flex-wrap gap-2" aria-label="Período">
         {JOURNEY_PERIODS.map((period) => (
-          <FilterLink key={period} href={journeyDashboardHref(period, view.course)} current={view.period === period}>
+          <FilterLink key={period} href={journeyDashboardHref(period, view.course, view.era)} current={view.period === period}>
             {JOURNEY_PERIOD_LABEL[period]}
           </FilterLink>
         ))}
       </nav>
       <nav className="flex flex-wrap gap-2" aria-label="Curso">
         {COURSES.map((course) => (
-          <FilterLink key={course.value} href={journeyDashboardHref(view.period, course.value)} current={view.course === course.value}>
+          <FilterLink key={course.value} href={journeyDashboardHref(view.period, course.value, view.era)} current={view.course === course.value}>
             {course.label}
           </FilterLink>
         ))}
@@ -56,11 +64,11 @@ function FilterLink({ href, current, children }: { href: string; current: boolea
 
 export function JourneySummary({ view }: { view: JourneyDashboardView }) {
   const cards = [
-    ["Jornadas identificadas", String(view.summary.journeys)],
+    ["Navegadores com consentimento", String(view.summary.journeys)],
     ["Sessões de jornada", String(view.summary.sessions)],
-    ["Escolhas de gargalo", String(view.summary.pathChoices)],
-    ["Inícios gratuitos", String(view.summary.freeStarts)],
-    ["Checkouts iniciados", String(view.summary.checkoutStarts)],
+    ["Escolhas de caminho", String(view.summary.pathChoices)],
+    ["Inícios observados de aulas gratuitas", String(view.summary.freeStarts)],
+    ["Checkouts observados", String(view.summary.checkoutStarts)],
     ["Usuários autenticados observados", String(view.summary.authenticated)],
   ];
   return (
@@ -76,7 +84,7 @@ export function JourneySummary({ view }: { view: JourneyDashboardView }) {
       </ul>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">Um identificador representa um navegador/perfil com consentimento e pode não corresponder a uma pessoa única.</p>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">São sessões first-party da plataforma, não a definição de sessão do Google Analytics.</p>
-      {view.smallSample ? <p className="mt-3 text-sm text-muted">{JOURNEY_SAMPLE_NOTE}</p> : null}
+      {view.readingNote ? <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">{view.readingNote}</p> : null}
     </section>
   );
 }
@@ -90,7 +98,10 @@ export function JourneyFunnel({ view }: { view: JourneyDashboardView }) {
       {max === 0 ? <EmptyNote>{JOURNEY_EMPTY}</EmptyNote> : (
         <div className="mt-4 flex flex-col gap-3">
           {view.funnel.map((step) => (
-            <ShareBar key={step.key} label={step.label} count={step.count} max={max} />
+            <div key={step.key}>
+              <ShareBar label={step.label} count={step.count} max={max} />
+              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">{step.definition}</p>
+            </div>
           ))}
         </div>
       )}
@@ -107,8 +118,7 @@ export function JourneyCommercial({ view }: { view: JourneyDashboardView }) {
       <h2 className="mt-2 text-lg font-semibold">Resultado real</h2>
       <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <li className="rounded-lg border border-border p-4">
-          <p className="text-sm">Compras pagas</p>
-          <p className="mt-1 text-xs text-muted">Pedidos pagos</p>
+          <p className="text-sm">Pedidos pagos</p>
           <p className="mt-3 text-2xl font-semibold tabular-nums">{view.commercial.paidOrders}</p>
         </li>
         <li className="rounded-lg border border-border p-4">
@@ -149,17 +159,17 @@ export function JourneyLearning({ view }: { view: JourneyDashboardView }) {
       <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Jornada observada</p>
-          <p className="mt-3 text-sm">Diagnósticos iniciados <strong className="tabular-nums">{view.observedDiagnostics.started}</strong></p>
-          <p className="mt-2 text-sm">Diagnósticos concluídos <strong className="tabular-nums">{view.observedDiagnostics.completed}</strong></p>
+          <p className="mt-3 text-sm">Diagnósticos iniciados observados <strong className="tabular-nums">{view.observedDiagnostics.started}</strong></p>
+          <p className="mt-2 text-sm">Diagnósticos concluídos observados <strong className="tabular-nums">{view.observedDiagnostics.completed}</strong></p>
         </div>
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Resultado operacional</p>
-          <p className="mt-3 text-sm">Alunos com aula iniciada <strong className="tabular-nums">{view.operational.lessonsStarted}</strong></p>
-          <p className="mt-2 text-sm">Alunos com aula concluída <strong className="tabular-nums">{view.operational.lessonsCompleted}</strong></p>
+          <p className="mt-3 text-sm">Usuários com aula efetivamente iniciada <strong className="tabular-nums">{view.operational.lessonsStarted}</strong></p>
+          <p className="mt-2 text-sm">Usuários com aula concluída <strong className="tabular-nums">{view.operational.lessonsCompleted}</strong></p>
           {view.operational.diagnosticsCompleted == null ? (
             <p className="mt-2 text-sm leading-relaxed text-muted">{JOURNEY_DIAGNOSTIC_NOTE}</p>
           ) : (
-            <p className="mt-2 text-sm">Diagnósticos concluídos reais <strong className="tabular-nums">{view.operational.diagnosticsCompleted}</strong></p>
+            <p className="mt-2 text-sm">Diagnósticos operacionais <strong className="tabular-nums">{view.operational.diagnosticsCompleted}</strong></p>
           )}
         </div>
       </div>

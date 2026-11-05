@@ -4,6 +4,8 @@ Leitura interna em `/admin/jornada`. Não há API pública. A página exige admi
 
 O início oficial da análise é `2026-10-26T17:42:00.000Z` (`PRODUCT_JOURNEY_REPORTING_START_AT`). Eventos anteriores, inclusive o smoke técnico, continuam armazenados e ficam fora de todos os recortes, também em “Todo o período”. Nada é apagado para limpar o painel.
 
+A UX-C entrou em Production em `2026-11-03T16:33:05Z` (`UX_C_PRODUCTION_AT`). A evidência é o deployment GitHub `7524578070`, ambiente Production, estado `success`, descrição “Deployment has completed”, no SHA `9f6a2e8ee4782734654dd9a94c63f75065771de1` (merge do PR #14). O filtro padrão é Pós-UX-C e consulta só a partir desse instante. “Histórico disponível” usa a janela já existente do painel, desde o início oficial, e inclui o que veio depois do marco. Os dois contextos não são uma comparação automática. Se o período termina antes do marco, Pós-UX-C informa que não há intervalo, sem percentual de crescimento.
+
 As datas da interface usam `America/Belem`. As consultas continuam em UTC.
 
 ## O que cada fonte responde
@@ -30,7 +32,9 @@ A cobertura “X de Y” compara compradores do pedido pago com quem também tem
 
 Home e catálogo não são o mesmo clique. O movimento entre formações só usa `course_complementary_click`.
 
-Com menos de 20 jornadas numa seção, o painel avisa que a amostra é inicial. Ele não declara qual curso “converte mais”.
+A maturidade usa o total de jornadas do recorte, não a barra mais alta de uma seção: 1 a 19 pedem checagem da coleta; 20 a 49, hipótese inicial; 50 a 99, padrões com cautela; 100 ou mais, leitura mais fundo, com ressalva de representatividade. Essas faixas não são teste de significância. O aviso aparece uma vez. O painel não declara qual curso converte mais.
+
+Clique de caminho, início observado de aula gratuita, evento `lesson_started` e usuário com `LessonProgress` são contagens diferentes. O CTA de curso (`course_cta_click`) não entra no PostgreSQL e não aparece como zero interno.
 
 ## Limites desta versão
 
