@@ -65,16 +65,17 @@ function isAuthorizedProductionMigrateCommand(prismaArgs: string[] | undefined):
 }
 
 /**
- * Impede migrate deploy dentro do runtime da Vercel.
+ * Impede migrate dentro do runtime da Vercel Production (VERCEL=1).
  * DATABASE_ENV=development não significa banco descartável: a migration altera o schema compartilhado.
  * Production no workstation exige MIGRATE_DEPLOY_CONFIRM=production e só migrate status|deploy.
+ * VERCEL_ENV=production num .env.local de operação não basta para bloquear se VERCEL≠1.
  */
 export function assertMigrationTargetAllowed(
   env: Record<string, string | undefined> = process.env,
   prismaArgs?: string[],
 ): void {
-  if (env.VERCEL_ENV === "production") {
-    throw new Error("Refusing to migrate while VERCEL_ENV=production");
+  if (env.VERCEL === "1" && env.VERCEL_ENV === "production") {
+    throw new Error("Refusing to migrate inside the Vercel Production runtime");
   }
 
   const label = readDatabaseEnvLabel(env);

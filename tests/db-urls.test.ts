@@ -13,13 +13,27 @@ test("runtime Vercel Production permanece bloqueado", () => {
     () =>
       assertMigrationTargetAllowed(
         {
+          VERCEL: "1",
           VERCEL_ENV: "production",
           DATABASE_ENV: "production",
           MIGRATE_DEPLOY_CONFIRM: "production",
         },
         ["migrate", "deploy"],
       ),
-    /VERCEL_ENV=production/,
+    /Vercel Production runtime/,
+  );
+});
+
+test("VERCEL_ENV=production no workstation com confirmação não mascara o destino", () => {
+  assert.doesNotThrow(() =>
+    assertMigrationTargetAllowed(
+      {
+        VERCEL_ENV: "production",
+        DATABASE_ENV: "production",
+        MIGRATE_DEPLOY_CONFIRM: "production",
+      },
+      ["migrate", "status"],
+    ),
   );
 });
 
