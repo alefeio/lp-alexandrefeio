@@ -57,23 +57,45 @@ export function readDatabaseEnvLabel(
   return undefined;
 }
 
+const PRODUCTION_MIGRATE_COMMANDS = new Set(["status", "deploy"]);
+
+function isAuthorizedProductionMigrateCommand(prismaArgs: string[] | undefined): boolean {
+  if (!prismaArgs || prismaArgs.length < 2) return false;
+  return prismaArgs[0] === "migrate" && PRODUCTION_MIGRATE_COMMANDS.has(prismaArgs[1] ?? "");
+}
+
 /**
  * Impede migrate deploy dentro do runtime da Vercel.
  * DATABASE_ENV=development não significa banco descartável: a migration altera o schema compartilhado.
+ * Production no workstation exige MIGRATE_DEPLOY_CONFIRM=production e só migrate status|deploy.
  */
 export function assertMigrationTargetAllowed(
   env: Record<string, string | undefined> = process.env,
+  prismaArgs?: string[],
 ): void {
   if (env.VERCEL_ENV === "production") {
     throw new Error("Refusing to migrate while VERCEL_ENV=production");
   }
 
   const label = readDatabaseEnvLabel(env);
+  if (label === "production") {
+    if (env.MIGRATE_DEPLOY_CONFIRM !== "production") {
+      throw new Error(
+        "Refusing to migrate with DATABASE_ENV=production without MIGRATE_DEPLOY_CONFIRM=production",
+      );
+    }
+    if (!isAuthorizedProductionMigrateCommand(prismaArgs)) {
+      throw new Error(
+        "Refusing to migrate with DATABASE_ENV=production except for migrate status or migrate deploy",
+      );
+    }
+    return;
+  }
   if (label === "development" || label === "preview" || label === "test") {
     return;
   }
 
-  throw new Error("Refusing to migrate without DATABASE_ENV=development, preview, or test");
+  throw new Error("Refusing to migrate without DATABASE_ENV=development, preview, test, or production confirmed");
 }
 
 /** Catálogo e seed gravam no banco compartilhado. Exigem confirmação explícita. */

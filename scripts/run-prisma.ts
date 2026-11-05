@@ -5,12 +5,12 @@ import { assertMigrationTargetAllowed } from "../src/lib/db/urls";
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
 
-assertMigrationTargetAllowed();
-
 const args = process.argv.slice(2);
 if (args.length === 0) {
   throw new Error("Missing prisma arguments");
 }
+
+assertMigrationTargetAllowed(process.env, args);
 
 const child = spawn("npx", ["prisma", ...args], {
   stdio: "inherit",
