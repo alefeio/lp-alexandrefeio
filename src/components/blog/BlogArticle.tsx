@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { BlogCtaLink } from "@/components/blog/BlogCtaLink";
 import { MarkdownBody } from "@/components/blog/MarkdownBody";
+import { blogArticleClickParams } from "@/lib/blog/clicks";
 import { blogCategoryLabel, blogCtaHref, siteAuthorName } from "@/lib/blog/public";
 import { readingTimeMinutes } from "@/lib/blog/rules";
 import { buttonClass } from "@/lib/button-styles";
 
 export type BlogArticleModel = {
+  slug: string;
   title: string;
   excerpt: string;
   contentMarkdown: string;
@@ -18,6 +21,7 @@ export type BlogArticleModel = {
 
 export function BlogArticle({ post, related }: { post: BlogArticleModel; related: Array<{ slug: string; title: string; excerpt: string }> }) {
   const cta = blogCtaHref(post.ctaKey);
+  const ctaParams = blogArticleClickParams({ slug: post.slug, ctaKey: post.ctaKey });
   const published = post.publishedAt ? formatBlogDate(post.publishedAt) : null;
   const updated = formatBlogDate(post.updatedAt);
   return (
@@ -44,11 +48,11 @@ export function BlogArticle({ post, related }: { post: BlogArticleModel; related
         </>
       ) : null}
       <MarkdownBody markdown={post.contentMarkdown} />
-      {cta ? (
+      {cta && ctaParams ? (
         <p className="mt-10">
-          <Link href={cta.href} className={buttonClass("primary")}>
+          <BlogCtaLink href={cta.href} className={buttonClass("primary")} event="cta_click" params={ctaParams}>
             {cta.label}
-          </Link>
+          </BlogCtaLink>
         </p>
       ) : null}
       <p className="mt-10 text-sm text-muted">Por {siteAuthorName()}</p>

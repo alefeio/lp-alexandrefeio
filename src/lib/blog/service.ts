@@ -35,6 +35,18 @@ export async function getBlogPost(id: string) {
   return getPrisma().blogPost.findUnique({ where: { id }, select: postSelect });
 }
 
+export async function listBlogMetricCatalog() {
+  const rows = await getPrisma().blogPost.findMany({
+    select: { slug: true, title: true, categorySlug: true, status: true },
+  });
+  return rows.map((row) => ({
+    slug: row.slug,
+    title: row.title,
+    categorySlug: row.categorySlug,
+    published: row.status === "PUBLISHED",
+  }));
+}
+
 export async function listPublishedPosts() {
   return getPrisma().blogPost.findMany({
     where: { status: "PUBLISHED" },

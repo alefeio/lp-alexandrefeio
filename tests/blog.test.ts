@@ -121,7 +121,7 @@ test("markdown, categorias, CTA, capa e relacionados seguem a allowlist", () => 
   assert.equal(service.includes(".delete("), false);
   assert.match(actions, /requireAdmin/);
   assert.match(actions, /revalidatePath\("\/blog"\)/);
-  for (const file of ["page.tsx", "novo/page.tsx", "[id]/page.tsx", "[id]/preview/page.tsx", "planejamento/page.tsx"]) {
+  for (const file of ["page.tsx", "novo/page.tsx", "[id]/page.tsx", "[id]/preview/page.tsx", "planejamento/page.tsx", "metricas/page.tsx"]) {
     const source = readFileSync(new URL(`../src/app/(admin)/admin/blog/${file}`, import.meta.url), "utf8");
     assert.match(source, /requireAdmin/);
     assert.match(source, /if \(!session\) return null/);

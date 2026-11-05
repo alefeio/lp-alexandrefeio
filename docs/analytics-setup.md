@@ -109,7 +109,23 @@ Nunca incluem nome, e-mail, WhatsApp ou outros dados pessoais.
 5. Confirme que `generate_lead` só aparece após envio administrativo aceito.
 6. Valide no DebugView do GA4.
 
-## 9. O que fica fora do código
+## 9. Métricas do blog
+
+`/admin/blog/metricas` lê visualizações e origem no GA4 Data API, só para administrador. Sem as variáveis abaixo, a página mostra configuração pendente e não inventa números.
+
+```env
+GA4_PROPERTY_ID=
+GA4_CLIENT_EMAIL=
+GA4_PRIVATE_KEY=
+```
+
+`GA4_PROPERTY_ID` é o número da propriedade, não o ID `G-`. A conta de serviço precisa do papel de leitor nessa propriedade. A chave fica só no ambiente. O painel pede caminhos `/blog`, normaliza query string e UTM, e relaciona o slug aos artigos publicados. Rascunhos não aparecem como conteúdo publicado.
+
+O site não envia `page_view`. Quem mede a página é o GA4 via GTM, com Consent Mode. Navegação interna do App Router não dispara outro pageview neste código, para não duplicar o carregamento inicial. O histórico depende da retenção da propriedade.
+
+Cliques do artigo usam o evento existente `cta_click`, com `cta_location=blog_post`, `destination_type` e `blog_post_slug`. A listagem usa `cta_location=blog_index`. “Conhecer a gestão” continua em `service_from_course_click`. Esses parâmetros só viram relatório depois que o GTM os encaminhar e o GA4 registrar a dimensão. Até lá o painel não mostra contagem de clique. Não publique tag nova automaticamente.
+
+## 10. O que fica fora do código
 
 - Measurement ID do GA4
 - Conversion ID/label do Google Ads
