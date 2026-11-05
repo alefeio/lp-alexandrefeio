@@ -85,6 +85,8 @@ function ReadingTotals({ totals }: { totals: NonNullable<BlogReadingMetricsView[
     { label: "Final alcançado", value: totals.reachedEnd },
     { label: "Cliques para cursos", value: totals.courseClicks },
     { label: "Cliques para serviços", value: totals.serviceClicks },
+    { label: "Cliques comerciais", value: totals.commercialClicks },
+    { label: "Sessões com clique", value: totals.sessionsWithClick },
     { label: "Taxa de cliques por sessão", value: formatRate(totals.clickRate) },
   ];
   return (

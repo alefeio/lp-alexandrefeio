@@ -65,6 +65,11 @@ export type BlogReadingMetricsView = {
     reachedEnd: number;
     courseClicks: number;
     serviceClicks: number;
+    /** Total de eventos comerciais registrados. */
+    commercialClicks: number;
+    /** Sessões distintas com pelo menos um clique. */
+    sessionsWithClick: number;
+    /** sessões com clique / sessões observadas (0–1). */
     clickRate: number | null;
   } | null;
   articles: Array<{
@@ -83,6 +88,8 @@ export type BlogReadingMetricsView = {
     reachedEnd: number;
     courseClicks: number;
     serviceClicks: number;
+    commercialClicks: number;
+    sessionsWithClick: number;
     clickRate: number | null;
   }>;
   categories: Array<{
@@ -140,6 +147,7 @@ export function assembleBlogReadingMetrics(input: {
   const times = input.sessions.map((session) => session.activeTimeMs).sort((a, b) => a - b);
   let courseClicks = 0;
   let serviceClicks = 0;
+  let sessionsWithClick = 0;
   let engaged = 0;
   let deep = 0;
   let depth25 = 0;
@@ -174,6 +182,7 @@ export function assembleBlogReadingMetrics(input: {
         sessionService += 1;
       }
     }
+    if (sessionClicks.length > 0) sessionsWithClick += 1;
     const catalog = session.blogPostId ? published.get(session.blogPostId) : undefined;
     const key = catalog?.id ?? `removed:${session.slugObserved}`;
     const bucket = byArticle.get(key) ?? {
@@ -193,6 +202,7 @@ export function assembleBlogReadingMetrics(input: {
       reachedEnd: 0,
       courseClicks: 0,
       serviceClicks: 0,
+      sessionsWithClick: 0,
     };
     bucket.sessions += 1;
     bucket.activeSum += session.activeTimeMs;
@@ -204,6 +214,7 @@ export function assembleBlogReadingMetrics(input: {
     if (session.reachedEnd) bucket.reachedEnd += 1;
     bucket.courseClicks += sessionCourse;
     bucket.serviceClicks += sessionService;
+    if (sessionClicks.length > 0) bucket.sessionsWithClick += 1;
     byArticle.set(key, bucket);
   }
 
@@ -226,29 +237,35 @@ export function assembleBlogReadingMetrics(input: {
         reachedEnd: 0,
         courseClicks: 0,
         serviceClicks: 0,
+        sessionsWithClick: 0,
       });
     }
   }
 
   const articles = [...byArticle.values()]
-    .map((bucket) => ({
-      key: bucket.key,
-      title: bucket.title,
-      category: bucket.category,
-      url: bucket.url,
-      removed: bucket.removed,
-      sessions: bucket.sessions,
-      meanActiveMs: bucket.sessions > 0 ? Math.round(bucket.activeSum / bucket.sessions) : null,
-      engaged: bucket.engaged,
-      deep: bucket.deep,
-      depth25: bucket.depth25,
-      depth50: bucket.depth50,
-      depth75: bucket.depth75,
-      reachedEnd: bucket.reachedEnd,
-      courseClicks: bucket.courseClicks,
-      serviceClicks: bucket.serviceClicks,
-      clickRate: bucket.sessions > 0 ? (bucket.courseClicks + bucket.serviceClicks) / bucket.sessions : null,
-    }))
+    .map((bucket) => {
+      const commercialClicks = bucket.courseClicks + bucket.serviceClicks;
+      return {
+        key: bucket.key,
+        title: bucket.title,
+        category: bucket.category,
+        url: bucket.url,
+        removed: bucket.removed,
+        sessions: bucket.sessions,
+        meanActiveMs: bucket.sessions > 0 ? Math.round(bucket.activeSum / bucket.sessions) : null,
+        engaged: bucket.engaged,
+        deep: bucket.deep,
+        depth25: bucket.depth25,
+        depth50: bucket.depth50,
+        depth75: bucket.depth75,
+        reachedEnd: bucket.reachedEnd,
+        courseClicks: bucket.courseClicks,
+        serviceClicks: bucket.serviceClicks,
+        commercialClicks,
+        sessionsWithClick: bucket.sessionsWithClick,
+        clickRate: sessionClickRate(bucket.sessionsWithClick, bucket.sessions),
+      };
+    })
     .sort((a, b) => b.sessions - a.sessions || a.title.localeCompare(b.title, "pt"));
 
   const categoriesMap = new Map<string, BlogReadingMetricsView["categories"][number]>();
@@ -272,6 +289,7 @@ export function assembleBlogReadingMetrics(input: {
   }
 
   const sessionCount = input.sessions.length;
+  const commercialClicks = courseClicks + serviceClicks;
   return {
     period: input.period,
     queryLabel,
@@ -292,11 +310,19 @@ export function assembleBlogReadingMetrics(input: {
       reachedEnd,
       courseClicks,
       serviceClicks,
-      clickRate: (courseClicks + serviceClicks) / sessionCount,
+      commercialClicks,
+      sessionsWithClick,
+      clickRate: sessionClickRate(sessionsWithClick, sessionCount),
     },
     articles,
     categories: [...categoriesMap.values()].sort((a, b) => b.sessions - a.sessions || a.label.localeCompare(b.label, "pt")),
   };
+}
+
+/** Taxa de cliques por sessão = sessões com ≥1 clique / sessões observadas. */
+export function sessionClickRate(sessionsWithClickCount: number, sessions: number): number | null {
+  if (sessions <= 0) return null;
+  return Math.max(0, Math.min(1, sessionsWithClickCount / sessions));
 }
 
 export function blogReadingMetricsPending(input: {
@@ -337,6 +363,7 @@ type ArticleBucket = {
   reachedEnd: number;
   courseClicks: number;
   serviceClicks: number;
+  sessionsWithClick: number;
 };
 
 function emptyTotals(): BlogReadingMetricsView["totals"] {
@@ -353,6 +380,8 @@ function emptyTotals(): BlogReadingMetricsView["totals"] {
     reachedEnd: 0,
     courseClicks: 0,
     serviceClicks: 0,
+    commercialClicks: 0,
+    sessionsWithClick: 0,
     clickRate: null,
   };
 }
@@ -375,6 +404,8 @@ function publishedArticlesWithoutSessions(published: Map<string, BlogReadingMetr
       reachedEnd: 0,
       courseClicks: 0,
       serviceClicks: 0,
+      commercialClicks: 0,
+      sessionsWithClick: 0,
       clickRate: null,
     }))
     .sort((a, b) => a.title.localeCompare(b.title, "pt"));

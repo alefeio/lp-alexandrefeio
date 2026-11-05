@@ -70,7 +70,12 @@ test("monta rankings, profundidade, cliques e aviso de amostra", () => {
   assert.equal(view.sampleWarning, BLOG_READING_SAMPLE_NOTE);
   assert.ok((view.totals?.courseClicks ?? 0) >= 1);
   assert.ok((view.totals?.serviceClicks ?? 0) >= 1);
-  assert.ok((view.totals?.clickRate ?? 0) > 0);
+  assert.ok((view.totals?.commercialClicks ?? 0) >= (view.totals?.courseClicks ?? 0));
+  assert.ok((view.totals?.sessionsWithClick ?? 0) <= (view.totals?.sessions ?? 0));
+  assert.ok((view.totals?.clickRate ?? 0) <= 1);
+  assert.ok((view.totals?.clickRate ?? 0) >= 0);
+  // Dois eventos na mesma sessão não elevam a taxa acima de sessões com clique / sessões.
+  assert.equal(view.totals?.clickRate, (view.totals?.sessionsWithClick ?? 0) / (view.totals?.sessions ?? 1));
   assert.ok(view.articles.some((row) => row.removed && row.title.includes("antigo")));
   assert.ok(view.articles.some((row) => row.title === "Artigo A" && row.sessions > 0));
   assert.ok(view.categories.length >= 1);
@@ -144,8 +149,14 @@ test("painel separa first-party do GA4 e exige admin", () => {
         startedAt: NOW,
       },
     ],
-    clicks: [{ readingSessionId: "s1", destinationType: "course" }],
+    clicks: [
+      { readingSessionId: "s1", destinationType: "course" },
+      { readingSessionId: "s1", destinationType: "service" },
+    ],
   });
+  assert.equal(reading.totals?.commercialClicks, 2);
+  assert.equal(reading.totals?.sessionsWithClick, 1);
+  assert.equal(reading.totals?.clickRate, 1);
   const ga4 = assembleBlogMetrics({
     period: "30",
     now: NOW,

@@ -1,12 +1,11 @@
 import { readStoredAttribution } from "@/lib/attribution";
-import { BLOG_READING_SCHEMA_VERSION } from "@/lib/blog/reading/constants";
 import {
-  BLOG_READING_INDEX_KEY,
-  isBlogReaderUuid,
-  readOrCreateBlogReaderId,
-  readOrCreateBlogSessionId,
-  type BlogReadingStorage,
-} from "@/lib/blog/reading/identity";
+  clearBlogReadingCheckpoint,
+  readBlogReadingCheckpoint,
+  writeBlogReadingCheckpoint,
+} from "@/lib/blog/reading/checkpoint";
+import { BLOG_READING_SCHEMA_VERSION } from "@/lib/blog/reading/constants";
+import { readOrCreateBlogReaderId, readOrCreateBlogSessionId, type BlogReadingStorage } from "@/lib/blog/reading/identity";
 import { journeyPath } from "@/lib/product-journey/paths";
 
 export type BlogReadingSendBody = {
@@ -44,48 +43,33 @@ export type BlogReadingSendResult =
   | { kind: "network" }
   | { kind: "other"; status: number };
 
-type IndexMap = Record<string, { clientReadingId: string }>;
-
-function readIndex(storage: { getItem(key: string): string | null }): IndexMap {
-  const raw = storage.getItem(BLOG_READING_INDEX_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw) as IndexMap;
-    if (!parsed || typeof parsed !== "object") return {};
-    const out: IndexMap = {};
-    for (const [key, value] of Object.entries(parsed)) {
-      if (value && typeof value.clientReadingId === "string" && isBlogReaderUuid(value.clientReadingId)) {
-        out[key] = { clientReadingId: value.clientReadingId };
-      }
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
-export function readBlogReadingClientId(storage: { getItem(key: string): string | null }, blogPostId: string): string | null {
-  return readIndex(storage)[blogPostId]?.clientReadingId ?? null;
+export function readBlogReadingClientId(storage: { getItem(key: string): string | null }, blogPostId: string, now = Date.now()): string | null {
+  const found = readBlogReadingCheckpoint(storage, blogPostId, now);
+  if (found.kind === "resume") return found.checkpoint.clientReadingId;
+  return null;
 }
 
 export function rememberBlogReadingClientId(
-  storage: { getItem(key: string): string | null; setItem(key: string, value: string): void },
+  storage: { getItem(key: string): string | null; setItem(key: string, value: string): void; removeItem(key: string): void },
   blogPostId: string,
   clientReadingId: string,
+  now = Date.now(),
 ): void {
-  const index = readIndex(storage);
-  index[blogPostId] = { clientReadingId };
-  storage.setItem(BLOG_READING_INDEX_KEY, JSON.stringify(index));
+  writeBlogReadingCheckpoint(storage, blogPostId, {
+    clientReadingId,
+    activeTimeMs: 0,
+    maxScrollPercent: 0,
+    reachedEnd: false,
+    lastActivityAt: now,
+    opened: false,
+  });
 }
 
 export function clearBlogReadingClientId(
   storage: { getItem(key: string): string | null; setItem(key: string, value: string): void; removeItem(key: string): void },
   blogPostId: string,
 ): void {
-  const index = readIndex(storage);
-  delete index[blogPostId];
-  if (Object.keys(index).length === 0) storage.removeItem(BLOG_READING_INDEX_KEY);
-  else storage.setItem(BLOG_READING_INDEX_KEY, JSON.stringify(index));
+  clearBlogReadingCheckpoint(storage, blogPostId);
 }
 
 export function resolveBlogReadingIdentities(input: {
@@ -98,9 +82,9 @@ export function resolveBlogReadingIdentities(input: {
 }): { anonymousId: string; sessionId: string; clientReadingId: string } {
   const anonymousId = readOrCreateBlogReaderId(input.local, input.now, input.randomUUID);
   const sessionId = readOrCreateBlogSessionId(input.session, input.randomUUID);
-  const existing = input.renew ? null : readBlogReadingClientId(input.session, input.blogPostId);
+  const existing = input.renew ? null : readBlogReadingClientId(input.session, input.blogPostId, input.now);
   const clientReadingId = existing ?? input.randomUUID();
-  if (!existing) rememberBlogReadingClientId(input.session, input.blogPostId, clientReadingId);
+  if (!existing) rememberBlogReadingClientId(input.session, input.blogPostId, clientReadingId, input.now);
   return { anonymousId, sessionId, clientReadingId };
 }
 

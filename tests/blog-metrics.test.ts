@@ -494,6 +494,8 @@ test("painel mostra ausência de usuário e o mesmo conjunto visível", () => {
       reachedEnd: 0,
       courseClicks: 0,
       serviceClicks: 0,
+      commercialClicks: 0,
+      sessionsWithClick: 0,
       clickRate: null,
     },
     articles: [],
