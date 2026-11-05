@@ -20,6 +20,8 @@ export async function handleBlogReadingRetentionCron(
         expiredCount: report.expiredCount,
         deletedSessions: report.deletedSessions,
         deletedClicks: report.deletedClicks,
+        batchesRun: report.batchesRun,
+        truncated: report.truncated,
       },
       { headers: NO_STORE },
     );

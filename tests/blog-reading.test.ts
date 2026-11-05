@@ -39,6 +39,14 @@ function body(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function cloneSessions(source: Map<string, BlogReadingRecord>) {
+  return new Map([...source.entries()].map(([key, value]) => [key, { ...value }]));
+}
+
+function cloneClicks(source: Map<string, BlogClickRecord>) {
+  return new Map([...source.entries()].map(([key, value]) => [key, { ...value }]));
+}
+
 function memoryStore(hooks?: { failClicks?: number; blindClicks?: number; arm?: () => BlogReadingCommitResult | null }) {
   const sessions = new Map<string, BlogReadingRecord>();
   const clicks = new Map<string, BlogClickRecord>();
@@ -59,29 +67,46 @@ function memoryStore(hooks?: { failClicks?: number; blindClicks?: number; arm?: 
     async commit(input: BlogReadingCommit) {
       const armed = hooks?.arm?.() ?? null;
       if (armed) return armed;
-      if (input.kind === "create") {
-        if (sessions.has(input.session.clientReadingId)) return "stale";
-        sessions.set(input.session.clientReadingId, input.session);
-      } else {
-        const current = sessions.get(input.session.clientReadingId);
-        if (!current || current.endedAt) return "stale";
-        if (current.recordVersion !== input.session.recordVersion - 1) return "stale";
-        if (current.anonymousId !== input.session.anonymousId || current.sessionId !== input.session.sessionId || current.blogPostId !== input.session.blogPostId) return "stale";
-        if (input.session.activeTimeMs < current.activeTimeMs || input.session.maxScrollPercent < current.maxScrollPercent) return "stale";
-        if (current.reachedEndAt && input.session.reachedEndAt === null) return "stale";
-        sessions.set(input.session.clientReadingId, input.session);
+      const sessionBackup = cloneSessions(sessions);
+      const clickBackup = cloneClicks(clicks);
+      const rollback = () => {
+        sessions.clear();
+        for (const [key, value] of sessionBackup) sessions.set(key, value);
+        clicks.clear();
+        for (const [key, value] of clickBackup) clicks.set(key, value);
+      };
+      try {
+        if (input.kind === "create") {
+          if (sessions.has(input.session.clientReadingId)) return "stale";
+          sessions.set(input.session.clientReadingId, input.session);
+        } else {
+          const current = sessions.get(input.session.clientReadingId);
+          if (!current || current.endedAt) return "stale";
+          if (current.recordVersion !== input.session.recordVersion - 1) return "stale";
+          if (current.anonymousId !== input.session.anonymousId || current.sessionId !== input.session.sessionId || current.blogPostId !== input.session.blogPostId) return "stale";
+          if (input.session.activeTimeMs < current.activeTimeMs || input.session.maxScrollPercent < current.maxScrollPercent) return "stale";
+          if (current.reachedEndAt && input.session.reachedEndAt === null) return "stale";
+          sessions.set(input.session.clientReadingId, input.session);
+        }
+        if (input.click && state.failClicks > 0) {
+          state.failClicks -= 1;
+          throw new Error("falha entre sessão e clique");
+        }
+        if (input.click) {
+          const existing = clicks.get(input.click.eventId);
+          if (existing) {
+            if (existing.readingSessionId === input.session.id) return "applied";
+            rollback();
+            return "click-conflict";
+          }
+          if (![...sessions.values()].some((session) => session.id === input.click?.readingSessionId)) throw new Error("clique sem sessão");
+          clicks.set(input.click.eventId, input.click);
+        }
+        return "applied";
+      } catch (error) {
+        rollback();
+        throw error;
       }
-      if (input.click && state.failClicks > 0) {
-        state.failClicks -= 1;
-        throw new Error("falha entre sessão e clique");
-      }
-      if (input.click) {
-        const existing = clicks.get(input.click.eventId);
-        if (existing) return existing.readingSessionId === input.session.id ? "applied" : "click-conflict";
-        if (![...sessions.values()].some((session) => session.id === input.click?.readingSessionId)) throw new Error("clique sem sessão");
-        clicks.set(input.click.eventId, input.click);
-      }
-      return "applied";
     },
   };
   return { store, sessions, clicks, nextId: () => `id-${++sequence}` };
@@ -448,8 +473,39 @@ test("expurgo anda em lotes e não inclui o instante exato do corte", async () =
   assert.deepEqual(sizes, [2, 2, 2]);
   assert.equal(report.deletedSessions, 5);
   assert.equal(report.deletedClicks, 1);
+  assert.equal(report.batchesRun, 3);
+  assert.equal(report.truncated, false);
   assert.deepEqual(sessions.map((session) => session.id), ["edge"]);
   assert.equal(clicks.length, 0);
+
+  const leftover = [
+    ...[1, 2, 3, 4, 5].map((item) => ({ id: `left-${item}`, startedAt: new Date(cutoff.getTime() - item) })),
+    { id: "edge-2", startedAt: cutoff },
+  ];
+  const capped = await runBlogReadingRetention({
+    now,
+    execute: true,
+    batchSize: 2,
+    maxBatches: 2,
+    repository: {
+      async countExpired(limit) {
+        return leftover.filter((session) => session.startedAt < limit).length;
+      },
+      async deleteBatch(limit, size) {
+        const ids = leftover.filter((session) => session.startedAt < limit).slice(0, size).map((session) => session.id);
+        const idSet = new Set(ids);
+        for (let index = leftover.length - 1; index >= 0; index -= 1) {
+          const session = leftover[index];
+          if (session && idSet.has(session.id)) leftover.splice(index, 1);
+        }
+        return { sessions: ids.length, clicks: 0, fetched: ids.length };
+      },
+    },
+  });
+  assert.equal(capped.deletedSessions, 4);
+  assert.equal(capped.batchesRun, 2);
+  assert.equal(capped.truncated, true);
+  assert.equal(leftover.filter((session) => session.startedAt < cutoff).length, 1);
 });
 
 test("métricas derivadas e identidade editorial ficam separadas da jornada", () => {

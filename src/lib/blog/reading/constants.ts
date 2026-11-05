@@ -11,6 +11,8 @@ export const BLOG_READING_ABUSE_LIMIT = 60;
 export const BLOG_READING_RATE_WINDOW_SECONDS = 10 * 60;
 export const BLOG_READING_RETENTION_MONTHS = 12;
 export const BLOG_READING_RETENTION_BATCH = 100;
+/** Teto por execução do cron (≈2k sessões). O restante fica para o próximo disparo. */
+export const BLOG_READING_RETENTION_MAX_BATCHES = 20;
 export const BLOG_READING_COMMIT_ATTEMPTS = 3;
 
 export const BLOG_ENGAGED_MIN_ACTIVE_MS = 30_000;

@@ -3,6 +3,17 @@ import type { BlogReadingCommit, BlogReadingCommitResult, BlogReadingStore } fro
 import type { BlogReadingRecord } from "@/lib/blog/reading/lifecycle";
 import type { BlogReadingRetentionRepository } from "@/lib/blog/reading/retention";
 
+/** Abortar a interação do Prisma: retorno normal após mutação confirma a transação. */
+export class BlogReadingTxAbort extends Error {
+  readonly result: "click-conflict";
+
+  constructor(result: "click-conflict") {
+    super(result);
+    this.name = "BlogReadingTxAbort";
+    this.result = result;
+  }
+}
+
 function isUniqueConstraint(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
 }
@@ -50,6 +61,21 @@ function sessionData(row: BlogReadingRecord) {
   };
 }
 
+async function classifyUniqueConflict(
+  input: BlogReadingCommit,
+  findClick: (eventId: string) => Promise<{ readingSessionId: string } | null>,
+): Promise<BlogReadingCommitResult> {
+  if (!input.click) return "stale";
+  // Leitura fora da transação abortada: P2002 no PostgreSQL encerra o escopo.
+  const winner = await findClick(input.click.eventId);
+  if (winner?.readingSessionId === input.session.id) {
+    // Clique já desta sessão; a mutação da sessão foi desfeita. Relê e reavalia.
+    return "stale";
+  }
+  if (winner) return "click-conflict";
+  return "stale";
+}
+
 export function createPrismaBlogReadingStore(): BlogReadingStore {
   const prisma = () => getPrisma();
   return {
@@ -84,33 +110,31 @@ export function createPrismaBlogReadingStore(): BlogReadingStore {
             where: { eventId: input.click.eventId },
             select: { readingSessionId: true },
           });
-          if (current) return current.readingSessionId === input.session.id ? "applied" : "click-conflict";
-          try {
-            await tx.blogCommercialClick.create({
-              data: {
-                id: input.click.id,
-                eventId: input.click.eventId,
-                readingSessionId: input.click.readingSessionId,
-                blogPostId: input.click.blogPostId,
-                ctaName: input.click.ctaName,
-                destinationType: input.click.destinationType,
-                targetPath: input.click.targetPath,
-                occurredAt: input.click.occurredAt,
-              },
-            });
-          } catch (error) {
-            if (!isUniqueConstraint(error)) throw error;
-            const winner = await tx.blogCommercialClick.findUnique({
-              where: { eventId: input.click.eventId },
-              select: { readingSessionId: true },
-            });
-            if (winner?.readingSessionId === input.session.id) return "applied";
-            return "click-conflict";
+          if (current) {
+            if (current.readingSessionId === input.session.id) return "applied";
+            throw new BlogReadingTxAbort("click-conflict");
           }
+          await tx.blogCommercialClick.create({
+            data: {
+              id: input.click.id,
+              eventId: input.click.eventId,
+              readingSessionId: input.click.readingSessionId,
+              blogPostId: input.click.blogPostId,
+              ctaName: input.click.ctaName,
+              destinationType: input.click.destinationType,
+              targetPath: input.click.targetPath,
+              occurredAt: input.click.occurredAt,
+            },
+          });
           return "applied";
         });
       } catch (error) {
-        if (isUniqueConstraint(error)) return "stale";
+        if (error instanceof BlogReadingTxAbort) return error.result;
+        if (isUniqueConstraint(error)) {
+          return classifyUniqueConflict(input, (eventId) =>
+            prisma().blogCommercialClick.findUnique({ where: { eventId }, select: { readingSessionId: true } }),
+          );
+        }
         throw error;
       }
     },

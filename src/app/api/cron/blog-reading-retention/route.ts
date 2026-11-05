@@ -3,6 +3,8 @@ import { createPrismaBlogReadingRetentionRepository } from "@/lib/blog/reading/r
 import { runBlogReadingRetention } from "@/lib/blog/reading/retention";
 
 export const dynamic = "force-dynamic";
+/** Orçamento alinhado ao teto de lotes; o plano pode limitar abaixo disso. */
+export const maxDuration = 60;
 
 export function GET(request: Request) {
   return handleBlogReadingRetentionCron(request, {
