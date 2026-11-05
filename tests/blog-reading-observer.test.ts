@@ -111,6 +111,15 @@ test("profundidade usa o corpo editorial e marca final", () => {
   assert.equal(shouldFlushObserver(state, "depth"), true);
 });
 
+test("visibilidade após idle sela sem renovar lastActivityAt", () => {
+  let state = createBlogReadingObserverState({ clientReadingId: "11111111-1111-4111-8111-111111111111", blogPostId: POST, now: NOW });
+  state = applyObserverVisibility(state, NOW + 1_000, false);
+  assert.equal(state.lastActivityAt, NOW);
+  state = applyObserverVisibility(state, NOW + BLOG_READING_IDLE_MS + 60_000, true);
+  assert.equal(state.sealed, true);
+  assert.equal(state.lastActivityAt, NOW);
+});
+
 test("inatividade longa sela e renovação cria novo clientReadingId", () => {
   let state = createBlogReadingObserverState({ clientReadingId: "11111111-1111-4111-8111-111111111111", blogPostId: POST, now: NOW });
   state = applyObserverActivity(state, NOW);

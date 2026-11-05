@@ -23,6 +23,7 @@ import {
   applyObserverDepth,
   applyObserverVisibility,
   createBlogReadingObserverState,
+  isObserverIdleExpired,
   shouldFlushObserver,
   stopBlogReadingObserver,
   tickBlogReadingObserver,
@@ -530,7 +531,8 @@ export function createBlogReadingRuntime(input: {
     },
     noteActivity() {
       if (!state || state.stopped) return;
-      if (state.sealed) {
+      if (state.sealed || isObserverIdleExpired(state, input.now())) {
+        if (!state.sealed) sealLocally();
         beginFreshAfterIdle();
         return;
       }
@@ -539,7 +541,8 @@ export function createBlogReadingRuntime(input: {
     },
     noteDepth(depth) {
       if (!state || state.stopped) return;
-      if (state.sealed) {
+      if (state.sealed || isObserverIdleExpired(state, input.now())) {
+        if (!state.sealed) sealLocally();
         beginFreshAfterIdle();
         if (!state || state.stopped) return;
       }
@@ -551,6 +554,11 @@ export function createBlogReadingRuntime(input: {
       if (!state || state.stopped || state.sealed) return;
       state = applyObserverVisibility(state, input.now(), visible);
       persist();
+      if (state.sealed) {
+        // Aba visível após idle: sela sem abrir sessão nova.
+        enqueue("end");
+        return;
+      }
       if (!visible) enqueue("hide");
     },
     tick() {
@@ -567,7 +575,8 @@ export function createBlogReadingRuntime(input: {
     reportClick(command) {
       const eventId = command.eventId ?? input.randomUUID();
       if (!state || state.stopped) return eventId;
-      if (state.sealed) {
+      if (state.sealed || isObserverIdleExpired(state, input.now())) {
+        if (!state.sealed) sealLocally();
         beginFreshAfterIdle();
         if (!state || state.stopped) return eventId;
       }

@@ -65,14 +65,27 @@ export function measureEditorialDepth(input: {
   return { percent: reachedEnd ? 100 : percent, reachedEnd };
 }
 
+export function isObserverIdleExpired(state: BlogReadingObserverState, now: number): boolean {
+  if (state.stopped || state.sealed || state.ended) return false;
+  return now - state.lastActivityAt >= BLOG_READING_IDLE_MS;
+}
+
 export function applyObserverActivity(state: BlogReadingObserverState, now: number): BlogReadingObserverState {
   if (state.stopped || state.sealed || state.ended) return state;
+  // Expiração antes de renovar lastActivityAt — evita reutilizar sessão ociosa.
+  if (now - state.lastActivityAt >= BLOG_READING_IDLE_MS) {
+    return { ...state, sealed: true };
+  }
   return { ...state, lastActivityAt: now };
 }
 
 export function applyObserverVisibility(state: BlogReadingObserverState, now: number, visible: boolean): BlogReadingObserverState {
   if (state.stopped || state.sealed || state.ended) return state;
   if (!visible) return { ...state, lastTickAt: now };
+  // Visível de novo: checa idle antes de tocar lastActivityAt (aba oculta ≠ interação).
+  if (now - state.lastActivityAt >= BLOG_READING_IDLE_MS) {
+    return { ...state, lastTickAt: now, sealed: true };
+  }
   return { ...state, lastTickAt: now, lastActivityAt: now };
 }
 
