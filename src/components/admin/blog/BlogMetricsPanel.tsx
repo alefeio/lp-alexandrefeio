@@ -15,7 +15,7 @@ export function BlogMetricsPanel({ view }: { view: BlogMetricsView }) {
         <Link href="/admin/blog" className="text-sm underline underline-offset-4">Voltar aos artigos</Link>
       </div>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
-        Visualizações e origem de tráfego vêm do GA4. A lista usa só artigos publicados.
+        Visualizações e origem de tráfego vêm dos relatórios agregados do GA4. A lista usa só artigos publicados.
       </p>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed">{view.queryLabel}</p>
       <nav className="mt-6 flex flex-wrap gap-2" aria-label="Período">
@@ -48,17 +48,18 @@ function Pending({ view }: { view: BlogMetricsView }) {
 function Ready({ view }: { view: BlogMetricsView }) {
   return (
     <>
-      {view.message ? <p className="mt-6 max-w-3xl text-sm leading-relaxed text-muted">{view.message}</p> : null}
+      {view.scopeNote ? <p className="mt-6 max-w-3xl text-sm leading-relaxed text-muted">{view.scopeNote}</p> : null}
+      {view.message ? <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">{view.message}</p> : null}
       {view.insight ? <p className="mt-3 max-w-3xl text-sm leading-relaxed">{view.insight}</p> : null}
       {view.totals ? (
         <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <li className="rounded-lg border border-border p-4">
             <p className="text-sm">Visualizações</p>
-            <p className="mt-3 text-2xl font-semibold tabular-nums">{view.totals.views}</p>
+            <p className="mt-3 text-2xl font-semibold tabular-nums">{view.totals.views == null ? "—" : view.totals.views}</p>
           </li>
           <li className="rounded-lg border border-border p-4">
             <p className="text-sm">Usuários ativos</p>
-            <p className="mt-3 text-2xl font-semibold tabular-nums">{view.totals.activeUsers}</p>
+            <p className="mt-3 text-2xl font-semibold tabular-nums">{view.totals.activeUsers == null ? "—" : view.totals.activeUsers}</p>
             <p className="mt-2 text-sm leading-relaxed text-muted">{view.activeUserNote}</p>
           </li>
         </ul>
@@ -97,10 +98,10 @@ function Ready({ view }: { view: BlogMetricsView }) {
         <p className="mt-4 text-sm">Listagem /blog: <strong className="tabular-nums">{view.listing.views}</strong> visualizações. Usuários ativos: <strong className="tabular-nums">{view.listing.activeUsers == null ? "—" : view.listing.activeUsers}</strong>.</p>
       ) : null}
       <Split title="Categorias" rows={view.categories.map((row) => ({ label: row.label, value: row.views }))} empty="Nenhuma categoria com visualização." />
-      <Split title="Origem de tráfego" rows={view.sources.map((row) => ({ label: row.label, value: row.views }))} empty="O GA4 não devolveu origem neste recorte." />
+      <Split title="Origem de tráfego" rows={view.sources.map((row) => ({ label: row.label, value: row.views }))} empty="O GA4 não devolveu origem neste conjunto." note={view.sourceNote} />
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Evolução</h2>
-        {view.seriesTruncated ? <p className="mt-2 max-w-3xl text-sm text-muted">A tabela mostra os 90 dias mais recentes com visualização. Os totais usam o período inteiro.</p> : null}
+        {view.seriesNote ? <p className="mt-2 max-w-3xl text-sm text-muted">{view.seriesNote}</p> : null}
         {view.series.length === 0 ? <p className="mt-3 text-sm text-muted">Sem visualização diária neste recorte.</p> : (
           <div className="mt-4 max-w-md">
             <table className="w-full border-collapse text-left text-sm">
@@ -139,10 +140,11 @@ function Ready({ view }: { view: BlogMetricsView }) {
   );
 }
 
-function Split({ title, rows, empty }: { title: string; rows: Array<{ label: string; value: number }>; empty: string }) {
+function Split({ title, rows, empty, note }: { title: string; rows: Array<{ label: string; value: number }>; empty: string; note?: string }) {
   return (
     <section className="mt-10">
       <h2 className="text-lg font-semibold">{title}</h2>
+      {note ? <p className="mt-2 max-w-3xl text-sm text-muted">{note}</p> : null}
       {rows.length === 0 ? <p className="mt-3 text-sm text-muted">{empty}</p> : (
         <ul className="mt-3 max-w-xl space-y-2 text-sm">
           {rows.map((row) => (

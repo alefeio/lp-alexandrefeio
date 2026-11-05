@@ -5,16 +5,24 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 const CACHE_MS = 10 * 60 * 1000;
 
+export const BLOG_GA4_REPORTS = {
+  pages: { dimensions: ["pagePath"], metrics: ["screenPageViews", "activeUsers"] },
+  series: { dimensions: ["pagePath", "date"], metrics: ["screenPageViews"] },
+  sources: { dimensions: ["pagePath", "sessionSource", "sessionMedium"], metrics: ["screenPageViews"] },
+} as const;
+
 type Ga4Env = { GA4_PROPERTY_ID?: string; GA4_CLIENT_EMAIL?: string; GA4_PRIVATE_KEY?: string };
 type Ga4Config = { propertyId: string; clientEmail: string; privateKey: string };
 type CacheEntry = { expiresAt: number; snapshot: BlogGa4Snapshot };
 
 const reportCache = new Map<string, CacheEntry>();
 let tokenCache: { key: string; token: string; expiresAt: number } | null = null;
+let zoneCache: { key: string; zone: string | null; expiresAt: number } | null = null;
 
 export function clearBlogGa4Cache(): void {
   reportCache.clear();
   tokenCache = null;
+  zoneCache = null;
 }
 
 export function readGa4Config(env?: Ga4Env): { ok: true; config: Ga4Config } | { ok: false; message: string } {
@@ -46,24 +54,31 @@ export async function fetchBlogGa4Snapshot(input: {
 }): Promise<{ ok: true; snapshot: BlogGa4Snapshot } | { ok: false; status: "unconfigured" | "unavailable"; message: string }> {
   const config = readGa4Config(input.env);
   if (!config.ok) return { ok: false, status: "unconfigured", message: config.message };
-  const range = blogMetricRange(input.period, input.now);
-  const cacheKey = `${config.config.propertyId}:${input.period}:${range.startDate}:${range.endDate}`;
-  const cached = reportCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return { ok: true, snapshot: cached.snapshot };
   const fetchImpl = input.fetchImpl ?? fetch;
   try {
     const token = await accessToken(config.config, fetchImpl);
+    const propertyZone = await propertyTimeZone(config.config.propertyId, token, fetchImpl);
+    const range = blogMetricRange(input.period, input.now, propertyZone);
+    const cacheKey = `${config.config.propertyId}:${input.period}:${range.startDate}:${range.endDate}:${propertyZone ?? "unknown"}`;
+    const cached = reportCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return { ok: true, snapshot: cached.snapshot };
     const [pages, series, sources] = await Promise.all([
-      runReport(config.config.propertyId, token, range, ["pagePath"], ["screenPageViews", "activeUsers"], fetchImpl),
-      runReport(config.config.propertyId, token, range, ["date"], ["screenPageViews"], fetchImpl),
-      runReport(config.config.propertyId, token, range, ["sessionSource", "sessionMedium"], ["screenPageViews"], fetchImpl),
+      runReport(config.config.propertyId, token, range, BLOG_GA4_REPORTS.pages.dimensions, BLOG_GA4_REPORTS.pages.metrics, fetchImpl),
+      runReport(config.config.propertyId, token, range, BLOG_GA4_REPORTS.series.dimensions, BLOG_GA4_REPORTS.series.metrics, fetchImpl),
+      runReport(config.config.propertyId, token, range, BLOG_GA4_REPORTS.sources.dimensions, BLOG_GA4_REPORTS.sources.metrics, fetchImpl),
     ]);
+    const reportedZone = pages.timeZone ?? series.timeZone ?? sources.timeZone;
     const snapshot: BlogGa4Snapshot = {
+      timeZone: propertyZone ?? reportedZone,
+      rangeAligned: propertyZone != null,
+      range,
       pages: pages.rows.map((row) => ({ pagePath: row.dimensions[0] ?? "", views: metric(row, 0), activeUsers: metric(row, 1) })),
-      totals: { views: metric(pages.totals, 0), activeUsers: metric(pages.totals, 1) },
-      series: series.rows.map((row) => ({ date: row.dimensions[0] ?? "", views: metric(row, 0) })),
-      sources: sources.rows.map((row) => ({ source: row.dimensions[0] ?? "", medium: row.dimensions[1] ?? "", views: metric(row, 0) })),
-      truncated: pages.truncated || series.truncated || sources.truncated,
+      filteredActiveUsers: pages.truncated || pages.totals.length < 2 ? null : metric(pages.totals, 1),
+      pagesTruncated: pages.truncated,
+      series: series.rows.map((row) => ({ pagePath: row.dimensions[0] ?? "", date: row.dimensions[1] ?? "", views: metric(row, 0) })),
+      seriesTruncated: series.truncated,
+      sources: sources.rows.map((row) => ({ pagePath: row.dimensions[0] ?? "", source: row.dimensions[1] ?? "", medium: row.dimensions[2] ?? "", views: metric(row, 0) })),
+      sourcesTruncated: sources.truncated,
     };
     reportCache.set(cacheKey, { expiresAt: Date.now() + CACHE_MS, snapshot });
     return { ok: true, snapshot };
@@ -89,7 +104,7 @@ async function accessToken(config: Ga4Config, fetchImpl: typeof fetch): Promise<
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
     signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new Ga4RequestError(response.status === 429 ? quotaMessage() : "A credencial do GA4 não autorizou a consulta.");
+  if (!response.ok) throw new Ga4RequestError(statusMessage(response.status, "token"));
   const body = (await response.json()) as { access_token?: unknown; expires_in?: unknown };
   if (typeof body.access_token !== "string" || !body.access_token) throw new Ga4RequestError("A credencial do GA4 não autorizou a consulta.");
   const expiresIn = typeof body.expires_in === "number" ? body.expires_in : 3600;
@@ -101,10 +116,10 @@ async function runReport(
   propertyId: string,
   token: string,
   range: { startDate: string; endDate: string },
-  dimensions: string[],
-  metrics: string[],
+  dimensions: readonly string[],
+  metrics: readonly string[],
   fetchImpl: typeof fetch,
-): Promise<{ rows: Array<{ dimensions: string[]; metrics: number[] }>; totals: number[]; truncated: boolean }> {
+): Promise<{ rows: Array<{ dimensions: string[]; metrics: number[] }>; totals: number[]; truncated: boolean; timeZone: string | null }> {
   const response = await fetchImpl(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -112,25 +127,67 @@ async function runReport(
       dateRanges: [range],
       dimensions: dimensions.map((name) => ({ name })),
       metrics: metrics.map((name) => ({ name })),
-      dimensionFilter: { filter: { fieldName: "pagePath", stringFilter: { matchType: "BEGINS_WITH", value: "/blog", caseSensitive: false } } },
+      dimensionFilter: {
+        filter: {
+          fieldName: "pagePath",
+          stringFilter: { matchType: "BEGINS_WITH", value: "/blog", caseSensitive: false },
+        },
+      },
       metricAggregations: ["TOTAL"],
       limit: "10000",
       keepEmptyRows: false,
     }),
     signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new Ga4RequestError(response.status === 429 ? quotaMessage() : "O GA4 recusou ou não respondeu a consulta.");
+  if (!response.ok) throw new Ga4RequestError(statusMessage(response.status, "report"));
   const body = (await response.json()) as {
     rows?: Array<{ dimensionValues?: Array<{ value?: string }>; metricValues?: Array<{ value?: string }> }>;
     totals?: Array<{ metricValues?: Array<{ value?: string }> }>;
     rowCount?: number;
+    metadata?: { timeZone?: string };
   };
   const rows = (body.rows ?? []).map((row) => ({
     dimensions: (row.dimensionValues ?? []).map((item) => item.value ?? ""),
     metrics: (row.metricValues ?? []).map((item) => numberValue(item.value)),
   }));
   const totals = (body.totals?.[0]?.metricValues ?? []).map((item) => numberValue(item.value));
-  return { rows, totals, truncated: (body.rowCount ?? rows.length) > rows.length };
+  const timeZone = typeof body.metadata?.timeZone === "string" ? body.metadata.timeZone : null;
+  return { rows, totals, truncated: (body.rowCount ?? rows.length) > rows.length, timeZone };
+}
+
+async function propertyTimeZone(propertyId: string, token: string, fetchImpl: typeof fetch): Promise<string | null> {
+  if (zoneCache && zoneCache.key === propertyId && zoneCache.expiresAt > Date.now()) return zoneCache.zone;
+  let zone: string | null = null;
+  try {
+    const response = await fetchImpl(`https://analyticsadmin.googleapis.com/v1beta/properties/${propertyId}`, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (response.ok) {
+      const body = (await response.json()) as { timeZone?: unknown };
+      zone = typeof body.timeZone === "string" && isTimeZone(body.timeZone) ? body.timeZone : null;
+    }
+  } catch {
+    zone = null;
+  }
+  zoneCache = { key: propertyId, zone, expiresAt: Date.now() + CACHE_MS };
+  return zone;
+}
+
+function isTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function statusMessage(status: number, stage: "token" | "report"): string {
+  if (status === 429) return quotaMessage();
+  if (status === 401) return "A credencial do GA4 não autorizou a consulta.";
+  if (status === 403) return stage === "token" ? "A credencial do GA4 não autorizou a consulta." : "A conta de serviço não tem permissão de leitura nesta propriedade.";
+  return "O GA4 recusou ou não respondeu a consulta.";
 }
 
 function signServiceJwt(email: string, privateKey: string, nowSec: number): string {
