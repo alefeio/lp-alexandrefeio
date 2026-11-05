@@ -1019,6 +1019,7 @@ model BlogReadingSession {
   utmMedium        String?
   utmCampaign      String?
   schemaVersion    Int
+  recordVersion    Int       @default(0)
   consentUpdatedAt DateTime
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

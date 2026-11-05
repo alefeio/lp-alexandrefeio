@@ -19,6 +19,7 @@ CREATE TABLE "blog_reading_session" (
     "utmMedium" TEXT,
     "utmCampaign" TEXT,
     "schemaVersion" INTEGER NOT NULL,
+    "recordVersion" INTEGER NOT NULL DEFAULT 0,
     "consentUpdatedAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

@@ -25,6 +25,7 @@ export type BlogReadingRecord = {
   utmMedium: string | null;
   utmCampaign: string | null;
   schemaVersion: number;
+  recordVersion: number;
   consentUpdatedAt: Date;
 };
 
@@ -73,7 +74,11 @@ export function decideBlogReading(input: {
       if (existing.endedAt) return { kind: "reject", status: 409 };
       return {
         kind: "seal",
-        session: { ...existing, endedAt: new Date(existing.lastActivityAt.getTime() + BLOG_READING_IDLE_MS) },
+        session: {
+          ...existing,
+          recordVersion: existing.recordVersion + 1,
+          endedAt: new Date(existing.lastActivityAt.getTime() + BLOG_READING_IDLE_MS),
+        },
       };
     }
     const timeBack = command.activeTimeMs < existing.activeTimeMs;
@@ -101,6 +106,7 @@ export function decideBlogReading(input: {
       click,
       session: {
         ...existing,
+        recordVersion: existing.recordVersion + 1,
         lastActivityAt: new Date(now),
         activeTimeMs: command.activeTimeMs,
         maxScrollPercent: command.maxScrollPercent,
@@ -110,8 +116,9 @@ export function decideBlogReading(input: {
     };
   }
 
+  if (command.activeTimeMs !== 0) return { kind: "reject", status: 400 };
+  if (command.maxScrollPercent !== 0 || command.reachedEnd || command.ended) return { kind: "reject", status: 404 };
   if (!input.published || input.published.id !== command.blogPostId) return { kind: "reject", status: 404 };
-  if (command.activeTimeMs > BLOG_READING_MAX_INCREMENT_MS) return { kind: "reject", status: 400 };
   const session: BlogReadingRecord = {
     id: input.nextId(),
     clientReadingId: command.clientReadingId,
@@ -121,15 +128,16 @@ export function decideBlogReading(input: {
     sessionId: command.sessionId,
     startedAt: new Date(now),
     lastActivityAt: new Date(now),
-    endedAt: command.ended ? new Date(now) : null,
-    activeTimeMs: command.activeTimeMs,
-    maxScrollPercent: command.maxScrollPercent,
-    reachedEndAt: command.reachedEnd ? new Date(now) : null,
+    endedAt: null,
+    activeTimeMs: 0,
+    maxScrollPercent: 0,
+    reachedEndAt: null,
     referrerHost: command.referrerHost,
     utmSource: command.utmSource,
     utmMedium: command.utmMedium,
     utmCampaign: command.utmCampaign,
     schemaVersion: BLOG_READING_SCHEMA_VERSION,
+    recordVersion: 0,
     consentUpdatedAt: command.consentUpdatedAt,
   };
   const click = resolveClick(session, command, input.existingClick, now, input.nextId);

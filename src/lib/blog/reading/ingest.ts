@@ -1,5 +1,5 @@
 import type { DurableRateLimitResult } from "@/lib/landing-page/rate-limit/durable";
-import { BLOG_READING_MAX_BODY_BYTES } from "@/lib/blog/reading/constants";
+import { BLOG_READING_COMMIT_ATTEMPTS, BLOG_READING_MAX_BODY_BYTES } from "@/lib/blog/reading/constants";
 import { decideBlogReading, type BlogClickRecord, type BlogReadingRecord } from "@/lib/blog/reading/lifecycle";
 import { isBlogReadingPrefetch, parseBlogReading, type BlogReadingCommand } from "@/lib/blog/reading/schema";
 
@@ -7,12 +7,18 @@ const NO_STORE = { "cache-control": "no-store", "x-content-type-options": "nosni
 
 export class BlogReadingConflict extends Error {}
 
+export type BlogReadingCommit = {
+  kind: "create" | "update" | "seal";
+  session: BlogReadingRecord;
+  click: BlogClickRecord | null;
+};
+
+export type BlogReadingCommitResult = "applied" | "stale" | "click-conflict";
+
 export type BlogReadingStore = {
   findSession(clientReadingId: string): Promise<BlogReadingRecord | null>;
-  insertSession(row: BlogReadingRecord): Promise<void>;
-  saveSession(row: BlogReadingRecord): Promise<boolean>;
   findClick(eventId: string): Promise<{ readingSessionId: string } | null>;
-  insertClick(row: BlogClickRecord): Promise<void>;
+  commit(input: BlogReadingCommit): Promise<BlogReadingCommitResult>;
 };
 
 export type PublishedBlogPost = { id: string; slug: string };
@@ -24,8 +30,8 @@ function json(status: number): Response {
 
 /**
  * clientReadingId deduplica a sessão. Não prova que o navegador é dono dela.
- * A atualização só segue se artigo, pseudônimo e sessão de aba forem os mesmos já gravados.
- * O limite por pseudônimo e o limite de abuso são outra camada: um retry deduplicado ainda conta na cota.
+ * recordVersion é a trava otimista: gravar exige a versão lida, e tempo, profundidade e final não regridem.
+ * Conflito de versão relê a linha e reavalia o mesmo comando. A cota continua valendo para o retry deduplicado.
  */
 export async function handleBlogReadingRequest(
   request: Request,
@@ -59,7 +65,7 @@ export async function handleBlogReadingRequest(
   const identity = await deps.consumeIdentity(parsed.value.anonymousId, now);
   if (!identity.allowed) return json(429);
   const nextId = deps.nextId ?? (() => crypto.randomUUID());
-  return applyCommand(parsed.value, now, deps, nextId, true);
+  return applyCommand(parsed.value, now, deps, nextId);
 }
 
 async function applyCommand(
@@ -70,33 +76,27 @@ async function applyCommand(
     store: BlogReadingStore;
   },
   nextId: () => string,
-  allowRetry: boolean,
 ): Promise<Response> {
-  const existing = await deps.store.findSession(command.clientReadingId);
-  const published = existing ? null : await deps.findPublished(command.blogPostId);
-  const existingClick = command.click ? await deps.store.findClick(command.click.eventId) : null;
-  const decision = decideBlogReading({ now, command, existing, published, existingClick, nextId });
-  if (decision.kind === "noop") return json(200);
-  if (decision.kind === "reject") return json(decision.status);
-  if (decision.kind === "seal") {
-    await deps.store.saveSession(decision.session);
-    return json(409);
-  }
-  try {
-    if (decision.created) await deps.store.insertSession(decision.session);
-    else if (!(await deps.store.saveSession(decision.session))) return json(409);
-  } catch (error) {
-    if (!(error instanceof BlogReadingConflict) || !allowRetry) return json(500);
-    return applyCommand(command, now, deps, nextId, false);
-  }
-  if (decision.click) {
+  for (let attempt = 0; attempt < BLOG_READING_COMMIT_ATTEMPTS; attempt += 1) {
+    const existing = await deps.store.findSession(command.clientReadingId);
+    const published = existing ? null : await deps.findPublished(command.blogPostId);
+    const existingClick = command.click ? await deps.store.findClick(command.click.eventId) : null;
+    const decision = decideBlogReading({ now, command, existing, published, existingClick, nextId });
+    if (decision.kind === "noop") return json(200);
+    if (decision.kind === "reject") return json(decision.status);
     try {
-      await deps.store.insertClick(decision.click);
+      const result = await deps.store.commit({
+        kind: decision.kind === "seal" ? "seal" : decision.created ? "create" : "update",
+        session: decision.session,
+        click: decision.kind === "write" ? decision.click : null,
+      });
+      if (result === "stale" || result === "click-conflict") continue;
+      return json(decision.kind === "seal" ? 409 : 202);
     } catch (error) {
-      if (!(error instanceof BlogReadingConflict)) return json(500);
-      const current = await deps.store.findClick(decision.click.eventId);
-      if (current?.readingSessionId !== decision.session.id) return json(409);
+      if (error instanceof BlogReadingConflict) continue;
+      if (attempt + 1 < BLOG_READING_COMMIT_ATTEMPTS) continue;
+      return json(500);
     }
   }
-  return json(202);
+  return json(409);
 }
