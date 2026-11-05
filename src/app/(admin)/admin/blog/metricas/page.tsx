@@ -1,6 +1,7 @@
 import { BlogMetricsPanel } from "@/components/admin/blog/BlogMetricsPanel";
 import { Container } from "@/components/ui/Container";
 import { loadBlogMetrics } from "@/lib/admin/blog-metrics-load";
+import { loadBlogReadingMetrics } from "@/lib/admin/blog-reading-metrics-load";
 import { requireAdmin } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -14,11 +15,11 @@ export default async function AdminBlogMetricsPage({
   const session = await requireAdmin();
   if (!session) return null;
   const query = await searchParams;
-  const view = await loadBlogMetrics(query);
+  const [reading, ga4] = await Promise.all([loadBlogReadingMetrics(query), loadBlogMetrics(query)]);
 
   return (
     <Container>
-      <BlogMetricsPanel view={view} />
+      <BlogMetricsPanel reading={reading} ga4={ga4} />
     </Container>
   );
 }

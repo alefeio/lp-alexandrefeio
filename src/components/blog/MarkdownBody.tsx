@@ -4,7 +4,7 @@ import { isSafeHref } from "@/lib/blog/rules";
 
 export function MarkdownBody({ markdown }: { markdown: string }) {
   return (
-    <div className="text-base leading-relaxed">
+    <div className="text-base leading-relaxed" data-blog-reading-body>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
