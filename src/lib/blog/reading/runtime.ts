@@ -105,8 +105,24 @@ export function createBlogReadingRuntime(input: {
   let confirmed: ProgressSnapshot | null = null;
   let inFlight: QueueItem | null = null;
   let lastNonUrgentSendAt = 0;
+  let sendBlockedUntil = 0;
   let retryTimer: { cancel: () => void } | null = null;
   const queue: QueueItem[] = [];
+
+  function mergeMonotonic(base: ProgressSnapshot, next: ProgressSnapshot): ProgressSnapshot {
+    return {
+      activeTimeMs: Math.max(base.activeTimeMs, next.activeTimeMs),
+      maxScrollPercent: Math.max(base.maxScrollPercent, next.maxScrollPercent),
+      reachedEnd: base.reachedEnd || next.reachedEnd,
+      ended: base.ended || next.ended,
+    };
+  }
+
+  function clearRetrySchedule() {
+    retryTimer?.cancel();
+    retryTimer = null;
+    sendBlockedUntil = 0;
+  }
 
   function checkpointFromState(current: BlogReadingObserverState): BlogReadingCheckpoint {
     return {
@@ -170,11 +186,18 @@ export function createBlogReadingRuntime(input: {
     if (!click && (reason === "interval" || reason === "depth" || reason === "hide")) {
       const index = queue.findIndex((item) => item.generation === generation && !item.click && item.reason === reason);
       if (index >= 0) {
+        const merged = mergeMonotonic(queue[index]!.snapshot, snapshot);
         queue[index] = {
           ...queue[index]!,
-          snapshot,
+          snapshot: merged,
           id: queue[index]!.id,
         };
+        // Pacotes posteriores não podem regressar frente a um passivo mais novo.
+        for (let i = index + 1; i < queue.length; i += 1) {
+          const row = queue[i];
+          if (!row || row.generation !== generation) continue;
+          queue[i] = { ...row, snapshot: mergeMonotonic(row.snapshot, merged) };
+        }
         void pump();
         return;
       }
@@ -219,19 +242,31 @@ export function createBlogReadingRuntime(input: {
   }
 
   function scheduleRetry(delayMs: number) {
+    const until = input.now() + Math.max(0, delayMs);
+    // Não encurta um bloqueio já vigente (ex.: enqueue durante backoff de 429).
+    if (until <= sendBlockedUntil && retryTimer) return;
+    sendBlockedUntil = Math.max(sendBlockedUntil, until);
+    const wait = Math.max(0, sendBlockedUntil - input.now());
     retryTimer?.cancel();
     retryTimer = schedule(() => {
       retryTimer = null;
+      sendBlockedUntil = 0;
       void pump();
-    }, delayMs);
+    }, wait);
+  }
+
+  function isSendBlocked() {
+    return sendBlockedUntil > input.now();
   }
 
   async function pump() {
     if (pumping || !state) return;
     if (inFlight) return;
+    if (isSendBlocked()) return;
     pumping = true;
     try {
       while (queue.length > 0 && state && !state.stopped && !inFlight) {
+        if (isSendBlocked()) break;
         const item = queue[0];
         if (!item) break;
         if (item.generation !== generation || item.clientReadingId !== state.clientReadingId) {
@@ -257,15 +292,17 @@ export function createBlogReadingRuntime(input: {
 
         queue.shift();
         inFlight = item;
+        const sentSnapshot =
+          item.reason === "open" ? item.snapshot : mergeMonotonic(confirmed ?? item.snapshot, item.snapshot);
         const body = buildBlogReadingPayload({
           clientReadingId: item.clientReadingId,
           blogPostId: input.blogPostId,
           anonymousId,
           sessionId,
-          activeTimeMs: item.snapshot.activeTimeMs,
-          maxScrollPercent: item.snapshot.maxScrollPercent,
-          reachedEnd: item.snapshot.reachedEnd,
-          ended: item.snapshot.ended,
+          activeTimeMs: sentSnapshot.activeTimeMs,
+          maxScrollPercent: sentSnapshot.maxScrollPercent,
+          reachedEnd: sentSnapshot.reachedEnd,
+          ended: sentSnapshot.ended,
           consentUpdatedAt: input.consentUpdatedAt(),
           attributionRaw: input.attributionRaw?.() ?? null,
           click: item.click
@@ -301,8 +338,8 @@ export function createBlogReadingRuntime(input: {
           if (finished.reason === "interval" || finished.reason === "open") {
             lastNonUrgentSendAt = input.now();
           }
-          applyConfirmed(finished.snapshot);
-          if (finished.reason === "end" || finished.snapshot.ended) {
+          applyConfirmed(sentSnapshot);
+          if (finished.reason === "end" || sentSnapshot.ended) {
             sealLocally();
             continue;
           }
@@ -371,7 +408,7 @@ export function createBlogReadingRuntime(input: {
       }
     } finally {
       pumping = false;
-      if (!inFlight && queue.length > 0 && state && !state.stopped) void pump();
+      if (!inFlight && queue.length > 0 && state && !state.stopped && !isSendBlocked()) void pump();
     }
   }
 
@@ -382,6 +419,7 @@ export function createBlogReadingRuntime(input: {
     pendingResume = null;
     queue.length = 0;
     inFlight = null;
+    clearRetrySchedule();
     clearBlogReadingCheckpoint(input.session, input.blogPostId);
   }
 
@@ -393,6 +431,7 @@ export function createBlogReadingRuntime(input: {
     pendingResume = null;
     queue.length = 0;
     inFlight = null;
+    clearRetrySchedule();
     const now = input.now();
     const clientReadingId = input.randomUUID();
     state = createBlogReadingObserverState({ clientReadingId, blogPostId: input.blogPostId, now });
@@ -409,8 +448,7 @@ export function createBlogReadingRuntime(input: {
       opened = false;
       confirmed = null;
       pendingResume = null;
-      retryTimer?.cancel();
-      retryTimer = null;
+      clearRetrySchedule();
       const now = input.now();
       anonymousId = readOrCreateBlogReaderId(input.local, now, input.randomUUID);
       sessionId = readOrCreateBlogSessionId(input.session, input.randomUUID);
@@ -462,8 +500,7 @@ export function createBlogReadingRuntime(input: {
       generation += 1;
       queue.length = 0;
       inFlight = null;
-      retryTimer?.cancel();
-      retryTimer = null;
+      clearRetrySchedule();
       if (reason === "revoke") {
         clearBlogReadingCheckpoint(input.session, input.blogPostId);
         state = state ? stopBlogReadingObserver(state) : null;

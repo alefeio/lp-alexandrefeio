@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readBlogReadingCheckpoint } from "../src/lib/blog/reading/checkpoint";
+import { readBlogReadingCheckpoint, writeBlogReadingCheckpoint } from "../src/lib/blog/reading/checkpoint";
 import type { BlogReadingSendBody, BlogReadingSendResult } from "../src/lib/blog/reading/client";
 import {
   BLOG_READING_FLUSH_ACTIVE_MS,
@@ -8,6 +8,7 @@ import {
   BLOG_READING_MIN_SEND_GAP_MS,
   BLOG_READING_RATE_LIMIT,
   BLOG_READING_RATE_WINDOW_SECONDS,
+  BLOG_READING_RETRY_BACKOFF_MS,
 } from "../src/lib/blog/reading/constants";
 import { createBlogReadingRuntime } from "../src/lib/blog/reading/runtime";
 
@@ -510,4 +511,195 @@ test("abertura reconstruída após falhas de rede volta a zero", async () => {
   assert.ok(opens.length >= 2);
   assert.ok(opens.every((body) => body.activeTimeMs === 0 && body.maxScrollPercent === 0));
   assert.ok(runtime.isOpened());
+});
+
+test("429 não dispara segunda tentativa antes do backoff", async () => {
+  let limited = true;
+  const { runtime, sent, scheduled, runScheduled } = harness({
+    send: async () => {
+      if (limited) {
+        limited = false;
+        return { kind: "limited", status: 429 };
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  assert.equal(sent.length, 1);
+  assert.equal(scheduled.length, 1);
+  assert.ok(scheduled[0]!.ms >= BLOG_READING_RETRY_BACKOFF_MS);
+  const before = sent.length;
+  runtime.noteActivity();
+  runtime.noteDepth({ percent: 25, reachedEnd: false });
+  await flush();
+  assert.equal(sent.length, before);
+  runScheduled();
+  await flush();
+  assert.ok(sent.length > before);
+  assert.ok(runtime.isOpened());
+});
+
+test("falha de rede respeita a mesma espera de backoff", async () => {
+  let fails = 1;
+  const { runtime, sent, scheduled, runScheduled } = harness({
+    send: async () => {
+      if (fails > 0) {
+        fails -= 1;
+        return { kind: "network" };
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  assert.equal(sent.length, 1);
+  assert.equal(scheduled.length, 1);
+  assert.ok(scheduled[0]!.ms >= BLOG_READING_RETRY_BACKOFF_MS);
+  const before = sent.length;
+  await flush();
+  assert.equal(sent.length, before);
+  runScheduled();
+  await flush();
+  assert.equal(sent.length, before + 1);
+});
+
+test("gap de 20 segundos não provoca loop síncrono", async () => {
+  const { runtime, clock, sent, scheduled, runScheduled, session } = harness();
+  writeBlogReadingCheckpoint(session, POST, {
+    clientReadingId: "11111111-1111-4111-8111-000000000099",
+    activeTimeMs: BLOG_READING_FLUSH_ACTIVE_MS,
+    maxScrollPercent: 0,
+    reachedEnd: false,
+    lastActivityAt: NOW,
+    opened: false,
+  });
+  runtime.start();
+  await flush();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0]?.activeTimeMs, 0);
+  assert.equal(scheduled.length, 1);
+  assert.ok(scheduled[0]!.ms > 0);
+  assert.ok(scheduled[0]!.ms <= BLOG_READING_MIN_SEND_GAP_MS);
+  const before = sent.length;
+  await flush();
+  assert.equal(sent.length, before);
+  clock.value += scheduled[0]!.ms;
+  runScheduled();
+  await flush();
+  assert.ok(sent.length > before);
+  assert.ok(sent.some((body) => body.activeTimeMs >= BLOG_READING_FLUSH_ACTIVE_MS));
+});
+
+test("novo enqueue durante backoff não ignora o bloqueio", async () => {
+  let limited = true;
+  const { runtime, sent, scheduled, runScheduled } = harness({
+    send: async (body) => {
+      if (body.activeTimeMs === 0 && body.maxScrollPercent === 0 && !body.click) {
+        if (limited) {
+          limited = false;
+          return { kind: "limited", status: 429 };
+        }
+        return { kind: "ok", status: 202 };
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  assert.equal(sent.length, 1);
+  const backoffMs = scheduled[0]!.ms;
+  assert.ok(backoffMs >= BLOG_READING_RETRY_BACKOFF_MS);
+  runtime.noteDepth({ percent: 50, reachedEnd: false });
+  runtime.reportClick({
+    ctaName: "traffic_course",
+    destinationType: "course",
+    targetPath: "/cursos/trafego",
+  });
+  await flush();
+  assert.equal(sent.length, 1);
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0]!.ms, backoffMs);
+  runScheduled();
+  await flush();
+  assert.ok(sent.length >= 2);
+  assert.ok(runtime.isOpened());
+});
+
+test("profundidade 50 → clique → profundidade 75 mantém sequência válida", async () => {
+  const gate: { resolve: ((value: BlogReadingSendResult) => void) | null } = { resolve: null };
+  let openedOnce = false;
+  const { runtime, clock, sent } = harness({
+    send: async (body) => {
+      if (body.activeTimeMs === 0 && body.maxScrollPercent === 0 && !body.click) {
+        openedOnce = true;
+        return { kind: "ok", status: 202 };
+      }
+      if (openedOnce && !gate.resolve && !body.click) {
+        return await new Promise<BlogReadingSendResult>((resolve) => {
+          gate.resolve = resolve;
+        });
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  clock.value = NOW + BLOG_READING_FLUSH_ACTIVE_MS;
+  runtime.noteActivity();
+  runtime.tick();
+  await flush();
+  assert.equal(typeof gate.resolve, "function");
+  runtime.noteDepth({ percent: 50, reachedEnd: false });
+  const eventId = runtime.reportClick({
+    ctaName: "traffic_course",
+    destinationType: "course",
+    targetPath: "/cursos/trafego",
+  });
+  runtime.noteDepth({ percent: 75, reachedEnd: false });
+  gate.resolve?.({ kind: "ok", status: 202 });
+  await flush();
+  const afterInterval = sent.slice(2);
+  assert.ok(afterInterval.length >= 2);
+  let previousScroll = sent[1]?.maxScrollPercent ?? 0;
+  let previousTime = sent[1]?.activeTimeMs ?? 0;
+  let clickCount = 0;
+  for (const body of afterInterval) {
+    assert.ok(body.maxScrollPercent >= previousScroll);
+    assert.ok(body.activeTimeMs >= previousTime);
+    previousScroll = body.maxScrollPercent;
+    previousTime = body.activeTimeMs;
+    if (body.click) {
+      clickCount += 1;
+      assert.equal(body.click.eventId, eventId);
+      assert.ok(body.maxScrollPercent >= 50);
+    }
+  }
+  assert.equal(clickCount, 1);
+  assert.ok(afterInterval.some((body) => body.maxScrollPercent >= 75));
+  assert.ok((runtime.getConfirmed()?.maxScrollPercent ?? 0) >= 50);
+});
+
+test("revogação cancela timers pendentes", async () => {
+  let limited = true;
+  const { runtime, sent, scheduled, runScheduled } = harness({
+    send: async () => {
+      if (limited) {
+        limited = false;
+        return { kind: "limited", status: 429 };
+      }
+      return { kind: "ok", status: 202 };
+    },
+  });
+  runtime.start();
+  await flush();
+  assert.equal(sent.length, 1);
+  assert.equal(scheduled.length, 1);
+  runtime.dispose("revoke");
+  assert.equal(scheduled.length, 0);
+  const before = sent.length;
+  runScheduled();
+  await flush();
+  assert.equal(sent.length, before);
+  assert.equal(runtime.getState()?.stopped, true);
 });
