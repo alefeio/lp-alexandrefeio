@@ -131,6 +131,8 @@ Visualizações, origem e evolução usam o mesmo conjunto visível. Usuários a
 
 Cliques do artigo usam o evento existente `cta_click`, com `cta_location=blog_post`, `destination_type` e `blog_post_slug`. A listagem usa `cta_location=blog_index`. “Conhecer a gestão” continua em `service_from_course_click`. Esses parâmetros só viram relatório depois que o GTM os encaminhar e o GA4 registrar a dimensão. Até lá o painel não mostra contagem de clique. Não publique tag nova automaticamente.
 
+A fundação first-party fica em `BlogReadingSession` e `BlogCommercialClick`. O endpoint `POST /api/analytics/blog-reading` responde 404 enquanto `BLOG_READING_INGEST_ENABLED` não for exatamente `true`. Sem essa variável, a rota não grava. O pseudônimo é `af_blog_reader_id_v1`, separado de `af_journey_id_v1`, e não se liga a conta nem a compra. Sessão engajada significa pelo menos 30 segundos ativos e 50% do conteúdo. Leitura profunda significa pelo menos 60 segundos ativos e 75% do conteúdo ou o final alcançado. São critérios operacionais, calculados na leitura, não uma coluna nem uma prova de leitura. A mesma sessão continua só com menos de 30 minutos desde a última atividade. Registros individuais expiram 12 meses após `startedAt`, no cron `/api/cron/blog-reading-retention`. O painel administrativo continua no GA4 até a etapa do dashboard.
+
 ## 10. O que fica fora do código
 
 - Measurement ID do GA4

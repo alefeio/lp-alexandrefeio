@@ -91,6 +91,25 @@ export default function PrivacyPage() {
               e as solicitações relacionadas a dados. Pedidos, progresso, diagnósticos e acessos comprados são registros
               da conta, não desse identificador, e não são apagados por essa retirada.
             </p>
+            <h2 className="pt-4 text-lg font-semibold text-foreground">Leitura do blog</h2>
+            <p>
+              Com o mesmo consentimento de analytics, {host} pode registrar uma sessão de leitura de artigo publicado.
+              O registro observa qual artigo foi aberto, um pseudônimo editorial guardado à parte do identificador da
+              jornada, a sessão da aba, o tempo ativo estimado enquanto a página está visível e houve interação recente,
+              a maior profundidade alcançada no conteúdo e se o final do artigo entrou na tela. Um clique em curso ou
+              serviço a partir do artigo pode ser registrado junto. Esse clique não é pedido, pagamento nem lead.
+            </p>
+            <p>
+              A sessão não guarda nome, e-mail, telefone, texto digitado, endereço IP bruto nem o movimento do mouse.
+              Não é ligada à conta nem à compra. Não prova leitura integral, compreensão ou intenção. A gravação só
+              acontece com consentimento de analytics e enquanto a coleta estiver ativada. Quem recusa analytics não
+              entra nessa conta, e um fechamento abrupto pode ficar sem horário de término.
+            </p>
+            <p>
+              Ao retirar o consentimento, novas sessões e atualizações deixam de ser enviadas e o pseudônimo editorial
+              é removido do navegador. Isso não é, por si, um pedido de eliminação. Os registros já gravados permanecem
+              por até 12 meses, contados do início da sessão, salvo pedido aplicável de exclusão.
+            </p>
             <h2 className="pt-4 text-lg font-semibold text-foreground">Landing pages criadas na plataforma</h2>
             <p>
               Usuários autenticados podem criar e publicar landing pages. Essas páginas podem ter botões, links
