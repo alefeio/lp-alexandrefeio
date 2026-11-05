@@ -991,10 +991,63 @@ model BlogPost {
   updatedAt          DateTime     @updatedAt
   relatedIdeas       BlogEditorialIdea[] @relation("BlogIdeaRelatedPost")
   draftIdeas         BlogEditorialIdea[] @relation("BlogIdeaDraftPost")
+  readingSessions    BlogReadingSession[]
+  commercialClicks   BlogCommercialClick[]
 
   @@index([status, publishedAt])
   @@index([categorySlug, status])
   @@map("blog_post")
+}
+
+/// Sessão de leitura observada de um artigo. Não guarda conta, compra, IP, e-mail nem nível de engajamento.
+model BlogReadingSession {
+  id               String    @id @default(cuid())
+  clientReadingId  String    @unique
+  blogPostId       String?
+  blogPost         BlogPost? @relation(fields: [blogPostId], references: [id], onDelete: SetNull)
+  slugObserved     String
+  anonymousId      String
+  sessionId        String
+  startedAt        DateTime
+  lastActivityAt   DateTime
+  endedAt          DateTime?
+  activeTimeMs     Int       @default(0)
+  maxScrollPercent Int       @default(0)
+  reachedEndAt     DateTime?
+  referrerHost     String?
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  schemaVersion    Int
+  recordVersion    Int       @default(0)
+  consentUpdatedAt DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  clicks           BlogCommercialClick[]
+
+  @@index([blogPostId, startedAt])
+  @@index([anonymousId, blogPostId, startedAt])
+  @@index([startedAt])
+  @@map("blog_reading_session")
+}
+
+/// Clique comercial observado a partir de um artigo. Não é pedido, pagamento nem lead.
+model BlogCommercialClick {
+  id               String              @id @default(cuid())
+  eventId          String              @unique
+  readingSessionId String
+  readingSession   BlogReadingSession  @relation(fields: [readingSessionId], references: [id], onDelete: Cascade)
+  blogPostId       String?
+  blogPost         BlogPost?           @relation(fields: [blogPostId], references: [id], onDelete: SetNull)
+  ctaName          String
+  destinationType  String
+  targetPath       String?
+  occurredAt       DateTime
+  createdAt        DateTime            @default(now())
+
+  @@index([blogPostId, occurredAt])
+  @@index([readingSessionId, occurredAt])
+  @@map("blog_commercial_click")
 }
 
 /// Memória editorial. Status, papel e intenção ficam em código para não exigir enum a cada ajuste.

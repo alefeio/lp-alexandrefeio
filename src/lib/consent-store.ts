@@ -1,5 +1,6 @@
 import { pushConsentDefaults, pushConsentUpdate } from "@/lib/analytics";
 import { clearPendingCourseView, flushPendingCourseView } from "@/lib/product-journey/current-view";
+import { clearBlogReadingIdentity } from "@/lib/blog/reading/identity";
 import { clearJourneyIdentity } from "@/lib/product-journey/identity";
 import {
   CONSENT_STORAGE_KEY,
@@ -98,6 +99,7 @@ function persist(next: ConsentState) {
   if (!next.analytics) {
     try {
       clearJourneyIdentity(localStorage, sessionStorage);
+      clearBlogReadingIdentity(localStorage, sessionStorage);
       clearPendingCourseView();
     } catch {
       // A retirada do consentimento continua mesmo se o armazenamento local falhar.
