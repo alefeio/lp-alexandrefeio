@@ -18,6 +18,7 @@ export default async function AdminBlogPage() {
       <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">Blog</h1>
         <div className="flex gap-3 text-sm">
+          <Link href="/admin/blog/metricas" className="underline underline-offset-4">Métricas</Link>
           <Link href="/admin/blog/planejamento" className="underline underline-offset-4">Planejamento</Link>
           <Link href="/admin/blog/novo" className="underline underline-offset-4">Novo artigo</Link>
         </div>
