@@ -435,12 +435,14 @@ test("cliques do blog reutilizam eventos existentes e separam artigo da listagem
   const link = readFileSync("src/components/blog/BlogCtaLink.tsx", "utf8");
   assert.match(articleSource, /event="cta_click"/);
   assert.match(articleSource, /blogArticleClickParams/);
+  assert.match(articleSource, /BlogReadingObserver/);
   assert.equal(articleSource.includes("page_view"), false);
   assert.match(aside, /event="cta_click"/);
   assert.match(aside, /event="service_from_course_click"/);
   assert.match(aside, /blogIndexClickParams\("service"\)/);
   assert.match(link, /trackEvent\(event, params\)/);
-  assert.equal(link.includes("consent"), false);
+  assert.match(link, /reportCommercialClick/);
+  assert.equal(link.includes("useConsent"), false);
   const analytics = readFileSync("src/lib/analytics.ts", "utf8");
   const gtm = readFileSync("src/components/analytics/GoogleTagManager.tsx", "utf8");
   assert.match(analytics, /generate_lead/);
@@ -472,7 +474,36 @@ test("painel mostra ausência de usuário e o mesmo conjunto visível", () => {
       sources: [{ pagePath: "/blog/artigo-novo", source: "google", medium: "organic", views: 4 }],
     }),
   });
-  const html = renderToStaticMarkup(createElement(BlogMetricsPanel, { view }));
+  const reading = {
+    period: "30" as const,
+    queryLabel: "Consulta first-party de teste.",
+    status: "empty" as const,
+    message: "Nenhuma sessão first-party neste recorte.",
+    sampleWarning: "",
+    ingestEnabled: false,
+    totals: {
+      sessions: 0,
+      browsers: 0,
+      meanActiveMs: null,
+      medianActiveMs: null,
+      engaged: 0,
+      deep: 0,
+      depth25: 0,
+      depth50: 0,
+      depth75: 0,
+      reachedEnd: 0,
+      courseClicks: 0,
+      serviceClicks: 0,
+      commercialClicks: 0,
+      sessionsWithClick: 0,
+      clickRate: null,
+    },
+    articles: [],
+    categories: [],
+  };
+  const html = renderToStaticMarkup(createElement(BlogMetricsPanel, { reading, ga4: view }));
+  assert.match(html, /Leitura first-party/);
+  assert.match(html, /GA4 complementar/);
   assert.match(html, /mesmo conjunto/);
   assert.match(html, /somar as páginas/);
   assert.match(html, /Usuários ativos/);
@@ -489,6 +520,7 @@ test("painel de métricas é administrativo e não tem API pública", () => {
   assert.match(page, /requireAdmin\(\)[\s\S]{0,400}if \(!session\) return null/);
   assert.match(page, /force-dynamic/);
   assert.match(page, /index: false/);
+  assert.match(page, /loadBlogReadingMetrics/);
   assert.match(blog, /href="\/admin\/blog\/metricas"/);
   assert.equal(existsSync("src/app/api/admin/blog/metricas/route.ts"), false);
 });
