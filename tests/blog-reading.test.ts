@@ -6,7 +6,12 @@ import { BLOG_READER_KEY, BLOG_READING_INDEX_KEY, BLOG_SESSION_KEY, clearBlogRea
 import { isDeepBlogReading, isEngagedBlogReading } from "../src/lib/blog/reading/metrics";
 import { blogReadingRetentionCutoff, runBlogReadingRetention } from "../src/lib/blog/reading/retention";
 import { handleBlogReadingRetentionCron } from "../src/lib/blog/reading/retention-cron";
-import { blogReadingIngestEnabled, BLOG_READING_IDLE_MS, BLOG_READING_MAX_BODY_BYTES } from "../src/lib/blog/reading/constants";
+import {
+  blogReadingIngestEnabled,
+  blogReadingRetentionEnabled,
+  BLOG_READING_IDLE_MS,
+  BLOG_READING_MAX_BODY_BYTES,
+} from "../src/lib/blog/reading/constants";
 import type { BlogClickRecord, BlogReadingRecord } from "../src/lib/blog/reading/lifecycle";
 import { JOURNEY_ANONYMOUS_KEY } from "../src/lib/product-journey/identity";
 
@@ -357,12 +362,72 @@ test("expurgo remove sessão vencida e o clique, e conserva o corte exato", asyn
   assert.equal(JSON.stringify(report).includes(ANON), false);
   const cron = await handleBlogReadingRetentionCron(new Request("https://alexandrefeio.com.br/api/cron/blog-reading-retention", { headers: { authorization: "Bearer cron-secret" } }), {
     secret: "cron-secret",
+    retentionEnabled: true,
     run: async () => report,
   });
   assert.equal(cron.status, 200);
   const cronBody = await cron.json();
   assert.equal(cronBody.deletedSessions, 1);
   assert.equal(JSON.stringify(cronBody).includes(ANON), false);
+});
+
+test("cron de retenção: flag off, autorização e execução habilitada", async () => {
+  assert.equal(blogReadingRetentionEnabled({}), false);
+  assert.equal(blogReadingRetentionEnabled({ BLOG_READING_RETENTION_ENABLED: "false" }), false);
+  assert.equal(blogReadingRetentionEnabled({ BLOG_READING_RETENTION_ENABLED: "true" }), true);
+  // Independente da coleta: retenção pode estar ligada com ingest desligado.
+  assert.equal(blogReadingIngestEnabled({}), false);
+  assert.equal(blogReadingRetentionEnabled({ BLOG_READING_RETENTION_ENABLED: "true" }), true);
+
+  let ran = 0;
+  const mockReport = {
+    mode: "EXECUTE" as const,
+    cutoff: "2025-11-05T00:00:00.000Z",
+    expiredCount: 2,
+    deletedSessions: 2,
+    deletedClicks: 1,
+    batchesRun: 1,
+    truncated: false,
+  };
+  const run = async () => {
+    ran += 1;
+    return mockReport;
+  };
+  const url = "https://alexandrefeio.com.br/api/cron/blog-reading-retention";
+
+  const noSecret = await handleBlogReadingRetentionCron(new Request(url), { secret: undefined, retentionEnabled: true, run });
+  assert.equal(noSecret.status, 503);
+  assert.equal(ran, 0);
+
+  const unauthorized = await handleBlogReadingRetentionCron(new Request(url, { headers: { authorization: "Bearer wrong" } }), {
+    secret: "cron-secret",
+    retentionEnabled: true,
+    run,
+  });
+  assert.equal(unauthorized.status, 401);
+  assert.equal(ran, 0);
+
+  const skipped = await handleBlogReadingRetentionCron(new Request(url, { headers: { authorization: "Bearer cron-secret" } }), {
+    secret: "cron-secret",
+    retentionEnabled: false,
+    run,
+  });
+  assert.equal(skipped.status, 200);
+  assert.deepEqual(await skipped.json(), { status: "SKIPPED", reason: "BLOG_READING_RETENTION_ENABLED" });
+  assert.equal(ran, 0);
+
+  const enabled = await handleBlogReadingRetentionCron(new Request(url, { headers: { authorization: "Bearer cron-secret" } }), {
+    secret: "cron-secret",
+    retentionEnabled: true,
+    run,
+  });
+  assert.equal(enabled.status, 200);
+  assert.equal(ran, 1);
+  const body = await enabled.json();
+  assert.equal(body.mode, "EXECUTE");
+  assert.equal(body.deletedSessions, 2);
+  assert.equal(body.deletedClicks, 1);
+  assert.equal(body.status, undefined);
 });
 
 test("conflito de versão preserva a gravação mais recente e o retry reavalia", async () => {
