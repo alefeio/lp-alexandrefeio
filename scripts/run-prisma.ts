@@ -10,6 +10,11 @@ if (args.length === 0) {
   throw new Error("Missing prisma arguments");
 }
 
+// `vercel env pull` / link pode gravar VERCEL=1 no .env.local; isso não é runtime Vercel.
+if (process.env.MIGRATE_DEPLOY_CONFIRM === "production") {
+  delete process.env.VERCEL;
+}
+
 assertMigrationTargetAllowed(process.env, args);
 
 const child = spawn("npx", ["prisma", ...args], {
