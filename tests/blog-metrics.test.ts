@@ -440,7 +440,7 @@ test("cliques do blog reutilizam eventos existentes e separam artigo da listagem
   assert.match(aside, /event="cta_click"/);
   assert.match(aside, /event="service_from_course_click"/);
   assert.match(aside, /blogIndexClickParams\("service"\)/);
-  assert.match(link, /trackEvent\(event, params\)/);
+  assert.match(link, /trackEvent\(event, params, \{ targetPath: journeyPath\(href\) \}\)/);
   assert.match(link, /reportCommercialClick/);
   assert.equal(link.includes("useConsent"), false);
   const analytics = readFileSync("src/lib/analytics.ts", "utf8");

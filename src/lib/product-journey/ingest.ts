@@ -3,7 +3,8 @@ import { parseJourneyEvent, type JourneyEventRecord } from "@/lib/product-journe
 
 export const JOURNEY_MAX_BODY_BYTES = 4096;
 export const JOURNEY_RATE_NAMESPACE = "product-journey:event";
-export const JOURNEY_RATE_LIMIT = 120;
+/** Page views elevam o volume por sessão consentida; 180 cobre navegação típica sem abrir abuso. */
+export const JOURNEY_RATE_LIMIT = 180;
 export const JOURNEY_RATE_WINDOW_SECONDS = 10 * 60;
 
 const NO_STORE = { "cache-control": "no-store", "x-content-type-options": "nosniff" };

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatPriceCents } from "@/lib/learning/money";
 import {
+  J2A_ENTRY_NOTE,
   JOURNEY_DIAGNOSTIC_NOTE,
   JOURNEY_EMPTY,
   JOURNEY_ERA_LABEL,
@@ -86,6 +87,59 @@ export function JourneySummary({ view }: { view: JourneyDashboardView }) {
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">São sessões first-party da plataforma, não a definição de sessão do Google Analytics.</p>
       {view.readingNote ? <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">{view.readingNote}</p> : null}
     </section>
+  );
+}
+
+export function JourneyEntry({ view }: { view: JourneyDashboardView }) {
+  const { entry } = view;
+  return (
+    <section className="mt-10">
+      <h2 className="text-lg font-semibold">Entrada e primeira interação</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+        Sessões consentidas com site_page_view a partir de {entry.instrumentationLabel}. Contagens por sessão; não é taxa de conversão nem dado do GA4.
+      </p>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">{J2A_ENTRY_NOTE}</p>
+      {entry.outsideInstrumentation ? (
+        <EmptyNote>O período termina antes do marco J2-A. Não há intervalo de entrada nesta combinação.</EmptyNote>
+      ) : entry.sessionsStarted === 0 ? (
+        <EmptyNote>{JOURNEY_EMPTY}</EmptyNote>
+      ) : (
+        <>
+          <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["Sessões que começaram", String(entry.sessionsStarted)],
+              ["Com pelo menos uma interação", String(entry.sessionsWithInteraction)],
+              ["Avançaram a cursos", String(entry.advanced.courses)],
+              ["Avançaram a aulas", String(entry.advanced.lessons)],
+              ["Chegaram a cadastro observado", String(entry.advanced.signUps)],
+            ].map(([label, value]) => (
+              <li key={label} className="rounded-lg border border-border p-4">
+                <p className="text-sm">{label}</p>
+                <p className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
+              </li>
+            ))}
+          </ul>
+          <EntryList title="Páginas de entrada" rows={entry.entryPages.map((row) => [row.path, row.sessions])} />
+          <EntryList title="Primeira interação" rows={entry.firstInteractions.map((row) => [row.label, row.sessions])} />
+          <EntryList title="Última página conhecida" rows={entry.lastPages.map((row) => [row.path, row.sessions])} />
+        </>
+      )}
+    </section>
+  );
+}
+
+function EntryList({ title, rows }: { title: string; rows: Array<[string, number]> }) {
+  if (rows.length === 0) return null;
+  const max = maxCount(rows.map(([, count]) => count));
+  return (
+    <div className="mt-6">
+      <h3 className="text-base font-semibold">{title}</h3>
+      <div className="mt-3 flex flex-col gap-2">
+        {rows.map(([label, count]) => (
+          <ShareBar key={`${title}-${label}`} label={label} count={count} max={max} />
+        ))}
+      </div>
+    </div>
   );
 }
 

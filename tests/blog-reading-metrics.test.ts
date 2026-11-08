@@ -192,6 +192,6 @@ test("painel separa first-party do GA4 e exige admin", () => {
   assert.match(article, /blogPostId=\{post\.id\}/);
   const link = readFileSync("src/components/blog/BlogCtaLink.tsx", "utf8");
   assert.match(link, /reportCommercialClick/);
-  assert.match(link, /trackEvent\(event, params\)/);
+  assert.match(link, /trackEvent\(event, params, \{ targetPath: journeyPath\(href\) \}\)/);
   assert.match(link, /cta_location === "blog_post"/);
 });

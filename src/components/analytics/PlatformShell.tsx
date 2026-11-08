@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AttributionCapture } from "@/components/analytics/AttributionCapture";
 import { GoogleTagManager } from "@/components/analytics/GoogleTagManager";
+import { SiteJourneyObserver } from "@/components/analytics/SiteJourneyObserver";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 
 const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
@@ -12,6 +13,7 @@ export function PlatformShell({ children }: { children: ReactNode }) {
       {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
       <ConsentProvider>
         <AttributionCapture />
+        <SiteJourneyObserver />
         <a href="#conteudo" className="skip-link">
           Ir para o conteúdo
         </a>

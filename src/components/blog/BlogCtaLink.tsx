@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useBlogReadingOptional } from "@/components/blog/BlogReadingContext";
 import { trackEvent, type AnalyticsEventName } from "@/lib/analytics";
 import type { BlogClickParams } from "@/lib/blog/clicks";
+import { journeyPath } from "@/lib/product-journey/paths";
 
 export function BlogCtaLink({
   href,
@@ -25,7 +26,7 @@ export function BlogCtaLink({
       href={href}
       className={className}
       onClick={() => {
-        trackEvent(event, params);
+        trackEvent(event, params, { targetPath: journeyPath(href) });
         if (reading && params.cta_location === "blog_post") {
           reading.reportCommercialClick({
             ctaName: params.cta_name,

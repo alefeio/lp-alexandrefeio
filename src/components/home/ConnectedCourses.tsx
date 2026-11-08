@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { AcquisitionLink } from "@/components/analytics/AcquisitionLink";
 import { SitesPageVisual, TrafficCampaignVisual } from "@/components/course/CourseProductVisual";
 import { Container } from "@/components/ui/Container";
+import { TrackedLink } from "@/components/ui/TrackedLink";
 import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { publicHomeCopy } from "@/lib/home/public-home";
 import { TRAFFIC_COURSE_SLUG } from "@/lib/learning/course-experience";
@@ -95,9 +95,14 @@ export function ConnectedCourses({ courses }: { courses: CourseCatalogCard[] }) 
           ) : null}
         </div>
         <p className="mt-8">
-          <Link className={navigationLinkClass()} href="/cursos">
+          <TrackedLink
+            className={navigationLinkClass()}
+            href="/cursos"
+            event="cta_click"
+            params={{ cta_name: "home_ver_formacoes", cta_location: "home_courses", destination_type: "catalog" }}
+          >
             Ver todas as formações
-          </Link>
+          </TrackedLink>
         </p>
       </Container>
     </section>

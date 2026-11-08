@@ -1,7 +1,8 @@
 import { ATTRIBUTION_STORAGE_KEY, readStoredAttribution, type LeadAttribution } from "@/lib/attribution";
-import { readOrCreateAnonymousId, readOrCreateSessionId } from "@/lib/product-journey/identity";
+import { CONSENT_STORAGE_KEY, parseConsent } from "@/lib/consent";
+import { isSiteFirstInteractionTrigger, type StrategicJourneyEvent } from "@/lib/product-journey/events";
+import { JOURNEY_FIRST_INTERACTION_KEY, readOrCreateAnonymousId, readOrCreateSessionId } from "@/lib/product-journey/identity";
 import { journeyPath } from "@/lib/product-journey/paths";
-import type { StrategicJourneyEvent } from "@/lib/product-journey/events";
 
 type JourneyParams = {
   course_slug?: string;
@@ -37,18 +38,43 @@ function attributionForJourney(attribution: LeadAttribution): Omit<LeadAttributi
   };
 }
 
+function firstInteractionAlreadyRecorded(session: Storage, sessionId: string): boolean {
+  return session.getItem(JOURNEY_FIRST_INTERACTION_KEY) === sessionId;
+}
+
+function markFirstInteractionRecorded(session: Storage, sessionId: string): void {
+  session.setItem(JOURNEY_FIRST_INTERACTION_KEY, sessionId);
+}
+
+function sendJourneyBody(body: Record<string, unknown>): void {
+  void fetch("/api/analytics/journey", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 /** Envio best effort. Não chama trackEvent e não espera a resposta. */
 export function persistJourneyEvent(input: {
   eventName: StrategicJourneyEvent;
   params: Record<string, unknown>;
   targetPath?: string;
+  sourcePathOverride?: string;
   consentUpdatedAt: number;
+  skipFirstInteractionHook?: boolean;
 }): void {
   try {
-    const anonymousId = readOrCreateAnonymousId(window.localStorage, Date.now(), () => crypto.randomUUID());
-    const sessionId = readOrCreateSessionId(window.sessionStorage, () => crypto.randomUUID());
+    if (typeof window === "undefined") return;
+    const consent = parseConsent(window.localStorage.getItem(CONSENT_STORAGE_KEY));
+    if (!consent?.analytics) return;
+
+    const now = Date.now();
+    const anonymousId = readOrCreateAnonymousId(window.localStorage, now, () => crypto.randomUUID());
+    const sessionId = readOrCreateSessionId(window.sessionStorage, () => crypto.randomUUID(), now);
     const picked = journeyParamsFromAnalytics(input.params);
     const attribution = attributionForJourney(readStoredAttribution(window.sessionStorage.getItem(ATTRIBUTION_STORAGE_KEY)));
+    const sourcePath = journeyPath(input.sourcePathOverride) ?? journeyPath(window.location.pathname);
     const body = {
       eventId: crypto.randomUUID(),
       eventName: input.eventName,
@@ -60,18 +86,31 @@ export function persistJourneyEvent(input: {
       targetCourseSlug: picked.target_course_slug,
       scenario: picked.scenario,
       ctaName: picked.cta_name,
-      sourcePath: window.location.pathname,
+      sourcePath,
       targetPath: input.targetPath,
       attribution,
       analyticsConsent: true,
       consentUpdatedAt: input.consentUpdatedAt,
     };
-    void fetch("/api/analytics/journey", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-      keepalive: true,
-    }).catch(() => undefined);
+    sendJourneyBody(body);
+
+    if (
+      input.skipFirstInteractionHook ||
+      input.eventName === "site_first_interaction" ||
+      input.eventName === "site_page_view" ||
+      !isSiteFirstInteractionTrigger(input.eventName)
+    ) {
+      return;
+    }
+    if (firstInteractionAlreadyRecorded(window.sessionStorage, sessionId)) return;
+    markFirstInteractionRecorded(window.sessionStorage, sessionId);
+    sendJourneyBody({
+      ...body,
+      eventId: crypto.randomUUID(),
+      eventName: "site_first_interaction",
+      ctaName: picked.cta_name,
+      targetPath: input.targetPath,
+    });
   } catch {
     // A jornada nunca bloqueia a navegação nem a ação que o visitante acabou de fazer.
   }

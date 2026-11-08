@@ -1,3 +1,11 @@
+import {
+  buildJourneyEntrySnapshot,
+  emptyEntrySnapshot,
+  journeyEntryBounds,
+  J2A_ENTRY_INSTRUMENTATION_AT,
+  J2A_ENTRY_NOTE,
+  type JourneyEntrySnapshot,
+} from "@/lib/admin/journey-entry";
 import { receivedRevenueCents, type PaymentRevenueStatus } from "@/lib/admin/operations";
 import { courseChoiceScenarios } from "@/lib/learning/course-paths";
 import { TRAFFIC_COURSE_SLUG } from "@/lib/learning/course-experience";
@@ -17,6 +25,8 @@ export const PRODUCT_JOURNEY_REPORTING_START_AT = new Date("2026-10-26T17:42:00.
  * Não alterar depois do commit.
  */
 export const UX_C_PRODUCTION_AT = new Date("2026-11-03T16:33:05.000Z");
+
+export { J2A_ENTRY_INSTRUMENTATION_AT, J2A_ENTRY_NOTE, type JourneyEntrySnapshot };
 
 export const JOURNEY_SAMPLE_MIN = 20;
 export const JOURNEY_EMPTY = "Ainda não há dados suficientes neste período.";
@@ -72,6 +82,9 @@ export type JourneyObservedEvent = {
   sourceCourseSlug?: string | null;
   targetCourseSlug?: string | null;
   scenario?: string | null;
+  ctaName?: string | null;
+  sourcePath?: string | null;
+  targetPath?: string | null;
   utmSource?: string | null;
   utmMedium?: string | null;
   utmCampaign?: string | null;
@@ -257,6 +270,7 @@ export type JourneyAggregateModel = {
   lessonsStarted: number;
   lessonsCompleted: number;
   diagnosticsCompleted: number | null;
+  entry: JourneyEntrySnapshot;
 };
 
 export type JourneyDashboardView = {
@@ -297,6 +311,7 @@ export type JourneyDashboardView = {
     lessonsCompleted: number;
     diagnosticsCompleted: number | null;
   };
+  entry: JourneyEntrySnapshot;
 };
 
 export function buildJourneyDashboard(input: {
@@ -356,6 +371,17 @@ export function buildJourneyDashboard(input: {
     lessonsStarted: distinct(input.progress.filter((row) => inWindow(row.startedAt) && (course === "all" || row.courseSlug === course)).map((row) => row.userId)),
     lessonsCompleted: distinct(input.progress.filter((row) => inWindow(row.completedAt) && (course === "all" || row.courseSlug === course)).map((row) => row.userId)),
     diagnosticsCompleted: course === "all" ? distinct(input.diagnostics.filter((row) => inWindow(row.completedAt)).map((row) => row.userId)) : null,
+    entry: buildEntryForWindow(input.events, bounds.start, bounds.end),
+  });
+}
+
+function buildEntryForWindow(events: JourneyObservedEvent[], windowStart: Date, windowEnd: Date): JourneyEntrySnapshot {
+  const entryBounds = journeyEntryBounds(windowStart, windowEnd);
+  return buildJourneyEntrySnapshot(events, {
+    start: entryBounds.start,
+    end: entryBounds.end,
+    instrumentationLabel: formatJourneyDateTime(J2A_ENTRY_INSTRUMENTATION_AT),
+    outsideInstrumentation: entryBounds.outsideInstrumentation,
   });
 }
 
@@ -406,6 +432,7 @@ export function assembleJourneyView(model: JourneyAggregateModel): JourneyDashbo
       lessonsCompleted: model.lessonsCompleted,
       diagnosticsCompleted: model.diagnosticsCompleted,
     },
+    entry: model.entry ?? emptyEntrySnapshot(formatJourneyDateTime(J2A_ENTRY_INSTRUMENTATION_AT), false),
   };
 }
 

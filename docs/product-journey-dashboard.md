@@ -34,8 +34,16 @@ Home e catálogo não são o mesmo clique. O movimento entre formações só usa
 
 A maturidade usa o total de jornadas do recorte, não a barra mais alta de uma seção: 1 a 19 pedem checagem da coleta; 20 a 49, hipótese inicial; 50 a 99, padrões com cautela; 100 ou mais, leitura mais fundo, com ressalva de representatividade. Essas faixas não são teste de significância. O aviso aparece uma vez. O painel não declara qual curso converte mais.
 
-Clique de caminho, início observado de aula gratuita, evento `lesson_started` e usuário com `LessonProgress` são contagens diferentes. O CTA de curso (`course_cta_click`) não entra no PostgreSQL e não aparece como zero interno.
+Clique de caminho, início observado de aula gratuita, evento `lesson_started` e usuário com `LessonProgress` são contagens diferentes. CTAs genéricos (`cta_click`, `course_cta_click`, `auth_cta_click`, etc.) passam a ter cópia first-party como `site_cta_click` quando há consentimento; o nome GA no dataLayer não muda.
+
+## Entrada e primeira interação (J2-A)
+
+O bloco “Entrada e primeira interação” usa `site_page_view`, `site_first_interaction` e marcos strategic na mesma `sessionId`. O início oficial dessa leitura é `J2A_ENTRY_INSTRUMENTATION_AT` (provisional no Preview; atualizar no go-live Production). O marco UX-C não é alterado. Sessões anteriores à instrumentação J2-A não entram nesse bloco. Contagens por sessão não são taxa de conversão cruzada com o GA4.
+
+Não há índice dedicado em `sessionId`. A agregação inicial filtra por `eventName` + `occurredAt` (índice existente) e agrupa em memória. Um índice `@@index([sessionId, occurredAt])` pode ser necessário em volume alto e exigiria migration futura — fora desta versão.
+
+Rate limit do ingest: 180 eventos / 10 minutos por anon ou usuário (antes 120), para acomodar page views.
 
 ## Limites desta versão
 
-Não há exportação, jornada individual, coorte, atribuição multi-toque nem atualização em tempo real. Não foi criada tabela, visão materializada nem migration.
+Não há exportação, jornada individual, coorte, atribuição multi-toque nem atualização em tempo real. Não foi criada tabela, visão materializada nem migration para J2-A.

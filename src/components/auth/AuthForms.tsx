@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth/auth-client";
 import { AUTH_MESSAGES, mapAuthError, safeNextPath, verificationCallbackPath } from "@/lib/auth/messages";
 import { accountLookupFeedback } from "@/lib/auth/policy";
 import { buttonClass } from "@/lib/button-styles";
+import { journeyPath } from "@/lib/product-journey/paths";
 
 const fieldClass =
   "min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground focus-visible:border-cta";
@@ -273,9 +274,28 @@ export function ResendVerificationForm({ callbackURL }: { callbackURL: string })
   );
 }
 
-export function AuthTextLink({ href, children }: { href: string; children: React.ReactNode }) {
+export function AuthTextLink({
+  href,
+  children,
+  ctaName,
+}: {
+  href: string;
+  children: React.ReactNode;
+  ctaName?: string;
+}) {
   return (
-    <Link href={href} className="text-foreground underline underline-offset-4">
+    <Link
+      href={href}
+      className="text-foreground underline underline-offset-4"
+      onClick={() => {
+        if (!ctaName) return;
+        trackEvent(
+          "cta_click",
+          { cta_name: ctaName, cta_location: "auth_cross_link", destination_type: "auth" },
+          { targetPath: journeyPath(href) },
+        );
+      }}
+    >
       {children}
     </Link>
   );

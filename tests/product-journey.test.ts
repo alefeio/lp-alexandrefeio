@@ -18,6 +18,7 @@ import { GA_ONLY_ANALYTICS_EVENTS, isStrategicJourneyEvent, STRATEGIC_JOURNEY_EV
 import {
   JOURNEY_ANONYMOUS_KEY,
   JOURNEY_ANONYMOUS_TTL_MS,
+  JOURNEY_SESSION_IDLE_MS,
   JOURNEY_SESSION_KEY,
   clearJourneyIdentity,
   isJourneyUuid,
@@ -25,7 +26,10 @@ import {
   readOrCreateSessionId,
 } from "../src/lib/product-journey/identity";
 import { journeyPath } from "../src/lib/product-journey/paths";
+import { isJourneyObservedPath } from "../src/lib/product-journey/public-path";
 import { parseJourneyEvent } from "../src/lib/product-journey/schema";
+import { shouldEmitSitePageView, resetSitePageViewDedupeForTests } from "../src/lib/product-journey/entry-client";
+import { buildJourneyEntrySnapshot, journeyEntryBounds, J2A_ENTRY_INSTRUMENTATION_AT } from "../src/lib/admin/journey-entry";
 import { formatJourneyRetentionReport, journeyRetentionCutoff, runJourneyRetention } from "../src/lib/product-journey/retention";
 import { handleJourneyRetentionCron } from "../src/lib/product-journey/retention-cron";
 
@@ -45,6 +49,12 @@ function memoryStorage() {
     },
     removeItem(key: string) {
       map.delete(key);
+    },
+    get length() {
+      return map.size;
+    },
+    key(index: number) {
+      return [...map.keys()][index] ?? null;
     },
   };
 }
@@ -86,7 +96,10 @@ async function ingest(payload: unknown, options: { userId?: string | null; inser
   return { response, rows };
 }
 
-test("eventos estratégicos incluem as duas escolhas de caminho e deixam a visão do catálogo no GA", () => {
+test("eventos estratégicos incluem entrada J2-A, escolhas de caminho e deixam a visão do catálogo no GA", () => {
+  assert.equal(STRATEGIC_JOURNEY_EVENTS.includes("site_page_view"), true);
+  assert.equal(STRATEGIC_JOURNEY_EVENTS.includes("site_first_interaction"), true);
+  assert.equal(STRATEGIC_JOURNEY_EVENTS.includes("site_cta_click"), true);
   assert.equal(STRATEGIC_JOURNEY_EVENTS.includes("home_course_path_click"), true);
   assert.equal(STRATEGIC_JOURNEY_EVENTS.includes("course_catalog_path_click"), true);
   assert.equal(isStrategicJourneyEvent("course_catalog_view"), false);
@@ -115,14 +128,28 @@ test("identidade pseudônima só nasce quando a função é chamada, reutiliza, 
   const rotated = readOrCreateAnonymousId(local, NOW + JOURNEY_ANONYMOUS_TTL_MS, next);
   assert.notEqual(rotated, first);
   assert.equal(isJourneyUuid(rotated), true);
-  const sessionA = readOrCreateSessionId(session, () => "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
-  assert.equal(readOrCreateSessionId(session, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd"), sessionA);
+  const sessionA = readOrCreateSessionId(session, () => "cccccccc-cccc-4ccc-8ccc-cccccccccccc", NOW);
+  assert.equal(readOrCreateSessionId(session, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd", NOW + 1000), sessionA);
   const other = memoryStorage();
-  const sessionB = readOrCreateSessionId(other, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  const sessionB = readOrCreateSessionId(other, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd", NOW);
   assert.notEqual(sessionB, sessionA);
   clearJourneyIdentity(local, session);
   assert.equal(local.getItem(JOURNEY_ANONYMOUS_KEY), null);
   assert.equal(session.getItem(JOURNEY_SESSION_KEY), null);
+});
+
+test("sessionId renova após 30 minutos de inatividade e promove UUID legado", () => {
+  const session = memoryStorage();
+  session.setItem(JOURNEY_SESSION_KEY, "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  const promoted = readOrCreateSessionId(session, () => "ffffffff-ffff-4fff-8fff-ffffffffffff", NOW);
+  assert.equal(promoted, "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  assert.match(session.getItem(JOURNEY_SESSION_KEY) ?? "", /lastActivityAt/);
+  const same = readOrCreateSessionId(session, () => "ffffffff-ffff-4fff-8fff-ffffffffffff", NOW + 60_000);
+  assert.equal(same, promoted);
+  session.setItem(JOURNEY_SESSION_KEY, JSON.stringify({ id: promoted, lastActivityAt: NOW }));
+  const renewed = readOrCreateSessionId(session, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd", NOW + JOURNEY_SESSION_IDLE_MS);
+  assert.equal(renewed, "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  assert.notEqual(renewed, promoted);
 });
 
 test("caminho interno é pathname e rejeita URL insegura", () => {
@@ -194,11 +221,12 @@ test("consentimento controla o dataLayer e a chamada da jornada sem criar identi
       { course_slug: "trafego-pago-na-pratica", scenario: "atrair", value: 24990, transaction_id: "order_1" },
       { targetPath: "/cursos/trafego-pago-na-pratica" },
     );
-    assert.equal(calls.length, 1);
-    const sent = calls[0]!;
+    assert.equal(calls.length, 2);
+    const sent = calls.find((call) => call.body.eventName === "course_catalog_path_click")!;
+    const firstInteraction = calls.find((call) => call.body.eventName === "site_first_interaction");
+    assert.ok(firstInteraction);
     assert.equal(sent.url, "/api/analytics/journey");
     assert.equal(sent.keepalive, true);
-    assert.equal(sent.body.eventName, "course_catalog_path_click");
     assert.equal(sent.body.courseSlug, "trafego-pago-na-pratica");
     assert.equal(sent.body.scenario, "atrair");
     assert.equal(sent.body.sourcePath, "/cursos");
@@ -218,15 +246,20 @@ test("consentimento controla o dataLayer e a chamada da jornada sem criar identi
     const sessionId = String(sent.body.sessionId);
 
     trackEvent("course_view", { course_slug: "trafego-pago-na-pratica" });
-    assert.equal(calls[1]?.body.anonymousId, anonymousId);
-    assert.equal(calls[1]?.body.sessionId, sessionId);
+    const courseView = calls.find((call) => call.body.eventName === "course_view");
+    assert.equal(courseView?.body.anonymousId, anonymousId);
+    assert.equal(courseView?.body.sessionId, sessionId);
+    assert.equal(calls.filter((call) => call.body.eventName === "site_first_interaction").length, 1);
 
     const freshSession = memoryStorage();
     scope.sessionStorage = freshSession;
     win.sessionStorage = freshSession;
+    const beforeFree = calls.length;
     trackEvent("course_free_start", { course_slug: "trafego-pago-na-pratica" });
-    assert.equal(calls[2]?.body.anonymousId, anonymousId);
-    assert.notEqual(calls[2]?.body.sessionId, sessionId);
+    const freeCalls = calls.slice(beforeFree);
+    assert.ok(freeCalls.some((call) => call.body.eventName === "course_free_start"));
+    assert.equal(freeCalls.find((call) => call.body.eventName === "course_free_start")?.body.anonymousId, anonymousId);
+    assert.notEqual(freeCalls.find((call) => call.body.eventName === "course_free_start")?.body.sessionId, sessionId);
 
     local.setItem(JOURNEY_ANONYMOUS_KEY, JSON.stringify({ id: anonymousId, createdAt: Date.now() }));
     freshSession.setItem(JOURNEY_SESSION_KEY, String(calls[2]?.body.sessionId));
@@ -474,7 +507,8 @@ test("atribuição sanitizada persiste UTM e host, sem click id nem e-mail", () 
   assert.equal(stored.includes("fbclid"), false);
 });
 
-test("limite de 120 eventos em 10 minutos responde 429 e não grava IP", async () => {
+test("limite de 180 eventos em 10 minutos responde 429 e não grava IP", async () => {
+  assert.equal(JOURNEY_RATE_LIMIT, 180);
   const limiter = createMemoryDurableRateLimiter();
   const keys: string[] = [];
   const rows: JourneyInsert[] = [];
@@ -640,4 +674,105 @@ test("modelo, migration e privacidade não guardam IP, agente nem metadata livre
   assert.match(purchasePage, /paid=\{order\.status === "PAID"\}/);
   const beacon = readFileSync("src/components/commerce/PurchaseBeacon.tsx", "utf8");
   assert.match(beacon, /if \(!paid\) return/);
+  assert.match(readFileSync("src/components/analytics/SiteJourneyObserver.tsx", "utf8"), /emitSitePageView/);
+  assert.match(readFileSync("src/components/analytics/PlatformShell.tsx", "utf8"), /SiteJourneyObserver/);
+});
+
+test("CTA GA-only vira site_cta_click first-party com consentimento", () => {
+  const scope = globalThis as unknown as {
+    window?: unknown;
+    localStorage?: unknown;
+    sessionStorage?: unknown;
+    fetch: typeof fetch;
+  };
+  const previousWindow = scope.window;
+  const previousLocal = scope.localStorage;
+  const previousSession = scope.sessionStorage;
+  const previousFetch = globalThis.fetch;
+  const calls: Array<{ body: Record<string, unknown> }> = [];
+  try {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    const win = {
+      localStorage: local,
+      sessionStorage: session,
+      dataLayer: [] as Array<Record<string, unknown>>,
+      location: { pathname: "/" },
+    };
+    scope.window = win;
+    scope.localStorage = local;
+    scope.sessionStorage = session;
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+      return new Response(null, { status: 202 });
+    }) as typeof fetch;
+    local.setItem(CONSENT_STORAGE_KEY, JSON.stringify(serializeConsent({ analytics: true, marketing: false })));
+    trackEvent("cta_click", { cta_name: "home_ver_blog", cta_location: "home_blog" }, { targetPath: "/blog" });
+    assert.equal(win.dataLayer.some((entry) => entry.event === "cta_click"), true);
+    const cta = calls.find((call) => call.body.eventName === "site_cta_click");
+    assert.ok(cta);
+    assert.equal(cta.body.ctaName, "home_ver_blog");
+    assert.equal(cta.body.targetPath, "/blog");
+    assert.ok(calls.some((call) => call.body.eventName === "site_first_interaction"));
+  } finally {
+    scope.window = previousWindow;
+    scope.localStorage = previousLocal;
+    scope.sessionStorage = previousSession;
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("page view dedupe, paths observados e ingest de site_page_view", () => {
+  resetSitePageViewDedupeForTests();
+  assert.equal(shouldEmitSitePageView("/"), true);
+  assert.equal(shouldEmitSitePageView("/"), false);
+  assert.equal(shouldEmitSitePageView("/cursos"), true);
+  assert.equal(isJourneyObservedPath("/admin/jornada"), false);
+  assert.equal(isJourneyObservedPath("/app"), false);
+  assert.equal(isJourneyObservedPath("/blog/exemplo"), true);
+  const parsed = parseJourneyEvent(
+    journeyBody({
+      eventName: "site_page_view",
+      courseSlug: undefined,
+      scenario: undefined,
+      sourcePath: "/",
+      targetPath: undefined,
+    }),
+    NOW,
+  );
+  assert.equal(parsed.ok, true);
+  if (parsed.ok) assert.equal(parsed.value.eventName, "site_page_view");
+});
+
+test("agregação de entrada por sessão responde as perguntas J2-A", () => {
+  const start = new Date(J2A_ENTRY_INSTRUMENTATION_AT.getTime() + 60_000);
+  const end = new Date(start.getTime() + 86_400_000);
+  const bounds = journeyEntryBounds(start, end);
+  assert.equal(bounds.outsideInstrumentation, false);
+  const snapshot = buildJourneyEntrySnapshot(
+    [
+      { sessionId: "s1", eventName: "site_page_view", occurredAt: start, sourcePath: "/" },
+      { sessionId: "s1", eventName: "site_first_interaction", occurredAt: new Date(start.getTime() + 1000), ctaName: "home_ver_blog" },
+      { sessionId: "s1", eventName: "site_cta_click", occurredAt: new Date(start.getTime() + 1000), ctaName: "home_ver_blog", targetPath: "/blog" },
+      { sessionId: "s1", eventName: "site_page_view", occurredAt: new Date(start.getTime() + 2000), sourcePath: "/blog" },
+      { sessionId: "s1", eventName: "course_view", occurredAt: new Date(start.getTime() + 3000), courseSlug: "trafego-pago-na-pratica", sourcePath: "/cursos/trafego-pago-na-pratica" },
+      { sessionId: "s2", eventName: "site_page_view", occurredAt: start, sourcePath: "/cursos" },
+      { sessionId: "s3", eventName: "home_course_path_click", occurredAt: start, sourcePath: "/" },
+    ],
+    {
+      start: bounds.start,
+      end: bounds.end,
+      instrumentationLabel: "marco",
+      outsideInstrumentation: false,
+    },
+  );
+  assert.equal(snapshot.sessionsStarted, 2);
+  assert.equal(snapshot.sessionsWithInteraction, 1);
+  assert.equal(snapshot.entryPages[0]?.path, "/");
+  assert.equal(snapshot.entryPages[0]?.sessions, 1);
+  assert.equal(snapshot.lastPages.some((row) => row.path === "/blog"), true);
+  assert.equal(snapshot.firstInteractions[0]?.label, "home_ver_blog");
+  assert.equal(snapshot.advanced.courses, 1);
+  assert.equal(snapshot.advanced.lessons, 0);
+  assert.equal(snapshot.advanced.signUps, 0);
 });

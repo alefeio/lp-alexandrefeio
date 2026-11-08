@@ -1,7 +1,7 @@
 import { pushConsentDefaults, pushConsentUpdate } from "@/lib/analytics";
 import { clearPendingCourseView, flushPendingCourseView } from "@/lib/product-journey/current-view";
 import { clearBlogReadingIdentity } from "@/lib/blog/reading/identity";
-import { clearJourneyIdentity } from "@/lib/product-journey/identity";
+import { clearJourneyIdentity, clearJourneySessionMarkers } from "@/lib/product-journey/identity";
 import {
   CONSENT_STORAGE_KEY,
   parseConsent,
@@ -99,6 +99,7 @@ function persist(next: ConsentState) {
   if (!next.analytics) {
     try {
       clearJourneyIdentity(localStorage, sessionStorage);
+      clearJourneySessionMarkers(sessionStorage);
       clearBlogReadingIdentity(localStorage, sessionStorage);
       clearPendingCourseView();
     } catch {

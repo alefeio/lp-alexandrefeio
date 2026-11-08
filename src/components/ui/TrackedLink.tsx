@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { trackEvent, type AnalyticsEventName, type AnalyticsParams } from "@/lib/analytics";
+import { journeyPath } from "@/lib/product-journey/paths";
 
 export function TrackedLink({
   href,
@@ -18,7 +19,11 @@ export function TrackedLink({
   children: ReactNode;
 }) {
   return (
-    <Link href={href} className={className} onClick={() => trackEvent(event, params)}>
+    <Link
+      href={href}
+      className={className}
+      onClick={() => trackEvent(event, params, { targetPath: journeyPath(href) })}
+    >
       {children}
     </Link>
   );
