@@ -3,14 +3,23 @@ import { BLOG_READING_MAX_ACTIVE_MS, BLOG_READING_SCHEMA_VERSION } from "@/lib/b
 import { journeyPath } from "@/lib/product-journey/paths";
 
 const UUID = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-const CUID = z.string().regex(/^c[a-z0-9]{24}$/);
+/**
+ * Identificador opaco de BlogPost.
+ * Aceita CUID clássico (~25), seeds (`seed-blog-post-001`) e IDs curtos legítimos do app (ex.: 18).
+ * A existência e a publicação continuam sendo conferidas no ingest.
+ */
+const BLOG_POST_ID = z
+  .string()
+  .min(8)
+  .max(64)
+  .regex(/^[a-z0-9][a-z0-9_-]*$/i);
 const CTA = z.string().regex(/^[a-z0-9_-]{1,80}$/);
 
 const bodySchema = z
   .object({
     schemaVersion: z.literal(BLOG_READING_SCHEMA_VERSION),
     clientReadingId: UUID,
-    blogPostId: CUID,
+    blogPostId: BLOG_POST_ID,
     anonymousId: UUID,
     sessionId: UUID,
     activeTimeMs: z.number().int().min(0).max(BLOG_READING_MAX_ACTIVE_MS),

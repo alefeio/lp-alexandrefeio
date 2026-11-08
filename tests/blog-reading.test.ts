@@ -117,12 +117,20 @@ function memoryStore(hooks?: { failClicks?: number; blindClicks?: number; arm?: 
   return { store, sessions, clicks, nextId: () => `id-${++sequence}` };
 }
 
-function harness(options?: { published?: boolean; identityLimit?: number; abuseLimit?: number; failClicks?: number; blindClicks?: number; arm?: () => BlogReadingCommitResult | null }) {
+function harness(options?: {
+  published?: boolean;
+  identityLimit?: number;
+  abuseLimit?: number;
+  failClicks?: number;
+  blindClicks?: number;
+  arm?: () => BlogReadingCommitResult | null;
+  extraPosts?: Array<[string, string]>;
+}) {
   const db = memoryStore(options);
   let lookups = 0;
   let identityHits = 0;
   let abuseHits = 0;
-  const published = new Map<string, string>([[POST_ID, "Artigo-Publicado"], [OTHER_POST_ID, "outro-artigo"]]);
+  const published = new Map<string, string>([[POST_ID, "Artigo-Publicado"], [OTHER_POST_ID, "outro-artigo"], ...(options?.extraPosts ?? [])]);
   async function send(payload: unknown, init?: { now?: number; enabled?: boolean; headers?: Record<string, string> }) {
     const headers = { "content-type": "application/json", ...init?.headers };
     const response = await handleBlogReadingRequest(
@@ -177,6 +185,37 @@ test("coleta desligada, prefetch e ausência de consentimento não gravam", asyn
   assert.equal(denied.sessions.size, 0);
   const text = await missingConsent.json();
   assert.deepEqual(text, { ok: false });
+});
+
+test("blogPostId aceita CUID clássico e ID curto legítimo; rejeita entradas inválidas", async () => {
+  const shortId = "cabcdefghijklmnopq"; // 18 caracteres, formato observado no app
+  assert.equal(shortId.length, 18);
+  assert.equal(POST_ID.length, 25);
+  const db = harness({ extraPosts: [[shortId, "artigo-curto"]] });
+  const shortOpen = await db.send(body({ blogPostId: shortId }));
+  assert.equal(shortOpen.status, 202);
+  assert.equal(db.sessions.size, 1);
+  const cuidOpen = await db.send(body({ blogPostId: POST_ID, clientReadingId: OTHER_READING }));
+  assert.equal(cuidOpen.status, 202);
+  assert.equal(db.sessions.size, 2);
+  assert.equal((await db.send(body({ blogPostId: "" }))).status, 400);
+  assert.equal((await db.send(body({ blogPostId: "abc" }))).status, 400);
+  assert.equal((await db.send(body({ blogPostId: "c123\n456789012345" }))).status, 400);
+  assert.equal((await db.send(body({ blogPostId: "../etc/passwdxxxx" }))).status, 400);
+  assert.equal((await db.send(body({ blogPostId: "c123 456789012345" }))).status, 400);
+  assert.equal(
+    (
+      await db.send(
+        body({
+          blogPostId: shortId,
+          analyticsConsent: false,
+          clientReadingId: "66666666-6666-4666-8666-666666666666",
+        }),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(db.sessions.size, 2);
 });
 
 test("abertura válida cria uma sessão e o recarregamento não duplica", async () => {
