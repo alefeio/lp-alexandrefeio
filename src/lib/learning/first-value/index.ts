@@ -12,6 +12,21 @@ export {
   isVerifiedAchievementKind,
   pickOwnedArtifact,
 } from "@/lib/learning/first-value/evidence";
+export {
+  isValidPedagogicalPayload,
+  readMutablePayloadCompletedAt,
+} from "@/lib/learning/first-value/evidence-validate";
+export { resolvePurchaseConfirmation } from "@/lib/learning/first-value/finance";
+export {
+  buildArtifactsFromRecords,
+  buildDependencyAvailability,
+  buildFirstValueSelectInput,
+  buildPurchasesFromOrders,
+  knownFirstValueLesson,
+  type FirstValueLoaderRecords,
+  type FirstValueOrderRecord,
+} from "@/lib/learning/first-value/from-records";
+export { loadFirstValueRecommendation, recommendFromFirstValueRecords } from "@/lib/learning/first-value/load";
 export { selectFirstValueAction } from "@/lib/learning/first-value/select";
 export {
   FIRST_VALUE_STATES,

@@ -72,6 +72,8 @@ export type FirstValueConfirmedAtSource = "payment_approved_at" | "zero_upgrade_
 
 export type FirstValuePurchase = {
   orderId: string;
+  /** Identidade estável do OrderItem (pedido com vários itens). */
+  orderItemId?: string | null;
   status: FirstValueOrderStatus;
   zeroValueUpgrade: boolean;
   /** Instantâneo de confirmação financeira comprovada; null se não comprovável. */
@@ -147,6 +149,7 @@ export type FirstValueRecommendation = {
   state: FirstValueState;
   product: {
     orderId: string | null;
+    orderItemId: string | null;
     productType: FirstValueProductType | null;
     courseSlug: string | null;
     zeroValueUpgrade: boolean;

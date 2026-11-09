@@ -55,7 +55,9 @@ function sortPurchases(purchases: FirstValuePurchase[]): FirstValuePurchase[] {
     const aTime = (a.confirmedAt ?? a.createdAt).getTime();
     const bTime = (b.confirmedAt ?? b.createdAt).getTime();
     if (bTime !== aTime) return bTime - aTime;
-    return a.orderId.localeCompare(b.orderId);
+    const byOrder = a.orderId.localeCompare(b.orderId);
+    if (byOrder !== 0) return byOrder;
+    return (a.orderItemId ?? "").localeCompare(b.orderItemId ?? "");
   });
 }
 
@@ -71,6 +73,7 @@ function recommendationBase(
     preparation: patch.preparation ?? null,
     product: patch.product ?? {
       orderId: purchase?.orderId ?? null,
+      orderItemId: purchase?.orderItemId ?? null,
       productType: purchase?.productType ?? null,
       courseSlug: purchase?.courseSlug ?? null,
       zeroValueUpgrade: purchase?.zeroValueUpgrade ?? false,
