@@ -22,6 +22,13 @@ import type {
   StudentCourseCard,
   StudentDashboardViewModel,
 } from "@/lib/home/student-dashboard";
+import {
+  shouldOmitInformationalFirstValueCta,
+  shouldSuppressLearningContinuation,
+  shouldSuppressLegacyNextAction,
+  withOmittableFirstValueCta,
+  type FirstValueCardViewModel,
+} from "@/lib/learning/first-value/present";
 
 const ACCESS_ICON = {
   course: BookOpen,
@@ -41,7 +48,35 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
     : `${view.progress.completedLessons} de ${view.progress.accessibleLessons} aulas`;
   const project = view.quickAccess.find((card) => card.id === "project");
   const hasProject = Boolean(project && !project.href.endsWith("/novo"));
-  const showLegacy = !view.learningContinuation && !view.businessNextAction;
+  const firstValue = view.firstValue ?? null;
+  const suppressLearning = shouldSuppressLearningContinuation({
+    firstValue,
+    learningHref: view.learningContinuation?.href,
+  });
+  const learningItem = suppressLearning ? null : view.learningContinuation;
+  const learningPrimary = Boolean(learningItem) && !firstValue?.highlight;
+  const suppressLegacy = shouldSuppressLegacyNextAction({
+    firstValue,
+    learningPresent: Boolean(learningItem),
+    businessPresent: Boolean(view.businessNextAction),
+    legacyHref: view.nextAction.href,
+  });
+  const showLegacy = !suppressLegacy;
+  /** Card informativo: CTA secundário (pedido), nunca disputa o botão primary da continuidade/legado. */
+  const firstValuePrimary = Boolean(firstValue?.highlight);
+  const omitInformationalCta = shouldOmitInformationalFirstValueCta({
+    firstValue,
+    learningPresent: Boolean(learningItem),
+    businessPresent: Boolean(view.businessNextAction),
+    legacyPresent: showLegacy,
+    learningHref: learningItem?.href,
+    businessHref: view.businessNextAction?.href,
+    legacyHref: view.nextAction.href,
+  });
+  const informationalCard =
+    firstValue && !firstValuePrimary
+      ? withOmittableFirstValueCta(firstValue, omitInformationalCta)
+      : null;
 
   return (
     <Container className="max-w-4xl py-10 sm:py-12">
@@ -60,11 +95,21 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
         />
       </header>
 
-      {view.learningContinuation ? <LearningBlock item={view.learningContinuation} /> : null}
+      {firstValue && firstValuePrimary ? <FirstValueBlock card={firstValue} primary /> : null}
+      {learningItem ? <LearningBlock item={learningItem} primary={learningPrimary} /> : null}
       {view.businessNextAction ? (
-        <BusinessBlock item={view.businessNextAction} primary={!view.learningContinuation} />
+        <BusinessBlock
+          item={view.businessNextAction}
+          primary={!learningItem && !firstValuePrimary}
+        />
       ) : null}
-      {showLegacy ? <BusinessBlock item={view.nextAction} primary /> : null}
+      {showLegacy ? (
+        <BusinessBlock
+          item={view.nextAction}
+          primary={!learningItem && !view.businessNextAction && !firstValuePrimary}
+        />
+      ) : null}
+      {informationalCard ? <FirstValueBlock card={informationalCard} primary={false} /> : null}
 
       {view.myCourses.length > 0 ? (
         <section aria-labelledby="my-courses-heading" className="mt-10">
@@ -192,9 +237,60 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
   );
 }
 
-function LearningBlock({ item }: { item: LearningContinuation }) {
+function FirstValueBlock({ card, primary }: { card: FirstValueCardViewModel; primary: boolean }) {
+  const border =
+    card.tone === "celebrate"
+      ? "border-accent/40"
+      : primary
+        ? "border-cta/30 shadow-sm"
+        : "border-border";
   return (
-    <section aria-labelledby="learning-heading" className="mt-8 rounded-xl border border-cta/30 bg-surface p-5 shadow-sm sm:p-6">
+    <section
+      aria-labelledby="first-value-heading"
+      className={`mt-8 rounded-xl border bg-surface p-5 sm:p-6 ${border}`}
+      data-first-value-state={card.presentationState}
+      data-first-value-highlight={primary ? "true" : "false"}
+    >
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-cta">Primeira conquista</p>
+      <h2 id="first-value-heading" className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+        {card.title}
+      </h2>
+      <p className="mt-2 text-sm text-muted">{card.guidance}</p>
+      {card.expectedOutcome ? (
+        <p className="mt-2 text-sm text-foreground">
+          <span className="font-medium">Resultado esperado:</span> {card.expectedOutcome}
+        </p>
+      ) : null}
+      {card.preparationMessage ? (
+        <p className="mt-2 text-sm text-muted" role="status">
+          {card.preparationMessage}
+        </p>
+      ) : null}
+      {card.progressLabel ? (
+        <p className="mt-2 text-sm text-muted" aria-label={`Progresso: ${card.progressLabel}`}>
+          {card.progressLabel}
+        </p>
+      ) : null}
+      {card.cta ? (
+        <p className="mt-5">
+          <Link className={buttonClass(primary ? "primary" : "secondary")} href={card.cta.href}>
+            {card.cta.label}
+            <ArrowRight className="ml-2 inline size-4" aria-hidden />
+          </Link>
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function LearningBlock({ item, primary = true }: { item: LearningContinuation; primary?: boolean }) {
+  return (
+    <section
+      aria-labelledby="learning-heading"
+      className={`mt-8 rounded-xl border bg-surface p-5 sm:p-6 ${
+        primary ? "border-cta/30 shadow-sm" : "border-border"
+      }`}
+    >
       <p id="learning-heading" className="text-xs font-medium uppercase tracking-[0.14em] text-cta">
         {item.eyebrow}
       </p>
@@ -223,7 +319,7 @@ function LearningBlock({ item }: { item: LearningContinuation }) {
         </p>
       ) : null}
       <p className="mt-5">
-        <Link className={buttonClass("primary")} href={item.href}>
+        <Link className={buttonClass(primary ? "primary" : "secondary")} href={item.href}>
           {item.cta}
           <ArrowRight className="ml-2 inline size-4" aria-hidden />
         </Link>

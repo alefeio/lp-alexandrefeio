@@ -1,5 +1,6 @@
 import { JOURNEY_STAGES, currentJourneyStage, type JourneyStageId } from "@/lib/home/home-continuation";
 import { courseProgressPercent, firstGivenName } from "@/lib/home/student-home";
+import type { FirstValueCardViewModel } from "@/lib/learning/first-value/present";
 
 export type DashboardLesson = {
   slug: string;
@@ -117,6 +118,8 @@ export type StudentDashboardViewModel = {
   quickAccess: QuickAccessCard[];
   isNewStudent: boolean;
   courseCompleted: boolean;
+  /** Card contextual ACT-1B.2 — null quando omitido ou loader falhou com fallback. */
+  firstValue?: FirstValueCardViewModel | null;
 };
 
 export type DashboardBuildInput = {
@@ -670,7 +673,7 @@ export function buildMyCourses(input: DashboardBuildInput): StudentCourseCard[] 
 
 export function dashboardHasPrivateKeys(view: StudentDashboardViewModel): boolean {
   const blob = JSON.stringify(view);
-  return ["email", "answers", "payload", "password", "resultSnapshot", "rawStoragePath"].some((key) =>
-    blob.includes(`"${key}"`),
+  return ["email", "answers", "payload", "password", "resultSnapshot", "rawStoragePath", "orderId", "reason"].some(
+    (key) => blob.includes(`"${key}"`),
   );
 }
