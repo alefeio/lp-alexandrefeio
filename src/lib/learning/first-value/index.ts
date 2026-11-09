@@ -14,10 +14,15 @@ export {
 } from "@/lib/learning/first-value/evidence";
 export {
   isValidPedagogicalPayload,
+  parsePublicationLessonPayload,
+  parseTrafficReadinessLink,
   readMutablePayloadCompletedAt,
+  resolveTrustedResultAchievedAt,
+  verifiedToolKeys,
 } from "@/lib/learning/first-value/evidence-validate";
 export { resolvePurchaseConfirmation } from "@/lib/learning/first-value/finance";
 export {
+  FIRST_VALUE_CATALOG_SLUGS,
   buildArtifactsFromRecords,
   buildDependencyAvailability,
   buildFirstValueSelectInput,
@@ -26,7 +31,11 @@ export {
   type FirstValueLoaderRecords,
   type FirstValueOrderRecord,
 } from "@/lib/learning/first-value/from-records";
-export { loadFirstValueRecommendation, recommendFromFirstValueRecords } from "@/lib/learning/first-value/load";
+export {
+  loadFirstValueForAuthenticatedUser,
+  loadFirstValueRecommendation,
+  recommendFromFirstValueRecords,
+} from "@/lib/learning/first-value/load";
 export { selectFirstValueAction } from "@/lib/learning/first-value/select";
 export {
   FIRST_VALUE_STATES,

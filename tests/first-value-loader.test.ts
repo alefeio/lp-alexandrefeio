@@ -436,14 +436,14 @@ test("16. LandingPageProject criado sem brief", () => {
         }),
       ],
       entitlements: [{ userId: USER, lessonSlug: "oferta-publico-acao-principal", status: "ACTIVE", grantedAt: NOW }],
-      landingPageProjects: [{ id: "lp-empty", userId: USER, createdAt: NOW, updatedAt: NOW }],
+      landingPageProjects: [{ id: "lp-empty", userId: USER, courseSlug: "sites-que-convertem", createdAt: NOW, updatedAt: NOW }],
     }),
   );
   assert.notEqual(result.recommendation.state, "first_value_achieved");
   assert.equal(result.recommendation.state, "ready_to_start");
   const input = buildFirstValueSelectInput(
     emptyRecords({
-      landingPageProjects: [{ id: "lp-empty", userId: USER, createdAt: NOW, updatedAt: NOW }],
+      landingPageProjects: [{ id: "lp-empty", userId: USER, courseSlug: "sites-que-convertem", createdAt: NOW, updatedAt: NOW }],
     }),
   );
   assert.ok(input.artifacts.some((row) => row.kind === "landing_page_project_shell"));
@@ -469,7 +469,7 @@ test("17. projeto LP antes e brief salvo depois", () => {
         }),
       ],
       entitlements: [{ userId: USER, lessonSlug: "oferta-publico-acao-principal", status: "ACTIVE", grantedAt: NOW }],
-      landingPageProjects: [{ id: "lp-1", userId: USER, createdAt: before, updatedAt: after }],
+      landingPageProjects: [{ id: "lp-1", userId: USER, courseSlug: "sites-que-convertem", createdAt: before, updatedAt: after }],
       lessonResults: [
         {
           id: "lr-brief",
@@ -513,8 +513,8 @@ test("18. artefato criado antes e editado depois da compra", () => {
       projects: [{ id: "p1", userId: USER, status: "ACTIVE" }],
     }),
   );
-  assert.equal(result.recommendation.existingResult?.attribution, "preexisting_edited");
-  assert.equal(result.recommendation.state, "continuation");
+  assert.equal(result.recommendation.existingResult?.attribution, "unknown");
+  assert.notEqual(result.recommendation.state, "first_value_achieved");
 });
 
 test("19. artefato sem data confiável / payload.completedAt mutável não prova after_purchase", () => {
@@ -549,8 +549,20 @@ test("20. Diagnostic concluído", () => {
           id: "d1",
           userId: USER,
           status: "COMPLETED",
+          version: "traffic-readiness-v1",
           completedAt,
           createdAt: NOW,
+          updatedAt: completedAt,
+        },
+      ],
+      lessonResponses: [
+        {
+          id: "resp-link",
+          userId: USER,
+          lessonSlug: "negocio-pronto-para-anunciar",
+          blockKey: "ferramenta",
+          payload: { projectId: "p1", diagnosticId: "d1" },
+          createdAt: completedAt,
           updatedAt: completedAt,
         },
       ],
@@ -566,14 +578,39 @@ test("21. publicação de landing page", () => {
   const publishedAt = new Date(NOW.getTime() + 8_000);
   const input = buildFirstValueSelectInput(
     emptyRecords({
-      landingPageProjects: [{ id: "lp-1", userId: USER, createdAt: NOW, updatedAt: publishedAt }],
+      landingPageProjects: [{ id: "lp-1", userId: USER, courseSlug: "sites-que-convertem", createdAt: NOW, updatedAt: publishedAt }],
       publications: [
         {
           id: "pub-1",
           userId: USER,
           landingPageProjectId: "lp-1",
+          courseSlug: "sites-que-convertem",
           publishedAt,
           createdAt: publishedAt,
+        },
+      ],
+      lessonResults: [
+        {
+          id: "lr-pub",
+          userId: USER,
+          lessonSlug: "revisao-antes-do-trafego",
+          projectId: null,
+          payload: {
+            landingPageProjectId: "lp-1",
+            publicationId: "pub-1",
+            publicationVersion: 1,
+            snapshotSchemaVersion: 1,
+            publicSlug: "minha-pagina",
+            publicPath: "/p/minha-pagina",
+            primaryActionType: "WHATSAPP",
+            primaryConversionEvent: "WHATSAPP_CLICK",
+            warningCount: 0,
+            acknowledgedWarningCount: 0,
+            publishedAt: publishedAt.toISOString(),
+            sourceDraftRevision: 1,
+          },
+          createdAt: publishedAt,
+          updatedAt: publishedAt,
         },
       ],
     }),
@@ -629,7 +666,7 @@ test("24. dados de outro usuário são isolados", () => {
         },
       ],
       projects: [{ id: "p1", userId: OTHER, status: "ACTIVE" }],
-      landingPageProjects: [{ id: "lp-o", userId: OTHER, createdAt: NOW, updatedAt: NOW }],
+      landingPageProjects: [{ id: "lp-o", userId: OTHER, courseSlug: "sites-que-convertem", createdAt: NOW, updatedAt: NOW }],
     }),
   );
   assert.equal(input.purchases.length, 0);

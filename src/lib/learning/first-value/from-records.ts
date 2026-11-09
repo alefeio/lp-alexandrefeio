@@ -1,6 +1,12 @@
+import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 import { FIRST_VALUE_LESSON_CATALOG, firstValueLessonBySlug } from "@/lib/learning/first-value/catalog";
 import { buildFirstValueArtifact } from "@/lib/learning/first-value/evidence";
-import { isValidPedagogicalPayload } from "@/lib/learning/first-value/evidence-validate";
+import {
+  isValidPedagogicalPayload,
+  parsePublicationLessonPayload,
+  parseTrafficReadinessLink,
+  resolveTrustedResultAchievedAt,
+} from "@/lib/learning/first-value/evidence-validate";
 import { resolvePurchaseConfirmation } from "@/lib/learning/first-value/finance";
 import type {
   FirstValueArtifact,
@@ -54,6 +60,7 @@ export type FirstValueDiagnosticRecord = {
   id: string;
   userId: string;
   status: string;
+  version?: string | null;
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -62,6 +69,7 @@ export type FirstValueDiagnosticRecord = {
 export type FirstValueLandingPageProjectRecord = {
   id: string;
   userId: string;
+  courseSlug: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -70,6 +78,7 @@ export type FirstValuePublicationRecord = {
   id: string;
   userId: string;
   landingPageProjectId: string;
+  courseSlug: string | null;
   publishedAt: Date;
   createdAt: Date;
 };
@@ -185,6 +194,130 @@ function pushUniqueArtifact(bucket: FirstValueArtifact[], artifact: FirstValueAr
   bucket.push(artifact);
 }
 
+function artifactFromLessonRow(
+  subjectUserId: string,
+  definition: (typeof FIRST_VALUE_LESSON_CATALOG)[number],
+  row: { id: string; projectId?: string | null; payload: unknown; createdAt: Date; updatedAt: Date },
+  source: "lesson_result_created_at" | "lesson_response_created_at",
+): FirstValueArtifact | null {
+  if (
+    !isValidPedagogicalPayload({
+      toolKey: definition.toolKey,
+      evidenceKind: definition.evidenceKind,
+      payload: row.payload,
+    })
+  ) {
+    return null;
+  }
+  if (definition.evidenceKind === "lesson_result_project" && source === "lesson_result_created_at" && !row.projectId) {
+    return null;
+  }
+  const achieved = resolveTrustedResultAchievedAt(row);
+  return buildFirstValueArtifact({
+    id: row.id,
+    lessonSlug: definition.lessonSlug,
+    kind: row.projectId ? "lesson_result_project" : definition.evidenceKind === "lesson_result_project" ? "lesson_result_project" : "lesson_result_personal",
+    userId: subjectUserId,
+    resultSource: achieved ? source : "unproven",
+    resultAchievedAt: achieved,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  });
+}
+
+function buildDiagnosticArtifacts(input: {
+  subjectUserId: string;
+  definition: (typeof FIRST_VALUE_LESSON_CATALOG)[number];
+  responses: FirstValueLessonResponseRecord[];
+  diagnostics: FirstValueDiagnosticRecord[];
+}): FirstValueArtifact[] {
+  const out: FirstValueArtifact[] = [];
+  const links = input.responses
+    .filter((row) => row.userId === input.subjectUserId && row.lessonSlug === input.definition.lessonSlug)
+    .map((row) => ({ row, link: parseTrafficReadinessLink(row.payload) }))
+    .filter((item): item is { row: FirstValueLessonResponseRecord; link: { projectId: string; diagnosticId: string } } =>
+      Boolean(item.link),
+    )
+    .sort((a, b) => a.row.createdAt.getTime() - b.row.createdAt.getTime() || a.row.id.localeCompare(b.row.id));
+
+  for (const item of links) {
+    const diagnostic = input.diagnostics.find(
+      (row) =>
+        row.userId === input.subjectUserId &&
+        row.id === item.link.diagnosticId &&
+        row.status === "COMPLETED" &&
+        row.completedAt != null,
+    );
+    if (!diagnostic?.completedAt) continue;
+    pushUniqueArtifact(
+      out,
+      buildFirstValueArtifact({
+        id: diagnostic.id,
+        lessonSlug: input.definition.lessonSlug,
+        kind: "diagnostic_completed",
+        userId: input.subjectUserId,
+        resultSource: "diagnostic_completed_at",
+        resultAchievedAt: diagnostic.completedAt,
+        createdAt: diagnostic.createdAt,
+        updatedAt: diagnostic.updatedAt,
+      }),
+    );
+  }
+  return out;
+}
+
+function buildPublicationArtifacts(input: {
+  subjectUserId: string;
+  definition: (typeof FIRST_VALUE_LESSON_CATALOG)[number];
+  results: FirstValueLessonResultRecord[];
+  responses: FirstValueLessonResponseRecord[];
+  publications: FirstValuePublicationRecord[];
+  landingPageProjects: FirstValueLandingPageProjectRecord[];
+}): FirstValueArtifact[] {
+  const out: FirstValueArtifact[] = [];
+  const candidates = [
+    ...input.results
+      .filter((row) => row.userId === input.subjectUserId && row.lessonSlug === input.definition.lessonSlug)
+      .map((row) => ({ id: row.id, payload: row.payload, createdAt: row.createdAt, updatedAt: row.updatedAt })),
+    ...input.responses
+      .filter((row) => row.userId === input.subjectUserId && row.lessonSlug === input.definition.lessonSlug)
+      .map((row) => ({ id: row.id, payload: row.payload, createdAt: row.createdAt, updatedAt: row.updatedAt })),
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parsePublicationLessonPayload(candidate.payload);
+    if (!parsed) continue;
+    const publication = input.publications.find(
+      (row) =>
+        row.userId === input.subjectUserId &&
+        row.id === parsed.publicationId &&
+        row.landingPageProjectId === parsed.landingPageProjectId,
+    );
+    if (!publication) continue;
+    if (publication.courseSlug && publication.courseSlug !== SITES_COURSE_SLUG) continue;
+    const lp = input.landingPageProjects.find(
+      (row) => row.id === publication.landingPageProjectId && row.userId === input.subjectUserId,
+    );
+    if (!lp) continue;
+    if (lp.courseSlug && lp.courseSlug !== SITES_COURSE_SLUG) continue;
+
+    pushUniqueArtifact(
+      out,
+      buildFirstValueArtifact({
+        id: publication.id,
+        lessonSlug: input.definition.lessonSlug,
+        kind: "landing_page_published",
+        userId: input.subjectUserId,
+        resultSource: "landing_page_publication_published_at",
+        resultAchievedAt: publication.publishedAt,
+        createdAt: publication.createdAt,
+        updatedAt: publication.publishedAt,
+      }),
+    );
+  }
+  return out;
+}
+
 export function buildArtifactsFromRecords(input: {
   subjectUserId: string;
   lessonResults: FirstValueLessonResultRecord[];
@@ -196,51 +329,31 @@ export function buildArtifactsFromRecords(input: {
   const artifacts: FirstValueArtifact[] = [];
   const ownedResults = input.lessonResults.filter((row) => row.userId === input.subjectUserId);
   const ownedResponses = input.lessonResponses.filter((row) => row.userId === input.subjectUserId);
-  const ownedDiagnostics = input.diagnostics.filter((row) => row.userId === input.subjectUserId);
   const ownedLp = input.landingPageProjects.filter((row) => row.userId === input.subjectUserId);
-  const ownedPubs = input.publications.filter((row) => row.userId === input.subjectUserId);
 
   for (const definition of FIRST_VALUE_LESSON_CATALOG) {
     if (definition.evidenceKind === "diagnostic_completed") {
-      const done = ownedDiagnostics
-        .filter((row) => row.status === "COMPLETED" && row.completedAt != null)
-        .sort((a, b) => a.completedAt!.getTime() - b.completedAt!.getTime());
-      const first = done[0];
-      if (first?.completedAt) {
-        pushUniqueArtifact(
-          artifacts,
-          buildFirstValueArtifact({
-            id: first.id,
-            lessonSlug: definition.lessonSlug,
-            kind: "diagnostic_completed",
-            userId: input.subjectUserId,
-            resultSource: "diagnostic_completed_at",
-            resultAchievedAt: first.completedAt,
-            createdAt: first.createdAt,
-            updatedAt: first.updatedAt,
-          }),
-        );
+      for (const artifact of buildDiagnosticArtifacts({
+        subjectUserId: input.subjectUserId,
+        definition,
+        responses: ownedResponses,
+        diagnostics: input.diagnostics,
+      })) {
+        pushUniqueArtifact(artifacts, artifact);
       }
       continue;
     }
 
     if (definition.evidenceKind === "landing_page_published") {
-      const pubs = ownedPubs.slice().sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime());
-      const first = pubs[0];
-      if (first) {
-        pushUniqueArtifact(
-          artifacts,
-          buildFirstValueArtifact({
-            id: first.id,
-            lessonSlug: definition.lessonSlug,
-            kind: "landing_page_published",
-            userId: input.subjectUserId,
-            resultSource: "landing_page_publication_published_at",
-            resultAchievedAt: first.publishedAt,
-            createdAt: first.createdAt,
-            updatedAt: first.publishedAt,
-          }),
-        );
+      for (const artifact of buildPublicationArtifacts({
+        subjectUserId: input.subjectUserId,
+        definition,
+        results: ownedResults,
+        responses: ownedResponses,
+        publications: input.publications,
+        landingPageProjects: input.landingPageProjects,
+      })) {
+        pushUniqueArtifact(artifacts, artifact);
       }
       continue;
     }
@@ -248,72 +361,36 @@ export function buildArtifactsFromRecords(input: {
     if (definition.evidenceKind === "lesson_result_personal" || definition.evidenceKind === "lesson_result_project") {
       const results = ownedResults
         .filter((row) => row.lessonSlug === definition.lessonSlug)
-        .filter((row) =>
-          isValidPedagogicalPayload({
-            toolKey: definition.toolKey,
-            evidenceKind: definition.evidenceKind,
-            payload: row.payload,
-          }),
-        )
-        .filter((row) => {
-          if (definition.evidenceKind === "lesson_result_project") return Boolean(row.projectId);
-          return true;
-        })
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
 
+      const validResults: FirstValueArtifact[] = [];
       for (const row of results) {
-        pushUniqueArtifact(
-          artifacts,
-          buildFirstValueArtifact({
-            id: row.id,
-            lessonSlug: definition.lessonSlug,
-            kind: row.projectId ? "lesson_result_project" : "lesson_result_personal",
-            userId: input.subjectUserId,
-            resultSource: "lesson_result_created_at",
-            // Nunca payload.completedAt — mutável em re-saves (ex.: brief Sites).
-            resultAchievedAt: row.createdAt,
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
-          }),
-        );
+        const artifact = artifactFromLessonRow(input.subjectUserId, definition, row, "lesson_result_created_at");
+        if (artifact) {
+          validResults.push(artifact);
+          pushUniqueArtifact(artifacts, artifact);
+        }
       }
 
-      const responses = ownedResponses
-        .filter((row) => row.lessonSlug === definition.lessonSlug)
-        .filter((row) =>
-          isValidPedagogicalPayload({
-            toolKey: definition.toolKey,
-            evidenceKind: definition.evidenceKind,
-            payload: row.payload,
-          }),
-        )
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
-
-      for (const row of responses) {
-        // Só usa LessonResponse se não houver LessonResult válido da mesma aula.
-        if (results.length > 0) break;
-        pushUniqueArtifact(
-          artifacts,
-          buildFirstValueArtifact({
-            id: row.id,
-            lessonSlug: definition.lessonSlug,
-            kind: definition.evidenceKind,
-            userId: input.subjectUserId,
-            resultSource: "lesson_response_created_at",
-            resultAchievedAt: row.createdAt,
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
-          }),
-        );
+      if (validResults.length === 0) {
+        const responses = ownedResponses
+          .filter((row) => row.lessonSlug === definition.lessonSlug)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+        for (const row of responses) {
+          const artifact = artifactFromLessonRow(input.subjectUserId, definition, row, "lesson_response_created_at");
+          if (artifact) pushUniqueArtifact(artifacts, artifact);
+        }
       }
 
-      // Shell LP sem brief válido — evidência não verificável.
-      if (
+      const hasValidBrief =
         definition.lessonSlug === "oferta-publico-acao-principal" &&
-        results.length === 0 &&
-        responses.length === 0 &&
-        ownedLp.length > 0
-      ) {
+        artifacts.some(
+          (row) =>
+            row.lessonSlug === definition.lessonSlug &&
+            (row.kind === "lesson_result_personal" || row.kind === "lesson_result_project"),
+        );
+
+      if (definition.lessonSlug === "oferta-publico-acao-principal" && !hasValidBrief && ownedLp.length > 0) {
         const shell = ownedLp.slice().sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0]!;
         pushUniqueArtifact(
           artifacts,
@@ -358,10 +435,6 @@ export function buildDependencyAvailability(input: {
   };
 }
 
-/**
- * Monta `FirstValueSelectInput` a partir de registros já filtrados.
- * Puro: sem Prisma, sem escrita, sem side-effects.
- */
 export function buildFirstValueSelectInput(records: FirstValueLoaderRecords): FirstValueSelectInput {
   const subjectUserId = records.subjectUserId;
   return {
@@ -388,7 +461,8 @@ export function buildFirstValueSelectInput(records: FirstValueLoaderRecords): Fi
   };
 }
 
-/** Garante que o catálogo conhece o slug antes de anexar evidência de aula. */
 export function knownFirstValueLesson(slug: string): boolean {
   return Boolean(firstValueLessonBySlug(slug));
 }
+
+export const FIRST_VALUE_CATALOG_SLUGS: readonly string[] = FIRST_VALUE_LESSON_CATALOG.map((row) => row.lessonSlug);

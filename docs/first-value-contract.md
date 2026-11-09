@@ -70,26 +70,37 @@ Alinhado ao `OrderStatus` do Prisma: `PENDING_PAYMENT` · `PAID` · `CANCELLED` 
 
 Nunca usar `Order.updatedAt`, revisão de pedido ou `NEEDS_REVIEW` como confirmação financeira.
 
-## Evidência pedagógica
+## Evidência pedagógica (ACT-1B.1.1)
 
-O loader monta `FirstValueArtifact` somente após validar payload/estrutura:
+Validação **por `toolKey`** com schemas reais. JSON genérico / incompleto **não** conta.
 
-| Aula / caso | Prova | Timestamp |
+| Caso | Prova verificável | Timestamp confiável |
 | --- | --- | --- |
-| Brief de Campanha | `LessonResult` + `campaignBriefSchema` + `projectId` | `LessonResult.createdAt` |
-| Brief de Conversão | `LessonResult`/`LessonResponse` validado | `createdAt` da linha |
-| Diagnóstico | `Diagnostic` COMPLETED | `completedAt` |
-| Publicação LP | `LandingPagePublication` do usuário | `publishedAt` |
-| Shell LP vazio | `landing_page_project_shell` | `resultAchievedAt = null` |
+| Brief Campanha | `campaignBriefSchema` + `projectId` | `createdAt` se `updatedAt === createdAt` |
+| Brief Conversão | `conversionBriefResponseSchema` **ou** personal com oferta/público/ação | idem |
+| Planos tráfego | schemas de destination/search/keyword/ads/meta/leads/diagnosis/next-action | idem |
+| Wireframe / copy / visual / trust / experience / measurement | schemas de lesson-flow correspondentes | idem |
+| FREE Sites | journey/presence/readiness schemas | idem |
+| FREE RESULT (sem tool) | `resultResponseSchema` | idem |
+| Diagnóstico aula | `LessonResponse` `toolResponseSchema` **+** Diagnostic COMPLETED vinculado | `Diagnostic.completedAt` |
+| Publicação aula | `publicationLessonResponseSchema` **+** publication/LP do curso Sites | `publishedAt` |
+| Shell LP | `landing_page_project_shell` | sempre `null` |
+
+### Fallback conservador
+
+- Sem schema adequado → sem artefato verificável
+- Diagnóstico COMPLETED sem vínculo da aula → ignorado
+- Publicação sem lesson payload da aula → não atribui a `revisao-antes-do-trafego`
+- `updatedAt > createdAt` → `resultAchievedAt = null` / `unknown` (pode ter nascido incompleto)
 
 ### Proibido
 
-- Usar isoladamente `payload.completedAt` (mutável em re-saves, ex.: `saveConversionBriefForUser`)
-- Tratar criação de `LandingPageProject` como conquista
-- Incluir resultados de outro `userId`
-- Enviar payload integral / oferta / orçamento na recomendação
+- `payload.completedAt` / `updatedAt` como prova de primeira conquista
+- kind + `landingPageProjectId` sozinhos no brief Sites
+- Qualquer objeto JSON não vazio como prova
+- Expor `subjectUserId` / payloads em Analytics ou meta pública
 
-Quando a data não puder ser comprovada → `resultAchievedAt = null` → atribuição `unknown`.
+Entrypoint UI: `loadFirstValueForAuthenticatedUser()` → `requireSession()`.
 
 ## Dependências
 

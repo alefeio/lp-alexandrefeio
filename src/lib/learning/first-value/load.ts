@@ -1,5 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
+import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 import {
+  FIRST_VALUE_CATALOG_SLUGS,
   buildFirstValueSelectInput,
   type FirstValueLoaderRecords,
 } from "@/lib/learning/first-value/from-records";
@@ -8,19 +10,29 @@ import type { FirstValueOrderStatus, FirstValueRecommendation } from "@/lib/lear
 
 export type FirstValueLoadResult = {
   recommendation: FirstValueRecommendation;
-  /** Metadados seguros para observabilidade — sem payloads pedagógicos. */
+  /** Metadados de servidor — sem subjectUserId nem payloads (não enviar a Analytics/cliente). */
   meta: {
-    subjectUserId: string;
     purchaseCount: number;
     artifactCount: number;
     publishedLessonCount: number;
+    readOnly: true;
   };
 };
 
 /**
- * Loader autenticado read-only (ACT-1B.1).
- * `userId` deve vir da sessão validada — nunca de parâmetro público arbitrário.
- * Não grava, não altera entitlement/pedido/pagamento.
+ * Entrypoint autenticado para ACT-1B.2.
+ * Usa exclusivamente `requireSession()` — nunca userId arbitrário de cliente.
+ * Import dinâmico evita acoplar o barrel de testes à sessão/Prisma.
+ */
+export async function loadFirstValueForAuthenticatedUser(now = new Date()): Promise<FirstValueLoadResult> {
+  const { requireSession } = await import("@/lib/auth/session");
+  const session = await requireSession();
+  return loadFirstValueRecommendation(session.user.id, now);
+}
+
+/**
+ * Loader read-only. Preferir `loadFirstValueForAuthenticatedUser` na UI.
+ * `userId` deve originar-se da sessão validada.
  */
 export async function loadFirstValueRecommendation(
   userId: string,
@@ -31,39 +43,30 @@ export async function loadFirstValueRecommendation(
   }
 
   const records = await fetchFirstValueRecords(userId, now);
-  const input = buildFirstValueSelectInput(records);
-  const recommendation = selectFirstValueAction(input);
-
-  return {
-    recommendation,
-    meta: {
-      subjectUserId: userId,
-      purchaseCount: input.purchases.length,
-      artifactCount: input.artifacts.length,
-      publishedLessonCount: input.publishedLessonSlugs.length,
-    },
-  };
+  return recommendFromFirstValueRecords(records);
 }
 
-/** Expõe a montagem pura para testes de contrato sem Prisma. */
+/** Montagem pura para testes de contrato sem Prisma. */
 export function recommendFromFirstValueRecords(records: FirstValueLoaderRecords): FirstValueLoadResult {
   const input = buildFirstValueSelectInput(records);
   return {
     recommendation: selectFirstValueAction(input),
     meta: {
-      subjectUserId: records.subjectUserId,
       purchaseCount: input.purchases.length,
       artifactCount: input.artifacts.length,
       publishedLessonCount: input.publishedLessonSlugs.length,
+      readOnly: true,
     },
   };
 }
 
 async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstValueLoaderRecords> {
   const prisma = getPrisma();
+  const catalogSlugs = [...FIRST_VALUE_CATALOG_SLUGS];
 
-  const [orders, entitlements, progress, lessonResults, lessonResponses, diagnostics, landingPageProjects, projects, imports, publishedLessons] =
+  const [orders, entitlements, progress, lessonResults, lessonResponses, landingPageProjects, activeProject, readyImport, publishedLessons] =
     await Promise.all([
+      // Pedidos: nunca truncar — necessário para confirmação e desempate.
       prisma.order.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -79,11 +82,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
               id: true,
               productType: true,
               course: { select: { slug: true } },
-              lessons: {
-                select: {
-                  lessonId: true,
-                },
-              },
+              lessons: { select: { lessonId: true } },
             },
           },
           payments: {
@@ -96,7 +95,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
         },
       }),
       prisma.entitlement.findMany({
-        where: { userId },
+        where: { userId, lesson: { slug: { in: catalogSlugs } } },
         select: {
           status: true,
           grantedAt: true,
@@ -104,7 +103,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
         },
       }),
       prisma.lessonProgress.findMany({
-        where: { userId },
+        where: { userId, lesson: { slug: { in: catalogSlugs } } },
         select: {
           startedAt: true,
           completedAt: true,
@@ -114,7 +113,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
         },
       }),
       prisma.lessonResult.findMany({
-        where: { userId },
+        where: { userId, lesson: { slug: { in: catalogSlugs } } },
         select: {
           id: true,
           userId: true,
@@ -126,7 +125,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
         },
       }),
       prisma.lessonResponse.findMany({
-        where: { userId },
+        where: { userId, lesson: { slug: { in: catalogSlugs } } },
         select: {
           id: true,
           userId: true,
@@ -137,24 +136,14 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
           lesson: { select: { slug: true } },
         },
       }),
-      prisma.diagnostic.findMany({
-        where: { userId },
-        select: {
-          id: true,
-          userId: true,
-          status: true,
-          completedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      }),
       prisma.landingPageProject.findMany({
-        where: { userId },
+        where: { userId, course: { slug: SITES_COURSE_SLUG } },
         select: {
           id: true,
           userId: true,
           createdAt: true,
           updatedAt: true,
+          course: { select: { slug: true } },
           publications: {
             select: {
               id: true,
@@ -165,20 +154,52 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
           },
         },
       }),
-      prisma.project.findMany({
+      prisma.project.findFirst({
         where: { userId, status: "ACTIVE" },
         select: { id: true, userId: true, status: true },
       }),
-      prisma.campaignDataImport.findMany({
-        where: { userId, deletedAt: null, status: { not: "DELETED" } },
+      prisma.campaignDataImport.findFirst({
+        where: { userId, deletedAt: null, status: "READY" },
         select: { id: true, userId: true, status: true, deletedAt: true },
-        take: 100,
       }),
       prisma.lesson.findMany({
-        where: { status: "PUBLISHED" },
+        where: { status: "PUBLISHED", slug: { in: catalogSlugs } },
         select: { slug: true },
       }),
     ]);
+
+  const linkedDiagnosticIds = [
+    ...new Set(
+      lessonResponses
+        .map((row) => {
+          const payload = row.payload;
+          if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+          const diagnosticId = (payload as { diagnosticId?: unknown }).diagnosticId;
+          return typeof diagnosticId === "string" ? diagnosticId : null;
+        })
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const diagnostics =
+    linkedDiagnosticIds.length === 0
+      ? []
+      : await prisma.diagnostic.findMany({
+          where: {
+            userId,
+            id: { in: linkedDiagnosticIds },
+            status: "COMPLETED",
+          },
+          select: {
+            id: true,
+            userId: true,
+            status: true,
+            version: true,
+            completedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
 
   const orderItemLessonIds = [
     ...new Set(orders.flatMap((order) => order.items.flatMap((item) => item.lessons.map((row) => row.lessonId)))),
@@ -197,6 +218,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
       id: publication.id,
       userId: project.userId,
       landingPageProjectId: project.id,
+      courseSlug: project.course.slug,
       publishedAt: publication.publishedAt,
       createdAt: publication.createdAt,
     })),
@@ -262,6 +284,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
       id: row.id,
       userId: row.userId,
       status: row.status,
+      version: row.version,
       completedAt: row.completedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -269,17 +292,15 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
     landingPageProjects: landingPageProjects.map((row) => ({
       id: row.id,
       userId: row.userId,
+      courseSlug: row.course.slug,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     })),
     publications,
-    projects: projects.map((row) => ({ id: row.id, userId: row.userId, status: row.status })),
-    imports: imports.map((row) => ({
-      id: row.id,
-      userId: row.userId,
-      status: row.status,
-      deletedAt: row.deletedAt,
-    })),
+    projects: activeProject ? [{ id: activeProject.id, userId: activeProject.userId, status: activeProject.status }] : [],
+    imports: readyImport
+      ? [{ id: readyImport.id, userId: readyImport.userId, status: readyImport.status, deletedAt: readyImport.deletedAt }]
+      : [],
     publishedLessonSlugs: publishedLessons.map((row) => row.slug),
   };
 }
