@@ -24,7 +24,10 @@ export default async function SignUpPage({
       description="Nome, e-mail e senha. A confirmação chega por e-mail."
       footer={
         <p>
-          Já tem conta? <AuthTextLink href={loginHref}>Entrar</AuthTextLink>
+          Já tem conta?{" "}
+          <AuthTextLink href={loginHref} ctaName="cadastro_para_entrar">
+            Entrar
+          </AuthTextLink>
         </p>
       }
     >

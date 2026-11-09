@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import { Container } from "@/components/ui/Container";
+import { TrackedLink } from "@/components/ui/TrackedLink";
 import { navigationLinkClass } from "@/lib/button-styles";
 import { publicHomeCopy } from "@/lib/home/public-home";
 import type { PublishedBlogCard } from "@/lib/blog/service";
@@ -33,9 +33,14 @@ export function HomeRecentArticles({ posts }: { posts: PublishedBlogCard[] }) {
           ))}
         </ul>
         <p className="mt-10">
-          <Link href="/blog" className={navigationLinkClass()}>
+          <TrackedLink
+            href="/blog"
+            className={navigationLinkClass()}
+            event="cta_click"
+            params={{ cta_name: "home_ver_blog", cta_location: "home_blog", destination_type: "blog" }}
+          >
             {publicHomeCopy.blogCta}
-          </Link>
+          </TrackedLink>
         </p>
       </Container>
     </section>

@@ -1,5 +1,5 @@
 import { JourneyCourseTransitions, JourneyFreeLessons, JourneyScenarioBreakdown, JourneySources } from "@/components/admin/journey/JourneyBreakdowns";
-import { JourneyCommercial, JourneyFilters, JourneyFunnel, JourneyLearning, JourneySummary } from "@/components/admin/journey/JourneySections";
+import { JourneyCommercial, JourneyEntry, JourneyFilters, JourneyFunnel, JourneyLearning, JourneySummary } from "@/components/admin/journey/JourneySections";
 import type { JourneyDashboardView } from "@/lib/admin/journey-report";
 
 export function JourneyDashboard({ view }: { view: JourneyDashboardView }) {
@@ -11,9 +11,10 @@ export function JourneyDashboard({ view }: { view: JourneyDashboardView }) {
         Visitantes com consentimento de analytics, ao lado de pedidos, pagamentos e progresso reais.
       </p>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed">{view.queryLabel}</p>
-      <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">O histórico do painel continua desde {view.baselineLabel}. Eventos anteriores permanecem armazenados e fora da consulta. O clique de CTA do curso existe só no GA4 e não aparece aqui como dado interno.</p>
+      <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">O histórico do painel continua desde {view.baselineLabel}. Eventos anteriores permanecem armazenados e fora da consulta. Entrada e primeira interação começam no marco J2-A ({view.entry.instrumentationLabel}).</p>
       <JourneyFilters view={view} />
       <JourneySummary view={view} />
+      <JourneyEntry view={view} />
       <JourneyFunnel view={view} />
       <JourneyCommercial view={view} />
       <JourneyScenarioBreakdown view={view} />

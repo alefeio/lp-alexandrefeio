@@ -3,12 +3,13 @@ import { parseJourneyEvent, type JourneyEventRecord } from "@/lib/product-journe
 
 export const JOURNEY_MAX_BODY_BYTES = 4096;
 export const JOURNEY_RATE_NAMESPACE = "product-journey:event";
-export const JOURNEY_RATE_LIMIT = 120;
+/** Page views elevam o volume por sessão consentida; 180 cobre navegação típica sem abrir abuso. */
+export const JOURNEY_RATE_LIMIT = 180;
 export const JOURNEY_RATE_WINDOW_SECONDS = 10 * 60;
 
 const NO_STORE = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
 
-export type JourneyInsert = JourneyEventRecord & { userId: string | null; occurredAt: Date };
+export type JourneyInsert = JourneyEventRecord & { userId: string | null };
 
 export function isUniqueConstraint(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
@@ -44,7 +45,7 @@ export async function handleProductJourneyRequest(
   const limit = await deps.consume(key, now);
   if (!limit.allowed) return json(429);
   try {
-    await deps.insert({ ...parsed.value, userId: deps.userId ?? null, occurredAt: new Date(now) });
+    await deps.insert({ ...parsed.value, userId: deps.userId ?? null });
     return json(202);
   } catch (error) {
     if (isUniqueConstraint(error)) return json(200);

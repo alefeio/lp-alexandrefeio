@@ -1,6 +1,13 @@
 import { Prisma } from "@/generated/prisma/client";
 import { receivedRevenueCents } from "@/lib/admin/operations";
 import {
+  buildJourneyEntrySnapshot,
+  j2aInstrumentationLabel,
+  journeyEntryBounds,
+  J2A_ENTRY_INSTRUMENTATION_AT,
+  J2A_ENTRY_QUERY_ROW_BUDGET,
+} from "@/lib/admin/journey-entry";
+import {
   JOURNEY_FUNNEL,
   assembleJourneyView,
   attributionLabel,
@@ -34,7 +41,22 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
     ", ",
   );
 
-  const [summaryRows, scenarioRows, scenarioCourseRows, choiceRows, sourceRows, campaignRows, lessonRows, transitionRows, orderRows, coverageRows, itemRows, payments, startedRows, completedRows, diagnosticRows, courses] = await Promise.all([
+  const entryBounds = journeyEntryBounds(bounds.start, bounds.end);
+  const entryEventNames = [
+    "site_page_view",
+    "site_first_interaction",
+    "site_cta_click",
+    "home_course_path_click",
+    "course_catalog_path_click",
+    "course_catalog_click",
+    "course_view",
+    "course_free_start",
+    "lesson_started",
+    "lesson_completed",
+    "sign_up",
+  ] as const;
+
+  const [summaryRows, scenarioRows, scenarioCourseRows, choiceRows, sourceRows, campaignRows, lessonRows, transitionRows, orderRows, coverageRows, itemRows, payments, startedRows, completedRows, diagnosticRows, courses, entryRows] = await Promise.all([
     prisma.$queryRaw<Array<Record<string, number | bigint>>>(Prisma.sql`
       SELECT
         COUNT(DISTINCT "anonymousId")::int AS journeys,
@@ -209,6 +231,35 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       where: { slug: { in: [TRAFFIC_COURSE_SLUG, SITES_COURSE_SLUG] } },
       select: { slug: true, title: true },
     }),
+    entryBounds.outsideInstrumentation
+      ? Promise.resolve([])
+      : prisma.$queryRaw<
+          Array<{
+            session_id: string | null;
+            event_name: string;
+            occurred_at: Date;
+            source_path: string | null;
+            target_path: string | null;
+            cta_name: string | null;
+            course_slug: string | null;
+          }>
+        >(Prisma.sql`
+          SELECT
+            "sessionId" AS session_id,
+            "eventName" AS event_name,
+            "occurredAt" AS occurred_at,
+            "sourcePath" AS source_path,
+            "targetPath" AS target_path,
+            "ctaName" AS cta_name,
+            "courseSlug" AS course_slug
+          FROM journey_event
+          WHERE "occurredAt" >= ${entryBounds.start}
+            AND "occurredAt" < ${entryBounds.end}
+            AND "sessionId" IS NOT NULL
+            AND "eventName" IN (${Prisma.join([...entryEventNames])})
+          ORDER BY "occurredAt" ASC, "id" ASC
+          LIMIT ${J2A_ENTRY_QUERY_ROW_BUDGET}
+        `),
   ]);
 
   const lessonSlugs = [...new Set(lessonRows.map((row) => row.lesson_slug).filter((slug): slug is string => Boolean(slug)))];
@@ -263,6 +314,24 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
     lessonsStarted: asInt(startedRows[0]?.users),
     lessonsCompleted: asInt(completedRows[0]?.users),
     diagnosticsCompleted: course === "all" ? asInt(diagnosticRows[0]?.users) : null,
+    entry: buildJourneyEntrySnapshot(
+      entryRows.map((row) => ({
+        sessionId: row.session_id,
+        eventName: row.event_name,
+        occurredAt: row.occurred_at,
+        sourcePath: row.source_path,
+        targetPath: row.target_path,
+        ctaName: row.cta_name,
+        courseSlug: row.course_slug,
+      })),
+      {
+        start: entryBounds.start,
+        end: entryBounds.end,
+        instrumentationLabel: j2aInstrumentationLabel(J2A_ENTRY_INSTRUMENTATION_AT),
+        outsideInstrumentation: entryBounds.outsideInstrumentation,
+        pendingOfficialStart: entryBounds.pendingOfficialStart,
+      },
+    ),
   };
 
   return assembleJourneyView(model);

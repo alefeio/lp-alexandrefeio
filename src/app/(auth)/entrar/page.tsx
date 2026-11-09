@@ -23,7 +23,10 @@ export default async function SignInPage({
       footer={
         <p>
           Não tem conta?{" "}
-          <AuthTextLink href={typeof params.next === "string" ? `/cadastro?next=${encodeURIComponent(nextPath)}` : "/cadastro"}>
+          <AuthTextLink
+            href={typeof params.next === "string" ? `/cadastro?next=${encodeURIComponent(nextPath)}` : "/cadastro"}
+            ctaName="entrar_para_cadastro"
+          >
             Criar conta
           </AuthTextLink>
           <span className="mx-2">·</span>

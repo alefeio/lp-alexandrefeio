@@ -6,7 +6,8 @@ import {
   PENDING_COURSE_VIEW_KEY,
   rememberPendingCourseView,
 } from "@/lib/product-journey/current-view";
-import { isStrategicJourneyEvent } from "@/lib/product-journey/events";
+import { isSiteCtaBridgeEvent, isStrategicJourneyEvent } from "@/lib/product-journey/events";
+import { journeyPath } from "@/lib/product-journey/paths";
 
 export type AnalyticsEventName =
   | "cta_click"
@@ -145,25 +146,41 @@ export function trackEvent(event: AnalyticsEventName, params: AnalyticsParams = 
   }
 
   try {
-    if (!isStrategicJourneyEvent(event)) return;
     const consent = parseConsent(window.localStorage.getItem(CONSENT_STORAGE_KEY));
-    if (event === "course_view") {
-      const slug = typeof params.course_slug === "string" ? params.course_slug : "";
-      const path = window.location.pathname;
-      if (!consent?.analytics) {
-        if (slug) rememberPendingCourseView(slug, path);
+    if (isStrategicJourneyEvent(event)) {
+      if (event === "course_view") {
+        const slug = typeof params.course_slug === "string" ? params.course_slug : "";
+        const path = window.location.pathname;
+        if (!consent?.analytics) {
+          if (slug) rememberPendingCourseView(slug, path);
+          return;
+        }
+        if (!slug || courseViewAlreadyPersisted(slug, path)) return;
+        window.sessionStorage.setItem(courseViewJourneyKey(slug), path);
+        window.sessionStorage.removeItem(PENDING_COURSE_VIEW_KEY);
+      } else if (!consent?.analytics) {
         return;
       }
-      if (!slug || courseViewAlreadyPersisted(slug, path)) return;
-      window.sessionStorage.setItem(courseViewJourneyKey(slug), path);
-      window.sessionStorage.removeItem(PENDING_COURSE_VIEW_KEY);
-    } else if (!consent?.analytics) {
+      persistJourneyEvent({
+        eventName: event,
+        params: payload,
+        targetPath: context?.targetPath,
+        consentUpdatedAt: consent.updatedAt,
+      });
       return;
     }
+
+    if (!isSiteCtaBridgeEvent(event) || !consent?.analytics) return;
+    const ctaName =
+      typeof params.cta_name === "string"
+        ? params.cta_name
+        : typeof params.source === "string" && typeof params.action === "string"
+          ? `${params.source}_${params.action}`
+          : event;
     persistJourneyEvent({
-      eventName: event,
-      params: payload,
-      targetPath: context?.targetPath,
+      eventName: "site_cta_click",
+      params: { ...payload, cta_name: ctaName },
+      targetPath: context?.targetPath ?? (typeof params.target_path === "string" ? journeyPath(params.target_path) : undefined),
       consentUpdatedAt: consent.updatedAt,
     });
   } catch {
