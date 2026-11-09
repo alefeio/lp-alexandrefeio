@@ -17,18 +17,20 @@ export type FirstValueCardViewModel = {
   cta: { label: string; href: string } | null;
   progressLabel: string | null;
   preparationMessage: string | null;
-  /** Destaque visual pós-compra elegível — compete com LearningBlock. */
+  /**
+   * Destaque visual só com atividade pós-compra elegível/acessível.
+   * Avisos `payment_pending` / `access_pending` são informativos (highlight=false).
+   */
   highlight: boolean;
   tone: FirstValueCardTone;
 };
 
+/** Estados que podem assumir o CTA principal (atividade elegível). */
 const HIGHLIGHT_STATES = new Set<FirstValueState>([
   "ready_to_start",
   "in_progress",
   "first_value_achieved",
   "next_evolution",
-  "access_pending",
-  "payment_pending",
 ]);
 
 const PRIVATE_KEY_MARKERS = [
@@ -221,10 +223,15 @@ export function firstValueCardHasPrivateKeys(card: FirstValueCardViewModel): boo
   return PRIVATE_KEY_MARKERS.some((key) => blob.includes(`"${key}"`));
 }
 
+function sameDestination(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  return a === b || a.split("?")[0] === b.split("?")[0];
+}
+
 /**
  * Regra de prioridade visual vs LearningBlock.
- * Quando o card first-value está em destaque e aponta para o mesmo destino, omitir o LearningBlock
- * para não duplicar o CTA principal.
+ * Só omite LearningBlock quando o card first-value está em destaque e aponta para o mesmo destino.
+ * Avisos informativos (`payment_pending` / `access_pending`) nunca disparam esta regra.
  */
 export function shouldSuppressLearningContinuation(input: {
   firstValue: FirstValueCardViewModel | null | undefined;
@@ -232,5 +239,23 @@ export function shouldSuppressLearningContinuation(input: {
 }): boolean {
   const card = input.firstValue;
   if (!card?.highlight || !card.cta?.href || !input.learningHref) return false;
-  return card.cta.href === input.learningHref || card.cta.href.split("?")[0] === input.learningHref.split("?")[0];
+  return sameDestination(card.cta.href, input.learningHref);
+}
+
+/**
+ * Ação legada (`nextAction`) permanece quando o card first-value é apenas informativo.
+ * Omite só se o card elegível está em destaque, ou se há duplicação real de destino com o CTA do card.
+ */
+export function shouldSuppressLegacyNextAction(input: {
+  firstValue: FirstValueCardViewModel | null | undefined;
+  learningPresent: boolean;
+  businessPresent: boolean;
+  legacyHref: string | null | undefined;
+}): boolean {
+  if (input.learningPresent || input.businessPresent) return true;
+  const card = input.firstValue;
+  if (!card) return false;
+  if (card.highlight) return true;
+  if (card.cta?.href && sameDestination(card.cta.href, input.legacyHref)) return true;
+  return false;
 }

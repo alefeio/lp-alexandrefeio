@@ -24,6 +24,7 @@ import type {
 } from "@/lib/home/student-dashboard";
 import {
   shouldSuppressLearningContinuation,
+  shouldSuppressLegacyNextAction,
   type FirstValueCardViewModel,
 } from "@/lib/learning/first-value/present";
 
@@ -52,7 +53,15 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
   });
   const learningItem = suppressLearning ? null : view.learningContinuation;
   const learningPrimary = Boolean(learningItem) && !firstValue?.highlight;
-  const showLegacy = !learningItem && !view.businessNextAction && !firstValue;
+  const suppressLegacy = shouldSuppressLegacyNextAction({
+    firstValue,
+    learningPresent: Boolean(learningItem),
+    businessPresent: Boolean(view.businessNextAction),
+    legacyHref: view.nextAction.href,
+  });
+  const showLegacy = !suppressLegacy;
+  /** Card informativo: CTA secundário (pedido), nunca disputa o botão primary da continuidade/legado. */
+  const firstValuePrimary = Boolean(firstValue?.highlight);
 
   return (
     <Container className="max-w-4xl py-10 sm:py-12">
@@ -71,16 +80,21 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
         />
       </header>
 
-      {firstValue?.highlight ? <FirstValueBlock card={firstValue} primary /> : null}
+      {firstValue && firstValuePrimary ? <FirstValueBlock card={firstValue} primary /> : null}
       {learningItem ? <LearningBlock item={learningItem} primary={learningPrimary} /> : null}
-      {firstValue && !firstValue.highlight ? <FirstValueBlock card={firstValue} primary={false} /> : null}
       {view.businessNextAction ? (
         <BusinessBlock
           item={view.businessNextAction}
-          primary={!learningItem && !firstValue?.highlight}
+          primary={!learningItem && !firstValuePrimary}
         />
       ) : null}
-      {showLegacy ? <BusinessBlock item={view.nextAction} primary /> : null}
+      {showLegacy ? (
+        <BusinessBlock
+          item={view.nextAction}
+          primary={!learningItem && !view.businessNextAction && !firstValuePrimary}
+        />
+      ) : null}
+      {firstValue && !firstValuePrimary ? <FirstValueBlock card={firstValue} primary={false} /> : null}
 
       {view.myCourses.length > 0 ? (
         <section aria-labelledby="my-courses-heading" className="mt-10">

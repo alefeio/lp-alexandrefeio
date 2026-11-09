@@ -43,6 +43,7 @@ export {
   firstValueCardHasPrivateKeys,
   presentFirstValueRecommendation,
   shouldSuppressLearningContinuation,
+  shouldSuppressLegacyNextAction,
   type FirstValueCardTone,
   type FirstValueCardViewModel,
   type FirstValuePresentationState,

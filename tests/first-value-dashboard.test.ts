@@ -15,6 +15,7 @@ import {
   firstValueCardHasPrivateKeys,
   presentFirstValueRecommendation,
   shouldSuppressLearningContinuation,
+  shouldSuppressLegacyNextAction,
   type FirstValueCardViewModel,
 } from "../src/lib/learning/first-value/present";
 import type { FirstValueRecommendation } from "../src/lib/learning/first-value/types";
@@ -118,12 +119,13 @@ test("2. pagamento pendente → não afirma compra concluída", () => {
   assert.equal(card!.presentationState, "payment_pending");
   assert.match(card!.title, /pagamento/i);
   assert.match(card!.guidance, /não for confirmado|indisponível/i);
-  assert.equal(card!.highlight, true);
+  assert.equal(card!.highlight, false);
   assert.equal(card!.cta?.label, "Concluir pagamento");
   const html = render(withCard(buildStudentDashboard(dashboardInput()), card));
   assert.match(html, /Conclua o pagamento/);
   assert.equal(html.includes("compra concluída"), false);
   assert.equal(html.includes("order-secret-1") && html.includes("orderId"), false);
+  assert.match(html, /data-first-value-highlight="false"/);
 });
 
 test("3. pagamento aprovado com acesso confirmado → ready_to_start em destaque", () => {
@@ -655,4 +657,214 @@ test("next_evolution mostra resultado anterior e próxima atividade", () => {
   assert.equal(card?.title, "Próximo passo da sua conquista");
   assert.match(card!.guidance, /resultado anterior/);
   assert.equal(card?.expectedOutcome, "Plano de destino e mensuração");
+});
+
+function learningContinuationFixture(href = "/aulas/como-funciona-o-trafego-pago") {
+  return {
+    state: "in_progress" as const,
+    eyebrow: "Continue de onde parou",
+    courseTitle: "Tráfego Pago na Prática",
+    courseSlug: "trafego-pago-na-pratica",
+    moduleTitle: null,
+    lessonTitle: "Como funciona o tráfego pago",
+    positionLabel: "Aula 1 de 12",
+    percent: 40,
+    href,
+    cta: "Continuar estudando",
+  };
+}
+
+test("ACT-1B.2.1 /1. pagamento pendente + aula acessível em andamento → LearningBlock primary", () => {
+  const card = presentFirstValueRecommendation(
+    baseRec({
+      state: "payment_pending",
+      product: purchasedProduct(),
+      cta: { label: "Concluir pagamento", href: "/app/compras/order-secret-1" },
+    }),
+  );
+  assert.equal(card?.highlight, false);
+  assert.equal(
+    shouldSuppressLearningContinuation({ firstValue: card, learningHref: "/aulas/como-funciona-o-trafego-pago" }),
+    false,
+  );
+  const view = withCard(buildStudentDashboard(dashboardInput()), card);
+  view.learningContinuation = learningContinuationFixture();
+  const html = render(view);
+  assert.match(html, /Continuar estudando/);
+  assert.match(html, /Conclua o pagamento|Concluir pagamento/);
+  assert.match(html, /data-first-value-highlight="false"/);
+  const learningIdx = html.indexOf("Continuar estudando");
+  const paymentIdx = html.indexOf("Concluir pagamento");
+  assert.ok(learningIdx >= 0 && paymentIdx >= 0);
+  assert.ok(learningIdx < paymentIdx, "continuidade deve aparecer antes do aviso de pagamento");
+});
+
+test("ACT-1B.2.1 /2. acesso pendente + continuidade de aprendizagem", () => {
+  const card = presentFirstValueRecommendation(
+    baseRec({
+      state: "access_pending",
+      product: purchasedProduct(),
+      cta: { label: "Ver meu pedido", href: "/app/compras/order-secret-1" },
+    }),
+  );
+  assert.equal(card?.highlight, false);
+  const view = withCard(buildStudentDashboard(dashboardInput()), card);
+  view.learningContinuation = learningContinuationFixture();
+  const html = render(view);
+  assert.match(html, /Continuar estudando/);
+  assert.match(html, /Ver meu pedido/);
+  assert.match(html, /Seu acesso está sendo preparado/);
+  assert.equal(shouldSuppressLearningContinuation({ firstValue: card, learningHref: view.learningContinuation.href }), false);
+});
+
+test("ACT-1B.2.1 /3. card continuation + ação legada preservada", () => {
+  const card = presentFirstValueRecommendation(
+    baseRec({
+      state: "continuation",
+      product: purchasedProduct(),
+      activity: {
+        lessonSlug: "objetivo-oferta-orcamento",
+        courseSlug: "trafego-pago-na-pratica",
+        outcome: "Brief",
+        eligibility: "verified_artifact",
+      },
+      cta: { label: "Revisar ou atualizar", href: "/aulas/objetivo-oferta-orcamento" },
+    }),
+  );
+  assert.equal(card?.highlight, false);
+  const view = withCard(buildStudentDashboard(dashboardInput()), card);
+  view.learningContinuation = null;
+  view.businessNextAction = null;
+  assert.equal(
+    shouldSuppressLegacyNextAction({
+      firstValue: card,
+      learningPresent: false,
+      businessPresent: false,
+      legacyHref: view.nextAction.href,
+    }),
+    false,
+  );
+  const html = render(view);
+  assert.match(html, new RegExp(view.nextAction.cta.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(html, /Continue de onde você parou/);
+});
+
+test("ACT-1B.2.1 /4. card access_unavailable + ação legada", () => {
+  const card = presentFirstValueRecommendation(
+    baseRec({
+      state: "access_unavailable",
+      product: purchasedProduct(),
+      cta: { label: "Ver meus cursos", href: "/app" },
+    }),
+  );
+  const view = withCard(buildStudentDashboard(dashboardInput()), card);
+  view.learningContinuation = null;
+  view.businessNextAction = null;
+  assert.equal(
+    shouldSuppressLegacyNextAction({
+      firstValue: card,
+      learningPresent: false,
+      businessPresent: false,
+      legacyHref: view.nextAction.href,
+    }),
+    false,
+  );
+  const html = render(view);
+  assert.match(html, /Acesso indisponível/);
+  assert.match(html, new RegExp(view.nextAction.cta.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("ACT-1B.2.1 /5. card informativo sem CTA + nextAction permanece", () => {
+  const card = presentFirstValueRecommendation(
+    baseRec({
+      state: "access_unavailable",
+      product: purchasedProduct(),
+      cta: { label: "Abrir aula", href: "/aulas/objetivo-oferta-orcamento" },
+    }),
+  );
+  assert.equal(card?.cta, null);
+  assert.equal(card?.highlight, false);
+  const view = withCard(buildStudentDashboard(dashboardInput()), card);
+  view.learningContinuation = null;
+  view.businessNextAction = null;
+  const html = render(view);
+  assert.match(html, new RegExp(view.nextAction.cta.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(html, /Acesso indisponível/);
+});
+
+test("ACT-1B.2.1 /6. mesmo destino no card e na ação existente → sem CTA duplicado", () => {
+  const view = buildStudentDashboard(dashboardInput());
+  view.learningContinuation = null;
+  view.businessNextAction = null;
+  const sameHref = view.nextAction.href;
+  const card = presentFirstValueRecommendation(
+    baseRec({
+      state: "continuation",
+      product: purchasedProduct(),
+      cta: { label: "Mesmo destino", href: sameHref },
+    }),
+  );
+  assert.equal(
+    shouldSuppressLegacyNextAction({
+      firstValue: card,
+      learningPresent: false,
+      businessPresent: false,
+      legacyHref: sameHref,
+    }),
+    true,
+  );
+  const html = render(withCard(view, card));
+  assert.equal((html.match(new RegExp(sameHref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length, 1);
+  assert.match(html, /Mesmo destino|Continue de onde você parou/);
+});
+
+test("ACT-1B.2.1 /7. card com atividade elegível e destaque correto", () => {
+  const card = presentFirstValueRecommendation(
+    baseRec({
+      state: "ready_to_start",
+      product: purchasedProduct(),
+      activity: {
+        lessonSlug: "objetivo-oferta-orcamento",
+        courseSlug: "trafego-pago-na-pratica",
+        outcome: "Brief da campanha",
+        eligibility: "verified_artifact",
+      },
+      expectedOutcome: "Brief da campanha",
+      cta: { label: "Começar meu resultado", href: "/aulas/objetivo-oferta-orcamento" },
+    }),
+  );
+  assert.equal(card?.highlight, true);
+  assert.equal(
+    shouldSuppressLegacyNextAction({
+      firstValue: card,
+      learningPresent: false,
+      businessPresent: false,
+      legacyHref: "/aulas/como-funciona-o-trafego-pago",
+    }),
+    true,
+  );
+  const view = withCard(buildStudentDashboard(dashboardInput()), card);
+  view.learningContinuation = null;
+  view.businessNextAction = null;
+  const legacyCta = view.nextAction.cta;
+  const html = render(view);
+  assert.match(html, /data-first-value-highlight="true"/);
+  assert.match(html, /Comece sua primeira conquista/);
+  assert.match(html, /Começar meu resultado/);
+  // nextAction legado omitido quando first-value elegível está em destaque
+  if (legacyCta !== "Começar meu resultado") {
+    assert.equal(html.includes(legacyCta), false);
+  }
+});
+
+test("ACT-1B.2.1 /8. falha do loader preservando o dashboard anterior", () => {
+  const source = readFileSync(new URL("../src/lib/home/load-first-value-card.ts", import.meta.url), "utf8");
+  assert.match(source, /return null/);
+  const view = withCard(buildStudentDashboard(dashboardInput()), null);
+  view.learningContinuation = null;
+  view.businessNextAction = null;
+  const html = render(view);
+  assert.equal(html.includes("Primeira conquista"), false);
+  assert.match(html, new RegExp(view.nextAction.cta.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(html, /Sua jornada/);
 });
