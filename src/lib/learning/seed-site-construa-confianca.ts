@@ -92,7 +92,6 @@ export async function seedSiteConstruaConfiancaContent(
       publicPreview: siteLesson09Meta.publicPreview,
       estimatedMinutes: siteLesson09Meta.estimatedMinutes,
       accessType: "PAID",
-      priceCents: siteLesson09Meta.priceCents,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -195,7 +194,6 @@ function metadataMatches(
     lesson.publicPreview === siteLesson09Meta.publicPreview &&
     lesson.estimatedMinutes === siteLesson09Meta.estimatedMinutes &&
     lesson.accessType === "PAID" &&
-    lesson.priceCents === siteLesson09Meta.priceCents &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );

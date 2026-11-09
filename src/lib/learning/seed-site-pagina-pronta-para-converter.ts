@@ -89,7 +89,6 @@ export async function seedSitePaginaProntaContent(
       publicPreview: siteLesson03Meta.publicPreview,
       estimatedMinutes: siteLesson03Meta.estimatedMinutes,
       accessType: "FREE",
-      priceCents: null,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -191,7 +190,6 @@ function metadataMatches(
     lesson.publicPreview === siteLesson03Meta.publicPreview &&
     lesson.estimatedMinutes === siteLesson03Meta.estimatedMinutes &&
     lesson.accessType === "FREE" &&
-    lesson.priceCents == null &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );

@@ -87,7 +87,6 @@ export async function seedLesson11Content(
       publicPreview: lesson11Meta.publicPreview,
       estimatedMinutes: lesson11Meta.estimatedMinutes,
       accessType: "PAID",
-      priceCents: lesson11Meta.priceCents,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -190,7 +189,6 @@ function metadataMatches(
     lesson.publicPreview === lesson11Meta.publicPreview &&
     lesson.estimatedMinutes === lesson11Meta.estimatedMinutes &&
     lesson.accessType === "PAID" &&
-    lesson.priceCents === lesson11Meta.priceCents &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );

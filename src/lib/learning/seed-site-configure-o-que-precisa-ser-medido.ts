@@ -92,7 +92,6 @@ export async function seedSiteConfigureOQuePrecisaSerMedidoContent(
       publicPreview: siteLesson11Meta.publicPreview,
       estimatedMinutes: siteLesson11Meta.estimatedMinutes,
       accessType: "PAID",
-      priceCents: siteLesson11Meta.priceCents,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -184,7 +183,6 @@ function metadataMatches(
     lesson.publicPreview === siteLesson11Meta.publicPreview &&
     lesson.estimatedMinutes === siteLesson11Meta.estimatedMinutes &&
     lesson.accessType === "PAID" &&
-    lesson.priceCents === siteLesson11Meta.priceCents &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );
