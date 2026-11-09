@@ -2,13 +2,19 @@
  * Leitura J2-A: entrada e primeira interação por sessão.
  * Não altera UX_C_PRODUCTION_AT nem PRODUCT_JOURNEY_REPORTING_START_AT.
  *
- * Marco provisional do Preview da feature. Atualizar no go-live Production com
- * SHA e deployment, no mesmo padrão da UX-C.
+ * `J2A_ENTRY_INSTRUMENTATION_AT` permanece null até o go-live Production com
+ * SHA e deployment verificáveis (mesmo padrão da UX-C). Preview não define o marco.
  */
-export const J2A_ENTRY_INSTRUMENTATION_AT = new Date("2026-11-08T06:30:00.000Z");
+export const J2A_ENTRY_INSTRUMENTATION_AT: Date | null = null;
 
 export const J2A_ENTRY_NOTE =
-  "Entrada e primeira interação só existem a partir da instrumentação J2-A. Não compare com o histórico anterior a esse marco.";
+  "Entrada e primeira interação descrevem a plataforma inteira e não obedecem ao filtro de formação. Não misture esses denominadores com o funil filtrado por curso.";
+
+export const J2A_ENTRY_PENDING_NOTE =
+  "Marco oficial J2-A pendente de publicação em Production. Os números abaixo incluem Preview/testes e não devem ser usados como baseline histórico.";
+
+/** Teto defensivo da consulta entry (sem índice em sessionId). Acima disso, priorizar agregação SQL em sprint futura. */
+export const J2A_ENTRY_QUERY_ROW_BUDGET = 20_000;
 
 const ADVANCE_COURSE = new Set(["course_view", "course_catalog_click", "home_course_path_click", "course_catalog_path_click"]);
 const ADVANCE_LESSON = new Set(["course_free_start", "lesson_started", "lesson_completed"]);
@@ -27,6 +33,8 @@ export type JourneyEntryEvent = {
 export type JourneyEntrySnapshot = {
   instrumentationLabel: string;
   outsideInstrumentation: boolean;
+  pendingOfficialStart: boolean;
+  courseFilterIndependent: true;
   sessionsStarted: number;
   sessionsWithInteraction: number;
   entryPages: Array<{ path: string; sessions: number }>;
@@ -47,29 +55,65 @@ function topCounts(map: Map<string, number>, limit = 12) {
     .slice(0, limit);
 }
 
-/** Janela efetiva do bloco de entrada: max(início do recorte, marco J2-A). */
-export function journeyEntryBounds(windowStart: Date, windowEnd: Date, instrumentationAt = J2A_ENTRY_INSTRUMENTATION_AT) {
+function pageViewRank(eventName: string): number {
+  if (eventName === "site_page_view") return 0;
+  if (eventName === "site_first_interaction") return 1;
+  return 2;
+}
+
+export function sortJourneyEntryEvents(events: JourneyEntryEvent[]): JourneyEntryEvent[] {
+  return events.slice().sort((a, b) => {
+    const byTime = a.occurredAt.getTime() - b.occurredAt.getTime();
+    if (byTime !== 0) return byTime;
+    const byKind = pageViewRank(a.eventName) - pageViewRank(b.eventName);
+    if (byKind !== 0) return byKind;
+    return (a.sourcePath ?? "").localeCompare(b.sourcePath ?? "");
+  });
+}
+
+/** Janela efetiva do bloco de entrada: max(início do recorte, marco J2-A) quando o marco existir. */
+export function journeyEntryBounds(
+  windowStart: Date,
+  windowEnd: Date,
+  instrumentationAt: Date | null = J2A_ENTRY_INSTRUMENTATION_AT,
+): { start: Date; end: Date; outsideInstrumentation: boolean; pendingOfficialStart: boolean } {
+  if (!instrumentationAt) {
+    return { start: windowStart, end: windowEnd, outsideInstrumentation: false, pendingOfficialStart: true };
+  }
   const start = windowStart.getTime() > instrumentationAt.getTime() ? windowStart : new Date(instrumentationAt.getTime());
   const outsideInstrumentation = start.getTime() >= windowEnd.getTime();
-  return { start: outsideInstrumentation ? windowEnd : start, end: windowEnd, outsideInstrumentation };
+  return {
+    start: outsideInstrumentation ? windowEnd : start,
+    end: windowEnd,
+    outsideInstrumentation,
+    pendingOfficialStart: false,
+  };
+}
+
+export function j2aInstrumentationLabel(instrumentationAt: Date | null = J2A_ENTRY_INSTRUMENTATION_AT): string {
+  if (!instrumentationAt) return "pendente de Production";
+  return instrumentationAt.toISOString();
 }
 
 /**
- * Agrega por sessionId com ordenação temporal.
- * Contagens são independentes — não formam taxa de conversão cruzada com GA4.
+ * Agrega por sessionId com ordenação temporal (occurredAt do cliente quando válido).
+ * Contagens são independentes — não formam taxa de conversão cruzada com GA4 nem com o filtro de curso.
  */
 export function buildJourneyEntrySnapshot(
   events: JourneyEntryEvent[],
-  input: { start: Date; end: Date; instrumentationLabel: string; outsideInstrumentation: boolean },
+  input: {
+    start: Date;
+    end: Date;
+    instrumentationLabel: string;
+    outsideInstrumentation: boolean;
+    pendingOfficialStart?: boolean;
+  },
 ): JourneyEntrySnapshot {
   if (input.outsideInstrumentation) {
-    return emptyEntrySnapshot(input.instrumentationLabel, true);
+    return emptyEntrySnapshot(input.instrumentationLabel, true, Boolean(input.pendingOfficialStart));
   }
 
-  const rows = events
-    .filter((event) => event.sessionId && inRange(event.occurredAt, input.start, input.end))
-    .slice()
-    .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+  const rows = sortJourneyEntryEvents(events.filter((event) => event.sessionId && inRange(event.occurredAt, input.start, input.end)));
 
   const bySession = new Map<string, JourneyEntryEvent[]>();
   for (const event of rows) {
@@ -112,6 +156,8 @@ export function buildJourneyEntrySnapshot(
   return {
     instrumentationLabel: input.instrumentationLabel,
     outsideInstrumentation: false,
+    pendingOfficialStart: Boolean(input.pendingOfficialStart),
+    courseFilterIndependent: true,
     sessionsStarted,
     sessionsWithInteraction: withInteraction,
     entryPages: topCounts(entryPages).map(({ path, sessions }) => ({ path, sessions })),
@@ -121,10 +167,16 @@ export function buildJourneyEntrySnapshot(
   };
 }
 
-export function emptyEntrySnapshot(instrumentationLabel: string, outsideInstrumentation: boolean): JourneyEntrySnapshot {
+export function emptyEntrySnapshot(
+  instrumentationLabel: string,
+  outsideInstrumentation: boolean,
+  pendingOfficialStart = false,
+): JourneyEntrySnapshot {
   return {
     instrumentationLabel,
     outsideInstrumentation,
+    pendingOfficialStart,
+    courseFilterIndependent: true,
     sessionsStarted: 0,
     sessionsWithInteraction: 0,
     entryPages: [],

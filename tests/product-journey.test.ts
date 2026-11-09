@@ -30,6 +30,8 @@ import { isJourneyObservedPath } from "../src/lib/product-journey/public-path";
 import { parseJourneyEvent } from "../src/lib/product-journey/schema";
 import { shouldEmitSitePageView, resetSitePageViewDedupeForTests } from "../src/lib/product-journey/entry-client";
 import { buildJourneyEntrySnapshot, journeyEntryBounds, J2A_ENTRY_INSTRUMENTATION_AT } from "../src/lib/admin/journey-entry";
+import { buildJourneyDashboard } from "../src/lib/admin/journey-report";
+import { TRAFFIC_COURSE_SLUG } from "../src/lib/learning/course-experience";
 import { formatJourneyRetentionReport, journeyRetentionCutoff, runJourneyRetention } from "../src/lib/product-journey/retention";
 import { handleJourneyRetentionCron } from "../src/lib/product-journey/retention-cron";
 
@@ -129,10 +131,11 @@ test("identidade pseudônima só nasce quando a função é chamada, reutiliza, 
   assert.notEqual(rotated, first);
   assert.equal(isJourneyUuid(rotated), true);
   const sessionA = readOrCreateSessionId(session, () => "cccccccc-cccc-4ccc-8ccc-cccccccccccc", NOW);
-  assert.equal(readOrCreateSessionId(session, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd", NOW + 1000), sessionA);
+  assert.equal(sessionA.renewed, false);
+  assert.equal(readOrCreateSessionId(session, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd", NOW + 1000).id, sessionA.id);
   const other = memoryStorage();
   const sessionB = readOrCreateSessionId(other, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd", NOW);
-  assert.notEqual(sessionB, sessionA);
+  assert.notEqual(sessionB.id, sessionA.id);
   clearJourneyIdentity(local, session);
   assert.equal(local.getItem(JOURNEY_ANONYMOUS_KEY), null);
   assert.equal(session.getItem(JOURNEY_SESSION_KEY), null);
@@ -142,14 +145,17 @@ test("sessionId renova após 30 minutos de inatividade e promove UUID legado", (
   const session = memoryStorage();
   session.setItem(JOURNEY_SESSION_KEY, "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
   const promoted = readOrCreateSessionId(session, () => "ffffffff-ffff-4fff-8fff-ffffffffffff", NOW);
-  assert.equal(promoted, "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  assert.equal(promoted.id, "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  assert.equal(promoted.renewed, false);
   assert.match(session.getItem(JOURNEY_SESSION_KEY) ?? "", /lastActivityAt/);
   const same = readOrCreateSessionId(session, () => "ffffffff-ffff-4fff-8fff-ffffffffffff", NOW + 60_000);
-  assert.equal(same, promoted);
-  session.setItem(JOURNEY_SESSION_KEY, JSON.stringify({ id: promoted, lastActivityAt: NOW }));
+  assert.equal(same.id, promoted.id);
+  assert.equal(same.renewed, false);
+  session.setItem(JOURNEY_SESSION_KEY, JSON.stringify({ id: promoted.id, lastActivityAt: NOW }));
   const renewed = readOrCreateSessionId(session, () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd", NOW + JOURNEY_SESSION_IDLE_MS);
-  assert.equal(renewed, "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
-  assert.notEqual(renewed, promoted);
+  assert.equal(renewed.id, "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  assert.equal(renewed.renewed, true);
+  assert.notEqual(renewed.id, promoted.id);
 });
 
 test("caminho interno é pathname e rejeita URL insegura", () => {
@@ -745,10 +751,12 @@ test("page view dedupe, paths observados e ingest de site_page_view", () => {
 });
 
 test("agregação de entrada por sessão responde as perguntas J2-A", () => {
-  const start = new Date(J2A_ENTRY_INSTRUMENTATION_AT.getTime() + 60_000);
+  assert.equal(J2A_ENTRY_INSTRUMENTATION_AT, null);
+  const start = new Date("2026-11-09T12:00:00.000Z");
   const end = new Date(start.getTime() + 86_400_000);
   const bounds = journeyEntryBounds(start, end);
   assert.equal(bounds.outsideInstrumentation, false);
+  assert.equal(bounds.pendingOfficialStart, true);
   const snapshot = buildJourneyEntrySnapshot(
     [
       { sessionId: "s1", eventName: "site_page_view", occurredAt: start, sourcePath: "/" },
@@ -762,12 +770,15 @@ test("agregação de entrada por sessão responde as perguntas J2-A", () => {
     {
       start: bounds.start,
       end: bounds.end,
-      instrumentationLabel: "marco",
+      instrumentationLabel: "pendente de Production",
       outsideInstrumentation: false,
+      pendingOfficialStart: true,
     },
   );
   assert.equal(snapshot.sessionsStarted, 2);
   assert.equal(snapshot.sessionsWithInteraction, 1);
+  assert.equal(snapshot.courseFilterIndependent, true);
+  assert.equal(snapshot.pendingOfficialStart, true);
   assert.equal(snapshot.entryPages[0]?.path, "/");
   assert.equal(snapshot.entryPages[0]?.sessions, 1);
   assert.equal(snapshot.lastPages.some((row) => row.path === "/blog"), true);
@@ -775,4 +786,150 @@ test("agregação de entrada por sessão responde as perguntas J2-A", () => {
   assert.equal(snapshot.advanced.courses, 1);
   assert.equal(snapshot.advanced.lessons, 0);
   assert.equal(snapshot.advanced.signUps, 0);
+});
+
+test("rollover após 30 min emite page view da página atual antes do clique", () => {
+  const scope = globalThis as unknown as {
+    window?: unknown;
+    localStorage?: unknown;
+    sessionStorage?: unknown;
+    fetch: typeof fetch;
+  };
+  const previousWindow = scope.window;
+  const previousLocal = scope.localStorage;
+  const previousSession = scope.sessionStorage;
+  const previousFetch = globalThis.fetch;
+  const calls: Array<{ body: Record<string, unknown> }> = [];
+  try {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    const win = {
+      localStorage: local,
+      sessionStorage: session,
+      dataLayer: [] as Array<Record<string, unknown>>,
+      location: { pathname: "/blog/artigo-aberto" },
+    };
+    scope.window = win;
+    scope.localStorage = local;
+    scope.sessionStorage = session;
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+      return new Response(null, { status: 202 });
+    }) as typeof fetch;
+    local.setItem(CONSENT_STORAGE_KEY, JSON.stringify(serializeConsent({ analytics: true, marketing: false })));
+    session.setItem(JOURNEY_SESSION_KEY, JSON.stringify({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", lastActivityAt: NOW }));
+    trackEvent("cta_click", { cta_name: "artigo_para_formacao" }, { targetPath: "/cursos" });
+    const names = calls.map((call) => call.body.eventName);
+    assert.deepEqual(names.slice(0, 2), ["site_page_view", "site_cta_click"]);
+    assert.equal(calls[0]?.body.sourcePath, "/blog/artigo-aberto");
+    assert.ok(Number(calls[0]?.body.clientOccurredAt) < Number(calls[1]?.body.clientOccurredAt));
+    assert.notEqual(calls[0]?.body.sessionId, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    assert.equal(calls[0]?.body.sessionId, calls[1]?.body.sessionId);
+  } finally {
+    scope.window = previousWindow;
+    scope.localStorage = previousLocal;
+    scope.sessionStorage = previousSession;
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("requisições fora de ordem preservam a página de entrada via clientOccurredAt", async () => {
+  const serverNow = NOW + 60_000;
+  const first = journeyBody({
+    eventId: "11111111-1111-4111-8111-111111111111",
+    eventName: "site_page_view",
+    sourcePath: "/",
+    targetPath: undefined,
+    courseSlug: undefined,
+    scenario: undefined,
+    clientOccurredAt: NOW,
+  });
+  const second = journeyBody({
+    eventId: "22222222-2222-4222-8222-222222222222",
+    eventName: "site_page_view",
+    sourcePath: "/cursos",
+    targetPath: undefined,
+    courseSlug: undefined,
+    scenario: undefined,
+    clientOccurredAt: NOW + 10,
+  });
+  const rows: JourneyInsert[] = [];
+  // Segunda página chega primeiro ao servidor.
+  await handleProductJourneyRequest(post(second), {
+    now: serverNow,
+    userId: null,
+    consume: async () => ({ allowed: true }),
+    insert: async (row) => {
+      rows.push(row);
+    },
+  });
+  await handleProductJourneyRequest(post(first), {
+    now: serverNow + 5,
+    userId: null,
+    consume: async () => ({ allowed: true }),
+    insert: async (row) => {
+      rows.push(row);
+    },
+  });
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]?.sourcePath, "/cursos");
+  assert.equal(rows[1]?.sourcePath, "/");
+  assert.ok(rows[1]!.occurredAt.getTime() < rows[0]!.occurredAt.getTime());
+  const snapshot = buildJourneyEntrySnapshot(
+    rows.map((row) => ({
+      sessionId: row.sessionId,
+      eventName: row.eventName,
+      occurredAt: row.occurredAt,
+      sourcePath: row.sourcePath,
+    })),
+    {
+      start: new Date(NOW - 1),
+      end: new Date(serverNow + 60_000),
+      instrumentationLabel: "teste",
+      outsideInstrumentation: false,
+    },
+  );
+  assert.equal(snapshot.entryPages[0]?.path, "/");
+  assert.equal(snapshot.lastPages[0]?.path, "/cursos");
+});
+
+test("bloco de entrada permanece visão geral sob filtro de formação", () => {
+  const now = new Date("2026-12-15T12:00:00.000Z");
+  const inside = new Date("2026-12-10T12:00:00.000Z");
+  const view = buildJourneyDashboard({
+    events: [
+      {
+        anonymousId: "anon-1",
+        sessionId: "sess-1",
+        eventName: "site_page_view",
+        occurredAt: inside,
+        sourcePath: "/",
+      },
+      {
+        anonymousId: "anon-1",
+        sessionId: "sess-1",
+        eventName: "course_view",
+        occurredAt: new Date(inside.getTime() + 1000),
+        courseSlug: TRAFFIC_COURSE_SLUG,
+        sourcePath: `/cursos/${TRAFFIC_COURSE_SLUG}`,
+      },
+      {
+        anonymousId: "anon-2",
+        sessionId: "sess-2",
+        eventName: "site_page_view",
+        occurredAt: inside,
+        sourcePath: "/blog",
+      },
+    ],
+    orders: [],
+    payments: [],
+    progress: [],
+    diagnostics: [],
+    query: { curso: TRAFFIC_COURSE_SLUG },
+    now,
+  });
+  assert.equal(view.course, TRAFFIC_COURSE_SLUG);
+  assert.equal(view.entry.courseFilterIndependent, true);
+  assert.equal(view.entry.sessionsStarted, 2);
+  assert.ok(view.entry.entryPages.some((row) => row.path === "/blog"));
 });

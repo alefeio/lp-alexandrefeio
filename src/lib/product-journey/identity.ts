@@ -1,6 +1,7 @@
 export const JOURNEY_ANONYMOUS_KEY = "af_journey_id_v1";
 export const JOURNEY_SESSION_KEY = "af_journey_session_v1";
 export const JOURNEY_FIRST_INTERACTION_KEY = "af_journey_first_interaction_v1";
+export const JOURNEY_CLIENT_CLOCK_KEY = "af_journey_client_clock_v1";
 export const JOURNEY_ANONYMOUS_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 /** Renova o sessionId após inatividade prolongada na mesma aba. */
 export const JOURNEY_SESSION_IDLE_MS = 30 * 60 * 1000;
@@ -15,6 +16,8 @@ export type JourneyStorage = {
 
 type AnonymousRecord = { id: string; createdAt: number };
 type SessionRecord = { id: string; lastActivityAt: number };
+
+export type JourneySessionResult = { id: string; renewed: boolean };
 
 export function isJourneyUuid(value: string): boolean {
   return UUID.test(value);
@@ -64,20 +67,32 @@ export function readOrCreateAnonymousId(storage: JourneyStorage, now: number, ra
 
 /**
  * Cria ou reutiliza o sessionId. Legado (UUID puro) é promovido ao formato com lastActivityAt.
- * Após JOURNEY_SESSION_IDLE_MS sem atividade, gera um novo id.
+ * Após JOURNEY_SESSION_IDLE_MS sem atividade, gera um novo id (`renewed: true` só no rollover).
  */
-export function readOrCreateSessionId(storage: JourneyStorage, randomUUID: () => string, now = Date.now()): string {
+export function readOrCreateSessionId(storage: JourneyStorage, randomUUID: () => string, now = Date.now()): JourneySessionResult {
   const current = readSession(storage);
   if (current) {
     const idle = current.lastActivityAt === 0 ? false : now - current.lastActivityAt >= JOURNEY_SESSION_IDLE_MS;
     if (!idle) {
       writeSession(storage, { id: current.id, lastActivityAt: now });
-      return current.id;
+      return { id: current.id, renewed: false };
     }
+    const next = { id: randomUUID(), lastActivityAt: now };
+    writeSession(storage, next);
+    return { id: next.id, renewed: true };
   }
-  const next = { id: randomUUID(), lastActivityAt: now };
-  writeSession(storage, next);
-  return next.id;
+  const created = { id: randomUUID(), lastActivityAt: now };
+  writeSession(storage, created);
+  return { id: created.id, renewed: false };
+}
+
+/** Relógio monotônico por aba para ordenar eventos mesmo com entrega fora de ordem. */
+export function nextClientOccurredAt(storage: JourneyStorage, now = Date.now()): number {
+  const raw = storage.getItem(JOURNEY_CLIENT_CLOCK_KEY);
+  const last = raw && Number.isFinite(Number(raw)) ? Number(raw) : 0;
+  const next = Math.max(now, last + 1);
+  storage.setItem(JOURNEY_CLIENT_CLOCK_KEY, String(next));
+  return next;
 }
 
 export function clearJourneyIdentity(local: JourneyStorage, session: JourneyStorage): void {
@@ -94,17 +109,17 @@ export function clearJourneySessionMarkers(session: JourneyStorage): void {
       const key = store.key(i);
       if (key) keys.push(key);
     }
-  } else if (session instanceof Map || typeof (session as { keys?: () => IterableIterator<string> }).keys === "function") {
-    // memoryStorage de testes não expõe key(); limpeza parcial via prefixes conhecidos fica no caller.
   }
   for (const key of keys) {
     if (
       key.startsWith("af_journey_course_view_") ||
       key.startsWith("af_journey_pv_") ||
-      key === JOURNEY_FIRST_INTERACTION_KEY
+      key === JOURNEY_FIRST_INTERACTION_KEY ||
+      key === JOURNEY_CLIENT_CLOCK_KEY
     ) {
       session.removeItem(key);
     }
   }
   session.removeItem(JOURNEY_FIRST_INTERACTION_KEY);
+  session.removeItem(JOURNEY_CLIENT_CLOCK_KEY);
 }

@@ -1,9 +1,11 @@
 import {
   buildJourneyEntrySnapshot,
   emptyEntrySnapshot,
+  j2aInstrumentationLabel,
   journeyEntryBounds,
   J2A_ENTRY_INSTRUMENTATION_AT,
   J2A_ENTRY_NOTE,
+  J2A_ENTRY_PENDING_NOTE,
   type JourneyEntrySnapshot,
 } from "@/lib/admin/journey-entry";
 import { receivedRevenueCents, type PaymentRevenueStatus } from "@/lib/admin/operations";
@@ -26,7 +28,7 @@ export const PRODUCT_JOURNEY_REPORTING_START_AT = new Date("2026-10-26T17:42:00.
  */
 export const UX_C_PRODUCTION_AT = new Date("2026-11-03T16:33:05.000Z");
 
-export { J2A_ENTRY_INSTRUMENTATION_AT, J2A_ENTRY_NOTE, type JourneyEntrySnapshot };
+export { J2A_ENTRY_INSTRUMENTATION_AT, J2A_ENTRY_NOTE, J2A_ENTRY_PENDING_NOTE, type JourneyEntrySnapshot };
 
 export const JOURNEY_SAMPLE_MIN = 20;
 export const JOURNEY_EMPTY = "Ainda não há dados suficientes neste período.";
@@ -380,8 +382,9 @@ function buildEntryForWindow(events: JourneyObservedEvent[], windowStart: Date, 
   return buildJourneyEntrySnapshot(events, {
     start: entryBounds.start,
     end: entryBounds.end,
-    instrumentationLabel: formatJourneyDateTime(J2A_ENTRY_INSTRUMENTATION_AT),
+    instrumentationLabel: j2aInstrumentationLabel(J2A_ENTRY_INSTRUMENTATION_AT),
     outsideInstrumentation: entryBounds.outsideInstrumentation,
+    pendingOfficialStart: entryBounds.pendingOfficialStart,
   });
 }
 
@@ -432,7 +435,7 @@ export function assembleJourneyView(model: JourneyAggregateModel): JourneyDashbo
       lessonsCompleted: model.lessonsCompleted,
       diagnosticsCompleted: model.diagnosticsCompleted,
     },
-    entry: model.entry ?? emptyEntrySnapshot(formatJourneyDateTime(J2A_ENTRY_INSTRUMENTATION_AT), false),
+    entry: model.entry ?? emptyEntrySnapshot(j2aInstrumentationLabel(J2A_ENTRY_INSTRUMENTATION_AT), false, J2A_ENTRY_INSTRUMENTATION_AT == null),
   };
 }
 

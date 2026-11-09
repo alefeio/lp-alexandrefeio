@@ -1,8 +1,14 @@
 import { ATTRIBUTION_STORAGE_KEY, readStoredAttribution, type LeadAttribution } from "@/lib/attribution";
 import { CONSENT_STORAGE_KEY, parseConsent } from "@/lib/consent";
 import { isSiteFirstInteractionTrigger, type StrategicJourneyEvent } from "@/lib/product-journey/events";
-import { JOURNEY_FIRST_INTERACTION_KEY, readOrCreateAnonymousId, readOrCreateSessionId } from "@/lib/product-journey/identity";
+import {
+  JOURNEY_FIRST_INTERACTION_KEY,
+  nextClientOccurredAt,
+  readOrCreateAnonymousId,
+  readOrCreateSessionId,
+} from "@/lib/product-journey/identity";
 import { journeyPath } from "@/lib/product-journey/paths";
+import { journeyObservedPath } from "@/lib/product-journey/public-path";
 
 type JourneyParams = {
   course_slug?: string;
@@ -55,6 +61,37 @@ function sendJourneyBody(body: Record<string, unknown>): void {
   }).catch(() => undefined);
 }
 
+function baseBody(input: {
+  eventName: StrategicJourneyEvent;
+  anonymousId: string;
+  sessionId: string;
+  picked: JourneyParams;
+  attribution: ReturnType<typeof attributionForJourney>;
+  sourcePath: string | undefined;
+  targetPath?: string;
+  consentUpdatedAt: number;
+  clientOccurredAt: number;
+}) {
+  return {
+    eventId: crypto.randomUUID(),
+    eventName: input.eventName,
+    anonymousId: input.anonymousId,
+    sessionId: input.sessionId,
+    courseSlug: input.picked.course_slug,
+    lessonSlug: input.picked.lesson_slug,
+    sourceCourseSlug: input.picked.source_course_slug,
+    targetCourseSlug: input.picked.target_course_slug,
+    scenario: input.picked.scenario,
+    ctaName: input.picked.cta_name,
+    sourcePath: input.sourcePath,
+    targetPath: input.targetPath,
+    attribution: input.attribution,
+    analyticsConsent: true,
+    consentUpdatedAt: input.consentUpdatedAt,
+    clientOccurredAt: input.clientOccurredAt,
+  };
+}
+
 /** Envio best effort. Não chama trackEvent e não espera a resposta. */
 export function persistJourneyEvent(input: {
   eventName: StrategicJourneyEvent;
@@ -63,6 +100,7 @@ export function persistJourneyEvent(input: {
   sourcePathOverride?: string;
   consentUpdatedAt: number;
   skipFirstInteractionHook?: boolean;
+  skipSessionEntryPageView?: boolean;
 }): void {
   try {
     if (typeof window === "undefined") return;
@@ -71,27 +109,44 @@ export function persistJourneyEvent(input: {
 
     const now = Date.now();
     const anonymousId = readOrCreateAnonymousId(window.localStorage, now, () => crypto.randomUUID());
-    const sessionId = readOrCreateSessionId(window.sessionStorage, () => crypto.randomUUID(), now);
+    const session = readOrCreateSessionId(window.sessionStorage, () => crypto.randomUUID(), now);
+    const sessionId = session.id;
     const picked = journeyParamsFromAnalytics(input.params);
     const attribution = attributionForJourney(readStoredAttribution(window.sessionStorage.getItem(ATTRIBUTION_STORAGE_KEY)));
     const sourcePath = journeyPath(input.sourcePathOverride) ?? journeyPath(window.location.pathname);
-    const body = {
-      eventId: crypto.randomUUID(),
+
+    if (session.renewed) {
+      window.sessionStorage.removeItem(JOURNEY_FIRST_INTERACTION_KEY);
+      if (!input.skipSessionEntryPageView && input.eventName !== "site_page_view") {
+        const entryPath = journeyObservedPath(window.location.pathname);
+        if (entryPath) {
+          sendJourneyBody(
+            baseBody({
+              eventName: "site_page_view",
+              anonymousId,
+              sessionId,
+              picked: {},
+              attribution,
+              sourcePath: entryPath,
+              consentUpdatedAt: input.consentUpdatedAt,
+              clientOccurredAt: nextClientOccurredAt(window.sessionStorage, now),
+            }),
+          );
+        }
+      }
+    }
+
+    const body = baseBody({
       eventName: input.eventName,
       anonymousId,
       sessionId,
-      courseSlug: picked.course_slug,
-      lessonSlug: picked.lesson_slug,
-      sourceCourseSlug: picked.source_course_slug,
-      targetCourseSlug: picked.target_course_slug,
-      scenario: picked.scenario,
-      ctaName: picked.cta_name,
+      picked,
+      attribution,
       sourcePath,
       targetPath: input.targetPath,
-      attribution,
-      analyticsConsent: true,
       consentUpdatedAt: input.consentUpdatedAt,
-    };
+      clientOccurredAt: nextClientOccurredAt(window.sessionStorage, now),
+    });
     sendJourneyBody(body);
 
     if (
@@ -110,6 +165,7 @@ export function persistJourneyEvent(input: {
       eventName: "site_first_interaction",
       ctaName: picked.cta_name,
       targetPath: input.targetPath,
+      clientOccurredAt: nextClientOccurredAt(window.sessionStorage, now),
     });
   } catch {
     // A jornada nunca bloqueia a navegação nem a ação que o visitante acabou de fazer.

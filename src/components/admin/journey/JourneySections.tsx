@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatPriceCents } from "@/lib/learning/money";
 import {
   J2A_ENTRY_NOTE,
+  J2A_ENTRY_PENDING_NOTE,
   JOURNEY_DIAGNOSTIC_NOTE,
   JOURNEY_EMPTY,
   JOURNEY_ERA_LABEL,
@@ -96,9 +97,16 @@ export function JourneyEntry({ view }: { view: JourneyDashboardView }) {
     <section className="mt-10">
       <h2 className="text-lg font-semibold">Entrada e primeira interação</h2>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-        Sessões consentidas com site_page_view a partir de {entry.instrumentationLabel}. Contagens por sessão; não é taxa de conversão nem dado do GA4.
+        Visão geral da plataforma — independente do filtro de formação. Sessões consentidas com site_page_view (marco: {entry.instrumentationLabel}).
+        Contagens por sessão; não é taxa de conversão nem dado do GA4.
       </p>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">{J2A_ENTRY_NOTE}</p>
+      {entry.pendingOfficialStart ? <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">{J2A_ENTRY_PENDING_NOTE}</p> : null}
+      {view.course !== "all" ? (
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+          O filtro de curso acima continua valendo para o funil e demais seções; este bloco permanece na visão geral.
+        </p>
+      ) : null}
       {entry.outsideInstrumentation ? (
         <EmptyNote>O período termina antes do marco J2-A. Não há intervalo de entrada nesta combinação.</EmptyNote>
       ) : entry.sessionsStarted === 0 ? (

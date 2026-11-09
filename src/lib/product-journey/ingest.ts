@@ -9,7 +9,7 @@ export const JOURNEY_RATE_WINDOW_SECONDS = 10 * 60;
 
 const NO_STORE = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
 
-export type JourneyInsert = JourneyEventRecord & { userId: string | null; occurredAt: Date };
+export type JourneyInsert = JourneyEventRecord & { userId: string | null };
 
 export function isUniqueConstraint(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
@@ -45,7 +45,7 @@ export async function handleProductJourneyRequest(
   const limit = await deps.consume(key, now);
   if (!limit.allowed) return json(429);
   try {
-    await deps.insert({ ...parsed.value, userId: deps.userId ?? null, occurredAt: new Date(now) });
+    await deps.insert({ ...parsed.value, userId: deps.userId ?? null });
     return json(202);
   } catch (error) {
     if (isUniqueConstraint(error)) return json(200);

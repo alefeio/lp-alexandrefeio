@@ -36,8 +36,14 @@ const bodySchema = z
       .optional(),
     analyticsConsent: z.literal(true),
     consentUpdatedAt: z.number().finite(),
+    /** Relógio do cliente (ms). Usado em occurredAt quando a defasagem é aceitável. */
+    clientOccurredAt: z.number().finite().optional(),
   })
   .strict();
+
+/** Aceita atraso de rede e pequeno adiantamento de relógio; fora disso usa o horário do servidor. */
+export const JOURNEY_CLIENT_TIME_SKEW_PAST_MS = 5 * 60 * 1000;
+export const JOURNEY_CLIENT_TIME_SKEW_FUTURE_MS = 60 * 1000;
 
 export type JourneyEventRecord = {
   eventId: string;
@@ -62,7 +68,15 @@ export type JourneyEventRecord = {
   landingPath: string | null;
   referrerHost: string | null;
   consentUpdatedAt: Date;
+  occurredAt: Date;
 };
+
+export function resolveJourneyOccurredAt(serverNow: number, clientOccurredAt: number | undefined): Date {
+  if (typeof clientOccurredAt !== "number" || !Number.isFinite(clientOccurredAt)) return new Date(serverNow);
+  if (clientOccurredAt < serverNow - JOURNEY_CLIENT_TIME_SKEW_PAST_MS) return new Date(serverNow);
+  if (clientOccurredAt > serverNow + JOURNEY_CLIENT_TIME_SKEW_FUTURE_MS) return new Date(serverNow);
+  return new Date(clientOccurredAt);
+}
 
 function text(value: string | undefined, max: number): string | null {
   if (!value) return null;
@@ -118,6 +132,7 @@ export function parseJourneyEvent(input: unknown, now: number): { ok: true; valu
       landingPath: journeyPath(attribution?.landing_page) ?? null,
       referrerHost: referrerHost(attribution?.referrer),
       consentUpdatedAt: new Date(parsed.data.consentUpdatedAt),
+      occurredAt: resolveJourneyOccurredAt(now, parsed.data.clientOccurredAt),
     },
   };
 }

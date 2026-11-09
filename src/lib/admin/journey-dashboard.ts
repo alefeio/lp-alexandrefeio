@@ -2,14 +2,15 @@ import { Prisma } from "@/generated/prisma/client";
 import { receivedRevenueCents } from "@/lib/admin/operations";
 import {
   buildJourneyEntrySnapshot,
+  j2aInstrumentationLabel,
   journeyEntryBounds,
   J2A_ENTRY_INSTRUMENTATION_AT,
+  J2A_ENTRY_QUERY_ROW_BUDGET,
 } from "@/lib/admin/journey-entry";
 import {
   JOURNEY_FUNNEL,
   assembleJourneyView,
   attributionLabel,
-  formatJourneyDateTime,
   journeyCourseLabel,
   journeyReadingBounds,
   parseJourneyCourse,
@@ -257,6 +258,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
             AND "sessionId" IS NOT NULL
             AND "eventName" IN (${Prisma.join([...entryEventNames])})
           ORDER BY "occurredAt" ASC, "id" ASC
+          LIMIT ${J2A_ENTRY_QUERY_ROW_BUDGET}
         `),
   ]);
 
@@ -325,8 +327,9 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       {
         start: entryBounds.start,
         end: entryBounds.end,
-        instrumentationLabel: formatJourneyDateTime(J2A_ENTRY_INSTRUMENTATION_AT),
+        instrumentationLabel: j2aInstrumentationLabel(J2A_ENTRY_INSTRUMENTATION_AT),
         outsideInstrumentation: entryBounds.outsideInstrumentation,
+        pendingOfficialStart: entryBounds.pendingOfficialStart,
       },
     ),
   };
