@@ -1,4 +1,4 @@
-# Contrato de primeira conquista (ACT-1A)
+# Contrato de primeira conquista (ACT-1A / ACT-1A.1)
 
 Contrato de domínio para conduzir o comprador até a primeira conquista prática. Não altera checkout, preços, entitlements, CourseJourney nem a UI do `StudentDashboard` (isso fica para ACT-1B).
 
@@ -6,12 +6,44 @@ Contrato de domínio para conduzir o comprador até a primeira conquista prátic
 
 | Conceito | Fonte operacional |
 | --- | --- |
-| Compra | `Order.status = PAID` (pagamento ou `zeroValueUpgrade`) |
-| Acesso | `Entitlement.status = ACTIVE` (aulas FREE não exigem entitlement) |
+| Compra | `Order.status = PAID` com `confirmedAt` comprovado |
+| Acesso | `Entitlement.status = ACTIVE` (aulas FREE não exigem entitlement) + aula publicada |
 | Aprendizado | `LessonProgress` (`startedAt`, `percent`, `completedAt`) |
-| Conquista | Artefato verificável (`LessonResult`, `Diagnostic` COMPLETED, `LandingPageProject` / `LandingPagePublication`) |
+| Conquista | Artefato pedagógico verificável com `resultAchievedAt` comprovado |
 
-Visualização, login, clique ou só leitura **não** contam como primeira conquista.
+Visualização, login, clique, só leitura ou **criação vazia de `LandingPageProject`** **não** contam como primeira conquista.
+
+## Status financeiro (`FirstValueOrderStatus`)
+
+Alinhado ao `OrderStatus` do Prisma: `PENDING_PAYMENT` · `PAID` · `CANCELLED` · `REFUNDED` · `NEEDS_REVIEW`.
+
+| Status | Efeito no seletor |
+| --- | --- |
+| `PENDING_PAYMENT` | `payment_pending` |
+| `PAID` + `confirmedAt` | elegível a acesso/conquista |
+| `NEEDS_REVIEW` | `access_unavailable` (conservador; não libera) |
+| `CANCELLED` / `REFUNDED` | `access_unavailable` |
+
+### Origem de `confirmedAt`
+
+| Caso | Fonte |
+| --- | --- |
+| Pagamento aprovado | `Payment.approvedAt` quando `Payment.status = APPROVED` e `Order.status = PAID` |
+| Upgrade de valor zero | `Order.createdAt` no create com `zeroValueUpgrade` e status `PAID` |
+
+Nunca usar `Order.updatedAt`, revisão de pedido ou `NEEDS_REVIEW` como confirmação financeira.
+
+## Evidência pedagógica
+
+O loader ACT-1B deve montar `FirstValueArtifact` a partir de:
+
+- `LessonResult` / `LessonResponse` da aula e do usuário (preferencial para Sites e Tráfego)
+- `Diagnostic.completedAt` quando `COMPLETED`
+- `LandingPagePublication.publishedAt` para publicação
+
+Shell / draft vazio de LP → `kind: landing_page_project_shell` ou `landing_page_draft` com `resultAchievedAt: null` → atribuição `unknown` (nunca `after_purchase`).
+
+Kinds verificáveis (com `resultAchievedAt`): `lesson_result_personal` · `lesson_result_project` · `diagnostic_completed` · `landing_page_published`.
 
 ## Estados derivados
 
@@ -19,48 +51,50 @@ Visualização, login, clique ou só leitura **não** contam como primeira conqu
 
 Não há máquina persistida. `selectFirstValueAction` deriva o estado dos fatos carregados.
 
+## Preparação (Gate 5)
+
+`preparation.status`:
+
+- `ready` — atividade pronta para iniciar
+- `needs_project` — CTA cria projeto (`/app/projetos/novo`)
+- `needs_landing_page_project` — CTA de preparação (não promete resultado imediato)
+- `needs_campaign_import` — CTA importa dados
+- `unprovable` — não permite comprovar conquista
+
 ## Regras de seleção (resumo)
 
 1. Pedido `PENDING_PAYMENT` não libera pago.
-2. `PAID` sem entitlement ACTIVE → `access_pending`.
-3. Entitlement REVOKED → `access_unavailable`.
-4. Atividade em andamento acessível da compra tem prioridade.
-5. Senão, elegível do produto ainda sem conquista atribuída à compra.
-6. Módulo/curso: menor `firstValueRank` (brief pago cedo), sem duplicar definições de aula.
-7. Aula individual: nunca aponta outra aula paga não comprada.
-8. Resultado anterior à compra → revisar/evoluir (`continuation`), sem atribuir à compra.
-9. Sem artefato elegível → continuação pedagógica honesta (`fallback`).
+2. `NEEDS_REVIEW` / não-PAID → `access_unavailable`.
+3. `PAID` sem entitlement ACTIVE → `access_pending`.
+4. Entitlement REVOKED (todas as pagas) → `access_unavailable`.
+5. Entitlement/publicação verificados **por atividade**, inclusive em `first_value_achieved` / `next_evolution`.
+6. Histórico de conquista pode ser reconhecido sem CTA para conteúdo pago inacessível.
+7. Atividade em andamento acessível tem prioridade.
+8. `pickOwnedArtifact` prioriza evidência `after_purchase` sobre `updatedAt` de registro antigo.
+9. Sem `resultAchievedAt` → `unknown`, nunca conquista pós-compra.
 10. Nunca inventa resultado.
-
-Desempate entre compras: progresso em andamento → compra confirmada mais recente → `orderId`.
 
 ## Atribuição temporal
 
-Usa `createdAt` / `updatedAt` do artefato vs `confirmedAt` da compra.
+Usa `resultAchievedAt` vs `confirmedAt`.
 
 | Caso | Atribuição |
 | --- | --- |
-| `createdAt >= confirmedAt` | `after_purchase` |
-| `createdAt < confirmedAt` e sem edit pós-compra | `before_purchase` |
-| `createdAt < confirmedAt` e `updatedAt > confirmedAt` | `preexisting_edited` |
+| `resultAchievedAt >= confirmedAt` | `after_purchase` |
+| `resultAchievedAt < confirmedAt` e sem edit pós-compra | `before_purchase` |
+| `resultAchievedAt < confirmedAt` e `updatedAt > confirmedAt` | `preexisting_edited` |
+| Sem `resultAchievedAt` ou sem `confirmedAt` | `unknown` |
 | Artefato de outro `userId` | `other_user` |
 
-**Limitação:** não existe `firstAchievedAt` imutável. Edit de artefato antigo não prova conquista da compra nova.
+**Limitação:** não existe `firstAchievedAt` imutável separado do `LessonResult.createdAt` / payload. Edit de artefato antigo não prova conquista da compra nova.
 
 ## Matriz (24 aulas)
 
-Ver `FIRST_VALUE_LESSON_CATALOG` em `src/lib/learning/first-value/catalog.ts`.
-
-Destaques:
-
-- Tráfego pago first-value pago preferencial: `objetivo-oferta-orcamento` (`CAMPAIGN_BRIEF_V1` → `LessonResult`+projeto).
-- Sites first-value pago preferencial: `oferta-publico-acao-principal` (`CONVERSION_PAGE_BRIEF_V1` → `LandingPageProject`).
-- `negocio-pronto-para-anunciar` e `leia-os-numeros`: `requires_dependency` (projeto/diagnóstico ou import de campanha).
-- FREE com RESULT/tool persistido: `verified_artifact`, mas **não** substituem compra paga.
+Ver `FIRST_VALUE_LESSON_CATALOG`. Sites pago (exceto publicação) usa autoridade `LessonResult`; publicação usa `LandingPagePublication.publishedAt`.
 
 ## Integração futura (ACT-1B)
 
-`FirstValueRecommendation` é a saída consumível pelo dashboard. **Não** altera `paidOrderStart` nesta sprint: o CTA imediato pós-pagamento permanece; o contrato serve à ação contextual no `/app`.
+`FirstValueRecommendation` (inclui `preparation` e `existingResult.resultAchievedAt`) é a saída consumível pelo dashboard. **Não** altera `paidOrderStart` nesta sprint.
 
 ## Migration
 

@@ -3,10 +3,16 @@ import {
   firstValueOptionsFromPurchaseLessons,
   type FirstValueLessonDefinition,
 } from "@/lib/learning/first-value/catalog";
-import { attributeArtifactToPurchase, isVerifiedAchievementKind, pickOwnedArtifact } from "@/lib/learning/first-value/evidence";
+import {
+  attributeArtifactToPurchase,
+  isVerifiedAchievement,
+  pickOwnedArtifact,
+} from "@/lib/learning/first-value/evidence";
 import type {
   FirstValueArtifact,
+  FirstValueDependencyAvailability,
   FirstValueEntitlement,
+  FirstValuePreparation,
   FirstValueProgress,
   FirstValuePurchase,
   FirstValueRecommendation,
@@ -55,10 +61,14 @@ function sortPurchases(purchases: FirstValuePurchase[]): FirstValuePurchase[] {
 
 function recommendationBase(
   purchase: FirstValuePurchase | null,
-  patch: Omit<FirstValueRecommendation, "product"> & { product?: FirstValueRecommendation["product"] },
+  patch: Omit<FirstValueRecommendation, "product" | "preparation"> & {
+    product?: FirstValueRecommendation["product"];
+    preparation?: FirstValuePreparation | null;
+  },
 ): FirstValueRecommendation {
   return {
     ...patch,
+    preparation: patch.preparation ?? null,
     product: patch.product ?? {
       orderId: purchase?.orderId ?? null,
       productType: purchase?.productType ?? null,
@@ -94,11 +104,84 @@ function existingResultView(
     kind: artifact.kind,
     createdAt: artifact.createdAt.toISOString(),
     updatedAt: artifact.updatedAt.toISOString(),
+    resultAchievedAt: artifact.resultAchievedAt?.toISOString() ?? null,
+    resultSource: artifact.resultSource,
     attribution: attributeArtifactToPurchase(artifact, {
       subjectUserId,
       purchaseConfirmedAt: purchase?.confirmedAt ?? null,
     }),
   };
+}
+
+function resolvePreparation(
+  definition: FirstValueLessonDefinition,
+  availability: FirstValueDependencyAvailability | undefined,
+): FirstValuePreparation {
+  if (definition.eligibility === "unsupported") {
+    return {
+      status: "unprovable",
+      dependency: definition.dependency,
+      message: "Esta atividade não permite comprovar conquista verificável.",
+    };
+  }
+  if (!definition.dependency) {
+    return { status: "ready", dependency: null, message: null };
+  }
+  const ready = availability?.[definition.dependency] === true;
+  if (ready) {
+    return { status: "ready", dependency: definition.dependency, message: null };
+  }
+  if (definition.dependency === "project") {
+    return {
+      status: "needs_project",
+      dependency: "project",
+      message: "É necessário criar um projeto antes de gravar este resultado.",
+    };
+  }
+  if (definition.dependency === "landing_page_project") {
+    return {
+      status: "needs_landing_page_project",
+      dependency: "landing_page_project",
+      message: "É necessário ter uma landing page do curso antes desta atividade.",
+    };
+  }
+  return {
+    status: "needs_campaign_import",
+    dependency: "campaign_import",
+    message: "É necessário importar dados da campanha antes de fechar este resultado.",
+  };
+}
+
+function preparationCta(
+  definition: FirstValueLessonDefinition,
+  preparation: FirstValuePreparation,
+): { label: string; href: string } {
+  if (preparation.status === "needs_project") {
+    return { label: "Criar projeto primeiro", href: "/app/projetos/novo" };
+  }
+  if (preparation.status === "needs_campaign_import") {
+    return { label: "Importar dados da campanha", href: "/app/projetos" };
+  }
+  if (preparation.status === "needs_landing_page_project") {
+    return { label: "Preparar landing page", href: definition.startPath };
+  }
+  if (preparation.status === "unprovable") {
+    return { label: "Abrir aula", href: definition.startPath };
+  }
+  return { label: "Começar meu resultado", href: definition.startPath };
+}
+
+function pickArtifactForLesson(
+  input: FirstValueSelectInput,
+  definition: FirstValueLessonDefinition,
+  purchase: FirstValuePurchase,
+): FirstValueArtifact | null {
+  return pickOwnedArtifact(input.artifacts, {
+    subjectUserId: input.subjectUserId,
+    lessonSlug: definition.lessonSlug,
+    evidenceKind: definition.evidenceKind,
+    purchaseConfirmedAt: purchase.confirmedAt,
+  });
 }
 
 function pickCandidate(
@@ -116,11 +199,7 @@ function pickCandidate(
     .map((definition) => {
       const accessible = lessonAccessible({ definition, entitlements: input.entitlements, published });
       const progress = progressFor(input.progress, definition.lessonSlug);
-      const artifact = pickOwnedArtifact(input.artifacts, {
-        subjectUserId: input.subjectUserId,
-        lessonSlug: definition.lessonSlug,
-        evidenceKind: definition.evidenceKind,
-      });
+      const artifact = pickArtifactForLesson(input, definition, purchase);
       return { definition, progress, artifact, accessible };
     })
     .filter((row) => row.accessible);
@@ -139,14 +218,14 @@ function pickCandidate(
 
   const withoutAchievement = scored
     .filter((row) => {
-      if (!row.artifact || !isVerifiedAchievementKind(row.artifact.kind)) return true;
+      if (!row.artifact || !isVerifiedAchievement(row.artifact)) return true;
       const attribution = attributeArtifactToPurchase(row.artifact, {
         subjectUserId: input.subjectUserId,
         purchaseConfirmedAt: purchase.confirmedAt,
       });
-      return attribution === "before_purchase" || attribution === "preexisting_edited";
+      return attribution === "before_purchase" || attribution === "preexisting_edited" || attribution === "unknown";
     })
-    .filter((row) => !progressView(row.progress).completed || !row.artifact)
+    .filter((row) => !progressView(row.progress).completed || !row.artifact || !isVerifiedAchievement(row.artifact))
     .sort(
       (a, b) =>
         a.definition.firstValueRank - b.definition.firstValueRank ||
@@ -156,7 +235,7 @@ function pickCandidate(
   if (withoutAchievement[0]) return withoutAchievement[0];
 
   const withAchievement = scored
-    .filter((row) => row.artifact && isVerifiedAchievementKind(row.artifact.kind))
+    .filter((row) => row.artifact && isVerifiedAchievement(row.artifact))
     .sort(
       (a, b) =>
         a.definition.firstValueRank - b.definition.firstValueRank ||
@@ -175,6 +254,19 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
       progress: null,
       existingResult: null,
       reason: "Pedido ainda não confirmado; conteúdo pago permanece bloqueado.",
+      fallback: false,
+    });
+  }
+
+  if (purchase.status === "NEEDS_REVIEW") {
+    return recommendationBase(purchase, {
+      state: "access_unavailable",
+      activity: null,
+      expectedOutcome: null,
+      cta: { label: "Ver meu pedido", href: `/app/compras/${purchase.orderId}` },
+      progress: null,
+      existingResult: null,
+      reason: "Pedido em NEEDS_REVIEW: sem liberar acesso nem declarar conquista pós-compra.",
       fallback: false,
     });
   }
@@ -237,7 +329,6 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
     });
   }
 
-  // Aula individual paga: nunca sugerir outra aula paga não incluída.
   if (purchase.productType === "LESSON" && purchase.lessonSlugs.length === 1) {
     const only = firstValueLessonBySlug(purchase.lessonSlugs[0]!);
     if (!only) {
@@ -265,6 +356,25 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
       });
     }
     if (!published.has(only.lessonSlug)) {
+      const historical = pickArtifactForLesson(input, only, purchase);
+      if (historical && isVerifiedAchievement(historical)) {
+        const attribution = attributeArtifactToPurchase(historical, {
+          subjectUserId: input.subjectUserId,
+          purchaseConfirmedAt: purchase.confirmedAt,
+        });
+        if (attribution === "after_purchase") {
+          return recommendationBase(purchase, {
+            state: "first_value_achieved",
+            activity: activityFrom(only),
+            expectedOutcome: only.pedagogicalOutcome,
+            cta: { label: "Ver meus cursos", href: "/app" },
+            progress: progressView(progressFor(input.progress, only.lessonSlug)),
+            existingResult: existingResultView(historical, purchase, input.subjectUserId),
+            reason: "Conquista histórica reconhecida; aula indisponível/publicação ausente — sem CTA de acesso pago.",
+            fallback: false,
+          });
+        }
+      }
       return recommendationBase(purchase, {
         state: "access_unavailable",
         activity: activityFrom(only),
@@ -280,18 +390,19 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
 
   const achieved = definitions
     .map((definition) => {
-      const artifact = pickOwnedArtifact(input.artifacts, {
-        subjectUserId: input.subjectUserId,
-        lessonSlug: definition.lessonSlug,
-        evidenceKind: definition.evidenceKind,
-      });
-      if (!artifact || !isVerifiedAchievementKind(artifact.kind)) return null;
+      const artifact = pickArtifactForLesson(input, definition, purchase);
+      if (!artifact || !isVerifiedAchievement(artifact)) return null;
       const attribution = attributeArtifactToPurchase(artifact, {
         subjectUserId: input.subjectUserId,
         purchaseConfirmedAt: purchase.confirmedAt,
       });
       if (attribution !== "after_purchase") return null;
-      return { definition, artifact, progress: progressFor(input.progress, definition.lessonSlug) };
+      return {
+        definition,
+        artifact,
+        progress: progressFor(input.progress, definition.lessonSlug),
+        accessible: lessonAccessible({ definition, entitlements: input.entitlements, published }),
+      };
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
     .sort(
@@ -305,17 +416,35 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
     const next = pickCandidate(remaining, input, purchase);
     const primary = achieved[0];
     if (next) {
+      const nextPrep = resolvePreparation(next.definition, input.dependencyAvailability);
+      const nextCta =
+        nextPrep.status === "ready"
+          ? {
+              label: progressView(next.progress).inProgress ? "Continuar evolução" : "Próximo resultado",
+              href: next.definition.startPath,
+            }
+          : preparationCta(next.definition, nextPrep);
       return recommendationBase(purchase, {
         state: "next_evolution",
         activity: activityFrom(next.definition),
         expectedOutcome: next.definition.pedagogicalOutcome,
-        cta: {
-          label: progressView(next.progress).inProgress ? "Continuar evolução" : "Próximo resultado",
-          href: next.definition.startPath,
-        },
+        cta: nextCta,
         progress: progressView(next.progress),
         existingResult: existingResultView(primary.artifact, purchase, input.subjectUserId),
+        preparation: nextPrep,
         reason: `Primeira conquista verificável em ${primary.definition.lessonSlug}; evoluir para ${next.definition.lessonSlug}.`,
+        fallback: false,
+      });
+    }
+    if (primary.accessible) {
+      return recommendationBase(purchase, {
+        state: "first_value_achieved",
+        activity: activityFrom(primary.definition),
+        expectedOutcome: primary.definition.pedagogicalOutcome,
+        cta: { label: "Revisar resultado", href: primary.definition.startPath },
+        progress: progressView(primary.progress),
+        existingResult: existingResultView(primary.artifact, purchase, input.subjectUserId),
+        reason: `Artefato verificável em ${primary.definition.authority} após a compra.`,
         fallback: false,
       });
     }
@@ -323,10 +452,10 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
       state: "first_value_achieved",
       activity: activityFrom(primary.definition),
       expectedOutcome: primary.definition.pedagogicalOutcome,
-      cta: { label: "Revisar resultado", href: primary.definition.startPath },
+      cta: { label: "Ver meus cursos", href: "/app" },
       progress: progressView(primary.progress),
       existingResult: existingResultView(primary.artifact, purchase, input.subjectUserId),
-      reason: `Artefato verificável em ${primary.definition.authority} após a compra.`,
+      reason: `Conquista histórica em ${primary.definition.lessonSlug} reconhecida; acesso atual indisponível — sem CTA pago.`,
       fallback: false,
     });
   }
@@ -348,6 +477,7 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
   const { definition, progress, artifact } = candidate;
   const view = progressView(progress);
   const existing = existingResultView(artifact, purchase, input.subjectUserId);
+  const preparation = resolvePreparation(definition, input.dependencyAvailability);
 
   if (view.inProgress) {
     return recommendationBase(purchase, {
@@ -357,6 +487,7 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
       cta: { label: "Continuar aula", href: definition.startPath },
       progress: view,
       existingResult: existing,
+      preparation,
       reason: "Atividade acessível relacionada à compra já iniciada.",
       fallback: false,
     });
@@ -370,7 +501,22 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
       cta: { label: "Revisar ou atualizar", href: definition.startPath },
       progress: view,
       existingResult: existing,
+      preparation,
       reason: "Resultado preexistente não atribuído à nova compra; oferecer revisão honesta.",
+      fallback: false,
+    });
+  }
+
+  if (existing && existing.attribution === "unknown") {
+    return recommendationBase(purchase, {
+      state: "continuation",
+      activity: activityFrom(definition),
+      expectedOutcome: definition.pedagogicalOutcome,
+      cta: { label: "Revisar evidência", href: definition.startPath },
+      progress: view,
+      existingResult: existing,
+      preparation,
+      reason: "Timestamp do resultado não comprovável; não declara conquista pós-compra.",
       fallback: false,
     });
   }
@@ -383,8 +529,23 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
       cta: { label: "Começar aula", href: definition.startPath },
       progress: view,
       existingResult: null,
+      preparation,
       reason: "Sem artefato verificável; continuação pedagógica honesta (não inventa conquista).",
       fallback: true,
+    });
+  }
+
+  if (preparation.status !== "ready") {
+    return recommendationBase(purchase, {
+      state: "ready_to_start",
+      activity: activityFrom(definition),
+      expectedOutcome: definition.pedagogicalOutcome,
+      cta: preparationCta(definition, preparation),
+      progress: view,
+      existingResult: existing,
+      preparation,
+      reason: preparation.message ?? "Preparação obrigatória antes do resultado.",
+      fallback: false,
     });
   }
 
@@ -395,10 +556,8 @@ function recommendForPurchase(purchase: FirstValuePurchase, input: FirstValueSel
     cta: { label: "Começar meu resultado", href: definition.startPath },
     progress: view,
     existingResult: existing,
-    reason:
-      definition.eligibility === "requires_dependency"
-        ? `Atividade elegível com dependência (${definition.dependency}); pronta para iniciar sem fingir conquista.`
-        : "Atividade elegível do produto adquirido ainda não realizada.",
+    preparation,
+    reason: "Atividade elegível do produto adquirido ainda não realizada.",
     fallback: false,
   });
 }
@@ -425,7 +584,6 @@ export function selectFirstValueAction(input: FirstValueSelectInput): FirstValue
   const pending = purchases.find(isPendingPayment);
   const confirmed = purchases.filter(isPaidConfirmed);
 
-  // Progresso em andamento em compra confirmada vence pedido pendente mais antigo para continuidade.
   for (const purchase of confirmed) {
     const defs = firstValueOptionsFromPurchaseLessons(purchase.lessonSlugs);
     const candidate = pickCandidate(defs, input, purchase);
