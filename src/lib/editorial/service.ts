@@ -113,7 +113,7 @@ export async function createLesson(actor: EditorialActor, moduleId: string, inpu
       accessType,
       status: "DRAFT",
       commerceStatus: "NOT_FOR_SALE",
-      priceCents: accessType === "PAID" ? 100 : null,
+      priceCents: null,
       updatedById: actor.userId,
     },
   });
@@ -133,10 +133,8 @@ export async function saveLesson(actor: EditorialActor, lessonId: string, input:
   if (current.commerceStatus === "AVAILABLE" && (status !== "PUBLISHED" || accessType !== "PAID")) {
     return { ok: false, message: "Retire a aula da venda antes de mudar publicação ou acesso." };
   }
-  // Preços comerciais são geridos em /admin/precos — o editor pedagógico só preserva/ajusta nulos.
-  let priceCents = current.priceCents;
-  if (accessType === "FREE") priceCents = null;
-  else if (priceCents == null || priceCents <= 0) priceCents = 100;
+  // Preços comerciais são geridos em /admin/precos — o editor só zera FREE e preserva o restante.
+  const priceCents = accessType === "FREE" ? null : current.priceCents;
   const minutes = integer(input.estimatedMinutes, current.estimatedMinutes ?? 0);
   const blocks = await loadReadyBlocks(lessonId);
   if (status === "PUBLISHED") {

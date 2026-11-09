@@ -3,8 +3,8 @@ export const MAX_PRICE_CENTS = 9_999_999;
 
 /**
  * Converte texto em reais (pt-BR) para centavos inteiros.
- * Aceita: `14,90`, `R$ 14,90`, `1.234,56`.
- * Rejeita negativo, ambíguo (ponto decimal sem vírgula), NaN e fora do limite.
+ * Aceita: `14,90`, `R$ 14,90`, `1.234,56`, `15`, `1.234`.
+ * Rejeita formatos ambíguos/inválidos; sem arredondamento por float.
  */
 export function parseBrlToCents(raw: string): { ok: true; cents: number } | { ok: false; message: string } {
   const trimmed = raw.trim();
@@ -12,31 +12,47 @@ export function parseBrlToCents(raw: string): { ok: true; cents: number } | { ok
 
   const text = trimmed.replace(/\s+/g, " ").replace(/^R\$\s?/i, "").trim();
   if (!text) return { ok: false, message: "Informe um valor em reais." };
-  if (text.includes("-")) return { ok: false, message: "O preço não pode ser negativo." };
+  if (text.includes("-") || text.startsWith("+")) {
+    return { ok: false, message: "O preço não pode ser negativo." };
+  }
+  if (/[^\d.,]/.test(text)) return { ok: false, message: "Formato monetário inválido." };
+  if (text.includes("..") || text.includes(",,") || text.includes(".,") || text.includes(",.")) {
+    return { ok: false, message: "Formato monetário inválido." };
+  }
 
   // Ambíguo: decimal com ponto e sem vírgula (ex.: 14.90).
   if (/^\d+\.\d{1,2}$/.test(text)) {
     return { ok: false, message: "Use o formato brasileiro com vírgula (ex.: 14,90)." };
   }
 
-  // pt-BR: milhar com ponto, decimal com vírgula.
   if (text.includes(",")) {
     const parts = text.split(",");
     if (parts.length !== 2) return { ok: false, message: "Formato monetário inválido." };
-    const whole = parts[0]!.replace(/\./g, "");
+    const wholeDigits = parseWholeBrl(parts[0]!);
+    if (wholeDigits == null) return { ok: false, message: "Formato monetário inválido." };
     const fraction = parts[1]!;
-    if (!/^\d+$/.test(whole) || !/^\d{1,2}$/.test(fraction)) {
-      return { ok: false, message: "Formato monetário inválido." };
-    }
-    const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+    if (!/^\d{1,2}$/.test(fraction)) return { ok: false, message: "Formato monetário inválido." };
+    const cents = wholeDigits * 100 + Number(fraction.padEnd(2, "0"));
     return validateCents(cents);
   }
 
-  // Apenas reais inteiros: "15" ou "1.234"
-  const whole = text.replace(/\./g, "");
-  if (!/^\d+$/.test(whole)) return { ok: false, message: "Formato monetário inválido." };
-  const cents = Number(whole) * 100;
-  return validateCents(cents);
+  const wholeDigits = parseWholeBrl(text);
+  if (wholeDigits == null) return { ok: false, message: "Formato monetário inválido." };
+  return validateCents(wholeDigits * 100);
+}
+
+/** Parte inteira: só dígitos (`15`, `1234`) ou milhares pt-BR (`1.234`, `1.234.567`). */
+function parseWholeBrl(whole: string): number | null {
+  if (!whole) return null;
+  if (/^\d+$/.test(whole)) {
+    const value = Number(whole);
+    return Number.isSafeInteger(value) ? value : null;
+  }
+  if (!/^\d{1,3}(\.\d{3})+$/.test(whole)) return null;
+  const digits = whole.replace(/\./g, "");
+  if (!/^\d+$/.test(digits)) return null;
+  const value = Number(digits);
+  return Number.isSafeInteger(value) ? value : null;
 }
 
 function validateCents(cents: number): { ok: true; cents: number } | { ok: false; message: string } {
@@ -56,18 +72,18 @@ function validateCents(cents: number): { ok: true; cents: number } | { ok: false
 export function formatCentsToBrl(cents: number | null | undefined): string {
   if (cents == null) return "—";
   if (!Number.isSafeInteger(cents) || cents < 0) return "—";
-  const negative = cents < 0;
-  const abs = Math.abs(cents);
-  const whole = Math.floor(abs / 100);
-  const fraction = String(abs % 100).padStart(2, "0");
+  const whole = Math.floor(cents / 100);
+  const fraction = String(cents % 100).padStart(2, "0");
   const grouped = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${negative ? "-" : ""}R$ ${grouped},${fraction}`;
+  return `R$ ${grouped},${fraction}`;
 }
 
+/** Percentual de desconto com aritmética inteira (centésimos de ponto percentual). */
 export function percentOff(listCents: number, bundleCents: number): number | null {
   if (!Number.isSafeInteger(listCents) || !Number.isSafeInteger(bundleCents) || listCents <= 0) return null;
   if (bundleCents >= listCents) return 0;
-  return Math.round(((listCents - bundleCents) * 10000) / listCents) / 100;
+  const basisPoints = Math.floor(((listCents - bundleCents) * 10000) / listCents);
+  return basisPoints / 100;
 }
 
 export function savingsCents(listCents: number, bundleCents: number): number {

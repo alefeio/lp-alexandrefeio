@@ -2,26 +2,35 @@
 
 Gestão comercial de preços no Admin, em reais (pt-BR), com o banco como fonte de verdade. Esta sprint **não** altera valores em Production nem ativa o piloto C1.
 
-## Gate 0 — Auditoria (pré-COM-2 → pós)
+## COM-2.1 — Safety & preview hardening
 
-### Caminhos de escrita de preço
+### Concorrência atômica
 
-| Antes | Depois |
-| --- | --- |
-| Editor pedagógico (`saveCourse` / `saveModule` / `saveLesson`) gravava centavos do formulário | Editor **preserva** preços; FREE zera; PAID sem preço recebe placeholder `100` só para prontidão |
-| Campos “Preço em centavos” nas páginas de curso/módulo/aula | Removidos; link para `/admin/precos` |
-| — | Novo: `src/lib/admin/pricing.ts` + `/admin/precos` |
+`updateProductPrice` exige `expectedUpdatedAt` ISO não vazio e válido. A escrita usa `updateMany` com compare-and-swap em `id` + `updatedAt` + `commerceStatus` (e `accessType: PAID` para aulas). Se `count !== 1`, retorna conflito sem alterar preço.
 
-### Efeito de mudar preço de produto AVAILABLE
+### Placeholder monetário
 
-- Catálogo/cotação passam a ler o novo valor na próxima carga.
-- Pedidos já criados **não** mudam (snapshot em `OrderItem`).
-- Entitlements / status de venda **não** mudam nesta ação.
-- Créditos de upgrade continuam baseados em `finalPriceCents` pago.
+`createLesson` / `saveLesson` **não** atribuem mais `100` centavos. PAID em rascunho pode ficar com `priceCents = null` até o admin definir em `/admin/precos`. Publicação e venda continuam bloqueadas pela prontidão existente quando falta preço válido.
 
-### Histórico comercial
+#### Identificar possíveis placeholders antigos (`priceCents = 100`)
 
-Não há tabela de auditoria de alterações de preço. Apenas `updatedAt` / `updatedById` no próprio produto. Limitação documentada; não inventamos trilha nesta sprint. Sem migration.
+Registros históricos **não** são alterados automaticamente. Para revisão humana:
+
+```sql
+SELECT id, slug, title, "priceCents", status, "commerceStatus", "updatedAt"
+FROM lesson
+WHERE "accessType" = 'PAID' AND "priceCents" = 100;
+```
+
+`100` pode ser preço legítimo (R$ 1,00). Confirmar caso a caso antes de qualquer correção manual.
+
+### Parser BRL
+
+Aceita só formatos pt-BR válidos (`14,90`, `R$ 14,90`, `1.234,56`, `15`, `1.234`). Rejeita milhares malformados (`1.2,34`, `12.34,56`, `1.2.3`), decimal com ponto (`14.90`), negativos e fora do limite.
+
+### Simulação
+
+`projectPricingDesk` (em `pricing-core.ts`, seguro para client) recalcula somas/economia a partir de rascunhos locais. A UI distingue **publicado** vs **proposto**; nada é gravado até salvar. Escrita fica em `pricing.ts` (`server-only`).
 
 ## Responsabilidades
 
@@ -30,21 +39,14 @@ Não há tabela de auditoria de alterações de preço. Apenas `updatedAt` / `up
 | `/admin/cursos`, `/admin/modulos`, `/admin/aulas` | Conteúdo, publicação, abrir/fechar venda |
 | `/admin/precos` | Preços comerciais em R$ |
 
-## Regras monetárias
-
-- Entrada: `14,90`, `R$ 14,90`, `1.234,56` ou reais inteiros (`15`).
-- Rejeita: negativo, `14.90` (ambíguo), NaN/Infinity, acima de R$ 99.999,99, zero para produto pago.
-- Gravação sempre em centavos inteiros; sem float financeiro.
-- FREE: sem preço comercial.
-
 ## Confirmação AVAILABLE
 
-Servidor exige `confirmAvailable` quando o produto está AVAILABLE e o valor muda. UI mostra preço atual → novo e avisa sobre cotações futuras vs pedidos preservados.
+Servidor exige `confirmAvailable` quando o produto está AVAILABLE e o valor muda.
 
-## Concorrência
+## Histórico comercial
 
-Compara `updatedAt` ISO esperado; conflito se desatualizado.
+Não há tabela de auditoria de alterações de preço. Apenas `updatedAt` / `updatedById`. Sem migration.
 
-## Checkout (sem mudança de integração)
+## Checkout
 
-Compatibilidade garantida por não tocar em Mercado Pago, orders create, entitlements nem quote math — só a fonte persistida de preço.
+Sem alteração em Mercado Pago, orders, entitlements ou quote math — só a fonte persistida de preço via Admin.

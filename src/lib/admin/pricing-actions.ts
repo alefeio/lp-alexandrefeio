@@ -1,6 +1,7 @@
 "use server";
 
-import { updateProductPrice, type PricingTarget } from "@/lib/admin/pricing";
+import { updateProductPrice } from "@/lib/admin/pricing";
+import type { PricingTarget } from "@/lib/admin/pricing-core";
 import { requireAdmin } from "@/lib/auth/session";
 
 export async function updateProductPriceAction(form: FormData) {
