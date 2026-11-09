@@ -39,6 +39,14 @@ export {
   loadFirstValueRecommendation,
   recommendFromFirstValueRecords,
 } from "@/lib/learning/first-value/load";
+export {
+  firstValueCardHasPrivateKeys,
+  presentFirstValueRecommendation,
+  shouldSuppressLearningContinuation,
+  type FirstValueCardTone,
+  type FirstValueCardViewModel,
+  type FirstValuePresentationState,
+} from "@/lib/learning/first-value/present";
 export { selectFirstValueAction } from "@/lib/learning/first-value/select";
 export {
   FIRST_VALUE_STATES,

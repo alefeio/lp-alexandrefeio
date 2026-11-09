@@ -153,9 +153,20 @@ Edit de artefato antigo → `preexisting_edited` / `unknown`, nunca `after_purch
 
 Resolver “primeira conquista absoluta” com campo imutável exigiria migration — **fora do escopo** desta sprint.
 
-## Integração futura (ACT-1B.2)
+## Integração dashboard (ACT-1B.2)
 
-Conectar `loadFirstValueRecommendation` ao `StudentDashboard` **após auditoria**. Não altera `paidOrderStart`.
+`/app` (após `requireSession`) carrega em paralelo:
+
+1. `loadStudentDashboard(session.user.id, …)`
+2. `loadFirstValueCardForDashboard(session.user.id)` → `loadFirstValueRecommendation` + `presentFirstValueRecommendation`
+
+Erro operacional do first-value → card omitido; dashboard antigo permanece. Auth continua exigida (não engolida).
+
+ViewModel de UI (`FirstValueCardViewModel`): título, orientação, resultado esperado, estado, CTA seguro, progresso, preparação. Sem `orderId` / `reason` / payloads / finanças / meta do loader.
+
+Prioridade visual: card em destaque quando pós-compra elegível (`ready_to_start`, `in_progress`, `first_value_achieved` comprovado, `next_evolution`, `access_pending`, `payment_pending`). Se o CTA coincide com `LearningBlock`, o LearningBlock é omitido para evitar CTA duplicado. Caso contrário, continuidade de aprendizagem permanece em destaque.
+
+Não altera `paidOrderStart`.
 
 ## Migration
 
