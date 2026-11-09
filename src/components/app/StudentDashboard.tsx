@@ -23,8 +23,10 @@ import type {
   StudentDashboardViewModel,
 } from "@/lib/home/student-dashboard";
 import {
+  shouldOmitInformationalFirstValueCta,
   shouldSuppressLearningContinuation,
   shouldSuppressLegacyNextAction,
+  withOmittableFirstValueCta,
   type FirstValueCardViewModel,
 } from "@/lib/learning/first-value/present";
 
@@ -62,6 +64,19 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
   const showLegacy = !suppressLegacy;
   /** Card informativo: CTA secundário (pedido), nunca disputa o botão primary da continuidade/legado. */
   const firstValuePrimary = Boolean(firstValue?.highlight);
+  const omitInformationalCta = shouldOmitInformationalFirstValueCta({
+    firstValue,
+    learningPresent: Boolean(learningItem),
+    businessPresent: Boolean(view.businessNextAction),
+    legacyPresent: showLegacy,
+    learningHref: learningItem?.href,
+    businessHref: view.businessNextAction?.href,
+    legacyHref: view.nextAction.href,
+  });
+  const informationalCard =
+    firstValue && !firstValuePrimary
+      ? withOmittableFirstValueCta(firstValue, omitInformationalCta)
+      : null;
 
   return (
     <Container className="max-w-4xl py-10 sm:py-12">
@@ -94,7 +109,7 @@ export function StudentDashboard({ view }: { view: StudentDashboardViewModel }) 
           primary={!learningItem && !view.businessNextAction && !firstValuePrimary}
         />
       ) : null}
-      {firstValue && !firstValuePrimary ? <FirstValueBlock card={firstValue} primary={false} /> : null}
+      {informationalCard ? <FirstValueBlock card={informationalCard} primary={false} /> : null}
 
       {view.myCourses.length > 0 ? (
         <section aria-labelledby="my-courses-heading" className="mt-10">

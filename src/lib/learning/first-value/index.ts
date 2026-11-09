@@ -42,8 +42,10 @@ export {
 export {
   firstValueCardHasPrivateKeys,
   presentFirstValueRecommendation,
+  shouldOmitInformationalFirstValueCta,
   shouldSuppressLearningContinuation,
   shouldSuppressLegacyNextAction,
+  withOmittableFirstValueCta,
   type FirstValueCardTone,
   type FirstValueCardViewModel,
   type FirstValuePresentationState,

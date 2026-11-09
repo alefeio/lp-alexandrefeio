@@ -164,13 +164,13 @@ Erro operacional do first-value → card omitido; dashboard antigo permanece. Au
 
 ViewModel de UI (`FirstValueCardViewModel`): título, orientação, resultado esperado, estado, CTA seguro, progresso, preparação. Sem `orderId` / `reason` / payloads / finanças / meta do loader.
 
-Prioridade visual (ACT-1B.2.1):
+Prioridade visual (ACT-1B.2.1 / ACT-1B.2.2):
 
 - **Destaque (`highlight`)** só com atividade elegível/acessível: `ready_to_start`, `in_progress`, `first_value_achieved` comprovado, `next_evolution`.
 - **`payment_pending` / `access_pending`**: informativos secundários (CTA de pedido ok; nunca primary nem sobrescrevem `LearningBlock`).
 - **`continuation` / `access_unavailable`**: informativos; **não** removem `nextAction` legado.
 - Se CTA do card em destaque coincide com `LearningBlock` → LearningBlock omitido.
-- Se CTA informativo coincide com `nextAction` → omitir só a duplicata; caso contrário preservar ambos (legado primary, card secondary).
+- Se CTA **informativo** coincide com `nextAction` / `businessNextAction` / LearningBlock → preservar a ação útil como **primary** e omitir **somente o CTA** do card (mensagem contextual permanece).
 
 Não altera `paidOrderStart`.
 

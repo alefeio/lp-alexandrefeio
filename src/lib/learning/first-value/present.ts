@@ -244,18 +244,48 @@ export function shouldSuppressLearningContinuation(input: {
 
 /**
  * Ação legada (`nextAction`) permanece quando o card first-value é apenas informativo.
- * Omite só se o card elegível está em destaque, ou se há duplicação real de destino com o CTA do card.
+ * Omite só se há LearningBlock / businessNextAction, ou se o card elegível está em destaque.
+ * Duplicação de href com card informativo NÃO remove o legado — omitir o CTA do card
+ * via `shouldOmitInformationalFirstValueCta`.
  */
 export function shouldSuppressLegacyNextAction(input: {
   firstValue: FirstValueCardViewModel | null | undefined;
   learningPresent: boolean;
   businessPresent: boolean;
-  legacyHref: string | null | undefined;
+  legacyHref?: string | null | undefined;
 }): boolean {
   if (input.learningPresent || input.businessPresent) return true;
   const card = input.firstValue;
   if (!card) return false;
-  if (card.highlight) return true;
-  if (card.cta?.href && sameDestination(card.cta.href, input.legacyHref)) return true;
+  return Boolean(card.highlight);
+}
+
+/**
+ * Card informativo com o mesmo destino de uma ação útil: manter a mensagem, omitir só o CTA
+ * para não restar um botão secondary como único (ou concorrente) link para o destino.
+ */
+export function shouldOmitInformationalFirstValueCta(input: {
+  firstValue: FirstValueCardViewModel | null | undefined;
+  learningHref?: string | null;
+  businessHref?: string | null;
+  legacyHref?: string | null;
+  learningPresent: boolean;
+  businessPresent: boolean;
+  legacyPresent: boolean;
+}): boolean {
+  const card = input.firstValue;
+  if (!card || card.highlight || !card.cta?.href) return false;
+  if (input.learningPresent && sameDestination(card.cta.href, input.learningHref)) return true;
+  if (input.businessPresent && sameDestination(card.cta.href, input.businessHref)) return true;
+  if (input.legacyPresent && sameDestination(card.cta.href, input.legacyHref)) return true;
   return false;
+}
+
+/** ViewModel de apresentação com CTA eventualmente omitido por deduplicação. */
+export function withOmittableFirstValueCta(
+  card: FirstValueCardViewModel,
+  omitCta: boolean,
+): FirstValueCardViewModel {
+  if (!omitCta || !card.cta) return card;
+  return { ...card, cta: null };
 }
