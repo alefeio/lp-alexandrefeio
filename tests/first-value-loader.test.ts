@@ -548,6 +548,7 @@ test("20. Diagnostic concluído", () => {
         {
           id: "d1",
           userId: USER,
+          projectId: "p1",
           status: "COMPLETED",
           version: "traffic-readiness-v1",
           completedAt,
@@ -555,6 +556,7 @@ test("20. Diagnostic concluído", () => {
           updatedAt: completedAt,
         },
       ],
+      projects: [{ id: "p1", userId: USER, status: "ACTIVE" }],
       lessonResponses: [
         {
           id: "resp-link",

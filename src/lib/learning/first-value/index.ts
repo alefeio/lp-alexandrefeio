@@ -13,7 +13,10 @@ export {
   pickOwnedArtifact,
 } from "@/lib/learning/first-value/evidence";
 export {
+  FIRST_VALUE_RESULT_FIELD_KEYS,
   isValidPedagogicalPayload,
+  isValidResultLessonPayload,
+  matchesOwnedCompletedDiagnostic,
   parsePublicationLessonPayload,
   parseTrafficReadinessLink,
   readMutablePayloadCompletedAt,

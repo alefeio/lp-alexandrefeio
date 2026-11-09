@@ -2,7 +2,9 @@ import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 import { FIRST_VALUE_LESSON_CATALOG, firstValueLessonBySlug } from "@/lib/learning/first-value/catalog";
 import { buildFirstValueArtifact } from "@/lib/learning/first-value/evidence";
 import {
+  FIRST_VALUE_RESULT_FIELD_KEYS,
   isValidPedagogicalPayload,
+  matchesOwnedCompletedDiagnostic,
   parsePublicationLessonPayload,
   parseTrafficReadinessLink,
   resolveTrustedResultAchievedAt,
@@ -59,6 +61,7 @@ export type FirstValueLessonResponseRecord = {
 export type FirstValueDiagnosticRecord = {
   id: string;
   userId: string;
+  projectId: string;
   status: string;
   version?: string | null;
   completedAt: Date | null;
@@ -104,6 +107,8 @@ export type FirstValueLoaderRecords = {
   projects: Array<{ id: string; userId: string; status: string }>;
   imports: Array<{ id: string; userId: string; status: string; deletedAt: Date | null }>;
   publishedLessonSlugs: string[];
+  /** Chaves do bloco RESULT publicado por aula (sem tool). Preferir DB; fallback de seed em `FIRST_VALUE_RESULT_FIELD_KEYS`. */
+  resultFieldKeysByLessonSlug?: Record<string, readonly string[]>;
 };
 
 function asOrderStatus(status: string): FirstValueOrderStatus {
@@ -194,17 +199,30 @@ function pushUniqueArtifact(bucket: FirstValueArtifact[], artifact: FirstValueAr
   bucket.push(artifact);
 }
 
+function resolveResultFieldKeys(
+  lessonSlug: string,
+  resultFieldKeysByLessonSlug: Record<string, readonly string[]> | undefined,
+): readonly string[] | null {
+  const fromLoader = resultFieldKeysByLessonSlug?.[lessonSlug];
+  if (fromLoader && fromLoader.length > 0) return fromLoader;
+  const fromSeed = FIRST_VALUE_RESULT_FIELD_KEYS[lessonSlug];
+  return fromSeed && fromSeed.length > 0 ? fromSeed : null;
+}
+
 function artifactFromLessonRow(
   subjectUserId: string,
   definition: (typeof FIRST_VALUE_LESSON_CATALOG)[number],
   row: { id: string; projectId?: string | null; payload: unknown; createdAt: Date; updatedAt: Date },
   source: "lesson_result_created_at" | "lesson_response_created_at",
+  resultFieldKeysByLessonSlug: Record<string, readonly string[]> | undefined,
 ): FirstValueArtifact | null {
   if (
     !isValidPedagogicalPayload({
       toolKey: definition.toolKey,
       evidenceKind: definition.evidenceKind,
       payload: row.payload,
+      lessonSlug: definition.lessonSlug,
+      requiredResultFieldKeys: resolveResultFieldKeys(definition.lessonSlug, resultFieldKeysByLessonSlug),
     })
   ) {
     return null;
@@ -230,6 +248,7 @@ function buildDiagnosticArtifacts(input: {
   definition: (typeof FIRST_VALUE_LESSON_CATALOG)[number];
   responses: FirstValueLessonResponseRecord[];
   diagnostics: FirstValueDiagnosticRecord[];
+  projects: Array<{ id: string; userId: string; status: string }>;
 }): FirstValueArtifact[] {
   const out: FirstValueArtifact[] = [];
   const links = input.responses
@@ -241,12 +260,13 @@ function buildDiagnosticArtifacts(input: {
     .sort((a, b) => a.row.createdAt.getTime() - b.row.createdAt.getTime() || a.row.id.localeCompare(b.row.id));
 
   for (const item of links) {
-    const diagnostic = input.diagnostics.find(
-      (row) =>
-        row.userId === input.subjectUserId &&
-        row.id === item.link.diagnosticId &&
-        row.status === "COMPLETED" &&
-        row.completedAt != null,
+    const diagnostic = input.diagnostics.find((row) =>
+      matchesOwnedCompletedDiagnostic({
+        subjectUserId: input.subjectUserId,
+        link: item.link,
+        diagnostic: row,
+        projects: input.projects,
+      }),
     );
     if (!diagnostic?.completedAt) continue;
     pushUniqueArtifact(
@@ -325,11 +345,14 @@ export function buildArtifactsFromRecords(input: {
   diagnostics: FirstValueDiagnosticRecord[];
   landingPageProjects: FirstValueLandingPageProjectRecord[];
   publications: FirstValuePublicationRecord[];
+  projects?: Array<{ id: string; userId: string; status: string }>;
+  resultFieldKeysByLessonSlug?: Record<string, readonly string[]>;
 }): FirstValueArtifact[] {
   const artifacts: FirstValueArtifact[] = [];
   const ownedResults = input.lessonResults.filter((row) => row.userId === input.subjectUserId);
   const ownedResponses = input.lessonResponses.filter((row) => row.userId === input.subjectUserId);
   const ownedLp = input.landingPageProjects.filter((row) => row.userId === input.subjectUserId);
+  const projects = input.projects ?? [];
 
   for (const definition of FIRST_VALUE_LESSON_CATALOG) {
     if (definition.evidenceKind === "diagnostic_completed") {
@@ -338,6 +361,7 @@ export function buildArtifactsFromRecords(input: {
         definition,
         responses: ownedResponses,
         diagnostics: input.diagnostics,
+        projects,
       })) {
         pushUniqueArtifact(artifacts, artifact);
       }
@@ -365,7 +389,13 @@ export function buildArtifactsFromRecords(input: {
 
       const validResults: FirstValueArtifact[] = [];
       for (const row of results) {
-        const artifact = artifactFromLessonRow(input.subjectUserId, definition, row, "lesson_result_created_at");
+        const artifact = artifactFromLessonRow(
+          input.subjectUserId,
+          definition,
+          row,
+          "lesson_result_created_at",
+          input.resultFieldKeysByLessonSlug,
+        );
         if (artifact) {
           validResults.push(artifact);
           pushUniqueArtifact(artifacts, artifact);
@@ -377,7 +407,13 @@ export function buildArtifactsFromRecords(input: {
           .filter((row) => row.lessonSlug === definition.lessonSlug)
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
         for (const row of responses) {
-          const artifact = artifactFromLessonRow(input.subjectUserId, definition, row, "lesson_response_created_at");
+          const artifact = artifactFromLessonRow(
+            input.subjectUserId,
+            definition,
+            row,
+            "lesson_response_created_at",
+            input.resultFieldKeysByLessonSlug,
+          );
           if (artifact) pushUniqueArtifact(artifacts, artifact);
         }
       }
@@ -450,6 +486,8 @@ export function buildFirstValueSelectInput(records: FirstValueLoaderRecords): Fi
       diagnostics: records.diagnostics,
       landingPageProjects: records.landingPageProjects,
       publications: records.publications,
+      projects: records.projects,
+      resultFieldKeysByLessonSlug: records.resultFieldKeysByLessonSlug,
     }),
     publishedLessonSlugs: [...new Set(records.publishedLessonSlugs)].sort((a, b) => a.localeCompare(b)),
     dependencyAvailability: buildDependencyAvailability({

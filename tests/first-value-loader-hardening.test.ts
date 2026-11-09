@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  FIRST_VALUE_RESULT_FIELD_KEYS,
   buildFirstValueSelectInput,
   isValidPedagogicalPayload,
+  isValidResultLessonPayload,
+  matchesOwnedCompletedDiagnostic,
   recommendFromFirstValueRecords,
   resolveTrustedResultAchievedAt,
   verifiedToolKeys,
@@ -10,6 +13,8 @@ import {
   type FirstValueOrderRecord,
 } from "../src/lib/learning/first-value";
 import { FIRST_VALUE_LESSON_CATALOG } from "../src/lib/learning/first-value";
+import { DIAGNOSTIC_VERSION } from "../src/lib/diagnostic/definition";
+import { resultResponseSchema } from "../src/lib/learning/blocks";
 
 const NOW = new Date("2026-11-09T15:00:00.000Z");
 const USER = "user-1";
@@ -249,12 +254,15 @@ test("5. Diagnóstico concluído sem vínculo com a atividade", () => {
         {
           id: "d-orphan",
           userId: USER,
+          projectId: "p1",
           status: "COMPLETED",
+          version: "traffic-readiness-v1",
           completedAt,
           createdAt: NOW,
           updatedAt: completedAt,
         },
       ],
+      projects: [{ id: "p1", userId: USER, status: "ACTIVE" }],
     }),
   );
   assert.equal(
@@ -271,12 +279,15 @@ test("6. Diagnóstico concluído com vínculo correto", () => {
         {
           id: "d-linked",
           userId: USER,
+          projectId: "p1",
           status: "COMPLETED",
+          version: "traffic-readiness-v1",
           completedAt,
           createdAt: NOW,
           updatedAt: completedAt,
         },
       ],
+      projects: [{ id: "p1", userId: USER, status: "ACTIVE" }],
       lessonResponses: [
         {
           id: "link",
@@ -549,4 +560,310 @@ test("15. Ausência de exposição de payloads privados", () => {
   assert.equal(json.includes("monthlyBudgetCents"), false);
   assert.equal(json.includes("validationBeforeLaunch"), false);
   assert.equal(json.includes(USER), false);
+});
+
+const RESULT_LESSON = "como-funciona-o-trafego-pago";
+const RESULT_KEYS = FIRST_VALUE_RESULT_FIELD_KEYS[RESULT_LESSON]!;
+const validResultPayload = Object.fromEntries(RESULT_KEYS.map((key) => [key, `valor de ${key}`]));
+
+test("16. Diagnóstico de outro projeto do mesmo usuário é rejeitado", () => {
+  const completedAt = new Date(NOW.getTime() + 2_000);
+  assert.equal(
+    matchesOwnedCompletedDiagnostic({
+      subjectUserId: USER,
+      link: { projectId: "p1", diagnosticId: "d1" },
+      diagnostic: {
+        id: "d1",
+        userId: USER,
+        projectId: "p2",
+        status: "COMPLETED",
+        version: DIAGNOSTIC_VERSION,
+        completedAt,
+      },
+      projects: [
+        { id: "p1", userId: USER, status: "ACTIVE" },
+        { id: "p2", userId: USER, status: "ACTIVE" },
+      ],
+    }),
+    false,
+  );
+  const input = buildFirstValueSelectInput(
+    emptyRecords({
+      diagnostics: [
+        {
+          id: "d1",
+          userId: USER,
+          projectId: "p2",
+          status: "COMPLETED",
+          version: DIAGNOSTIC_VERSION,
+          completedAt,
+          createdAt: NOW,
+          updatedAt: completedAt,
+        },
+      ],
+      projects: [
+        { id: "p1", userId: USER, status: "ACTIVE" },
+        { id: "p2", userId: USER, status: "ACTIVE" },
+      ],
+      lessonResponses: [
+        {
+          id: "link",
+          userId: USER,
+          lessonSlug: "negocio-pronto-para-anunciar",
+          blockKey: "tool",
+          payload: { projectId: "p1", diagnosticId: "d1" },
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        },
+      ],
+    }),
+  );
+  assert.equal(input.artifacts.some((row) => row.kind === "diagnostic_completed"), false);
+});
+
+test("17. Diagnóstico com versão antiga é rejeitado", () => {
+  const completedAt = new Date(NOW.getTime() + 2_000);
+  const input = buildFirstValueSelectInput(
+    emptyRecords({
+      diagnostics: [
+        {
+          id: "d-old",
+          userId: USER,
+          projectId: "p1",
+          status: "COMPLETED",
+          version: "traffic-readiness-v0",
+          completedAt,
+          createdAt: NOW,
+          updatedAt: completedAt,
+        },
+      ],
+      projects: [{ id: "p1", userId: USER, status: "ACTIVE" }],
+      lessonResponses: [
+        {
+          id: "link",
+          userId: USER,
+          lessonSlug: "negocio-pronto-para-anunciar",
+          blockKey: "tool",
+          payload: { projectId: "p1", diagnosticId: "d-old" },
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        },
+      ],
+    }),
+  );
+  assert.equal(input.artifacts.some((row) => row.kind === "diagnostic_completed"), false);
+});
+
+test("18. Vínculo obsoleto (projeto inativo) é rejeitado", () => {
+  const completedAt = new Date(NOW.getTime() + 2_000);
+  const input = buildFirstValueSelectInput(
+    emptyRecords({
+      diagnostics: [
+        {
+          id: "d-inactive",
+          userId: USER,
+          projectId: "p1",
+          status: "COMPLETED",
+          version: DIAGNOSTIC_VERSION,
+          completedAt,
+          createdAt: NOW,
+          updatedAt: completedAt,
+        },
+      ],
+      projects: [{ id: "p1", userId: USER, status: "ARCHIVED" }],
+      lessonResponses: [
+        {
+          id: "link",
+          userId: USER,
+          lessonSlug: "negocio-pronto-para-anunciar",
+          blockKey: "tool",
+          payload: { projectId: "p1", diagnosticId: "d-inactive" },
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        },
+      ],
+    }),
+  );
+  assert.equal(input.artifacts.some((row) => row.kind === "diagnostic_completed"), false);
+});
+
+test("19. Diagnóstico válido alinhado a ownedCompletedDiagnostic", () => {
+  const completedAt = new Date(NOW.getTime() + 2_000);
+  const input = buildFirstValueSelectInput(
+    emptyRecords({
+      diagnostics: [
+        {
+          id: "d-ok",
+          userId: USER,
+          projectId: "p1",
+          status: "COMPLETED",
+          version: DIAGNOSTIC_VERSION,
+          completedAt,
+          createdAt: NOW,
+          updatedAt: completedAt,
+        },
+      ],
+      projects: [{ id: "p1", userId: USER, status: "ACTIVE" }],
+      lessonResponses: [
+        {
+          id: "link",
+          userId: USER,
+          lessonSlug: "negocio-pronto-para-anunciar",
+          blockKey: "tool",
+          payload: { projectId: "p1", diagnosticId: "d-ok" },
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        },
+      ],
+    }),
+  );
+  const artifact = input.artifacts.find((row) => row.kind === "diagnostic_completed");
+  assert.ok(artifact);
+  assert.equal(artifact!.id, "d-ok");
+  assert.equal(artifact!.resultAchievedAt?.toISOString(), completedAt.toISOString());
+});
+
+test("20. RESULT: resultResponseSchema sozinho aceita vazio — loader rejeita", () => {
+  assert.equal(resultResponseSchema.safeParse({}).success, true);
+  assert.equal(resultResponseSchema.safeParse({ abc: "" }).success, true);
+  assert.equal(isValidResultLessonPayload({}, RESULT_KEYS), false);
+  assert.equal(isValidResultLessonPayload({ abc: "" }, RESULT_KEYS), false);
+  assert.equal(
+    isValidPedagogicalPayload({
+      toolKey: null,
+      evidenceKind: "lesson_result_personal",
+      payload: {},
+      lessonSlug: RESULT_LESSON,
+    }),
+    false,
+  );
+  assert.equal(
+    isValidPedagogicalPayload({
+      toolKey: null,
+      evidenceKind: "lesson_result_personal",
+      payload: { abc: "" },
+      lessonSlug: RESULT_LESSON,
+    }),
+    false,
+  );
+});
+
+test("21. RESULT: chaves arbitrarias / incompletas não comprovam", () => {
+  assert.equal(
+    isValidResultLessonPayload({ "chave-inventada": "texto" }, RESULT_KEYS),
+    false,
+  );
+  assert.equal(
+    isValidResultLessonPayload(
+      Object.fromEntries(RESULT_KEYS.map((key) => [key, key === RESULT_KEYS[0] ? "ok" : "   "])),
+      RESULT_KEYS,
+    ),
+    false,
+  );
+  const input = buildFirstValueSelectInput(
+    emptyRecords({
+      lessonResults: [
+        {
+          id: "lr-empty",
+          userId: USER,
+          lessonSlug: RESULT_LESSON,
+          projectId: null,
+          payload: {},
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+        {
+          id: "lr-partial",
+          userId: USER,
+          lessonSlug: RESULT_LESSON,
+          projectId: null,
+          payload: { "oferta-inicial": "só um campo" },
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    }),
+  );
+  assert.equal(
+    input.artifacts.some((row) => row.lessonSlug === RESULT_LESSON && row.kind === "lesson_result_personal"),
+    false,
+  );
+});
+
+test("22. RESULT: campos do bloco preenchidos são aceitos", () => {
+  assert.equal(isValidResultLessonPayload(validResultPayload, RESULT_KEYS), true);
+  assert.equal(
+    isValidPedagogicalPayload({
+      toolKey: null,
+      evidenceKind: "lesson_result_personal",
+      payload: validResultPayload,
+      lessonSlug: RESULT_LESSON,
+    }),
+    true,
+  );
+  const input = buildFirstValueSelectInput(
+    emptyRecords({
+      lessonResults: [
+        {
+          id: "lr-ok",
+          userId: USER,
+          lessonSlug: RESULT_LESSON,
+          projectId: null,
+          payload: validResultPayload,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    }),
+  );
+  const artifact = input.artifacts.find((row) => row.lessonSlug === RESULT_LESSON);
+  assert.ok(artifact);
+  assert.equal(artifact!.kind, "lesson_result_personal");
+  assert.equal(artifact!.resultAchievedAt?.toISOString(), NOW.toISOString());
+  assert.equal(artifact!.resultSource, "lesson_result_created_at");
+});
+
+test("23. RESULT: chaves do bloco publicado (override) exigidas no payload", () => {
+  const customKeys = ["campo-a", "campo-b"] as const;
+  assert.equal(isValidResultLessonPayload({ "campo-a": "x", "campo-b": "y" }, customKeys), true);
+  assert.equal(isValidResultLessonPayload(validResultPayload, customKeys), false);
+  const input = buildFirstValueSelectInput(
+    emptyRecords({
+      resultFieldKeysByLessonSlug: { [RESULT_LESSON]: customKeys },
+      lessonResults: [
+        {
+          id: "lr-seed-only",
+          userId: USER,
+          lessonSlug: RESULT_LESSON,
+          projectId: null,
+          payload: validResultPayload,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+        {
+          id: "lr-block",
+          userId: USER,
+          lessonSlug: RESULT_LESSON,
+          projectId: null,
+          payload: { "campo-a": "ok", "campo-b": "ok" },
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    }),
+  );
+  assert.equal(
+    input.artifacts.some((row) => row.id === "lr-seed-only"),
+    false,
+  );
+  assert.ok(input.artifacts.some((row) => row.id === "lr-block"));
+});
+
+test("24. Integridade temporal: createdAt===updatedAt confia; re-save vira unknown", () => {
+  const created = new Date(NOW.getTime() + 1_000);
+  assert.equal(resolveTrustedResultAchievedAt({ createdAt: created, updatedAt: created })?.toISOString(), created.toISOString());
+  assert.equal(
+    resolveTrustedResultAchievedAt({ createdAt: created, updatedAt: new Date(created.getTime() + 1) }),
+    null,
+  );
 });

@@ -1,4 +1,4 @@
-# Contrato de primeira conquista (ACT-1A / ACT-1A.1 / ACT-1B.1)
+# Contrato de primeira conquista (ACT-1A / ACT-1A.1 / ACT-1B.1 / ACT-1B.1.2)
 
 Contrato de domínio para conduzir o comprador até a primeira conquista prática. Não altera checkout, preços, entitlements, CourseJourney nem a UI do `StudentDashboard` (wire do dashboard fica para ACT-1B.2).
 
@@ -70,7 +70,7 @@ Alinhado ao `OrderStatus` do Prisma: `PENDING_PAYMENT` · `PAID` · `CANCELLED` 
 
 Nunca usar `Order.updatedAt`, revisão de pedido ou `NEEDS_REVIEW` como confirmação financeira.
 
-## Evidência pedagógica (ACT-1B.1.1)
+## Evidência pedagógica (ACT-1B.1.1 / ACT-1B.1.2)
 
 Validação **por `toolKey`** com schemas reais. JSON genérico / incompleto **não** conta.
 
@@ -81,23 +81,39 @@ Validação **por `toolKey`** com schemas reais. JSON genérico / incompleto **n
 | Planos tráfego | schemas de destination/search/keyword/ads/meta/leads/diagnosis/next-action | idem |
 | Wireframe / copy / visual / trust / experience / measurement | schemas de lesson-flow correspondentes | idem |
 | FREE Sites | journey/presence/readiness schemas | idem |
-| FREE RESULT (sem tool) | `resultResponseSchema` | idem |
-| Diagnóstico aula | `LessonResponse` `toolResponseSchema` **+** Diagnostic COMPLETED vinculado | `Diagnostic.completedAt` |
+| FREE RESULT (sem tool) | todos os campos do bloco RESULT com texto não vazio (espelha `saveLessonResult`) | idem |
+| Diagnóstico aula | `LessonResponse` link + `ownedCompletedDiagnostic` (owner, `projectId`, `DIAGNOSTIC_VERSION`, COMPLETED, projeto ACTIVE) | `Diagnostic.completedAt` |
 | Publicação aula | `publicationLessonResponseSchema` **+** publication/LP do curso Sites | `publishedAt` |
 | Shell LP | `landing_page_project_shell` | sempre `null` |
 
+### RESULT sem ferramenta (ACT-1B.1.2)
+
+`resultResponseSchema` (`z.record`) **não** basta: `{}` e `{abc:""}` passam no Zod. O loader exige as chaves do bloco RESULT publicado (consulta `LessonBlock` type RESULT; fallback de seed em `FIRST_VALUE_RESULT_FIELD_KEYS`) com valores trimados não vazios, alinhado a `saveLessonResult`.
+
+### Diagnóstico (ACT-1B.1.2)
+
+Alinhado a `ownedCompletedDiagnostic` / `summaryFor` em `tool.ts`:
+
+- `diagnostic.userId` = sujeito
+- `diagnostic.id` = `link.diagnosticId`
+- `diagnostic.projectId` = `link.projectId`
+- `status = COMPLETED` + `completedAt`
+- `version = DIAGNOSTIC_VERSION` (`traffic-readiness-v1`)
+- projeto do vínculo `ACTIVE` e do mesmo usuário
+- evidência de vínculo na aula via `LessonResponse` + `toolResponseSchema`
+
 ### Fallback conservador
 
-- Sem schema adequado → sem artefato verificável
-- Diagnóstico COMPLETED sem vínculo da aula → ignorado
+- Sem schema adequado / campos RESULT incompletos → sem artefato verificável
+- Diagnóstico COMPLETED sem vínculo da aula, projeto incompatível, versão antiga ou projeto inativo → ignorado
 - Publicação sem lesson payload da aula → não atribui a `revisao-antes-do-trafego`
-- `updatedAt > createdAt` → `resultAchievedAt = null` / `unknown` (pode ter nascido incompleto)
+- `updatedAt !== createdAt` → `resultAchievedAt = null` / `unknown` (pode ter nascido incompleto)
 
 ### Proibido
 
 - `payload.completedAt` / `updatedAt` como prova de primeira conquista
 - kind + `landingPageProjectId` sozinhos no brief Sites
-- Qualquer objeto JSON não vazio como prova
+- Qualquer objeto JSON não vazio / `resultResponseSchema` isolado como prova
 - Expor `subjectUserId` / payloads em Analytics ou meta pública
 
 Entrypoint UI: `loadFirstValueForAuthenticatedUser()` → `requireSession()`.
@@ -122,7 +138,18 @@ Upload/falha/parcial ≠ pronto. Sem prova → comportamento conservador (CTA de
 
 Não existe `firstAchievedAt` imutável separado. A melhor prova atual é `LessonResult.createdAt` / `Diagnostic.completedAt` / `Publication.publishedAt`.
 
-Edit de artefato antigo → `preexisting_edited`, nunca `after_purchase` falso.
+### Regra `updatedAt === createdAt`
+
+Em `LessonResult` / `LessonResponse`, o Prisma usa `@default(now())` + `@updatedAt`. No **create** inicial, ambos tendem a coincidir no mesmo `INSERT` — a igualdade é compatível com criação real e serve como proxy conservador de “registro nunca reescrito”.
+
+Falsos negativos esperados:
+
+- Qualquer re-save (`saveLessonResult`, upsert de tool, import que atualiza o mesmo row) incrementa `updatedAt` → `resultAchievedAt = null` / atribuição `unknown`, mesmo com payload ainda válido.
+- Drift teórico de clock entre `@default(now())` e `@updatedAt` no create (raro) também cairia em `unknown`.
+
+Não usar `updatedAt`, `payload.completedAt` nem outros timestamps mutáveis para inventar primeira conquista.
+
+Edit de artefato antigo → `preexisting_edited` / `unknown`, nunca `after_purchase` falso.
 
 Resolver “primeira conquista absoluta” com campo imutável exigiria migration — **fora do escopo** desta sprint.
 

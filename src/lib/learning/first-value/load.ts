@@ -1,5 +1,8 @@
+import { DIAGNOSTIC_VERSION } from "@/lib/diagnostic/definition";
 import { getPrisma } from "@/lib/db/prisma";
+import { parseBlockData } from "@/lib/learning/blocks";
 import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
+import { FIRST_VALUE_RESULT_FIELD_KEYS } from "@/lib/learning/first-value/evidence-validate";
 import {
   FIRST_VALUE_CATALOG_SLUGS,
   buildFirstValueSelectInput,
@@ -64,7 +67,9 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
   const prisma = getPrisma();
   const catalogSlugs = [...FIRST_VALUE_CATALOG_SLUGS];
 
-  const [orders, entitlements, progress, lessonResults, lessonResponses, landingPageProjects, activeProject, readyImport, publishedLessons] =
+  const resultLessonSlugs = Object.keys(FIRST_VALUE_RESULT_FIELD_KEYS);
+
+  const [orders, entitlements, progress, lessonResults, lessonResponses, landingPageProjects, activeProjects, readyImport, publishedLessons, resultBlocks] =
     await Promise.all([
       // Pedidos: nunca truncar — necessário para confirmação e desempate.
       prisma.order.findMany({
@@ -154,7 +159,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
           },
         },
       }),
-      prisma.project.findFirst({
+      prisma.project.findMany({
         where: { userId, status: "ACTIVE" },
         select: { id: true, userId: true, status: true },
       }),
@@ -165,6 +170,17 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
       prisma.lesson.findMany({
         where: { status: "PUBLISHED", slug: { in: catalogSlugs } },
         select: { slug: true },
+      }),
+      prisma.lessonBlock.findMany({
+        where: {
+          retiredAt: null,
+          type: "RESULT",
+          lesson: { slug: { in: resultLessonSlugs }, status: "PUBLISHED" },
+        },
+        select: {
+          payload: true,
+          lesson: { select: { slug: true } },
+        },
       }),
     ]);
 
@@ -189,10 +205,12 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
             userId,
             id: { in: linkedDiagnosticIds },
             status: "COMPLETED",
+            version: DIAGNOSTIC_VERSION,
           },
           select: {
             id: true,
             userId: true,
+            projectId: true,
             status: true,
             version: true,
             completedAt: true,
@@ -200,6 +218,14 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
             updatedAt: true,
           },
         });
+
+  const resultFieldKeysByLessonSlug: Record<string, readonly string[]> = { ...FIRST_VALUE_RESULT_FIELD_KEYS };
+  for (const block of resultBlocks) {
+    const data = parseBlockData(block.payload);
+    if (!data || data.type !== "RESULT") continue;
+    const keys = data.fields.map((field) => field.key);
+    if (keys.length > 0) resultFieldKeysByLessonSlug[block.lesson.slug] = keys;
+  }
 
   const orderItemLessonIds = [
     ...new Set(orders.flatMap((order) => order.items.flatMap((item) => item.lessons.map((row) => row.lessonId)))),
@@ -283,6 +309,7 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
     diagnostics: diagnostics.map((row) => ({
       id: row.id,
       userId: row.userId,
+      projectId: row.projectId,
       status: row.status,
       version: row.version,
       completedAt: row.completedAt,
@@ -297,10 +324,11 @@ async function fetchFirstValueRecords(userId: string, now: Date): Promise<FirstV
       updatedAt: row.updatedAt,
     })),
     publications,
-    projects: activeProject ? [{ id: activeProject.id, userId: activeProject.userId, status: activeProject.status }] : [],
+    projects: activeProjects.map((row) => ({ id: row.id, userId: row.userId, status: row.status })),
     imports: readyImport
       ? [{ id: readyImport.id, userId: readyImport.userId, status: readyImport.status, deletedAt: readyImport.deletedAt }]
       : [],
     publishedLessonSlugs: publishedLessons.map((row) => row.slug),
+    resultFieldKeysByLessonSlug,
   };
 }

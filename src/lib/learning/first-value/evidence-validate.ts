@@ -18,10 +18,32 @@ import { digitalPresenceDecisionSchema, digitalPresenceResponseSchema } from "@/
 import { keywordPlanSchema } from "@/lib/learning/keyword-intent";
 import { leadConversionPlanSchema } from "@/lib/learning/lead-conversion";
 import { metaCampaignPlanSchema } from "@/lib/learning/meta-campaign";
-import { toolResponseSchema, resultResponseSchema } from "@/lib/learning/blocks";
+import { DIAGNOSTIC_VERSION } from "@/lib/diagnostic/definition";
+import { toolResponseSchema, resultResponseSchema, RESULT_FIELD_MAX } from "@/lib/learning/blocks";
 import { responsiveAdPlanSchema } from "@/lib/learning/responsive-search-ad";
 import { searchBlueprintSchema } from "@/lib/learning/search-blueprint";
 import type { FirstValueEvidenceKind } from "@/lib/learning/first-value/types";
+
+/**
+ * Campos RESULT das aulas FREE sem tool (espelho dos seeds lesson-01/02).
+ * O loader prefere o bloco RESULT publicado no banco; este mapa é fallback de fixture/seeds.
+ */
+export const FIRST_VALUE_RESULT_FIELD_KEYS: Readonly<Record<string, readonly string[]>> = {
+  "como-funciona-o-trafego-pago": [
+    "oferta-inicial",
+    "objetivo-inicial",
+    "destino-inicial",
+    "conversao-inicial",
+    "bloqueio-inicial",
+  ],
+  "google-ads-ou-meta-ads": [
+    "cenario-demanda",
+    "indicacao-inicial",
+    "motivo-escolha",
+    "validacao-antes",
+    "segundo-canal",
+  ],
+};
 
 /**
  * Personal upsert do brief Sites (campos achatados).
@@ -71,13 +93,33 @@ const TOOL_VALIDATORS: Record<string, (payload: unknown) => boolean> = {
 };
 
 /**
+ * Alinhado a `saveLessonResult`: todos os campos do bloco RESULT preenchidos com texto não vazio.
+ * `resultResponseSchema` isolado NÃO basta (`{}` / `{abc:""}` passam no zod record).
+ */
+export function isValidResultLessonPayload(
+  payload: unknown,
+  requiredFieldKeys: readonly string[] | null | undefined,
+): boolean {
+  if (!requiredFieldKeys || requiredFieldKeys.length === 0) return false;
+  const parsed = resultResponseSchema.safeParse(payload);
+  if (!parsed.success) return false;
+  for (const key of requiredFieldKeys) {
+    const value = parsed.data[key];
+    if (typeof value !== "string" || !value.trim() || value.trim().length > RESULT_FIELD_MAX) return false;
+  }
+  return true;
+}
+
+/**
  * Valida payload pela ferramenta. Sem schema adequado → false (nunca JSON genérico).
- * Aulas RESULT sem toolKey: `resultResponseSchema` (mapa campo→texto).
+ * Aulas RESULT sem toolKey: exige chaves do bloco RESULT (lookup ou fallback de seed).
  */
 export function isValidPedagogicalPayload(input: {
   toolKey: string | null;
   evidenceKind: FirstValueEvidenceKind;
   payload: unknown;
+  lessonSlug?: string;
+  requiredResultFieldKeys?: readonly string[] | null;
 }): boolean {
   const { toolKey, evidenceKind, payload } = input;
 
@@ -99,10 +141,42 @@ export function isValidPedagogicalPayload(input: {
   }
 
   if (!toolKey && (evidenceKind === "lesson_result_personal" || evidenceKind === "lesson_result_project")) {
-    return resultResponseSchema.safeParse(payload).success;
+    const keys =
+      input.requiredResultFieldKeys ??
+      (input.lessonSlug ? FIRST_VALUE_RESULT_FIELD_KEYS[input.lessonSlug] : null) ??
+      null;
+    return isValidResultLessonPayload(payload, keys);
   }
 
   return false;
+}
+
+/**
+ * Espelha `ownedCompletedDiagnostic` em `tool.ts`:
+ * userId + id + projectId do vínculo + COMPLETED + DIAGNOSTIC_VERSION + projeto ACTIVE.
+ */
+export function matchesOwnedCompletedDiagnostic(input: {
+  subjectUserId: string;
+  link: { projectId: string; diagnosticId: string };
+  diagnostic: {
+    id: string;
+    userId: string;
+    projectId?: string | null;
+    status: string;
+    version?: string | null;
+    completedAt: Date | null;
+  };
+  projects: Array<{ id: string; userId: string; status: string }>;
+}): boolean {
+  const { diagnostic, link, subjectUserId, projects } = input;
+  if (diagnostic.userId !== subjectUserId) return false;
+  if (diagnostic.id !== link.diagnosticId) return false;
+  if (!diagnostic.projectId || diagnostic.projectId !== link.projectId) return false;
+  if (diagnostic.status !== "COMPLETED" || !diagnostic.completedAt) return false;
+  if (diagnostic.version !== DIAGNOSTIC_VERSION) return false;
+  return projects.some(
+    (project) => project.id === link.projectId && project.userId === subjectUserId && project.status === "ACTIVE",
+  );
 }
 
 /** Extrai completedAt mutável — apenas diagnóstico documental, nunca atribuição. */
