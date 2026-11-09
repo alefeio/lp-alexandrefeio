@@ -33,8 +33,6 @@ export async function saveCourse(actor: EditorialActor, courseId: string, input:
   const current = await prisma.course.findUnique({ where: { id: courseId } });
   if (!current) return { ok: false, message: "Curso não encontrado." };
   if (stale(current.updatedAt, input.updatedAt)) return conflict();
-  const price = cents(input.bundlePriceCents);
-  if (price === "invalid") return { ok: false, message: "O preço do pacote precisa ser um inteiro em centavos." };
   const status = statusOf(input.status);
   if (!status) return { ok: false, message: "Status inválido." };
   await prisma.course.update({
@@ -44,7 +42,6 @@ export async function saveCourse(actor: EditorialActor, courseId: string, input:
       subtitle: empty(input.subtitle),
       description: input.description.trim(),
       sortOrder: integer(input.sortOrder, current.sortOrder),
-      bundlePriceCents: price,
       status,
       publishedAt: status === "PUBLISHED" ? (current.publishedAt ?? new Date()) : current.publishedAt,
       ...cover(input),
@@ -75,8 +72,6 @@ export async function saveModule(actor: EditorialActor, moduleId: string, input:
   const current = await prisma.module.findUnique({ where: { id: moduleId } });
   if (!current) return { ok: false, message: "Módulo não encontrado." };
   if (stale(current.updatedAt, input.updatedAt)) return conflict();
-  const price = cents(input.bundlePriceCents);
-  if (price === "invalid") return { ok: false, message: "O preço do pacote precisa ser um inteiro em centavos." };
   const status = statusOf(input.status);
   if (!status) return { ok: false, message: "Status inválido." };
   await prisma.module.update({
@@ -85,7 +80,6 @@ export async function saveModule(actor: EditorialActor, moduleId: string, input:
       title: input.title.trim(),
       description: input.description.trim(),
       sortOrder: integer(input.sortOrder, current.sortOrder),
-      bundlePriceCents: price,
       status,
       ...cover(input),
       updatedById: actor.userId,
@@ -139,12 +133,14 @@ export async function saveLesson(actor: EditorialActor, lessonId: string, input:
   if (current.commerceStatus === "AVAILABLE" && (status !== "PUBLISHED" || accessType !== "PAID")) {
     return { ok: false, message: "Retire a aula da venda antes de mudar publicação ou acesso." };
   }
-  const price = cents(input.priceCents);
-  if (price === "invalid") return { ok: false, message: "O preço precisa ser um inteiro em centavos." };
+  // Preços comerciais são geridos em /admin/precos — o editor pedagógico só preserva/ajusta nulos.
+  let priceCents = current.priceCents;
+  if (accessType === "FREE") priceCents = null;
+  else if (priceCents == null || priceCents <= 0) priceCents = 100;
   const minutes = integer(input.estimatedMinutes, current.estimatedMinutes ?? 0);
   const blocks = await loadReadyBlocks(lessonId);
   if (status === "PUBLISHED") {
-    const assessment = assessLesson(readyFrom(current, { ...input, accessType, priceCents: price, estimatedMinutes: minutes, status }), blocks);
+    const assessment = assessLesson(readyFrom(current, { ...input, accessType, priceCents, estimatedMinutes: minutes, status }), blocks);
     if (!assessment.ready) return { ok: false, message: assessment.issues[0] ?? "A aula ainda não pode ser publicada." };
   }
   let publishedAt = current.publishedAt;
@@ -162,7 +158,7 @@ export async function saveLesson(actor: EditorialActor, lessonId: string, input:
       estimatedMinutes: minutes > 0 ? minutes : null,
       sortOrder: integer(input.sortOrder, current.sortOrder),
       accessType,
-      priceCents: price,
+      priceCents,
       status,
       publishedAt,
       ...cover(input),
@@ -490,14 +486,6 @@ function conflict(): Result {
   return { ok: false, message: "Este conteúdo foi atualizado em outra aba. Recarregue antes de salvar." };
 }
 
-function cents(value: string): number | null | "invalid" {
-  const raw = value.trim();
-  if (!raw) return null;
-  if (!/^\d+$/.test(raw)) return "invalid";
-  const parsed = Number(raw);
-  return Number.isSafeInteger(parsed) ? parsed : "invalid";
-}
-
 function integer(value: string, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) ? parsed : fallback;
@@ -543,7 +531,6 @@ export type CourseInput = {
   subtitle: string;
   description: string;
   sortOrder: string;
-  bundlePriceCents: string;
   status: string;
   updatedAt: string;
   coverImageUrl?: string;
@@ -558,7 +545,6 @@ export type LessonInput = {
   publicPreview: string;
   estimatedMinutes: string;
   accessType: string;
-  priceCents: string;
   sortOrder: string;
   status: string;
   publishedAt: string;

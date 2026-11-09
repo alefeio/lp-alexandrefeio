@@ -137,7 +137,6 @@ function lessonInput(lessonId: string, status: "DRAFT" | "PUBLISHED") {
     publicPreview: "Preview público da fixture.",
     estimatedMinutes: "8",
     accessType: "PAID",
-    priceCents: "1000",
     sortOrder: "1",
     status,
     publishedAt: "",

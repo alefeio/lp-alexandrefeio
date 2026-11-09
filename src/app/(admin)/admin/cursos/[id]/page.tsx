@@ -4,6 +4,7 @@ import { EditorialForm } from "@/components/editorial/EditorialForm";
 import { AssetOptions, fieldClass, Field } from "@/components/editorial/fields";
 import { Container } from "@/components/ui/Container";
 import { requireAdmin } from "@/lib/auth/session";
+import { formatCentsToBrl } from "@/lib/commerce/money";
 import { getPrisma } from "@/lib/db/prisma";
 import { createModuleAction, openBundleSaleAction, saveCourseAction } from "@/lib/editorial/actions";
 import { assessLesson, bundleSaleReady } from "@/lib/editorial/readiness";
@@ -47,7 +48,12 @@ export default async function AdminCoursePage({ params }: PageProps) {
         <Field label="Subtítulo"><input className={fieldClass} name="subtitle" defaultValue={course.subtitle ?? ""} /></Field>
         <Field label="Descrição"><textarea className={`${fieldClass} min-h-28 py-3`} name="description" defaultValue={course.description} required /></Field>
         <Field label="Ordem"><input className={fieldClass} name="sortOrder" type="number" defaultValue={course.sortOrder} /></Field>
-        <Field label="Preço do pacote em centavos"><input className={fieldClass} name="bundlePriceCents" defaultValue={course.bundlePriceCents ?? ""} /></Field>
+        <p className="text-sm text-muted">
+          Preço comercial atual: {formatCentsToBrl(course.bundlePriceCents)}.{" "}
+          <Link className="underline underline-offset-4" href={`/admin/precos/${course.id}`}>
+            Gerenciar em Preços
+          </Link>
+        </p>
         <Field label="Status">
           <select className={fieldClass} name="status" defaultValue={course.status}>
             <option value="DRAFT">Rascunho</option>

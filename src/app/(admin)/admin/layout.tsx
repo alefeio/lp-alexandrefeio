@@ -49,6 +49,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <Link href="/admin/ia">IA</Link>
             <Link href="/admin/usuarios">Usuários</Link>
             <Link href="/admin/compras">Compras</Link>
+            <Link href="/admin/precos">Preços</Link>
             <Link href="/admin/cursos">Cursos</Link>
             <Link href="/admin/blog">Blog</Link>
             <SignOutButton />

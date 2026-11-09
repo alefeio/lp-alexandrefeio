@@ -31,7 +31,7 @@ async function actor(): Promise<EditorialActor | null> {
 export async function saveCourseAction(courseId: string, form: FormData) {
   const current = await actor();
   if (!current) return { ok: false as const, message: "Sem acesso." };
-  return saveCourse(current, courseId, { ...textFields(form, ["title", "subtitle", "description", "sortOrder", "bundlePriceCents", "status", "updatedAt"]), ...(await coverFrom(form)) });
+  return saveCourse(current, courseId, { ...textFields(form, ["title", "subtitle", "description", "sortOrder", "status", "updatedAt"]), ...(await coverFrom(form)) });
 }
 
 export async function createModuleAction(courseId: string, form: FormData) {
@@ -50,7 +50,7 @@ export async function saveModuleAction(moduleId: string, form: FormData) {
     if (Number.isInteger(parsed)) lessonOrder[key.slice("lessonOrder:".length)] = parsed;
   }
   return saveModule(current, moduleId, {
-    ...textFields(form, ["title", "subtitle", "description", "sortOrder", "bundlePriceCents", "status", "updatedAt"]),
+    ...textFields(form, ["title", "subtitle", "description", "sortOrder", "status", "updatedAt"]),
     lessonOrder,
     ...(await coverFrom(form)),
   });
@@ -75,7 +75,6 @@ export async function saveLessonAction(lessonId: string, form: FormData) {
     publicPreview: String(form.get("publicPreview") ?? ""),
     estimatedMinutes: String(form.get("estimatedMinutes") ?? ""),
     accessType: String(form.get("accessType") ?? ""),
-    priceCents: String(form.get("priceCents") ?? ""),
     sortOrder: String(form.get("sortOrder") ?? ""),
     status: String(form.get("status") ?? ""),
     publishedAt: String(form.get("publishedAt") ?? ""),

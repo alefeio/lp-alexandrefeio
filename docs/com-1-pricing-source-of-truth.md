@@ -8,10 +8,9 @@ Política: o **banco** (Admin / operação comercial) é a fonte de verdade dos 
 
 | Ponto | Arquivo | Comportamento |
 | --- | --- | --- |
-| Admin — aula | `src/lib/editorial/service.ts` `updateLesson` | Grava `priceCents` a partir do formulário |
-| Admin — módulo/curso | `src/lib/editorial/service.ts` create/update bundle | Grava `bundlePriceCents` |
-| Admin UI | `src/lib/editorial/actions.ts` | Coleta `priceCents` / `bundlePriceCents` em centavos |
+| Admin — preços (COM-2) | `src/lib/admin/pricing.ts` | Grava `priceCents` / `bundlePriceCents` a partir de reais |
 | Create inicial de catálogo | `catalog-deploy.ts` / seeds | Define preço **só na criação** do registro |
+| Editor pedagógico | `src/lib/editorial/service.ts` | **Não** regram preço comercial; FREE zera; PAID sem preço recebe placeholder |
 
 ### Leitura comercial (não deve sobrescrever)
 
@@ -31,10 +30,10 @@ Política: o **banco** (Admin / operação comercial) é a fonte de verdade dos 
 | Seeds de aula gravavam `priceCents` no update | Update editorial **omite** preço |
 | `SALE_ALLOWLIST` exigia igualdade com centavos fixos | Allowlist = **slug + kind**; preço válido = persistido > 0 |
 
-### Fora de escopo (COM-2)
+### Continuação
 
-- UI Admin em reais, prévia de desconto, alteração segura de preços sem hardcode de “valores aprovados”
-- Migration / mudança de preço em Production
+- COM-2: UI Admin em reais, confirmação AVAILABLE e coerência — ver `docs/com-2-admin-pricing.md`
+- Migration / mudança de preço em Production permanece fora de escopo até auditoria
 
 ## Critérios de aceite
 
