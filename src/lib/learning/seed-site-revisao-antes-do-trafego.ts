@@ -92,7 +92,6 @@ export async function seedSiteRevisaoAntesDoTrafegoContent(
       publicPreview: siteLesson12Meta.publicPreview,
       estimatedMinutes: siteLesson12Meta.estimatedMinutes,
       accessType: "PAID",
-      priceCents: siteLesson12Meta.priceCents,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -184,7 +183,6 @@ function metadataMatches(
     lesson.publicPreview === siteLesson12Meta.publicPreview &&
     lesson.estimatedMinutes === siteLesson12Meta.estimatedMinutes &&
     lesson.accessType === "PAID" &&
-    lesson.priceCents === siteLesson12Meta.priceCents &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );

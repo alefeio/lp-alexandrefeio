@@ -47,7 +47,8 @@ const contentOwned = new Set([LESSON_02_SLUG, LESSON_03_SLUG, LESSON_04_SLUG, LE
  * Upsert do catálogo aprovado. Não apaga progresso, projeto, diagnóstico, pedido ou entitlement.
  * Registro novo nasce NOT_FOR_SALE. Registro existente preserva commerceStatus.
  * db:seed e catalog:deploy usam o mesmo banco físico de production e não fecham a venda.
- * Preço aprovado continua sendo sincronizado. Este comando não marca AVAILABLE.
+ * COM-1: preço comercial só no create; update editorial não sobrescreve priceCents/bundlePriceCents.
+ * Este comando não marca AVAILABLE.
  */
 export async function deployLearningCatalog(options: CatalogCommerceOptions = {}) {
   const prisma = getPrisma();
@@ -70,7 +71,6 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
       title: firstCourseSeed.title,
       subtitle: firstCourseSeed.subtitle,
       description: firstCourseSeed.description,
-      bundlePriceCents: firstCourseSeed.bundlePriceCents,
       status: "PUBLISHED",
       ...commercePatch(keepSale),
     },
@@ -93,7 +93,6 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
         title: moduleSeed.title,
         description: moduleSeed.description,
         sortOrder: moduleSeed.sortOrder,
-        bundlePriceCents: moduleSeed.bundlePriceCents,
         status: "PUBLISHED",
         ...commercePatch(keepSale),
       },
@@ -124,7 +123,6 @@ export async function deployLearningCatalog(options: CatalogCommerceOptions = {}
           estimatedMinutes: lessonSeed.estimatedMinutes,
           sortOrder: lessonSeed.sortOrder,
           accessType: lessonSeed.accessType,
-          priceCents: lessonSeed.priceCents,
           status: "PUBLISHED",
           ...commercePatch(keepSale),
         },
@@ -236,7 +234,6 @@ export async function deploySitesCourseScaffold(options: CatalogCommerceOptions 
       subtitle: sitesCourseSeed.subtitle,
       description: sitesCourseSeed.description,
       sortOrder: sitesCourseSeed.sortOrder,
-      bundlePriceCents: sitesCourseSeed.bundlePriceCents,
       ...commercePatch(keepSale),
     },
   });
@@ -260,7 +257,6 @@ export async function deploySitesCourseScaffold(options: CatalogCommerceOptions 
         title: moduleSeed.title,
         description: moduleSeed.description,
         sortOrder: moduleSeed.sortOrder,
-        bundlePriceCents: moduleSeed.bundlePriceCents,
         ...commercePatch(keepSale),
       },
     });
@@ -301,7 +297,6 @@ export async function deploySitesCourseScaffold(options: CatalogCommerceOptions 
           estimatedMinutes: lessonSeed.estimatedMinutes,
           sortOrder: lessonSeed.sortOrder,
           accessType: lessonSeed.accessType,
-          priceCents: lessonSeed.priceCents,
           ...commercePatch(keepSale),
         },
       });

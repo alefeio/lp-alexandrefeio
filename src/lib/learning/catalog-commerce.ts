@@ -25,3 +25,15 @@ export function commerceStatusMatches(actual: string, preserveCommerceStatus: bo
   if (preserveCommerceStatus) return actual === "NOT_FOR_SALE" || actual === "AVAILABLE";
   return actual === "NOT_FOR_SALE";
 }
+
+/**
+ * COM-1: preços comerciais só no create.
+ * Update editorial/deploy omite `priceCents` / `bundlePriceCents` para não sobrescrever o banco.
+ */
+export function lessonPriceForCreate(priceCents: number | null): { priceCents: number | null } {
+  return { priceCents };
+}
+
+export function bundlePriceForCreate(bundlePriceCents: number | null): { bundlePriceCents: number | null } {
+  return { bundlePriceCents };
+}

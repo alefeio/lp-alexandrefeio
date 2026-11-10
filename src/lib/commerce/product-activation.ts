@@ -25,39 +25,51 @@ import { SITES_COURSE_SLUG } from "@/lib/learning/sites-course";
 export const COMMERCE_CATALOG_CONFIRM = "production";
 export const COMMERCE_SHARED_CONFIRM = "shared";
 
-export const SALE_ALLOWLIST = [
-  { kind: "lesson" as const, slug: LESSON_04_SLUG, priceCents: 2990 },
-  { kind: "lesson" as const, slug: LESSON_05_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: LESSON_06_SLUG, priceCents: 3990 },
-  { kind: "lesson" as const, slug: LESSON_07_SLUG, priceCents: 3990 },
-  { kind: "lesson" as const, slug: LESSON_08_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: LESSON_09_SLUG, priceCents: 3990 },
-  { kind: "lesson" as const, slug: LESSON_10_SLUG, priceCents: 3990 },
-  { kind: "lesson" as const, slug: LESSON_11_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: LESSON_12_SLUG, priceCents: 3990 },
-  { kind: "module" as const, slug: "planeje-antes-de-anunciar", priceCents: 5790 },
-  { kind: "module" as const, slug: "google-ads-na-pratica", priceCents: 10390 },
-  { kind: "module" as const, slug: "meta-ads-na-pratica", priceCents: 7190 },
-  { kind: "module" as const, slug: "entenda-e-melhore", priceCents: 6790 },
-  { kind: "course" as const, slug: FIRST_COURSE_SLUG, priceCents: 24990 },
-  { kind: "lesson" as const, slug: SITE_LESSON_04_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: SITE_LESSON_05_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: SITE_LESSON_06_SLUG, priceCents: 3990 },
-  { kind: "lesson" as const, slug: SITE_LESSON_07_SLUG, priceCents: 3990 },
-  { kind: "lesson" as const, slug: SITE_LESSON_08_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: SITE_LESSON_09_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: SITE_LESSON_10_SLUG, priceCents: 3490 },
-  { kind: "lesson" as const, slug: SITE_LESSON_11_SLUG, priceCents: 3990 },
-  { kind: "lesson" as const, slug: SITE_LESSON_12_SLUG, priceCents: 3990 },
-  { kind: "module" as const, slug: "planeje-antes-de-desenhar", priceCents: 6290 },
-  { kind: "module" as const, slug: "estruture-e-comunique", priceCents: 7190 },
-  { kind: "module" as const, slug: "atencao-e-confianca", priceCents: 6290 },
-  { kind: "module" as const, slug: "publique-mea-e-melhore", priceCents: 10390 },
-  { kind: "course" as const, slug: SITES_COURSE_SLUG, priceCents: 24990 },
+export type CommerceStatusName = "NOT_FOR_SALE" | "AVAILABLE";
+export type ProductKind = "lesson" | "module" | "course";
+
+/**
+ * Produtos autorizados a entrar em venda nesta fase (slug + kind).
+ * COM-1: sem centavos hardcoded — o preço comercial vem do banco.
+ */
+export const SALE_ALLOWLIST: ReadonlyArray<{ kind: ProductKind; slug: string }> = [
+  { kind: "lesson", slug: LESSON_04_SLUG },
+  { kind: "lesson", slug: LESSON_05_SLUG },
+  { kind: "lesson", slug: LESSON_06_SLUG },
+  { kind: "lesson", slug: LESSON_07_SLUG },
+  { kind: "lesson", slug: LESSON_08_SLUG },
+  { kind: "lesson", slug: LESSON_09_SLUG },
+  { kind: "lesson", slug: LESSON_10_SLUG },
+  { kind: "lesson", slug: LESSON_11_SLUG },
+  { kind: "lesson", slug: LESSON_12_SLUG },
+  { kind: "module", slug: "planeje-antes-de-anunciar" },
+  { kind: "module", slug: "google-ads-na-pratica" },
+  { kind: "module", slug: "meta-ads-na-pratica" },
+  { kind: "module", slug: "entenda-e-melhore" },
+  { kind: "course", slug: FIRST_COURSE_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_04_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_05_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_06_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_07_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_08_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_09_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_10_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_11_SLUG },
+  { kind: "lesson", slug: SITE_LESSON_12_SLUG },
+  { kind: "module", slug: "planeje-antes-de-desenhar" },
+  { kind: "module", slug: "estruture-e-comunique" },
+  { kind: "module", slug: "atencao-e-confianca" },
+  { kind: "module", slug: "publique-mea-e-melhore" },
+  { kind: "course", slug: SITES_COURSE_SLUG },
 ];
 
 /** Nome histórico. A allowlist agora cobre os dois cursos. */
 export const FIRST_SALE_ALLOWLIST = SALE_ALLOWLIST;
+
+/** Preço comercial persistido aceitável para venda (não é hardcode de valor). */
+export function hasCommercialPrice(priceCents: number | null | undefined): boolean {
+  return typeof priceCents === "number" && Number.isInteger(priceCents) && priceCents > 0;
+}
 
 const MODULE_LESSONS: Record<string, readonly string[]> = {
   "planeje-antes-de-anunciar": [LESSON_04_SLUG, LESSON_05_SLUG],
@@ -98,9 +110,6 @@ const COURSE_PAID_LESSONS_BY_SLUG: Record<string, readonly string[]> = {
 const INCOMPLETE_MODULES = new Set<string>();
 
 const INCOMPLETE_LESSONS = new Set<string>();
-
-export type CommerceStatusName = "NOT_FOR_SALE" | "AVAILABLE";
-export type ProductKind = "lesson" | "module" | "course";
 
 export type ProductPlan = {
   kind: ProductKind;
@@ -174,8 +183,8 @@ export function planLessonEnable(lesson: LessonShape): ProductPlan {
   if (!allowed) {
     return { ...base, allowed: false, reason: blockedReason("lesson", lesson.slug) };
   }
-  if (lesson.priceCents !== allowed.priceCents) {
-    return { ...base, allowed: false, reason: "O preço não confere com o valor aprovado." };
+  if (!hasCommercialPrice(lesson.priceCents)) {
+    return { ...base, allowed: false, reason: "Informe um preço válido no catálogo." };
   }
   const sale = lessonSaleReady(
     {
@@ -225,8 +234,8 @@ export function planModuleEnable(input: {
   const allowed = allowlistItem("module", input.slug);
   if (!allowed) return { ...base, allowed: false, reason: blockedReason("module", input.slug) };
   if (input.status !== "PUBLISHED") return { ...base, allowed: false, reason: "O módulo precisa estar publicado." };
-  if (input.priceCents !== allowed.priceCents) {
-    return { ...base, allowed: false, reason: "O preço não confere com o valor aprovado." };
+  if (!hasCommercialPrice(input.priceCents)) {
+    return { ...base, allowed: false, reason: "Informe um preço válido no catálogo." };
   }
   const required = MODULE_LESSONS[input.slug] ?? [];
   const issues: string[] = [];
@@ -264,8 +273,8 @@ export function planCourseEnable(input: {
   if (input.status !== "PUBLISHED") {
     return { ...base, allowed: false, reason: "O curso precisa estar publicado." };
   }
-  if (input.priceCents !== allowed.priceCents) {
-    return { ...base, allowed: false, reason: "O preço não confere com o valor aprovado." };
+  if (!hasCommercialPrice(input.priceCents)) {
+    return { ...base, allowed: false, reason: "Informe um preço válido no catálogo." };
   }
   const required = COURSE_PAID_LESSONS_BY_SLUG[input.slug];
   if (!required) {

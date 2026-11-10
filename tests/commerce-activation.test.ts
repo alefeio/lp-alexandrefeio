@@ -68,16 +68,16 @@ test("aula incompleta, aula fora da allowlist e curso sem aulas pagas não ativa
   });
   assert.equal(courseEarly.allowed, false);
   assert.match(courseEarly.reason ?? "", /não está neste curso/);
-  const courseWrongPrice = planCourseEnable({
+  const courseMissingPrice = planCourseEnable({
     slug: FIRST_COURSE_SLUG,
     title: "Curso",
-    priceCents: 19990,
+    priceCents: null,
     commerceStatus: "NOT_FOR_SALE",
     status: "PUBLISHED",
     paidLessons: [],
   });
-  assert.equal(courseWrongPrice.allowed, false);
-  assert.match(courseWrongPrice.reason ?? "", /preço/);
+  assert.equal(courseMissingPrice.allowed, false);
+  assert.match(courseMissingPrice.reason ?? "", /preço/);
   const moduleBlocked = planModuleEnable({
     slug: "google-ads-na-pratica",
     title: "Google",
@@ -142,8 +142,12 @@ test("aula válida e módulo exigem a allowlist e as aulas componentes", () => {
   const lessonEight = planLessonEnable(readyLesson({ slug: LESSON_08_SLUG, priceCents: 3490 }));
   assert.equal(lessonSeven.allowed, true);
   assert.equal(lessonEight.allowed, true);
-  const wrongPrice = planLessonEnable(readyLesson({ slug: LESSON_08_SLUG, priceCents: 3990 }));
-  assert.equal(wrongPrice.allowed, false);
+  // COM-1: preço persistido diferente do seed antigo permanece elegível se for > 0.
+  const alternatePrice = planLessonEnable(readyLesson({ slug: LESSON_08_SLUG, priceCents: 3990 }));
+  assert.equal(alternatePrice.allowed, true);
+  const invalidPrice = planLessonEnable(readyLesson({ slug: LESSON_08_SLUG, priceCents: 0 }));
+  assert.equal(invalidPrice.allowed, false);
+  assert.match(invalidPrice.reason ?? "", /preço/);
   const googleEarly = planModuleEnable({
     slug: "google-ads-na-pratica",
     title: "Google",

@@ -27,7 +27,7 @@ import { SITES_COURSE_SLUG } from "../src/lib/learning/sites-course";
 const FIRST_PAID = [LESSON_04_SLUG, LESSON_05_SLUG, LESSON_06_SLUG, LESSON_07_SLUG, LESSON_08_SLUG, LESSON_09_SLUG, LESSON_10_SLUG, LESSON_11_SLUG, LESSON_12_SLUG];
 const SITES_PAID = [SITE_LESSON_04_SLUG, SITE_LESSON_05_SLUG, SITE_LESSON_06_SLUG, SITE_LESSON_07_SLUG, SITE_LESSON_08_SLUG, SITE_LESSON_09_SLUG, SITE_LESSON_10_SLUG, SITE_LESSON_11_SLUG, SITE_LESSON_12_SLUG];
 
-function priced(kind: "lesson" | "module" | "course", slug: string) {
+function listed(kind: "lesson" | "module" | "course", slug: string) {
   return SALE_ALLOWLIST.find((item) => item.kind === kind && item.slug === slug);
 }
 
@@ -51,26 +51,33 @@ function available(slug: string) {
   return { slug, title: slug, commerceStatus: "AVAILABLE" as const, ready: true, status: "PUBLISHED" as const, accessType: "PAID" as const };
 }
 
-test("allowlist do curso 2 cobre preços aprovados e deixa o gratuito de fora", () => {
-  assert.equal(priced("course", FIRST_COURSE_SLUG)?.priceCents, 24990);
-  assert.equal(priced("course", SITES_COURSE_SLUG)?.priceCents, 24990);
-  assert.deepEqual(SITES_PAID.map((slug) => priced("lesson", slug)?.priceCents), [3490, 3490, 3990, 3990, 3490, 3490, 3490, 3990, 3990]);
+test("allowlist do curso 2 cobre slugs aprovados e deixa o gratuito de fora", () => {
+  assert.ok(listed("course", FIRST_COURSE_SLUG));
+  assert.ok(listed("course", SITES_COURSE_SLUG));
   assert.deepEqual(
-    ["planeje-antes-de-desenhar", "estruture-e-comunique", "atencao-e-confianca", "publique-mea-e-melhore"].map((slug) => priced("module", slug)?.priceCents),
-    [6290, 7190, 6290, 10390],
+    SITES_PAID.map((slug) => Boolean(listed("lesson", slug))),
+    SITES_PAID.map(() => true),
   );
-  assert.equal(priced("lesson", SITE_LESSON_01_SLUG), undefined);
-  assert.equal(priced("lesson", SITE_LESSON_02_SLUG), undefined);
-  assert.equal(priced("lesson", SITE_LESSON_03_SLUG), undefined);
-  assert.equal(priced("module", "antes-de-construir"), undefined);
-  assert.equal(priced("module", "planeje-antes-de-anunciar")?.priceCents, 5790);
+  assert.deepEqual(
+    ["planeje-antes-de-desenhar", "estruture-e-comunique", "atencao-e-confianca", "publique-mea-e-melhore"].map((slug) =>
+      Boolean(listed("module", slug)),
+    ),
+    [true, true, true, true],
+  );
+  assert.equal(listed("lesson", SITE_LESSON_01_SLUG), undefined);
+  assert.equal(listed("lesson", SITE_LESSON_02_SLUG), undefined);
+  assert.equal(listed("lesson", SITE_LESSON_03_SLUG), undefined);
+  assert.equal(listed("module", "antes-de-construir"), undefined);
+  assert.ok(listed("module", "planeje-antes-de-anunciar"));
+  for (const row of SALE_ALLOWLIST) {
+    assert.equal("priceCents" in row, false);
+  }
 });
 
 test("curso e módulo em rascunho, aula sem prontidão e dependências cruzadas ficam bloqueados", () => {
-  const lesson = priced("lesson", SITE_LESSON_04_SLUG);
-  assert.ok(lesson);
-  assert.equal(planLessonEnable(readyPaid(lesson.slug, lesson.priceCents)).allowed, true);
-  assert.equal(planLessonEnable(readyPaid(lesson.slug, lesson.priceCents, { contentReady: false, contentIssues: ["Falta a conclusão."] })).allowed, false);
+  assert.ok(listed("lesson", SITE_LESSON_04_SLUG));
+  assert.equal(planLessonEnable(readyPaid(SITE_LESSON_04_SLUG, 3490)).allowed, true);
+  assert.equal(planLessonEnable(readyPaid(SITE_LESSON_04_SLUG, 3490, { contentReady: false, contentIssues: ["Falta a conclusão."] })).allowed, false);
   assert.equal(planLessonEnable(readyPaid(SITE_LESSON_01_SLUG, 0, { accessType: "FREE", priceCents: null })).allowed, false);
 
   const draftModule = planModuleEnable({

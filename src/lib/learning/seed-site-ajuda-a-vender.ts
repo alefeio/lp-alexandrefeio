@@ -90,7 +90,6 @@ export async function seedSiteAjudaAVenderContent(
       publicPreview: siteLesson01Meta.publicPreview,
       estimatedMinutes: siteLesson01Meta.estimatedMinutes,
       accessType: "FREE",
-      priceCents: null,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -192,7 +191,6 @@ function metadataMatches(
     lesson.publicPreview === siteLesson01Meta.publicPreview &&
     lesson.estimatedMinutes === siteLesson01Meta.estimatedMinutes &&
     lesson.accessType === "FREE" &&
-    lesson.priceCents == null &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );

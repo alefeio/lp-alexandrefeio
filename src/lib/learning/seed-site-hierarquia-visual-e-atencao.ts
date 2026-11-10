@@ -92,7 +92,6 @@ export async function seedSiteHierarquiaVisualContent(
       publicPreview: siteLesson08Meta.publicPreview,
       estimatedMinutes: siteLesson08Meta.estimatedMinutes,
       accessType: "PAID",
-      priceCents: siteLesson08Meta.priceCents,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -195,7 +194,6 @@ function metadataMatches(
     lesson.publicPreview === siteLesson08Meta.publicPreview &&
     lesson.estimatedMinutes === siteLesson08Meta.estimatedMinutes &&
     lesson.accessType === "PAID" &&
-    lesson.priceCents === siteLesson08Meta.priceCents &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );

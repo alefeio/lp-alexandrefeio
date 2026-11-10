@@ -92,7 +92,6 @@ export async function seedSitePaginaMobileExperienciaContent(
       publicPreview: siteLesson10Meta.publicPreview,
       estimatedMinutes: siteLesson10Meta.estimatedMinutes,
       accessType: "PAID",
-      priceCents: siteLesson10Meta.priceCents,
       ...commercePatch(keepSale),
       status: "PUBLISHED",
       publishedAt: lesson.publishedAt ?? new Date(),
@@ -195,7 +194,6 @@ function metadataMatches(
     lesson.publicPreview === siteLesson10Meta.publicPreview &&
     lesson.estimatedMinutes === siteLesson10Meta.estimatedMinutes &&
     lesson.accessType === "PAID" &&
-    lesson.priceCents === siteLesson10Meta.priceCents &&
     commerceStatusMatches(lesson.commerceStatus, preserveCommerceStatus) &&
     lesson.status === "PUBLISHED"
   );
