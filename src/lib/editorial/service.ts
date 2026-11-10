@@ -9,6 +9,11 @@ import { validateEditorialImage } from "@/lib/storage/image-file";
 import { prepareWebImageForUpload } from "@/lib/storage/image-optimization";
 import { imageOptimizationNote } from "@/lib/storage/image-optimization-note";
 import { acceptsPublicPreview } from "@/lib/learning/public-preview";
+import {
+  buildLessonSaveData,
+  LESSON_SAVE_CONFLICT,
+  parseLessonSaveUpdatedAt,
+} from "@/lib/editorial/lesson-save";
 
 export type EditorialActor = { userId: string; role: string };
 
@@ -33,8 +38,6 @@ export async function saveCourse(actor: EditorialActor, courseId: string, input:
   const current = await prisma.course.findUnique({ where: { id: courseId } });
   if (!current) return { ok: false, message: "Curso não encontrado." };
   if (stale(current.updatedAt, input.updatedAt)) return conflict();
-  const price = cents(input.bundlePriceCents);
-  if (price === "invalid") return { ok: false, message: "O preço do pacote precisa ser um inteiro em centavos." };
   const status = statusOf(input.status);
   if (!status) return { ok: false, message: "Status inválido." };
   await prisma.course.update({
@@ -44,7 +47,6 @@ export async function saveCourse(actor: EditorialActor, courseId: string, input:
       subtitle: empty(input.subtitle),
       description: input.description.trim(),
       sortOrder: integer(input.sortOrder, current.sortOrder),
-      bundlePriceCents: price,
       status,
       publishedAt: status === "PUBLISHED" ? (current.publishedAt ?? new Date()) : current.publishedAt,
       ...cover(input),
@@ -75,8 +77,6 @@ export async function saveModule(actor: EditorialActor, moduleId: string, input:
   const current = await prisma.module.findUnique({ where: { id: moduleId } });
   if (!current) return { ok: false, message: "Módulo não encontrado." };
   if (stale(current.updatedAt, input.updatedAt)) return conflict();
-  const price = cents(input.bundlePriceCents);
-  if (price === "invalid") return { ok: false, message: "O preço do pacote precisa ser um inteiro em centavos." };
   const status = statusOf(input.status);
   if (!status) return { ok: false, message: "Status inválido." };
   await prisma.module.update({
@@ -85,7 +85,6 @@ export async function saveModule(actor: EditorialActor, moduleId: string, input:
       title: input.title.trim(),
       description: input.description.trim(),
       sortOrder: integer(input.sortOrder, current.sortOrder),
-      bundlePriceCents: price,
       status,
       ...cover(input),
       updatedById: actor.userId,
@@ -119,7 +118,7 @@ export async function createLesson(actor: EditorialActor, moduleId: string, inpu
       accessType,
       status: "DRAFT",
       commerceStatus: "NOT_FOR_SALE",
-      priceCents: accessType === "PAID" ? 100 : null,
+      priceCents: null,
       updatedById: actor.userId,
     },
   });
@@ -129,22 +128,26 @@ export async function createLesson(actor: EditorialActor, moduleId: string, inpu
 export async function saveLesson(actor: EditorialActor, lessonId: string, input: LessonInput): Promise<Result> {
   const blocked = gate(actor);
   if (blocked) return blocked;
+  const expected = parseLessonSaveUpdatedAt(input.updatedAt);
+  if (!expected.ok) return { ok: false, message: expected.message };
   const prisma = getPrisma();
   const current = await prisma.lesson.findUnique({ where: { id: lessonId } });
   if (!current) return { ok: false, message: "Aula não encontrada." };
-  if (stale(current.updatedAt, input.updatedAt)) return conflict();
   const accessType = input.accessType === "PAID" || input.accessType === "FREE" ? input.accessType : null;
   const status = statusOf(input.status);
   if (!accessType || !status) return { ok: false, message: "Revise acesso e status." };
   if (current.commerceStatus === "AVAILABLE" && (status !== "PUBLISHED" || accessType !== "PAID")) {
     return { ok: false, message: "Retire a aula da venda antes de mudar publicação ou acesso." };
   }
-  const price = cents(input.priceCents);
-  if (price === "invalid") return { ok: false, message: "O preço precisa ser um inteiro em centavos." };
+  // Preço comercial: PAID não reescreve; FREE limpa. Fonte de verdade de valor = /admin/precos.
+  const priceForReadiness = accessType === "FREE" ? null : current.priceCents;
   const minutes = integer(input.estimatedMinutes, current.estimatedMinutes ?? 0);
   const blocks = await loadReadyBlocks(lessonId);
   if (status === "PUBLISHED") {
-    const assessment = assessLesson(readyFrom(current, { ...input, accessType, priceCents: price, estimatedMinutes: minutes, status }), blocks);
+    const assessment = assessLesson(
+      readyFrom(current, { ...input, accessType, priceCents: priceForReadiness, estimatedMinutes: minutes, status }),
+      blocks,
+    );
     if (!assessment.ready) return { ok: false, message: assessment.issues[0] ?? "A aula ainda não pode ser publicada." };
   }
   let publishedAt = current.publishedAt;
@@ -153,22 +156,23 @@ export async function saveLesson(actor: EditorialActor, lessonId: string, input:
     if (Number.isNaN(parsed.getTime())) return { ok: false, message: "Data de publicação inválida." };
     publishedAt = parsed;
   } else if (status === "PUBLISHED" && !publishedAt) publishedAt = new Date();
-  await prisma.lesson.update({
-    where: { id: lessonId },
-    data: {
-      title: input.title.trim(),
-      summary: input.summary.trim(),
-      publicPreview: empty(input.publicPreview),
-      estimatedMinutes: minutes > 0 ? minutes : null,
-      sortOrder: integer(input.sortOrder, current.sortOrder),
-      accessType,
-      priceCents: price,
-      status,
-      publishedAt,
-      ...cover(input),
-      updatedById: actor.userId,
-    },
+  const data = buildLessonSaveData({
+    title: input.title.trim(),
+    summary: input.summary.trim(),
+    publicPreview: empty(input.publicPreview),
+    estimatedMinutes: minutes > 0 ? minutes : null,
+    sortOrder: integer(input.sortOrder, current.sortOrder),
+    accessType,
+    status,
+    publishedAt,
+    cover: cover(input),
+    updatedById: actor.userId,
   });
+  const result = await prisma.lesson.updateMany({
+    where: { id: lessonId, updatedAt: expected.date },
+    data,
+  });
+  if (result.count !== 1) return { ok: false, message: LESSON_SAVE_CONFLICT };
   return { ok: true, message: status === "PUBLISHED" ? "Aula publicada. Ela continua fora de venda até a ação explícita." : "Aula salva." };
 }
 
@@ -490,14 +494,6 @@ function conflict(): Result {
   return { ok: false, message: "Este conteúdo foi atualizado em outra aba. Recarregue antes de salvar." };
 }
 
-function cents(value: string): number | null | "invalid" {
-  const raw = value.trim();
-  if (!raw) return null;
-  if (!/^\d+$/.test(raw)) return "invalid";
-  const parsed = Number(raw);
-  return Number.isSafeInteger(parsed) ? parsed : "invalid";
-}
-
 function integer(value: string, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) ? parsed : fallback;
@@ -543,7 +539,6 @@ export type CourseInput = {
   subtitle: string;
   description: string;
   sortOrder: string;
-  bundlePriceCents: string;
   status: string;
   updatedAt: string;
   coverImageUrl?: string;
@@ -558,7 +553,6 @@ export type LessonInput = {
   publicPreview: string;
   estimatedMinutes: string;
   accessType: string;
-  priceCents: string;
   sortOrder: string;
   status: string;
   publishedAt: string;

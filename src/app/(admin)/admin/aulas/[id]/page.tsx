@@ -6,6 +6,7 @@ import { ExistingBlock } from "@/components/editorial/ExistingBlock";
 import { AssetOptions, fieldClass, Field } from "@/components/editorial/fields";
 import { Container } from "@/components/ui/Container";
 import { requireAdmin } from "@/lib/auth/session";
+import { formatCentsToBrl } from "@/lib/commerce/money";
 import { getPrisma } from "@/lib/db/prisma";
 import {
   applyImportAction,
@@ -75,7 +76,12 @@ export default async function AdminLessonPage({ params }: PageProps) {
             <option value="PAID">Paga</option>
           </select>
         </Field>
-        <Field label="Preço em centavos"><input className={fieldClass} name="priceCents" defaultValue={lesson.priceCents ?? ""} /></Field>
+        <p className="text-sm text-muted">
+          Preço comercial atual: {lesson.accessType === "FREE" ? "—" : formatCentsToBrl(lesson.priceCents)}.{" "}
+          <Link className="underline underline-offset-4" href={`/admin/precos/${lesson.module.courseId}`}>
+            Gerenciar em Preços
+          </Link>
+        </p>
         <Field label="Ordem"><input className={fieldClass} name="sortOrder" type="number" defaultValue={lesson.sortOrder} /></Field>
         <Field label="Status">
           <select className={fieldClass} name="status" defaultValue={lesson.status}>
