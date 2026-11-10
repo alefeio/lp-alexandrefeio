@@ -100,6 +100,58 @@ test("COM-2.2: reenvio de preço idêntico não produz escrita", async () => {
   assert.equal(store.lessonRow()?.updatedById, before.updatedById);
 });
 
+test("COM-2.2.1: AVAILABLE com preço idêntico válido não exige confirmação e não escreve", async () => {
+  const store = createPricingCasStore({ lesson: lessonSeed({ priceCents: 1990, commerceStatus: "AVAILABLE" }) });
+  const result = await updateProductPriceWithDb(store, admin, {
+    target: "lesson",
+    id: "lesson-1",
+    amountBrl: "19,90",
+    expectedUpdatedAt: stamp.toISOString(),
+    confirmAvailable: false,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.message, UNCHANGED_PRICE_MESSAGE);
+  assert.equal(store.lessonRow()?.writeCount, 0);
+});
+
+test("COM-2.2.1: aula FREE não obtém sucesso de no-op com preço comercial", async () => {
+  const store = createPricingCasStore({
+    lesson: {
+      id: "lesson-1",
+      accessType: "FREE",
+      commerceStatus: "NOT_FOR_SALE",
+      priceCents: 1000,
+      updatedAt: stamp,
+      updatedById: "seed",
+    },
+  });
+  const result = await updateProductPriceWithDb(store, admin, {
+    target: "lesson",
+    id: "lesson-1",
+    amountBrl: "10,00",
+    expectedUpdatedAt: stamp.toISOString(),
+    confirmAvailable: false,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.ok ? "" : result.message, /gratuitas/i);
+  assert.equal(store.lessonRow()?.writeCount, 0);
+  assert.equal(store.lessonRow()?.priceCents, 1000);
+});
+
+test("COM-2.2.1: produto pago com zero não obtém sucesso de no-op", async () => {
+  const store = createPricingCasStore({ lesson: lessonSeed({ priceCents: 0, commerceStatus: "NOT_FOR_SALE" }) });
+  const result = await updateProductPriceWithDb(store, admin, {
+    target: "lesson",
+    id: "lesson-1",
+    amountBrl: "0,00",
+    expectedUpdatedAt: stamp.toISOString(),
+    confirmAvailable: false,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.ok ? "" : result.message, /maior que zero|inválido/i);
+  assert.equal(store.lessonRow()?.writeCount, 0);
+});
+
 test("COM-2.2: preço idêntico com timestamp desatualizado ainda conflita", async () => {
   const store = createPricingCasStore({ lesson: lessonSeed({ priceCents: 1990 }) });
   const result = await updateProductPriceWithDb(store, admin, {

@@ -13,7 +13,6 @@ import {
 } from "../src/lib/admin/pricing-core";
 import { formatCentsToBrl, MAX_PRICE_CENTS, parseBrlToCents, percentOff, savingsCents } from "../src/lib/commerce/money";
 import { amountDueCents, eligibleCreditCents, quoteCart, type CreditSource, type SaleCourse, type SaleLesson, type SaleModule } from "../src/lib/commerce/quote";
-import { editorAllowed } from "../src/lib/editorial/service";
 
 function lesson(id: string, price: number, patch: Partial<SaleLesson> = {}): SaleLesson {
   return {

@@ -65,8 +65,14 @@ function PriceEditor({
   const syncedPublishedRef = useRef(publishedCents);
   const syncedUpdatedAtRef = useRef(updatedAt);
   const onDraftCentsRef = useRef(onDraftCents);
-  onDraftCentsRef.current = onDraftCents;
-  amountRef.current = amount;
+
+  useEffect(() => {
+    amountRef.current = amount;
+  }, [amount]);
+
+  useEffect(() => {
+    onDraftCentsRef.current = onDraftCents;
+  }, [onDraftCents]);
 
   useEffect(() => {
     const publishedChanged =
@@ -78,20 +84,21 @@ function PriceEditor({
     const currentAmount = amountRef.current;
     const dirty = currentAmount.trim() !== previousForm && currentAmount.trim() !== nextForm;
 
+    syncedPublishedRef.current = publishedCents;
+    syncedUpdatedAtRef.current = updatedAt;
+
     if (dirty) {
       setPublishChangedWhileEditing(true);
       setConfirm(false);
       setMessage("O preço publicado mudou em outra sessão. Revise o valor proposto antes de salvar.");
-    } else {
-      setAmount(nextForm);
-      setConfirm(false);
-      setPublishChangedWhileEditing(false);
-      setMessage(null);
-      onDraftCentsRef.current(undefined);
+      return;
     }
 
-    syncedPublishedRef.current = publishedCents;
-    syncedUpdatedAtRef.current = updatedAt;
+    setAmount(nextForm);
+    setConfirm(false);
+    setPublishChangedWhileEditing(false);
+    setMessage(null);
+    onDraftCentsRef.current(undefined);
   }, [publishedCents, updatedAt]);
 
   const simulation = useMemo(() => {

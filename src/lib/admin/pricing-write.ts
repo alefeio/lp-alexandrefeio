@@ -91,9 +91,6 @@ export async function updateProductPriceWithDb(
     if (!timestampsMatch(current.updatedAt, expected.date)) {
       return { ok: false, message: CONFLICT_MESSAGE };
     }
-    if (current.priceCents === parsed.cents) {
-      return { ok: true, message: UNCHANGED_PRICE_MESSAGE };
-    }
     const gate = evaluatePriceChange({
       target: "lesson",
       accessType: current.accessType,
@@ -103,6 +100,9 @@ export async function updateProductPriceWithDb(
       confirmAvailable: input.confirmAvailable,
     });
     if (!gate.ok) return gate;
+    if (current.priceCents === parsed.cents) {
+      return { ok: true, message: UNCHANGED_PRICE_MESSAGE };
+    }
 
     const write: AtomicPriceWrite = {
       target: "lesson",
@@ -127,9 +127,6 @@ export async function updateProductPriceWithDb(
     if (!timestampsMatch(current.updatedAt, expected.date)) {
       return { ok: false, message: CONFLICT_MESSAGE };
     }
-    if (current.bundlePriceCents === parsed.cents) {
-      return { ok: true, message: UNCHANGED_PRICE_MESSAGE };
-    }
     const gate = evaluatePriceChange({
       target: "module",
       commerceStatus: current.commerceStatus,
@@ -138,6 +135,9 @@ export async function updateProductPriceWithDb(
       confirmAvailable: input.confirmAvailable,
     });
     if (!gate.ok) return gate;
+    if (current.bundlePriceCents === parsed.cents) {
+      return { ok: true, message: UNCHANGED_PRICE_MESSAGE };
+    }
 
     const write: AtomicPriceWrite = {
       target: "module",
@@ -160,9 +160,6 @@ export async function updateProductPriceWithDb(
   if (!timestampsMatch(current.updatedAt, expected.date)) {
     return { ok: false, message: CONFLICT_MESSAGE };
   }
-  if (current.bundlePriceCents === parsed.cents) {
-    return { ok: true, message: UNCHANGED_PRICE_MESSAGE };
-  }
   const gate = evaluatePriceChange({
     target: "course",
     commerceStatus: current.commerceStatus,
@@ -171,6 +168,9 @@ export async function updateProductPriceWithDb(
     confirmAvailable: input.confirmAvailable,
   });
   if (!gate.ok) return gate;
+  if (current.bundlePriceCents === parsed.cents) {
+    return { ok: true, message: UNCHANGED_PRICE_MESSAGE };
+  }
 
   const write: AtomicPriceWrite = {
     target: "course",
