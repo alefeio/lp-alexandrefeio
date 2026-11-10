@@ -133,10 +133,11 @@ test("COM-1: cotação e pedidos leem catálogo; Admin permanece caminho de escr
   assert.match(quote, /listPriceCents/);
   const orders = readFileSync(new URL("../src/lib/commerce/orders.ts", import.meta.url), "utf8");
   assert.match(orders, /quoteCart|quoteForUser/);
-  const pricing = readFileSync(new URL("../src/lib/admin/pricing.ts", import.meta.url), "utf8");
-  assert.match(pricing, /priceCents:\s*parsed\.cents/);
-  assert.match(pricing, /bundlePriceCents:\s*parsed\.cents/);
-  assert.match(pricing, /updateMany/);
+  const pricingWrite = readFileSync(new URL("../src/lib/admin/pricing-write.ts", import.meta.url), "utf8");
+  assert.match(pricingWrite, /priceCents:\s*parsed\.cents/);
+  assert.match(pricingWrite, /bundlePriceCents:\s*parsed\.cents/);
+  assert.match(pricingWrite, /updateMany/);
+  assert.match(readFileSync(new URL("../src/lib/admin/pricing.ts", import.meta.url), "utf8"), /updateProductPriceWithDb/);
   const editorial = readFileSync(new URL("../src/lib/editorial/service.ts", import.meta.url), "utf8");
   assert.match(editorial, /\/admin\/precos/);
   assert.equal(/bundlePriceCents:\s*price\b/.test(editorial), false);

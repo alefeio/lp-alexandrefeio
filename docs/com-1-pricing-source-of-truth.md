@@ -10,7 +10,7 @@ Política: o **banco** (Admin / operação comercial) é a fonte de verdade dos 
 | --- | --- | --- |
 | Admin — preços (COM-2) | `src/lib/admin/pricing.ts` | Grava `priceCents` / `bundlePriceCents` a partir de reais |
 | Create inicial de catálogo | `catalog-deploy.ts` / seeds | Define preço **só na criação** do registro |
-| Editor pedagógico | `src/lib/editorial/service.ts` | **Não** regram preço comercial; FREE zera; PAID sem preço recebe placeholder |
+| Editor pedagógico | `src/lib/editorial/service.ts` | **Não** regram preço comercial; FREE zera; PAID novo fica com `priceCents = null` até `/admin/precos` |
 
 ### Leitura comercial (não deve sobrescrever)
 

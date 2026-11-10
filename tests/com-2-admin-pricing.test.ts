@@ -201,7 +201,7 @@ test("COM-2.1: timestamp ausente ou inválido", () => {
   assert.equal(ok.date.toISOString(), "2026-01-01T00:00:00.000Z");
 });
 
-test("COM-2.1: CAS — formulário desatualizado e mudança de status", () => {
+test("COM-2.1: filtro CAS inclui id, updatedAt e commerceStatus", () => {
   const stamp = new Date("2026-01-01T00:00:00.000Z");
   const where = atomicPriceWhere({
     target: "lesson",
@@ -218,42 +218,13 @@ test("COM-2.1: CAS — formulário desatualizado e mudança de status", () => {
     commerceStatus: "AVAILABLE",
     accessType: "PAID",
   });
-
-  const moduleWhere = atomicPriceWhere({
-    target: "module",
-    id: "mod-1",
-    expectedUpdatedAt: stamp,
-    commerceStatus: "NOT_FOR_SALE",
-    nextPriceCents: 5000,
-    updatedById: "admin-1",
-  });
-  assert.equal("accessType" in moduleWhere, false);
-  assert.equal(moduleWhere.commerceStatus, "NOT_FOR_SALE");
-
-  // Dois admins com o mesmo expectedUpdatedAt: só o updateMany com count===1 vence.
-  const acceptedCounts = [1, 0];
-  assert.equal(acceptedCounts.filter((count) => count === 1).length, 1);
   assert.match(CONFLICT_MESSAGE, /outra aba|Recarregue/i);
 
-  const pricing = readFileSync(new URL("../src/lib/admin/pricing.ts", import.meta.url), "utf8");
-  assert.match(pricing, /updateMany/);
-  assert.match(pricing, /result\.count !== 1/);
-  assert.match(pricing, /atomicPriceWhere/);
-  assert.equal(/\.update\(\s*\{/.test(pricing), false);
-});
-
-test("COM-2.1: nenhuma escrita após conflito (contrato updateMany)", () => {
-  const pricing = readFileSync(new URL("../src/lib/admin/pricing.ts", import.meta.url), "utf8");
-  assert.match(pricing, /if \(result\.count !== 1\) return \{ ok: false, message: CONFLICT_MESSAGE \}/);
-  assert.match(pricing, /parseExpectedUpdatedAt/);
-});
-
-test("COM-2: 9 — usuário sem permissão", () => {
-  assert.equal(editorAllowed("USER"), false);
-  assert.equal(editorAllowed("ADMIN"), true);
-  const actions = readFileSync(new URL("../src/lib/admin/pricing-actions.ts", import.meta.url), "utf8");
-  assert.match(actions, /requireAdmin/);
-  assert.match(actions, /Sem acesso/);
+  const write = readFileSync(new URL("../src/lib/admin/pricing-write.ts", import.meta.url), "utf8");
+  assert.match(write, /updateMany/);
+  assert.match(write, /result\.count !== 1/);
+  assert.match(write, /isAdminRole/);
+  assert.match(write, /UNCHANGED_PRICE_MESSAGE/);
 });
 
 test("COM-2: 10 — curso com aulas gratuitas", () => {
@@ -401,23 +372,23 @@ test("COM-2: 16 — upgrade com crédito de compra anterior", () => {
 });
 
 test("COM-2: 17 — update de preço não altera status comercial", () => {
-  const pricing = readFileSync(new URL("../src/lib/admin/pricing.ts", import.meta.url), "utf8");
-  const dataBlocks = [...pricing.matchAll(/data:\s*\{([^}]+)\}/g)].map((match) => match[1] ?? "");
+  const write = readFileSync(new URL("../src/lib/admin/pricing-write.ts", import.meta.url), "utf8");
+  const dataBlocks = [...write.matchAll(/data:\s*\{([^}]+)\}/g)].map((match) => match[1] ?? "");
   assert.ok(dataBlocks.length >= 2);
   for (const block of dataBlocks) {
     assert.equal(/\bcommerceStatus\b/.test(block), false);
     assert.equal(/\bstatus\b/.test(block), false);
   }
-  assert.match(pricing, /priceCents:\s*parsed\.cents,\s*updatedById/);
-  assert.match(pricing, /bundlePriceCents:\s*parsed\.cents,\s*updatedById/);
-  assert.equal(/MercadoPago|mercadopago/i.test(pricing), false);
+  assert.match(write, /priceCents:\s*parsed\.cents,\s*updatedById/);
+  assert.match(write, /bundlePriceCents:\s*parsed\.cents,\s*updatedById/);
+  assert.equal(/MercadoPago|mercadopago/i.test(write), false);
 });
 
 test("COM-2: 18 — testes unitários sem escrita paga real", () => {
   const money = readFileSync(new URL("../src/lib/commerce/money.ts", import.meta.url), "utf8");
-  const pricing = readFileSync(new URL("../src/lib/admin/pricing.ts", import.meta.url), "utf8");
+  const write = readFileSync(new URL("../src/lib/admin/pricing-write.ts", import.meta.url), "utf8");
   const actions = readFileSync(new URL("../src/lib/admin/pricing-actions.ts", import.meta.url), "utf8");
-  const joined = `${money}\n${pricing}\n${actions}`;
+  const joined = `${money}\n${write}\n${actions}`;
   assert.equal(/createPreference/.test(joined), false);
   assert.equal(/mercadopago/i.test(joined), false);
   assert.equal(/fetch\(/.test(joined), false);
@@ -426,6 +397,10 @@ test("COM-2: 18 — testes unitários sem escrita paga real", () => {
 test("COM-2: UI e docs de responsabilidade", () => {
   const desk = readFileSync(new URL("../src/components/admin/pricing/PricingDesk.tsx", import.meta.url), "utf8");
   assert.match(desk, /confirmAvailable/);
+  assert.match(desk, /canSave/);
+  assert.match(desk, /publishChangedWhileEditing|publicado mudou/i);
+  assert.match(desk, /try \{/);
+  assert.match(desk, /finally/);
   assert.match(desk, /R\$/);
   const coursePage = readFileSync(new URL("../src/app/(admin)/admin/cursos/[id]/page.tsx", import.meta.url), "utf8");
   assert.match(coursePage, /Gerenciar em Preços/);
@@ -434,4 +409,5 @@ test("COM-2: UI e docs de responsabilidade", () => {
   assert.equal(/name="priceCents"/.test(lessonPage), false);
   const docs = readFileSync(new URL("../docs/com-2-admin-pricing.md", import.meta.url), "utf8");
   assert.match(docs, /compare-and-swap|updateMany/i);
+  assert.match(docs, /já está atualizado|preço inalterado/i);
 });

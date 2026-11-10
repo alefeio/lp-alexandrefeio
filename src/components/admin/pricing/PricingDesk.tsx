@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { updateProductPriceAction } from "@/lib/admin/pricing-actions";
 import {
@@ -60,6 +60,39 @@ function PriceEditor({
   const [confirm, setConfirm] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [publishChangedWhileEditing, setPublishChangedWhileEditing] = useState(false);
+  const amountRef = useRef(amount);
+  const syncedPublishedRef = useRef(publishedCents);
+  const syncedUpdatedAtRef = useRef(updatedAt);
+  const onDraftCentsRef = useRef(onDraftCents);
+  onDraftCentsRef.current = onDraftCents;
+  amountRef.current = amount;
+
+  useEffect(() => {
+    const publishedChanged =
+      syncedPublishedRef.current !== publishedCents || syncedUpdatedAtRef.current !== updatedAt;
+    if (!publishedChanged) return;
+
+    const previousForm = draftCents(syncedPublishedRef.current);
+    const nextForm = draftCents(publishedCents);
+    const currentAmount = amountRef.current;
+    const dirty = currentAmount.trim() !== previousForm && currentAmount.trim() !== nextForm;
+
+    if (dirty) {
+      setPublishChangedWhileEditing(true);
+      setConfirm(false);
+      setMessage("O preço publicado mudou em outra sessão. Revise o valor proposto antes de salvar.");
+    } else {
+      setAmount(nextForm);
+      setConfirm(false);
+      setPublishChangedWhileEditing(false);
+      setMessage(null);
+      onDraftCentsRef.current(undefined);
+    }
+
+    syncedPublishedRef.current = publishedCents;
+    syncedUpdatedAtRef.current = updatedAt;
+  }, [publishedCents, updatedAt]);
 
   const simulation = useMemo(() => {
     if (!amount.trim()) return null;
@@ -73,24 +106,37 @@ function PriceEditor({
     };
   }, [amount, publishedCents]);
 
+  const needsConfirm = commerceStatus === "AVAILABLE" && simulation?.ok === true && simulation.changed;
+  const canSave =
+    !locked &&
+    !pending &&
+    simulation?.ok === true &&
+    (!needsConfirm || confirm);
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (locked) return;
+    if (!canSave) return;
     setPending(true);
     setMessage(null);
-    const form = new FormData(event.currentTarget);
-    if (confirm) form.set("confirmAvailable", "1");
-    const result = await updateProductPriceAction(form);
-    setMessage(result.message);
-    setPending(false);
-    if (result.ok) {
-      setConfirm(false);
-      onDraftCents(undefined);
-      router.refresh();
+    try {
+      const form = new FormData(event.currentTarget);
+      if (confirm) form.set("confirmAvailable", "1");
+      const result = await updateProductPriceAction(form);
+      setMessage(result.message);
+      if (result.ok) {
+        setConfirm(false);
+        setPublishChangedWhileEditing(false);
+        onDraftCents(undefined);
+        syncedPublishedRef.current = simulation.ok ? simulation.cents : publishedCents;
+        setAmount(simulation.ok ? draftCents(simulation.cents) : draftCents(publishedCents));
+        router.refresh();
+      }
+    } catch {
+      setMessage("Não foi possível salvar o preço. Tente novamente.");
+    } finally {
+      setPending(false);
     }
   }
-
-  const needsConfirm = commerceStatus === "AVAILABLE" && simulation?.ok === true && simulation.changed;
 
   return (
     <form className="space-y-3 border-t border-border pt-4" onSubmit={onSubmit}>
@@ -118,12 +164,19 @@ function PriceEditor({
               const next = event.target.value;
               setAmount(next);
               setConfirm(false);
+              setMessage(null);
               onDraftCents(parseDraftAmount(next));
             }}
           />
         </label>
       </div>
       {locked && lockReason ? <p className="text-sm text-muted">{lockReason}</p> : null}
+      {publishChangedWhileEditing ? (
+        <p className="text-sm text-muted" role="status">
+          Publicado atual: {formatCentsToBrl(publishedCents)}. Seu rascunho local foi preservado — confirme se ainda
+          deseja salvar.
+        </p>
+      ) : null}
       {simulation && !simulation.ok ? <p className="text-sm text-muted">{simulation.message}</p> : null}
       {simulation?.ok ? (
         <p className="text-sm">
@@ -151,7 +204,7 @@ function PriceEditor({
           {message}
         </p>
       ) : null}
-      <button className={buttonClass("primary")} type="submit" disabled={locked || pending}>
+      <button className={buttonClass("primary")} type="submit" disabled={!canSave}>
         {pending ? "Salvando..." : "Salvar preço"}
       </button>
     </form>
@@ -276,7 +329,9 @@ export function PricingDesk({ desk }: { desk: PricingCourseDesk }) {
                   <dd>{formatCentsToBrl(moduleRow.paidLessonSumCents)}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted">Pacote {drafts.modules[moduleRow.id] !== undefined ? "(proposto)" : "publicado"}</dt>
+                  <dt className="text-muted">
+                    Pacote {drafts.modules[moduleRow.id] !== undefined ? "(proposto)" : "publicado"}
+                  </dt>
                   <dd>{formatCentsToBrl(moduleRow.bundlePriceCents)}</dd>
                 </div>
                 <div>
