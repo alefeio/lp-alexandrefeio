@@ -86,6 +86,7 @@ import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { blockKeyFromHash } from "@/lib/learning/lesson-hash";
 import { buildLessonStages, firstPendingStageId, resumeStageId, stageContaining, stageIndexById } from "@/lib/learning/lesson-stages";
 import { nextLessonContinuationLabel } from "@/lib/learning/lesson-nav";
+import { blockKindLabel, blockPanelClass } from "@/components/learning/classroom/block-panel";
 
 type ToolPanel =
   | TrafficToolPanel
@@ -603,27 +604,41 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
   const remaining = remainingMinutes(lesson.estimatedMinutes, snapshot.percent, snapshot.completed);
 
   return (
-    <div className="mx-auto grid w-full min-w-0 max-w-6xl gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-10">
-      <div className="min-w-0">
+    <div className="classroom-shell">
+    <div className="classroom-layout">
+      <div className="classroom-sidebar">
         {authenticated ? (
-          <p className="mb-3">
+          <div className="classroom-sidebar__tools">
             <Link className={navigationLinkClass()} href="/app/aprendizado/mesa">Mesa de estudo</Link>
-          </p>
+          </div>
         ) : null}
         <button type="button" className={`${buttonClass("secondary")} w-full lg:hidden`} aria-expanded={stagesOpen} onClick={() => setStagesOpen((open) => !open)}>
           Ver etapas
         </button>
-        <div className={stagesOpen ? "mt-3 lg:mt-0" : "mt-3 hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto"}>
-          <LessonStageRail stages={stages} activeId={activeStage?.id ?? ""} openedIndexes={openedIndexes} onSelect={showStage} />
+        <div className={stagesOpen ? "classroom-sidebar__rail mt-3 lg:mt-0" : "classroom-sidebar__rail mt-3 hidden lg:block"}>
+          <LessonStageRail
+            stages={stages}
+            activeId={activeStage?.id ?? ""}
+            openedIndexes={openedIndexes}
+            onSelect={showStage}
+            courseTitle={lesson.courseTitle}
+            moduleTitle={lesson.moduleTitle}
+          />
         </div>
       </div>
-      <article className="min-w-0 max-w-3xl">
-        <p className="text-sm text-muted">
+      <article className="classroom-main">
+        <header className="classroom-header">
+        <p className="classroom-header__meta">
           <Link className="underline underline-offset-4" href={`/cursos/${lesson.courseSlug}`}>{lesson.courseTitle}</Link>
           {lesson.moduleTitle ? ` · ${lesson.moduleTitle}` : ""}
         </p>
-        <h1 className="mt-2 text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">{lesson.title}</h1>
-        {stages.length > 0 ? <p className="mt-3 text-sm font-medium">Etapa {activeIndex + 1} de {stages.length}</p> : null}
+        <h1 className="classroom-header__title">{lesson.title}</h1>
+        {stages.length > 0 ? (
+          <div className="classroom-header__stage">
+            <p className="classroom-header__stage-label">Etapa {activeIndex + 1} de {stages.length}</p>
+            {activeStage ? <p className="classroom-header__stage-title">{activeStage.title}</p> : null}
+          </div>
+        ) : null}
         <p className="mt-2 text-sm leading-relaxed text-muted">
           Conteúdo percorrido: {snapshot.completed ? "aula concluída" : `${snapshot.percent}%`}
           {!snapshot.completed && requiredLeft > 0
@@ -634,16 +649,19 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
         {!snapshot.completed && unreadEarlier ? (
           <p className="mt-3 text-sm leading-relaxed text-muted">Há uma seção anterior que ainda não foi percorrida.</p>
         ) : null}
+        <div className="classroom-progress">
         <div
-          className="mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-border"
+          className="classroom-progress__track"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={snapshot.percent}
           aria-label="Conteúdo percorrido"
         >
-          <div className="h-full bg-cta" style={{ width: `${snapshot.percent}%` }} />
+          <div className="classroom-progress__fill" style={{ width: `${snapshot.percent}%` }} />
         </div>
+        </div>
+        </header>
         {snapshot.lastBlockKey && !snapshot.completed && resumeStageId(stages, snapshot.lastBlockKey) !== activeStage?.id ? (
           <div className="mt-6">
             <button type="button" className={buttonClass("secondary")} onClick={() => showStage(resumeStageId(stages, snapshot.lastBlockKey) ?? stages[0]?.id ?? "")}>
@@ -698,7 +716,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
             ) : null}
           </section>
         ) : null}
-        <div className="mt-8">
+        <div className="classroom-stage-board mt-8">
           {stages.length === 0 ? <p className="text-base leading-relaxed">Esta aula ainda não tem conteúdo para percorrer.</p> : null}
           {stages.map((stage) => (
             <section
@@ -709,7 +727,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
               aria-labelledby={stage.titleBlockId ? `b-${stage.titleBlockId}` : undefined}
               className="min-w-0 outline-none"
             >
-              <div className="space-y-10">
+              <div className="space-y-8 sm:space-y-10">
           {stage.blocks.map((block) => (
             <div key={block.blockKey}>
               <BlockView
@@ -821,7 +839,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
           ))}
         </div>
         {stages.length > 0 ? (
-          <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="classroom-nav">
             <button type="button" className={`${buttonClass("secondary")} order-2 w-full sm:order-1 sm:w-auto`} disabled={activeIndex === 0} onClick={() => showStage(stages[activeIndex - 1]?.id ?? activeStageId)}>
               Voltar
             </button>
@@ -833,6 +851,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
           </div>
         ) : null}
       </article>
+    </div>
     </div>
   );
 }
@@ -862,15 +881,20 @@ function BlockView(props: {
 
   const showTask = block.required && interactiveType(block.data.type);
 
+  const kindLabel = blockKindLabel(block.data.type);
+
   return (
-    <section id={`b-${block.blockKey}`} data-block-key={block.blockKey} tabIndex={-1} className="scroll-mt-28 border-t border-border pt-10 outline-none">
-      {showTask || props.authenticated ? (
-        <div className="mb-4 flex items-center justify-between gap-3 text-xs text-muted">
-          {showTask ? <span>{done ? "Atividade feita" : "Atividade para concluir a aula"}</span> : <span />}
+    <section id={`b-${block.blockKey}`} data-block-key={block.blockKey} tabIndex={-1} className={`scroll-mt-28 outline-none ${blockPanelClass(block.data.type)}`}>
+      {kindLabel || showTask || props.authenticated ? (
+        <div className="mb-3 flex items-center justify-between gap-3 text-xs text-muted">
+          <span className="min-w-0">
+            {kindLabel ? <span className="classroom-panel__eyebrow">{kindLabel}</span> : null}
+            {showTask ? <span className={kindLabel ? "mt-1 block" : undefined}>{done ? "Atividade feita" : "Atividade para concluir a aula"}</span> : null}
+          </span>
           {props.authenticated ? (
             <button
               type="button"
-              className="underline underline-offset-4"
+              className="shrink-0 underline underline-offset-4"
               aria-pressed={marked}
               onClick={() => props.onBookmark(block.blockKey)}
             >
@@ -917,9 +941,9 @@ function BlockBody(props: {
   if (data.type === "TEXT" || data.type === "CONCLUSION") return <Prose body={data.body} />;
   if (data.type === "CALLOUT") {
     return (
-      <aside className={`rounded-lg border border-border bg-surface px-5 py-5 ${data.tone === "warning" ? "border-l-2 border-l-danger" : data.tone === "tip" ? "border-l-2 border-l-cta" : ""}`}>
+      <aside className={data.tone === "warning" ? "rounded-md border-l-2 border-l-danger pl-1" : data.tone === "tip" ? "rounded-md border-l-2 border-l-cta pl-1" : undefined}>
         {data.title ? <p className="font-medium text-foreground">{data.title}</p> : null}
-        <div className={data.title ? "mt-2" : ""}>
+        <div className={data.title ? "mt-2" : undefined}>
           <Prose body={data.body} />
         </div>
       </aside>
@@ -927,8 +951,8 @@ function BlockBody(props: {
   }
   if (data.type === "EXAMPLE") {
     return (
-      <aside className="rounded-lg border border-border px-5 py-5">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Exemplo</p>
+      <aside>
+        <p className="classroom-panel__eyebrow">Exemplo</p>
         {data.title ? <p className="mt-2 font-medium">{data.title}</p> : null}
         <div className="mt-2">
           <Prose body={data.body} />
@@ -945,28 +969,28 @@ function BlockBody(props: {
   }
   if (data.type === "CHECKPOINT") {
     return (
-      <div className="rounded-lg border border-border bg-surface px-5 py-5">
+      <div>
         <CheckpointForm {...props} data={data} />
       </div>
     );
   }
   if (data.type === "ACTIVITY") {
     return (
-      <div className="rounded-lg border border-border bg-surface px-5 py-5">
+      <div>
         <ActivityForm {...props} data={data} />
       </div>
     );
   }
   if (data.type === "CHECKLIST") {
     return (
-      <div className="rounded-lg border border-border bg-surface px-5 py-5">
+      <div>
         <ChecklistForm {...props} data={data} />
       </div>
     );
   }
   if (data.type === "RESULT") {
     return (
-      <div className="rounded-lg border border-border bg-surface px-5 py-5">
+      <div>
         <ResultForm {...props} data={data} />
       </div>
     );
