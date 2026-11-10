@@ -32,9 +32,12 @@ test("admin edita aula sem abrir venda e sem vazar corpo", async () => {
     const lesson = await createLesson(admin, moduleRow.id, { title: "Aula fixture", summary: "Resumo da aula fixture.", accessType: "PAID" });
     assert.equal(lesson.ok, true);
     if (!lesson.ok || !lesson.id) return;
-    const saved = await saveLesson(admin, lesson.id, lessonInput(lesson.id, "DRAFT"));
-    assert.equal(saved.ok, true);
+    await prisma.lesson.update({ where: { id: lesson.id }, data: { priceCents: 1000 } });
     let stampAt = (await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).updatedAt.toISOString();
+    const saved = await saveLesson(admin, lesson.id, lessonInput(lesson.id, "DRAFT", stampAt));
+    assert.equal(saved.ok, true);
+    stampAt = (await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).updatedAt.toISOString();
+    assert.equal((await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).priceCents, 1000);
     for (const block of sampleBlocks()) {
       const created = await createBlock(admin, lesson.id, { ...block, updatedAt: stampAt });
       assert.equal(created.ok, true, created.ok ? "" : created.message);
@@ -44,8 +47,10 @@ test("admin edita aula sem abrir venda e sem vazar corpo", async () => {
     const duplicate = await createBlock(admin, lesson.id, { blockKey: "texto", data: text("Outro"), updatedAt: again.updatedAt.toISOString() });
     assert.equal(duplicate.ok, false);
 
-    const published = await saveLesson(admin, lesson.id, lessonInput(lesson.id, "PUBLISHED"));
+    stampAt = (await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).updatedAt.toISOString();
+    const published = await saveLesson(admin, lesson.id, lessonInput(lesson.id, "PUBLISHED", stampAt));
     assert.equal(published.ok, true, published.ok ? "" : published.message);
+    assert.equal((await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).priceCents, 1000);
     const afterPublish = await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } });
     assert.equal(afterPublish.status, "PUBLISHED");
     assert.equal(afterPublish.commerceStatus, "NOT_FOR_SALE");
@@ -129,7 +134,7 @@ function text(body: string): LessonBlockData {
   return { type: "TEXT", body };
 }
 
-function lessonInput(lessonId: string, status: "DRAFT" | "PUBLISHED") {
+function lessonInput(lessonId: string, status: "DRAFT" | "PUBLISHED", updatedAt: string) {
   void lessonId;
   return {
     title: "Aula fixture",
@@ -140,6 +145,6 @@ function lessonInput(lessonId: string, status: "DRAFT" | "PUBLISHED") {
     sortOrder: "1",
     status,
     publishedAt: "",
-    updatedAt: "",
+    updatedAt,
   };
 }

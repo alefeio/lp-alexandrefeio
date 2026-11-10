@@ -9,6 +9,11 @@ import { validateEditorialImage } from "@/lib/storage/image-file";
 import { prepareWebImageForUpload } from "@/lib/storage/image-optimization";
 import { imageOptimizationNote } from "@/lib/storage/image-optimization-note";
 import { acceptsPublicPreview } from "@/lib/learning/public-preview";
+import {
+  buildLessonSaveData,
+  LESSON_SAVE_CONFLICT,
+  parseLessonSaveUpdatedAt,
+} from "@/lib/editorial/lesson-save";
 
 export type EditorialActor = { userId: string; role: string };
 
@@ -123,22 +128,26 @@ export async function createLesson(actor: EditorialActor, moduleId: string, inpu
 export async function saveLesson(actor: EditorialActor, lessonId: string, input: LessonInput): Promise<Result> {
   const blocked = gate(actor);
   if (blocked) return blocked;
+  const expected = parseLessonSaveUpdatedAt(input.updatedAt);
+  if (!expected.ok) return { ok: false, message: expected.message };
   const prisma = getPrisma();
   const current = await prisma.lesson.findUnique({ where: { id: lessonId } });
   if (!current) return { ok: false, message: "Aula não encontrada." };
-  if (stale(current.updatedAt, input.updatedAt)) return conflict();
   const accessType = input.accessType === "PAID" || input.accessType === "FREE" ? input.accessType : null;
   const status = statusOf(input.status);
   if (!accessType || !status) return { ok: false, message: "Revise acesso e status." };
   if (current.commerceStatus === "AVAILABLE" && (status !== "PUBLISHED" || accessType !== "PAID")) {
     return { ok: false, message: "Retire a aula da venda antes de mudar publicação ou acesso." };
   }
-  // Preços comerciais são geridos em /admin/precos — o editor só zera FREE e preserva o restante.
-  const priceCents = accessType === "FREE" ? null : current.priceCents;
+  // Preço comercial: PAID não reescreve; FREE limpa. Fonte de verdade de valor = /admin/precos.
+  const priceForReadiness = accessType === "FREE" ? null : current.priceCents;
   const minutes = integer(input.estimatedMinutes, current.estimatedMinutes ?? 0);
   const blocks = await loadReadyBlocks(lessonId);
   if (status === "PUBLISHED") {
-    const assessment = assessLesson(readyFrom(current, { ...input, accessType, priceCents, estimatedMinutes: minutes, status }), blocks);
+    const assessment = assessLesson(
+      readyFrom(current, { ...input, accessType, priceCents: priceForReadiness, estimatedMinutes: minutes, status }),
+      blocks,
+    );
     if (!assessment.ready) return { ok: false, message: assessment.issues[0] ?? "A aula ainda não pode ser publicada." };
   }
   let publishedAt = current.publishedAt;
@@ -147,22 +156,23 @@ export async function saveLesson(actor: EditorialActor, lessonId: string, input:
     if (Number.isNaN(parsed.getTime())) return { ok: false, message: "Data de publicação inválida." };
     publishedAt = parsed;
   } else if (status === "PUBLISHED" && !publishedAt) publishedAt = new Date();
-  await prisma.lesson.update({
-    where: { id: lessonId },
-    data: {
-      title: input.title.trim(),
-      summary: input.summary.trim(),
-      publicPreview: empty(input.publicPreview),
-      estimatedMinutes: minutes > 0 ? minutes : null,
-      sortOrder: integer(input.sortOrder, current.sortOrder),
-      accessType,
-      priceCents,
-      status,
-      publishedAt,
-      ...cover(input),
-      updatedById: actor.userId,
-    },
+  const data = buildLessonSaveData({
+    title: input.title.trim(),
+    summary: input.summary.trim(),
+    publicPreview: empty(input.publicPreview),
+    estimatedMinutes: minutes > 0 ? minutes : null,
+    sortOrder: integer(input.sortOrder, current.sortOrder),
+    accessType,
+    status,
+    publishedAt,
+    cover: cover(input),
+    updatedById: actor.userId,
   });
+  const result = await prisma.lesson.updateMany({
+    where: { id: lessonId, updatedAt: expected.date },
+    data,
+  });
+  if (result.count !== 1) return { ok: false, message: LESSON_SAVE_CONFLICT };
   return { ok: true, message: status === "PUBLISHED" ? "Aula publicada. Ela continua fora de venda até a ação explícita." : "Aula salva." };
 }
 

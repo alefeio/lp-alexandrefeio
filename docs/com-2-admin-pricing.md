@@ -2,6 +2,10 @@
 
 Gestão comercial de preços no Admin, em reais (pt-BR), com o banco como fonte de verdade. Esta sprint **não** altera valores em Production nem ativa o piloto C1.
 
+## COM-2.2.2 — Isolamento editorial × comercial
+
+`saveLesson` **não** inclui `priceCents` no update quando a aula permanece/passa a PAID. Só limpa preço ao mudar para FREE (se permitido). Gravação editorial usa `updateMany` com `updatedAt` esperado (CAS); timestamp ausente/inválido é rejeitado. Assim uma alteração em `/admin/precos` não é sobrescrita pelo editor pedagógico.
+
 ## COM-2.2 — Final pricing hardening
 
 ### Compare-and-swap (CAS)
