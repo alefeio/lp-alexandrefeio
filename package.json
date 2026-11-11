@@ -11,6 +11,7 @@
     "postinstall": "prisma generate",
     "db:migrate": "tsx scripts/run-prisma.ts migrate dev",
     "db:deploy": "tsx scripts/run-prisma.ts migrate deploy",
+    "db:migrate:production": "tsx scripts/run-production-migrate.ts",
     "db:seed": "tsx scripts/seed-learning.ts",
     "blog:seed": "tsx scripts/seed-blog.ts",
     "catalog:deploy": "tsx scripts/catalog-deploy.ts",
