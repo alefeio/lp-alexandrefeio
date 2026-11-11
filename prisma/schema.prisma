@@ -26,6 +26,7 @@ model User {
   lessonNotes          LessonNote[]
   lessonBookmarks      LessonBookmark[]
   lessonResults        LessonResult[]
+  personalNotes        PersonalNote[]
   projects             Project[]
   diagnostics          Diagnostic[]
   campaignDataImports  CampaignDataImport[]
@@ -187,6 +188,7 @@ model Lesson {
   notes             LessonNote[]
   bookmarks         LessonBookmark[]
   results           LessonResult[]
+  personalNotes     PersonalNote[]
   recommendations   Recommendation[]
   orderItems        OrderItem[]
   entitlements      Entitlement[]
@@ -300,6 +302,23 @@ model LessonNote {
   @@unique([userId, lessonId, blockKey])
   @@index([userId])
   @@map("lesson_note")
+}
+
+/// Nota pessoal do aluno. Vínculo com aula/bloco é opcional; não substitui LessonNote.
+model PersonalNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  lessonId  String?
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  blockKey  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([userId, lessonId])
+  @@map("personal_note")
 }
 
 model LessonBookmark {

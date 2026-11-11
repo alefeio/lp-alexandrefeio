@@ -1,6 +1,7 @@
 export const STUDENT_NAV = [
   { id: "inicio", href: "/app", label: "Início" },
   { id: "cursos", href: "/app/aprendizado", label: "Meus cursos" },
+  { id: "mesa", href: "/app/aprendizado/mesa", label: "Mesa" },
   { id: "diagnosticos", href: "/app/diagnosticos", label: "Diagnósticos" },
   { id: "negocio", href: "/app/projetos", label: "Meu negócio" },
   { id: "alertas", href: "/app/alertas", label: "Alertas" },
@@ -12,6 +13,7 @@ export type StudentNavId = (typeof STUDENT_NAV)[number]["id"];
 /** Seção atual a partir de um caminho interno. Checkout e carrinho não fingem ser outra área. */
 export function activeStudentItem(pathname: string): StudentNavId | null {
   if (pathname === "/app") return "inicio";
+  if (pathname === "/app/aprendizado/mesa") return "mesa";
   if (pathname === "/app/aprendizado" || pathname.startsWith("/app/aprendizado/")) return "cursos";
   if (pathname === "/app/cursos" || pathname.startsWith("/app/cursos/")) return "cursos";
   if (pathname === "/app/diagnosticos" || pathname.startsWith("/app/diagnosticos/")) return "diagnosticos";

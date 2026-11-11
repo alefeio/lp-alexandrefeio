@@ -5,6 +5,7 @@ import Link from "next/link";
 import { trackEvent } from "@/lib/analytics";
 import { acquisitionAnalyticsPayload, acquisitionDedupeKey } from "@/lib/learning/acquisition-analytics";
 import { navigationLinkClass } from "@/lib/button-styles";
+import { courseHref } from "@/lib/learning/course-href";
 import { formatPriceCents } from "@/lib/learning/money";
 import { AddToCartButton } from "@/components/commerce/AddToCartButton";
 
@@ -22,6 +23,7 @@ export function LessonPaywall({
   courseForSale,
   moduleId,
   courseId,
+  authenticated = false,
 }: {
   lessonId: string;
   lessonSlug: string;
@@ -36,6 +38,7 @@ export function LessonPaywall({
   courseForSale: boolean;
   moduleId: string | null;
   courseId: string | null;
+  authenticated?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
 
@@ -106,7 +109,7 @@ export function LessonPaywall({
         <p className="mt-4 text-sm leading-relaxed text-muted">Conteúdo completo disponível em breve.</p>
       )}
       <p className="mt-6">
-        <Link className={navigationLinkClass()} href={`/cursos/${courseSlug}`}>
+        <Link className={navigationLinkClass()} href={courseHref(courseSlug, authenticated)}>
           Ver o curso
         </Link>
       </p>

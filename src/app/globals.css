@@ -96,6 +96,51 @@ body {
   background: rgba(11, 18, 32, 0.46);
 }
 
+.study-desk-dialog {
+  margin: auto;
+  width: min(100% - 1.5rem, 40rem);
+  max-width: 100%;
+  max-height: min(92dvh, 52rem);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 0;
+  background: var(--background);
+  color: var(--foreground);
+  overflow: hidden;
+}
+
+.study-desk-dialog::backdrop {
+  background: rgba(11, 18, 32, 0.46);
+}
+
+.study-desk-dialog__sheet {
+  display: flex;
+  max-height: min(92dvh, 52rem);
+  flex-direction: column;
+}
+
+.study-desk-dialog__body {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 639px) {
+  .study-desk-dialog {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+  }
+
+  .study-desk-dialog__sheet {
+    max-height: 100dvh;
+    height: 100dvh;
+  }
+}
+
 summary {
   list-style: none;
   cursor: pointer;

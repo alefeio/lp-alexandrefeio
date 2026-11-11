@@ -117,7 +117,9 @@ test("a mesa só lê os registros do usuário e continua dentro de Meus cursos",
   assert.match(page, /Mesa de estudo/);
   assert.match(hub, /Abrir Mesa de estudo/);
   assert.match(reader, /Mesa de estudo/);
-  assert.equal(activeStudentItem("/app/aprendizado/mesa"), "cursos");
+  assert.match(reader, /StudyDeskModal/);
+  assert.equal(activeStudentItem("/app/aprendizado/mesa"), "mesa");
+  assert.equal(activeStudentItem("/app/aprendizado"), "cursos");
   const desk = studyDeskFromRecords("aluno", [note()], [review()]);
   const html = renderToStaticMarkup(createElement(StudyDesk, { desk, area: "notas" }));
   assert.match(html, /line-clamp-4/);

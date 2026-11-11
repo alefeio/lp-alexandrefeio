@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StudyDesk } from "@/components/learning/StudyDesk";
+import { StudyDeskPageClient } from "@/components/learning/StudyDeskPageClient";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
 import { loadStudyDesk } from "@/lib/learning/load-study-desk";
@@ -19,7 +19,7 @@ export default async function StudyDeskPage({ searchParams }: { searchParams: Pr
 
   return (
     <Container className="max-w-3xl">
-      <StudyDesk desk={desk} area={parseStudyDeskArea(query.area)} />
+      <StudyDeskPageClient desk={desk} area={parseStudyDeskArea(query.area)} />
     </Container>
   );
 }
