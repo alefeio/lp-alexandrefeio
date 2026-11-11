@@ -87,6 +87,8 @@ import { blockKeyFromHash } from "@/lib/learning/lesson-hash";
 import { buildLessonStages, firstPendingStageId, resumeStageId, stageContaining, stageIndexById } from "@/lib/learning/lesson-stages";
 import { nextLessonContinuationLabel } from "@/lib/learning/lesson-nav";
 import { blockKindLabel, blockPanelClass } from "@/components/learning/classroom/block-panel";
+import { StudyDeskModal } from "@/components/learning/StudyDeskModal";
+import { savePersonalNote } from "@/lib/learning/personal-notes";
 
 type ToolPanel =
   | TrafficToolPanel
@@ -173,6 +175,7 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     return Array.from({ length: index + 1 }, (_, item) => item);
   });
   const [stagesOpen, setStagesOpen] = useState(false);
+  const [deskOpen, setDeskOpen] = useState(false);
 
   useEffect(() => {
     if (preview) return;
@@ -562,10 +565,21 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
     });
   }
 
-  function onNote(blockKey: string, body: string) {
+  function onNote(blockKey: string, body: string, linkToLesson = true) {
     if (preview) return;
     if (!authenticated) return;
+    setMessage(null);
     startTransition(async () => {
+      if (!linkToLesson) {
+        if (!body.trim()) {
+          setMessage("A nota precisa de texto.");
+          return;
+        }
+        const result = await savePersonalNote({ body, linkToLessonSlug: null, blockKey: null });
+        if (!result.ok) setMessage(result.message);
+        else setMessage("Nota pessoal salva na Mesa de estudo.");
+        return;
+      }
       const result = body.trim() ? await saveNote(lesson.slug, blockKey, body) : await deleteNote(lesson.slug, blockKey);
       if (!result.ok) setMessage(result.message);
       else setSnapshot(result.snapshot);
@@ -609,7 +623,9 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
       <div className="classroom-sidebar">
         {authenticated ? (
           <div className="classroom-sidebar__tools">
-            <Link className={navigationLinkClass()} href="/app/aprendizado/mesa">Mesa de estudo</Link>
+            <button type="button" className={navigationLinkClass()} onClick={() => setDeskOpen(true)}>
+              Mesa de estudo
+            </button>
           </div>
         ) : null}
         <button type="button" className={`${buttonClass("secondary")} w-full lg:hidden`} aria-expanded={stagesOpen} onClick={() => setStagesOpen((open) => !open)}>
@@ -621,17 +637,11 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
             activeId={activeStage?.id ?? ""}
             openedIndexes={openedIndexes}
             onSelect={showStage}
-            courseTitle={lesson.courseTitle}
-            moduleTitle={lesson.moduleTitle}
           />
         </div>
       </div>
       <article className="classroom-main">
         <header className="classroom-header">
-        <p className="classroom-header__meta">
-          <Link className="underline underline-offset-4" href={`/cursos/${lesson.courseSlug}`}>{lesson.courseTitle}</Link>
-          {lesson.moduleTitle ? ` · ${lesson.moduleTitle}` : ""}
-        </p>
         <h1 className="classroom-header__title">{lesson.title}</h1>
         {stages.length > 0 ? (
           <div className="classroom-header__stage">
@@ -852,6 +862,20 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
         ) : null}
       </article>
     </div>
+    {authenticated ? (
+      <StudyDeskModal
+        open={deskOpen}
+        onClose={() => setDeskOpen(false)}
+        currentLessonSlug={lesson.slug}
+        onOpenCurrentLesson={(target) => {
+          const stage = target.blockKey ? stageContaining(stages, target.blockKey) : null;
+          if (stage) showStage(stage.id);
+          if (target.blockKey) {
+            window.requestAnimationFrame(() => focusBlock(target.blockKey as string));
+          }
+        }}
+      />
+    ) : null}
     </div>
   );
 }
@@ -867,7 +891,7 @@ function BlockView(props: {
   onActivity: (blockKey: string, text: string) => void;
   onChecklist: (blockKey: string, checkedIds: string[], complete: boolean) => void;
   onResult: (values: Record<string, string>, blockKey: string) => void;
-  onNote: (blockKey: string, body: string) => void;
+  onNote: (blockKey: string, body: string, linkToLesson?: boolean) => void;
   onBookmark: (blockKey: string) => void;
   toolPanel: ToolPanel;
   onToolLinked: (snapshot: LessonSnapshot) => void;
@@ -1430,9 +1454,10 @@ function NoteField({
   blockKey: string;
   initial: string;
   pending: boolean;
-  onSave: (blockKey: string, body: string) => void;
+  onSave: (blockKey: string, body: string, linkToLesson?: boolean) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [linkToLesson, setLinkToLesson] = useState(true);
   const hasNote = initial.trim().length > 0;
 
   if (!editing && !hasNote) {
@@ -1449,12 +1474,13 @@ function NoteField({
     return (
       <div className="mt-6" aria-label="Nota privada">
         <p className="text-sm font-medium">Minha nota</p>
+        <p className="mt-1 text-xs text-muted">Vinculada a este trecho da aula</p>
         <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-foreground">{initial}</p>
         <div className="mt-3 flex gap-4">
           <button type="button" className="text-sm underline underline-offset-4" onClick={() => setEditing(true)}>
             Editar
           </button>
-          <button type="button" className="text-sm underline underline-offset-4" onClick={() => onSave(blockKey, "")} disabled={pending}>
+          <button type="button" className="text-sm underline underline-offset-4" onClick={() => onSave(blockKey, "", true)} disabled={pending}>
             Excluir
           </button>
         </div>
@@ -1469,8 +1495,10 @@ function NoteField({
       onSubmit={(event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
-        onSave(blockKey, String(form.get("nota") ?? ""));
+        const linked = hasNote ? true : linkToLesson;
+        onSave(blockKey, String(form.get("nota") ?? ""), linked);
         setEditing(false);
+        setLinkToLesson(true);
       }}
     >
       <label className="text-sm font-medium" htmlFor={`nota-${blockKey}`}>
@@ -1481,9 +1509,16 @@ function NoteField({
         name="nota"
         rows={3}
         required
+        maxLength={2000}
         defaultValue={initial}
         className="mt-2 w-full rounded-lg border border-border bg-white px-3 py-3 text-base leading-relaxed"
       />
+      {!hasNote ? (
+        <label className="mt-3 flex items-start gap-2 text-sm leading-relaxed">
+          <input type="checkbox" className="mt-1" checked={linkToLesson} onChange={(event) => setLinkToLesson(event.target.checked)} />
+          <span>Vincular à aula atual</span>
+        </label>
+      ) : null}
       <div className="mt-3 flex gap-3">
         <button className={buttonClass("secondary")} type="submit" disabled={pending}>
           Salvar nota

@@ -41,6 +41,7 @@ import { loadMetaCampaignPanel } from "@/lib/learning/meta-campaign-plan";
 import { loadResponsiveAdPanel } from "@/lib/learning/responsive-ad-plan";
 import { loadSearchBlueprintPanel } from "@/lib/learning/search-campaign";
 import { loadTrafficToolPanel } from "@/lib/learning/tool";
+import { courseHref } from "@/lib/learning/course-href";
 import { breadcrumbList, lessonJsonLd } from "@/lib/seo/learning-jsonld";
 
 export const dynamic = "force-dynamic";
@@ -85,7 +86,9 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
 
   if (allowed) {
     const blocks = await loadLessonBlocks(page.lesson.id, "full");
-    if (blocks.length === 0) return <LessonGate lesson={page.lesson} hasBody={false} entitled={entitled} />;
+    if (blocks.length === 0) {
+      return <LessonGate lesson={page.lesson} hasBody={false} entitled={entitled} authenticated={Boolean(session)} />;
+    }
     return (
       <FullLesson
         lesson={page.lesson}
@@ -128,7 +131,7 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
             />
           </>
         ) : null}
-        <LessonChrome lesson={page.lesson} paid place={neighbors.place} />
+        <LessonChrome lesson={page.lesson} paid place={neighbors.place} authenticated={Boolean(session?.user)} />
         <PublicLessonArticle blocks={page.blocks} />
         <LessonPaywall
           lessonId={page.lesson.id}
@@ -144,13 +147,21 @@ export default async function LessonPage({ params, searchParams }: PageProps) {
           courseForSale={isProductForSale(page.lesson.courseCommerceStatus, page.lesson.coursePriceCents, commerce)}
           moduleId={page.lesson.moduleId}
           courseId={page.lesson.courseId}
+          authenticated={Boolean(session?.user)}
         />
-        <LessonNeighbors courseSlug={page.lesson.courseSlug} courseTitle={page.lesson.courseTitle} previous={neighbors.previous} next={neighbors.next} tone="text" />
+        <LessonNeighbors
+          courseSlug={page.lesson.courseSlug}
+          courseTitle={page.lesson.courseTitle}
+          previous={neighbors.previous}
+          next={neighbors.next}
+          tone="text"
+          authenticated={Boolean(session?.user)}
+        />
       </Container>
     );
   }
 
-  return <LessonGate lesson={page.lesson} hasBody={page.hasBody} entitled={entitled} />;
+  return <LessonGate lesson={page.lesson} hasBody={page.hasBody} entitled={entitled} authenticated={Boolean(session)} />;
 }
 
 async function FullLesson({
@@ -244,12 +255,13 @@ async function FullLesson({
           />
         </>
       ) : null}
-      <Container className="max-w-6xl px-5 pt-10 sm:px-8">
-        <LessonTrail lesson={lesson} />
-        <LessonPlace courseTitle={lesson.courseTitle} moduleTitle={lesson.moduleTitle} place={neighbors.place} />
-        <p className="mt-4 text-sm">
-          Conteúdo por <Link className="underline underline-offset-4" href="/#sobre">Alexandre Feio</Link>. Aula gratuita.
-        </p>
+      <Container className="max-w-6xl px-5 pt-8 sm:px-8">
+        <LessonContextBar
+          lesson={lesson}
+          place={neighbors.place}
+          authenticated={authenticated}
+          accessLabel={lesson.accessType === "FREE" ? "Aula gratuita" : "Aula paga"}
+        />
       </Container>
       <LessonReader
         lesson={{
@@ -275,6 +287,11 @@ async function FullLesson({
           next: neighbors.next,
         }}
       />
+      <Container className="max-w-6xl px-5 pb-10 sm:px-8">
+        <p className="text-sm text-muted">
+          Conteúdo por <Link className="underline underline-offset-4" href="/#sobre">Alexandre Feio</Link>.
+        </p>
+      </Container>
     </>
   );
 }
@@ -301,43 +318,29 @@ function presentNeighbor(
   };
 }
 
-function LessonTrail({ lesson }: { lesson: PublicLesson }) {
-  return (
-    <nav aria-label="Trilha" className="text-sm text-muted">
-      <ol className="flex flex-wrap gap-x-2 gap-y-1">
-        <li>
-          <Link className="underline underline-offset-4" href="/">
-            Home
-          </Link>
-        </li>
-        <li aria-hidden="true">→</li>
-        <li>
-          <Link className="underline underline-offset-4" href={`/cursos/${lesson.courseSlug}`}>
-            {lesson.courseTitle}
-          </Link>
-        </li>
-        <li aria-hidden="true">→</li>
-        <li className="text-foreground">{lesson.title}</li>
-      </ol>
-    </nav>
-  );
-}
-
-function LessonPlace({
-  courseTitle,
-  moduleTitle,
+/** Breadcrumb compacto: curso (link contextual) · módulo · posição. Sem Home nem título da aula. */
+function LessonContextBar({
+  lesson,
   place,
+  authenticated,
+  accessLabel,
 }: {
-  courseTitle: string;
-  moduleTitle: string;
+  lesson: PublicLesson;
   place: { number: number; total: number } | null;
+  authenticated: boolean;
+  accessLabel?: string;
 }) {
   return (
-    <p className="mt-4 text-sm leading-relaxed text-foreground">
-      <span className="font-medium">{courseTitle}</span>
-      <span className="text-muted"> · {moduleTitle}</span>
-      {place ? <span className="text-muted"> · Aula {place.number} de {place.total}</span> : null}
-    </p>
+    <nav aria-label="Aula" className="text-sm leading-relaxed text-muted">
+      <p>
+        <Link className="font-medium text-foreground underline underline-offset-4" href={courseHref(lesson.courseSlug, authenticated)}>
+          {lesson.courseTitle}
+        </Link>
+        <span> · {lesson.moduleTitle}</span>
+        {place ? <span> · Aula {place.number} de {place.total}</span> : null}
+        {accessLabel ? <span> · {accessLabel}</span> : null}
+      </p>
+    </nav>
   );
 }
 
@@ -345,23 +348,25 @@ function LessonChrome({
   lesson,
   paid,
   place,
+  authenticated,
 }: {
   lesson: PublicLesson;
   paid: boolean;
   place: { number: number; total: number } | null;
+  authenticated: boolean;
 }) {
   return (
     <>
-      <LessonTrail lesson={lesson} />
-      <LessonPlace courseTitle={lesson.courseTitle} moduleTitle={lesson.moduleTitle} place={place} />
-      <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-cta">{lesson.moduleTitle}</p>
-      <h1 className="mt-3 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">{lesson.title}</h1>
+      <LessonContextBar
+        lesson={lesson}
+        place={place}
+        authenticated={authenticated}
+        accessLabel={paid ? "Aula paga" : "Aula gratuita"}
+      />
+      <h1 className="mt-6 text-[1.85rem] font-semibold leading-[1.15] tracking-tight sm:text-4xl">{lesson.title}</h1>
       <p className="mt-4 text-base leading-relaxed">{lesson.summary}</p>
-      <p className="mt-3 text-sm text-muted">
-        {lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min` : "Leitura"}
-        {paid ? " · Aula paga" : " · Aula gratuita"}
-      </p>
-      <p className="mt-3 text-sm">
+      <p className="mt-3 text-sm text-muted">{lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min` : "Leitura"}</p>
+      <p className="mt-6 text-sm text-muted">
         Conteúdo por <Link className="underline underline-offset-4" href="/#sobre">Alexandre Feio</Link>.
       </p>
     </>
@@ -374,6 +379,7 @@ function LessonNeighbors({
   previous,
   next,
   tone = "steps",
+  authenticated,
 }: {
   courseSlug: string;
   courseTitle: string;
@@ -381,22 +387,26 @@ function LessonNeighbors({
   next: { slug: string; title: string; access?: "open" | "preview" } | null;
   /** No paywall, avançar não pode competir com a compra. */
   tone?: "steps" | "text";
+  authenticated: boolean;
 }) {
   const freeFunnelEnd = tone === "steps" && courseSlug === "sites-que-convertem" && !next;
   const nextIsPreview = next?.access === "preview";
   const steps = lessonStepNav({ previous, next: nextIsPreview ? null : next });
+  const coursePath = courseHref(courseSlug, authenticated);
   return (
     <nav aria-label="Aulas próximas" className="mt-12 text-sm">
       <p>
-        <Link className={navigationLinkClass()} href={`/cursos/${courseSlug}`} aria-label={`Voltar ao curso ${courseTitle}`}>
+        <Link className={navigationLinkClass()} href={coursePath} aria-label={`Voltar ao curso ${courseTitle}`}>
           Voltar ao curso
         </Link>
       </p>
-      <p>
-        <Link className={navigationLinkClass()} href="/app/aprendizado">
-          Voltar aos meus cursos
-        </Link>
-      </p>
+      {authenticated ? (
+        <p>
+          <Link className={navigationLinkClass()} href="/app/aprendizado">
+            Voltar aos meus cursos
+          </Link>
+        </p>
+      ) : null}
       {freeFunnelEnd ? (
         <aside className="mt-6 rounded-lg border border-border bg-surface px-5 py-4">
           <p className="font-medium">Você concluiu a etapa gratuita.</p>
@@ -404,7 +414,7 @@ function LessonNeighbors({
             Agora você já mapeou sua jornada, definiu a estrutura mais adequada e identificou os principais pontos de atenção.
           </p>
           <p className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <Link className={buttonClass("primary")} href={`/cursos/${courseSlug}`}>
+            <Link className={buttonClass("primary")} href={coursePath}>
               Ver a formação
             </Link>
             <Link className={navigationLinkClass()} href="/cursos">
@@ -446,17 +456,19 @@ function LessonGate({
   lesson,
   hasBody,
   entitled,
+  authenticated,
 }: {
   lesson: PublicLesson;
   hasBody: boolean;
   entitled: boolean;
+  authenticated: boolean;
 }) {
   const paid = lesson.accessType === "PAID";
   const forSale = paid && isProductForSale(lesson.commerceStatus, lesson.priceCents);
   const gate = lessonGateKind({ accessType: lesson.accessType, entitled, forSale, hasBody });
   return (
     <Container className="max-w-2xl py-16">
-      <LessonChrome lesson={lesson} paid={paid} place={null} />
+      <LessonChrome lesson={lesson} paid={paid} place={null} authenticated={authenticated} />
       <p className="mt-8 text-sm leading-relaxed text-muted">
         {forSale && lesson.priceCents != null ? `${formatPriceCents(lesson.priceCents)}. ` : ""}
         {gate === "soon" ? "Disponível em breve." : null}
