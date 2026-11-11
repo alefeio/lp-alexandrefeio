@@ -637,8 +637,6 @@ export function LessonReader({ lesson, blocks, initial, initialFeedback = {}, au
             activeId={activeStage?.id ?? ""}
             openedIndexes={openedIndexes}
             onSelect={showStage}
-            courseTitle={lesson.courseTitle}
-            moduleTitle={lesson.moduleTitle}
           />
         </div>
       </div>

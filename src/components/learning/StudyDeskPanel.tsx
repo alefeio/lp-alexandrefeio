@@ -18,6 +18,10 @@ type Props = {
   currentLessonSlug?: string | null;
   /** Só para item da aula atual: fecha modal e salta para o bloco. */
   onOpenCurrentLesson?: (target: StudyDeskOpenTarget) => void;
+  onEditPersonalNote?: (note: StudyDeskNote) => void;
+  onDeletePersonalNote?: (note: StudyDeskNote) => void;
+  editingPersonalNoteId?: string | null;
+  personalNoteEditor?: React.ReactNode;
   composer?: React.ReactNode;
   headingLevel?: "h1" | "h2";
   showIntro?: boolean;
@@ -29,6 +33,10 @@ export function StudyDeskPanel({
   onAreaChange,
   currentLessonSlug = null,
   onOpenCurrentLesson,
+  onEditPersonalNote,
+  onDeletePersonalNote,
+  editingPersonalNoteId = null,
+  personalNoteEditor = null,
   composer,
   headingLevel = "h1",
   showIntro = true,
@@ -90,14 +98,22 @@ export function StudyDeskPanel({
             </p>
           ) : (
             <ul className="mt-4 space-y-3">
-              {desk.notes.map((note) => (
-                <NoteCard
-                  key={`${note.kind}:${note.id}`}
-                  note={note}
-                  currentLessonSlug={currentLessonSlug}
-                  onOpenCurrentLesson={onOpenCurrentLesson}
-                />
-              ))}
+              {desk.notes.map((note) =>
+                note.kind === "personal" && editingPersonalNoteId === note.id && personalNoteEditor ? (
+                  <li key={`${note.kind}:${note.id}`} className="min-w-0 list-none">
+                    {personalNoteEditor}
+                  </li>
+                ) : (
+                  <NoteCard
+                    key={`${note.kind}:${note.id}`}
+                    note={note}
+                    currentLessonSlug={currentLessonSlug}
+                    onOpenCurrentLesson={onOpenCurrentLesson}
+                    onEditPersonalNote={onEditPersonalNote}
+                    onDeletePersonalNote={onDeletePersonalNote}
+                  />
+                ),
+              )}
             </ul>
           )}
         </section>
@@ -153,10 +169,14 @@ function NoteCard({
   note,
   currentLessonSlug,
   onOpenCurrentLesson,
+  onEditPersonalNote,
+  onDeletePersonalNote,
 }: {
   note: StudyDeskNote;
   currentLessonSlug: string | null;
   onOpenCurrentLesson?: (target: StudyDeskOpenTarget) => void;
+  onEditPersonalNote?: (note: StudyDeskNote) => void;
+  onDeletePersonalNote?: (note: StudyDeskNote) => void;
 }) {
   const sameLesson = Boolean(currentLessonSlug && note.lessonSlug === currentLessonSlug && note.href);
   return (
@@ -167,7 +187,19 @@ function NoteCard({
       {note.sectionFallback ? <p className="mt-2 text-sm text-muted">{note.sectionFallback}</p> : null}
       <p className="mt-3 line-clamp-4 whitespace-pre-wrap break-words text-base leading-relaxed">{note.body}</p>
       <p className="mt-3 text-sm text-muted">{note.updatedLabel}</p>
-      <NoteActions note={note} sameLesson={sameLesson} onOpenCurrentLesson={onOpenCurrentLesson} />
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <NoteActions note={note} sameLesson={sameLesson} onOpenCurrentLesson={onOpenCurrentLesson} />
+        {note.kind === "personal" && onEditPersonalNote ? (
+          <button type="button" className="text-sm underline underline-offset-4" onClick={() => onEditPersonalNote(note)}>
+            Editar
+          </button>
+        ) : null}
+        {note.kind === "personal" && onDeletePersonalNote ? (
+          <button type="button" className="text-sm underline underline-offset-4" onClick={() => onDeletePersonalNote(note)}>
+            Excluir
+          </button>
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -190,7 +222,9 @@ function ReviewCard({
       {review.sectionFallback ? <p className="mt-2 text-sm text-muted">{review.sectionFallback}</p> : null}
       <p className="mt-3 text-sm font-medium">Marcado para revisar</p>
       <p className="mt-2 text-sm text-muted">{review.updatedLabel}</p>
-      <NoteActions note={review} sameLesson={sameLesson} onOpenCurrentLesson={onOpenCurrentLesson} />
+      <div className="mt-4">
+        <NoteActions note={review} sameLesson={sameLesson} onOpenCurrentLesson={onOpenCurrentLesson} />
+      </div>
     </li>
   );
 }
@@ -207,29 +241,25 @@ function NoteActions({
   if (!note.href || !note.lessonSlug) return null;
   if (sameLesson && onOpenCurrentLesson) {
     return (
-      <p className="mt-4">
-        <button
-          type="button"
-          className={buttonClass("secondary")}
-          aria-label={note.linkLabel || "Ir para o trecho nesta aula"}
-          onClick={() =>
-            onOpenCurrentLesson({
-              lessonSlug: note.lessonSlug as string,
-              blockKey: note.blockKey,
-              href: note.href as string,
-            })
-          }
-        >
-          Ir para o trecho
-        </button>
-      </p>
+      <button
+        type="button"
+        className={buttonClass("secondary")}
+        aria-label={note.linkLabel || "Ir para o trecho nesta aula"}
+        onClick={() =>
+          onOpenCurrentLesson({
+            lessonSlug: note.lessonSlug as string,
+            blockKey: note.blockKey,
+            href: note.href as string,
+          })
+        }
+      >
+        Ir para o trecho
+      </button>
     );
   }
   return (
-    <p className="mt-4">
-      <Link className={buttonClass("secondary")} href={note.href} aria-label={note.linkLabel || "Abrir na aula"}>
-        Abrir na aula
-      </Link>
-    </p>
+    <Link className={buttonClass("secondary")} href={note.href} aria-label={note.linkLabel || "Abrir na aula"}>
+      Abrir na aula
+    </Link>
   );
 }

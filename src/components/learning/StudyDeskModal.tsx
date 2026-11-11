@@ -3,8 +3,8 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { buttonClass } from "@/lib/button-styles";
-import { PersonalNoteComposer } from "@/components/learning/PersonalNoteComposer";
-import { StudyDeskPanel, type StudyDeskOpenTarget } from "@/components/learning/StudyDeskPanel";
+import { ManagedStudyDesk } from "@/components/learning/ManagedStudyDesk";
+import type { StudyDeskOpenTarget } from "@/components/learning/StudyDeskPanel";
 import { fetchStudyDesk } from "@/lib/learning/study-desk-actions";
 import type { StudyDesk, StudyDeskArea } from "@/lib/learning/study-desk";
 
@@ -84,24 +84,20 @@ export function StudyDeskModal({ open, onClose, currentLessonSlug, onOpenCurrent
           ) : null}
           {pending && !desk ? <p className="text-sm text-muted">Carregando sua mesa…</p> : null}
           {desk ? (
-            <StudyDeskPanel
+            <ManagedStudyDesk
               desk={desk}
               area={area}
               onAreaChange={setArea}
               currentLessonSlug={currentLessonSlug}
+              composerLessonSlug={currentLessonSlug}
+              composerDefaultLinkToLesson
+              headingLevel="h2"
+              showIntro={false}
+              onReload={reload}
               onOpenCurrentLesson={(target) => {
                 onOpenCurrentLesson(target);
                 onClose();
               }}
-              headingLevel="h2"
-              showIntro={false}
-              composer={
-                <PersonalNoteComposer
-                  lessonSlug={currentLessonSlug}
-                  defaultLinkToLesson
-                  onSaved={reload}
-                />
-              }
             />
           ) : null}
           {!pending && !desk && !error ? (

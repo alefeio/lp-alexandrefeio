@@ -7,10 +7,9 @@ import { canReadLessonBody } from "@/lib/learning/access";
 import { hasActiveEntitlement } from "@/lib/commerce/access";
 import { noteBodySchema, blockKeySchema } from "@/lib/learning/blocks";
 import { ownedByUser, ownedRecord } from "@/lib/learning/ownership";
+import type { PersonalNoteActionResult } from "@/lib/learning/personal-note-form";
 
-export type PersonalNoteActionResult =
-  | { ok: true; note: { id: string; body: string; lessonId: string | null; blockKey: string | null } }
-  | { ok: false; message: string };
+export type { PersonalNoteActionResult };
 
 const optionalLessonSlug = z.string().trim().min(1).max(120).optional().nullable();
 
@@ -42,33 +41,69 @@ async function resolveOptionalLessonLink(userId: string, lessonSlug: string | nu
   return { ok: true as const, lessonId: lesson.id, blockKey: parsedKey.data };
 }
 
-/** Cria ou atualiza nota pessoal. Sem userId do cliente. */
+/** Cria ou atualiza nota pessoal. Sem userId do cliente. Atualização sempre restringe por proprietário. */
 export async function savePersonalNote(input: {
   body: string;
   noteId?: string | null;
   linkToLessonSlug?: string | null;
   blockKey?: string | null;
+  /** Em edição, false (padrão) preserva o vínculo existente. */
+  updateLink?: boolean;
 }): Promise<PersonalNoteActionResult> {
   const userId = await requireUserId();
   if (!userId) return { ok: false, message: "Entre na sua conta para salvar a nota." };
   const parsedBody = noteBodySchema.safeParse(input.body);
   if (!parsedBody.success) return { ok: false, message: "A nota precisa de texto." };
+
+  const prisma = getPrisma();
+  if (input.noteId) {
+    const existing = await prisma.personalNote.findFirst({
+      where: ownedRecord(userId, input.noteId),
+      select: { id: true, lessonId: true, blockKey: true },
+    });
+    if (!existing) return { ok: false, message: "Não foi possível salvar a nota." };
+
+    if (!input.updateLink) {
+      const updated = await prisma.personalNote.updateMany({
+        where: { id: existing.id, userId },
+        data: { body: parsedBody.data },
+      });
+      if (updated.count !== 1) return { ok: false, message: "Não foi possível salvar a nota." };
+      return {
+        ok: true,
+        note: {
+          id: existing.id,
+          body: parsedBody.data,
+          lessonId: existing.lessonId,
+          blockKey: existing.blockKey,
+        },
+      };
+    }
+
+    const slug = optionalLessonSlug.safeParse(input.linkToLessonSlug ?? null);
+    if (!slug.success) return { ok: false, message: "Não foi possível salvar a nota." };
+    const link = await resolveOptionalLessonLink(userId, slug.data, input.blockKey ?? null);
+    if (!link.ok) return link;
+    const updated = await prisma.personalNote.updateMany({
+      where: { id: existing.id, userId },
+      data: { body: parsedBody.data, lessonId: link.lessonId, blockKey: link.blockKey },
+    });
+    if (updated.count !== 1) return { ok: false, message: "Não foi possível salvar a nota." };
+    return {
+      ok: true,
+      note: {
+        id: existing.id,
+        body: parsedBody.data,
+        lessonId: link.lessonId,
+        blockKey: link.blockKey,
+      },
+    };
+  }
+
   const slug = optionalLessonSlug.safeParse(input.linkToLessonSlug ?? null);
   if (!slug.success) return { ok: false, message: "Não foi possível salvar a nota." };
   const link = await resolveOptionalLessonLink(userId, slug.data, input.blockKey ?? null);
   if (!link.ok) return link;
-
-  const prisma = getPrisma();
-  if (input.noteId) {
-    const existing = await prisma.personalNote.findFirst({ where: ownedRecord(userId, input.noteId) });
-    if (!existing) return { ok: false, message: "Não foi possível salvar a nota." };
-    const updated = await prisma.personalNote.update({
-      where: { id: existing.id },
-      data: { body: parsedBody.data, lessonId: link.lessonId, blockKey: link.blockKey },
-      select: { id: true, body: true, lessonId: true, blockKey: true },
-    });
-    return { ok: true, note: updated };
-  }
 
   const created = await prisma.personalNote.create({
     data: {
@@ -92,3 +127,4 @@ export async function deletePersonalNote(noteId: string): Promise<{ ok: true } |
   if (result.count === 0) return { ok: false, message: "Não foi possível excluir a nota." };
   return { ok: true };
 }
+
