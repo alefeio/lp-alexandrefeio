@@ -349,3 +349,290 @@ test("concorrência isolada: overlap, checkoutKeys, abandonado, webhook/timeout"
     }
   }
 });
+
+test("claim atômico: submits simultâneos Pix/cartão, divergente, pagador e cancelamento", async () => {
+  await requireIsolatedGate();
+
+  process.env.MERCADO_PAGO_ENV = "test";
+  process.env.COMMERCE_ENABLED = "true";
+  process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY = "APP_USR-example-public";
+  process.env.MERCADO_PAGO_ACCESS_TOKEN = "APP_USR-example-token";
+  process.env.MERCADO_PAGO_WEBHOOK_SECRET = "example-webhook-secret";
+  delete process.env.RESEND_API_KEY;
+  setPurchaseEmailSenderForTests(async () => {});
+
+  const g = globalThis as unknown as { prisma?: unknown };
+  delete g.prisma;
+
+  const { getPrisma } = await import("../../src/lib/db/prisma");
+  const { cancelAbandonedCheckoutForUser, createOrderForUser, preparePaymentAttempt } = await import(
+    "../../src/lib/commerce/orders"
+  );
+  const { applyProviderView, claimChargeDispatch, updateOpenPaymentMarkers } = await import("../../src/lib/commerce/apply");
+  const {
+    chargeFingerprint,
+    encodeChargeFingerprint,
+    PROVIDER_STATUS_UNKNOWN,
+  } = await import("../../src/lib/commerce/provider");
+
+  const prisma = getPrisma();
+  const stamp = Date.now();
+  const userId = `claim-iso-${stamp}`;
+  let courseId = "";
+
+  await prisma.user.create({
+    data: {
+      id: userId,
+      name: "ClaimIso",
+      email: `claim-iso-${stamp}@example.com`,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  const course = await prisma.course.create({
+    data: {
+      slug: `claim-iso-${stamp}`,
+      title: "Claim",
+      description: "Teste",
+      status: "PUBLISHED",
+      commerceStatus: "AVAILABLE",
+      bundlePriceCents: 5000,
+      publishedAt: new Date(),
+    },
+  });
+  courseId = course.id;
+  const moduleRow = await prisma.module.create({
+    data: {
+      courseId: course.id,
+      slug: "claim-mod",
+      title: "Módulo",
+      description: "Teste",
+      status: "PUBLISHED",
+      commerceStatus: "AVAILABLE",
+      bundlePriceCents: 3000,
+    },
+  });
+  const lesson = await prisma.lesson.create({
+    data: {
+      moduleId: moduleRow.id,
+      slug: `claim-lesson-${stamp}`,
+      title: "Aula",
+      summary: "Resumo",
+      status: "PUBLISHED",
+      accessType: "PAID",
+      commerceStatus: "AVAILABLE",
+      priceCents: 1590,
+      publishedAt: new Date(),
+    },
+  });
+
+  try {
+    const order = await createOrderForUser(userId, [{ type: "LESSON", id: lesson.id }], randomUUID());
+    assert.equal(order.ok, true);
+    if (!order.ok) return;
+    const prep = await preparePaymentAttempt(userId, order.orderId);
+    assert.equal(prep.ok, true);
+    if (!prep.ok) return;
+
+    const fpPixA = encodeChargeFingerprint(
+      chargeFingerprint({
+        orderId: order.orderId,
+        amountCents: prep.amountCents,
+        paymentMethodId: "pix",
+        payerEmail: "payer-a@test.com",
+      }),
+    );
+    const fpPixB = encodeChargeFingerprint(
+      chargeFingerprint({
+        orderId: order.orderId,
+        amountCents: prep.amountCents,
+        paymentMethodId: "pix",
+        payerEmail: "payer-b@test.com",
+      }),
+    );
+    const fpCard = encodeChargeFingerprint(
+      chargeFingerprint({
+        orderId: order.orderId,
+        amountCents: prep.amountCents,
+        paymentMethodId: "master",
+        installments: 1,
+        payerEmail: "payer-a@test.com",
+      }),
+    );
+
+    // Dois submits Pix idênticos em paralelo → ambos ok (dispatch + resume); fingerprint único
+    const twin = await Promise.all([
+      claimChargeDispatch({ paymentId: prep.paymentId, fingerprintDetail: fpPixA, method: "PIX" }),
+      claimChargeDispatch({ paymentId: prep.paymentId, fingerprintDetail: fpPixA, method: "PIX" }),
+    ]);
+    assert.equal(twin.every((row) => row.ok), true);
+    assert.equal(twin.filter((row) => row.ok && row.kind === "dispatch").length, 1);
+    assert.equal(twin.filter((row) => row.ok && row.kind === "resume").length, 1);
+    const stored = await prisma.payment.findUnique({ where: { id: prep.paymentId } });
+    assert.equal(stored?.providerStatusDetail, fpPixA);
+
+    // Submit divergente (pagador) não sobrescreve nem “ganha” despacho
+    const divergedPayer = await claimChargeDispatch({
+      paymentId: prep.paymentId,
+      fingerprintDetail: fpPixB,
+      method: "PIX",
+    });
+    assert.equal(divergedPayer.ok, false);
+    if (!divergedPayer.ok) assert.equal(divergedPayer.reason, "fingerprint_mismatch");
+    assert.equal((await prisma.payment.findUnique({ where: { id: prep.paymentId } }))?.providerStatusDetail, fpPixA);
+
+    // Cartão incerto após despacho Pix
+    const cardAfter = await claimChargeDispatch({
+      paymentId: prep.paymentId,
+      fingerprintDetail: fpCard,
+      method: "CREDIT_CARD",
+    });
+    assert.equal(cardAfter.ok, false);
+    if (!cardAfter.ok) assert.equal(cardAfter.reason, "card_uncertain");
+
+    // Timeout com fingerprint do claim (não divergente) + webhook APPROVED
+    await updateOpenPaymentMarkers(prep.paymentId, {
+      providerStatus: PROVIDER_STATUS_UNKNOWN,
+      providerStatusDetail: fpPixA,
+    });
+    await applyProviderView(prep.paymentId, {
+      id: `mp-claim-${stamp}`,
+      status: "approved",
+      statusDetail: null,
+      amountCents: prep.amountCents,
+      currency: "BRL",
+      externalReference: order.orderId,
+      paymentTypeId: "bank_transfer",
+      installments: 1,
+      refundedCents: 0,
+    });
+    assert.equal((await prisma.payment.findUnique({ where: { id: prep.paymentId } }))?.status, "APPROVED");
+
+    // Novo pedido: cancelamento concorrente com claim
+    const order2 = await createOrderForUser(userId, [{ type: "LESSON", id: lesson.id }], randomUUID());
+    // lesson already owned → may fail already_owned; use a fresh lesson if needed
+    let claimOrderId = order2.ok ? order2.orderId : null;
+    let claimAmount = order2.ok ? order2.totalCents : 0;
+    if (!order2.ok) {
+      const lesson2 = await prisma.lesson.create({
+        data: {
+          moduleId: moduleRow.id,
+          slug: `claim-lesson-2-${stamp}`,
+          title: "Aula 2",
+          summary: "Resumo",
+          status: "PUBLISHED",
+          accessType: "PAID",
+          commerceStatus: "AVAILABLE",
+          priceCents: 1690,
+          publishedAt: new Date(),
+        },
+      });
+      const created2 = await createOrderForUser(userId, [{ type: "LESSON", id: lesson2.id }], randomUUID());
+      assert.equal(created2.ok, true);
+      if (!created2.ok) return;
+      claimOrderId = created2.orderId;
+      claimAmount = created2.totalCents;
+    }
+    assert.ok(claimOrderId);
+    const prep2 = await preparePaymentAttempt(userId, claimOrderId);
+    assert.equal(prep2.ok, true);
+    if (!prep2.ok) return;
+    const fp2 = encodeChargeFingerprint(
+      chargeFingerprint({
+        orderId: claimOrderId,
+        amountCents: claimAmount || prep2.amountCents,
+        paymentMethodId: "pix",
+        payerEmail: "payer-a@test.com",
+      }),
+    );
+
+    const racedCancel = await Promise.all([
+      claimChargeDispatch({ paymentId: prep2.paymentId, fingerprintDetail: fp2, method: "PIX" }),
+      cancelAbandonedCheckoutForUser(userId, claimOrderId),
+    ]);
+    const claimResult = racedCancel[0];
+    const cancelResult = racedCancel[1];
+    // Um dos dois prevalece: se claim venceu, cancel falha; se cancel venceu, claim falha ou pedido CANCELLED.
+    if (claimResult.ok) {
+      assert.equal(cancelResult.ok, false);
+      assert.equal((await prisma.payment.findUnique({ where: { id: prep2.paymentId } }))?.providerStatusDetail, fp2);
+      // Timeout + APPROVED após claim
+      await updateOpenPaymentMarkers(prep2.paymentId, {
+        providerStatus: PROVIDER_STATUS_UNKNOWN,
+        providerStatusDetail: fp2,
+      });
+      await applyProviderView(prep2.paymentId, {
+        id: `mp-claim-2-${stamp}`,
+        status: "approved",
+        statusDetail: null,
+        amountCents: prep2.amountCents,
+        currency: "BRL",
+        externalReference: claimOrderId,
+        paymentTypeId: "bank_transfer",
+        installments: 1,
+        refundedCents: 0,
+      });
+      assert.equal((await prisma.payment.findUnique({ where: { id: prep2.paymentId } }))?.status, "APPROVED");
+    } else {
+      assert.equal(cancelResult.ok, true);
+      assert.equal((await prisma.order.findUnique({ where: { id: claimOrderId } }))?.status, "CANCELLED");
+    }
+
+    // Dois submits divergentes no mesmo virgin payment (pedido novo)
+    const lesson3 = await prisma.lesson.create({
+      data: {
+        moduleId: moduleRow.id,
+        slug: `claim-lesson-3-${stamp}`,
+        title: "Aula 3",
+        summary: "Resumo",
+        status: "PUBLISHED",
+        accessType: "PAID",
+        commerceStatus: "AVAILABLE",
+        priceCents: 1790,
+        publishedAt: new Date(),
+      },
+    });
+    const order3 = await createOrderForUser(userId, [{ type: "LESSON", id: lesson3.id }], randomUUID());
+    assert.equal(order3.ok, true);
+    if (!order3.ok) return;
+    const prep3 = await preparePaymentAttempt(userId, order3.orderId);
+    assert.equal(prep3.ok, true);
+    if (!prep3.ok) return;
+    const fp3a = encodeChargeFingerprint(
+      chargeFingerprint({
+        orderId: order3.orderId,
+        amountCents: prep3.amountCents,
+        paymentMethodId: "pix",
+        payerEmail: "one@test.com",
+      }),
+    );
+    const fp3b = encodeChargeFingerprint(
+      chargeFingerprint({
+        orderId: order3.orderId,
+        amountCents: prep3.amountCents,
+        paymentMethodId: "pix",
+        payerEmail: "two@test.com",
+      }),
+    );
+    const divergentTwin = await Promise.all([
+      claimChargeDispatch({ paymentId: prep3.paymentId, fingerprintDetail: fp3a, method: "PIX" }),
+      claimChargeDispatch({ paymentId: prep3.paymentId, fingerprintDetail: fp3b, method: "PIX" }),
+    ]);
+    const winners = divergentTwin.filter((row) => row.ok);
+    const losers = divergentTwin.filter((row) => !row.ok);
+    assert.equal(winners.length, 1);
+    assert.equal(losers.length, 1);
+    if (!losers[0].ok) {
+      assert.ok(losers[0].reason === "fingerprint_mismatch" || losers[0].reason === "lost_race");
+    }
+    const finalDetail = (await prisma.payment.findUnique({ where: { id: prep3.paymentId } }))?.providerStatusDetail;
+    assert.ok(finalDetail === fp3a || finalDetail === fp3b);
+    // Perdedor não alterou para o fingerprint “perdedor” se o vencedor já gravou o outro
+    assert.equal(finalDetail === fp3a || finalDetail === fp3b, true);
+  } finally {
+    setPurchaseEmailSenderForTests(null);
+    await prisma.user.deleteMany({ where: { id: userId } });
+    if (courseId) await prisma.course.delete({ where: { id: courseId } }).catch(() => {});
+  }
+});

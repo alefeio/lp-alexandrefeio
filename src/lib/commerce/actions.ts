@@ -10,7 +10,12 @@ import {
   preparePaymentAttempt,
   quoteForUser,
 } from "@/lib/commerce/orders";
-import { applyProviderView, reconcileMercadoPagoPayment, updateOpenPaymentMarkers } from "@/lib/commerce/apply";
+import {
+  applyProviderView,
+  claimChargeDispatch,
+  reconcileMercadoPagoPayment,
+  updateOpenPaymentMarkers,
+} from "@/lib/commerce/apply";
 import {
   acceptedMethod,
   chargeFingerprint,
@@ -116,28 +121,20 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     amountCents: prepared.amountCents,
     paymentMethodId: parsed.data.paymentMethodId,
     installments: parsed.data.installments,
+    payerEmail: parsed.data.payerEmail,
+    identificationType: parsed.data.identificationType,
+    identificationNumber: parsed.data.identificationNumber,
   });
   const fingerprintDetail = encodeChargeFingerprint(fingerprint);
 
-  if (prepared.mode === "resume_idempotent") {
-    if (method !== "PIX") {
-      return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "payment_uncertain" as const };
-    }
-    if (prepared.storedFingerprint && prepared.storedFingerprint !== fingerprint) {
-      return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "fingerprint_mismatch" as const };
-    }
-  }
-
-  if (prepared.storedFingerprint && prepared.storedFingerprint !== fingerprint) {
-    return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "fingerprint_mismatch" as const };
-  }
-
-  const dispatched = await updateOpenPaymentMarkers(prepared.paymentId, {
-    providerStatus: PROVIDER_STATUS_DISPATCHED,
-    providerStatusDetail: fingerprintDetail,
+  // Claim atômico: só o vencedor (ou retomada Pix idêntica) chama o provedor.
+  const claimed = await claimChargeDispatch({
+    paymentId: prepared.paymentId,
+    fingerprintDetail,
+    method,
   });
-  if (!dispatched.updated) {
-    if (dispatched.currentStatus === "APPROVED") {
+  if (!claimed.ok) {
+    if (claimed.reason === "approved") {
       return {
         ok: true as const,
         status: "APPROVED",
@@ -145,6 +142,9 @@ export async function payOrderAction(orderId: string, raw: unknown) {
         message: "Este pagamento já foi confirmado.",
         code: "already_confirmed" as const,
       };
+    }
+    if (claimed.reason === "fingerprint_mismatch") {
+      return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "fingerprint_mismatch" as const };
     }
     return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "payment_uncertain" as const };
   }

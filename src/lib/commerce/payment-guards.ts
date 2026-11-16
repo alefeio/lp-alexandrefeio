@@ -106,6 +106,44 @@ export function planDispatchMarker(row: PaymentRowLike, fingerprintDetail: strin
   };
 }
 
+export type DispatchClaimDecision =
+  | { kind: "dispatch" }
+  | { kind: "resume" }
+  | { kind: "deny"; reason: "approved" | "uncertain" | "fingerprint_mismatch" | "card_uncertain" | "not_found" | "not_open" };
+
+/**
+ * Decide se esta tentativa pode chamar o provedor.
+ * Virgem → claim de despacho. Já marcado → só Pix com o mesmo fingerprint (retomada).
+ * Nunca sobrescreve fingerprint de outro despacho em voo.
+ */
+export function decideChargeDispatchClaim(input: {
+  status: InternalPaymentStatus | string | null;
+  providerStatus: string | null;
+  providerStatusDetail: string | null;
+  providerPaymentId: string | null;
+  fingerprintDetail: string;
+  method: "PIX" | "CREDIT_CARD";
+}): DispatchClaimDecision {
+  if (!input.status) return { kind: "deny", reason: "not_found" };
+  if (input.status === "APPROVED") return { kind: "deny", reason: "approved" };
+  if (input.status !== "PENDING" && input.status !== "IN_PROCESS") {
+    return { kind: "deny", reason: "not_open" };
+  }
+  if (input.providerPaymentId) return { kind: "deny", reason: "uncertain" };
+
+  const marked =
+    input.providerStatus === PROVIDER_STATUS_DISPATCHED || input.providerStatus === PROVIDER_STATUS_UNKNOWN;
+  if (marked) {
+    if (input.method !== "PIX") return { kind: "deny", reason: "card_uncertain" };
+    if (input.providerStatusDetail !== input.fingerprintDetail) {
+      return { kind: "deny", reason: "fingerprint_mismatch" };
+    }
+    return { kind: "resume" };
+  }
+
+  return { kind: "dispatch" };
+}
+
 export function productKey(type: string, id: string): string {
   return `${type}:${id}`;
 }

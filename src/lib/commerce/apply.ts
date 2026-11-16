@@ -1,7 +1,11 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { sendPurchaseConfirmationIfNeeded } from "@/lib/commerce/orders";
-import { mayOverwritePaymentStatus, shouldIgnoreStaleProviderStatus } from "@/lib/commerce/payment-guards";
-import { fetchProviderPayment } from "@/lib/commerce/provider";
+import {
+  decideChargeDispatchClaim,
+  mayOverwritePaymentStatus,
+  shouldIgnoreStaleProviderStatus,
+} from "@/lib/commerce/payment-guards";
+import { fetchProviderPayment, PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN } from "@/lib/commerce/provider";
 import { reconcileDecision, type InternalPaymentStatus, type ProviderPaymentView } from "@/lib/commerce/reconcile";
 
 export async function reconcileMercadoPagoPayment(providerPaymentId: string) {
@@ -142,6 +146,15 @@ export async function updateOpenPaymentMarkers(
     if (status !== "PENDING" && status !== "IN_PROCESS") {
       return { updated: false, currentStatus: status };
     }
+    // Timeout/unknown não pode sobrescrever fingerprint de outro despacho em voo com payload diferente.
+    if (
+      data.providerStatus === PROVIDER_STATUS_UNKNOWN &&
+      row.providerStatusDetail &&
+      row.providerStatusDetail !== data.providerStatusDetail &&
+      (row.providerStatus === PROVIDER_STATUS_DISPATCHED || row.providerStatus === PROVIDER_STATUS_UNKNOWN)
+    ) {
+      return { updated: false, currentStatus: status };
+    }
     const updated = await tx.payment.updateMany({
       where: { id: paymentId, status: { in: ["PENDING", "IN_PROCESS"] } },
       data: {
@@ -151,5 +164,108 @@ export async function updateOpenPaymentMarkers(
       },
     });
     return { updated: updated.count === 1, currentStatus: status };
+  });
+}
+
+export type ClaimChargeDispatchResult =
+  | { ok: true; kind: "dispatch" | "resume"; currentStatus: InternalPaymentStatus }
+  | {
+      ok: false;
+      reason: "approved" | "uncertain" | "fingerprint_mismatch" | "card_uncertain" | "not_found" | "not_open" | "lost_race";
+      currentStatus: InternalPaymentStatus | null;
+    };
+
+/**
+ * Reivindica atomicamente o direito de chamar o provedor nesta tentativa.
+ * O perdedor da corrida não envia cobrança divergente.
+ */
+export async function claimChargeDispatch(input: {
+  paymentId: string;
+  fingerprintDetail: string;
+  method: "PIX" | "CREDIT_CARD";
+}): Promise<ClaimChargeDispatchResult> {
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" = ${input.paymentId} FOR UPDATE`;
+    const row = await tx.payment.findUnique({ where: { id: input.paymentId } });
+    if (!row) return { ok: false as const, reason: "not_found" as const, currentStatus: null };
+
+    const decision = decideChargeDispatchClaim({
+      status: row.status,
+      providerStatus: row.providerStatus,
+      providerStatusDetail: row.providerStatusDetail,
+      providerPaymentId: row.providerPaymentId,
+      fingerprintDetail: input.fingerprintDetail,
+      method: input.method,
+    });
+
+    if (decision.kind === "deny") {
+      return {
+        ok: false as const,
+        reason: decision.reason,
+        currentStatus: row.status as InternalPaymentStatus,
+      };
+    }
+
+    if (decision.kind === "resume") {
+      return {
+        ok: true as const,
+        kind: "resume" as const,
+        currentStatus: row.status as InternalPaymentStatus,
+      };
+    }
+
+    // Claim exclusivo: só grava se ainda não houver marker de despacho/incerteza.
+    const claimed = await tx.payment.updateMany({
+      where: {
+        id: input.paymentId,
+        status: { in: ["PENDING", "IN_PROCESS"] },
+        providerPaymentId: null,
+        OR: [{ providerStatus: null }, { providerStatus: { notIn: [PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN] } }],
+      },
+      data: {
+        providerStatus: PROVIDER_STATUS_DISPATCHED,
+        providerStatusDetail: input.fingerprintDetail,
+      },
+    });
+
+    if (claimed.count === 1) {
+      return {
+        ok: true as const,
+        kind: "dispatch" as const,
+        currentStatus: row.status as InternalPaymentStatus,
+      };
+    }
+
+    // Corrida: outro worker gravou o marker. Reavalia sem sobrescrever.
+    const again = await tx.payment.findUnique({ where: { id: input.paymentId } });
+    if (!again) return { ok: false as const, reason: "not_found" as const, currentStatus: null };
+    const retry = decideChargeDispatchClaim({
+      status: again.status,
+      providerStatus: again.providerStatus,
+      providerStatusDetail: again.providerStatusDetail,
+      providerPaymentId: again.providerPaymentId,
+      fingerprintDetail: input.fingerprintDetail,
+      method: input.method,
+    });
+    if (retry.kind === "resume") {
+      return {
+        ok: true as const,
+        kind: "resume" as const,
+        currentStatus: again.status as InternalPaymentStatus,
+      };
+    }
+    if (retry.kind === "deny") {
+      return {
+        ok: false as const,
+        reason: retry.reason,
+        currentStatus: again.status as InternalPaymentStatus,
+      };
+    }
+    return {
+      ok: false as const,
+      reason: "lost_race" as const,
+      currentStatus: again.status as InternalPaymentStatus,
+    };
   });
 }

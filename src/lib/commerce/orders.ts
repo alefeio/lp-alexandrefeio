@@ -212,8 +212,25 @@ export async function cancelAbandonedCheckoutForUser(userId: string, orderId: st
       },
     });
     if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
-    if (!canCancelAbandonedCheckout({ orderStatus: order.status, payments: order.payments })) {
-      const uncertain = order.payments.some(
+
+    // Bloqueia linhas de pagamento abertas para serializar com claimChargeDispatch.
+    const openIds = order.payments
+      .filter((payment) => payment.status === "PENDING" || payment.status === "IN_PROCESS")
+      .map((payment) => payment.id);
+    if (openIds.length > 0) {
+      await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" IN (${Prisma.join(openIds)}) FOR UPDATE`;
+    }
+
+    const lockedPayments =
+      openIds.length === 0
+        ? order.payments
+        : await tx.payment.findMany({
+            where: { orderId: order.id },
+            select: { id: true, status: true, providerStatus: true, providerPaymentId: true },
+          });
+
+    if (!canCancelAbandonedCheckout({ orderStatus: order.status, payments: lockedPayments })) {
+      const uncertain = lockedPayments.some(
         (payment) =>
           Boolean(payment.providerPaymentId) || isUncertainProviderStatus(payment.providerStatus),
       );
@@ -226,15 +243,30 @@ export async function cancelAbandonedCheckoutForUser(userId: string, orderId: st
       };
     }
 
-    await tx.payment.updateMany({
-      where: {
-        orderId: order.id,
-        status: { in: ["PENDING", "IN_PROCESS"] },
-        providerPaymentId: null,
-        OR: [{ providerStatus: null }, { providerStatus: { notIn: ["charge_dispatched", "outcome_unknown"] } }],
-      },
-      data: { status: "CANCELLED", providerStatus: "checkout_abandoned" },
-    });
+    const openVirginIds = lockedPayments
+      .filter((payment) => payment.status === "PENDING" || payment.status === "IN_PROCESS")
+      .map((payment) => payment.id);
+
+    if (openVirginIds.length > 0) {
+      const cancelledPayments = await tx.payment.updateMany({
+        where: {
+          id: { in: openVirginIds },
+          status: { in: ["PENDING", "IN_PROCESS"] },
+          providerPaymentId: null,
+          OR: [{ providerStatus: null }, { providerStatus: { notIn: ["charge_dispatched", "outcome_unknown"] } }],
+        },
+        data: { status: "CANCELLED", providerStatus: "checkout_abandoned" },
+      });
+      // Se um claim gravou charge_dispatched entre o read e o update, aborta sem cancelar o pedido.
+      if (cancelledPayments.count !== openVirginIds.length) {
+        return {
+          ok: false as const,
+          message: UNCERTAIN_PAYMENT_MESSAGE,
+          code: "payment_uncertain" as const,
+        };
+      }
+    }
+
     const cancelled = await tx.order.updateMany({
       where: { id: order.id, userId, status: "PENDING_PAYMENT" },
       data: { status: "CANCELLED" },

@@ -38,17 +38,23 @@ export function acceptedMethod(paymentMethodId: string, token?: string): "PIX" |
   return null;
 }
 
-/** Impressão estável da operação financeira (sem token). Impede reenvio da mesma chave com outro valor/método/pedido. */
+/** Impressão estável da operação financeira (sem token de cartão). Inclui pagador canônico. */
 export function chargeFingerprint(input: {
   orderId: string;
   amountCents: number;
   paymentMethodId: string;
   installments?: number;
+  payerEmail?: string;
+  identificationType?: string;
+  identificationNumber?: string;
 }): string {
   const isPix = input.paymentMethodId === "pix";
   const normalizedMethod = isPix ? "pix" : input.paymentMethodId;
   const installments = isPix ? 1 : (input.installments ?? 1);
-  const material = `${input.orderId}|${input.amountCents}|${normalizedMethod}|${installments}`;
+  const payer = (input.payerEmail ?? "").trim().toLowerCase();
+  const idType = (input.identificationType ?? "").trim().toUpperCase();
+  const idNumber = (input.identificationNumber ?? "").replace(/\D/g, "");
+  const material = `${input.orderId}|${input.amountCents}|${normalizedMethod}|${installments}|${payer}|${idType}|${idNumber}`;
   return createHash("sha256").update(material).digest("hex").slice(0, 32);
 }
 

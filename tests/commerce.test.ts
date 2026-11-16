@@ -929,20 +929,30 @@ test("tentativa aberta nunca gera nova chave enquanto estiver incerta; rejeitada
   const aged = { ...base, providerStatus: "outcome_unknown" };
   assert.equal(decidePaymentAttempt(aged).action, "resume_idempotent");
 
-  const fpPix = chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix" });
-  const fpCard = chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "master", installments: 1 });
+  const fpPix = chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "a@test.com" });
+  const fpCard = chargeFingerprint({
+    orderId: "order-1",
+    amountCents: 1490,
+    paymentMethodId: "master",
+    installments: 1,
+    payerEmail: "a@test.com",
+  });
   assert.notEqual(fpPix, fpCard);
   assert.equal(readStoredChargeFingerprint(`fp:${fpPix}`), fpPix);
   assert.equal(
-    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix" }),
-    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", installments: 3 }),
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "a@test.com" }),
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", installments: 3, payerEmail: "a@test.com" }),
+  );
+  assert.notEqual(
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "a@test.com" }),
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "b@test.com" }),
   );
 });
 
 test("actions marcam unknown sem REJECTED e exigem fingerprint estável", () => {
   const actions = readFileSync("src/lib/commerce/actions.ts", "utf8");
   assert.match(actions, /PROVIDER_STATUS_UNKNOWN/);
-  assert.match(actions, /PROVIDER_STATUS_DISPATCHED/);
+  assert.match(actions, /claimChargeDispatch/);
   assert.match(actions, /fingerprint_mismatch/);
   assert.match(actions, /kind === "unknown"/);
   assert.match(actions, /updateOpenPaymentMarkers/);
@@ -952,6 +962,55 @@ test("actions marcam unknown sem REJECTED e exigem fingerprint estável", () => 
   assert.equal(/else if \(!charge\.ok\)[\s\S]*REJECTED/.test(actions), false);
   // Timeout/unknown não força status=PENDING.
   assert.equal(/kind === "unknown"[\s\S]*status:\s*"PENDING"/.test(actions), false);
+});
+
+test("claim de despacho: virgem, Pix idêntico, divergente e cartão incerto", async () => {
+  const { decideChargeDispatchClaim } = await import("../src/lib/commerce/payment-guards");
+  const virgin = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: null,
+    providerStatusDetail: null,
+    providerPaymentId: null,
+    fingerprintDetail: "fp:aaa",
+    method: "PIX",
+  });
+  assert.equal(virgin.kind, "dispatch");
+
+  const samePix = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:aaa",
+    providerPaymentId: null,
+    fingerprintDetail: "fp:aaa",
+    method: "PIX",
+  });
+  assert.equal(samePix.kind, "resume");
+
+  const diverged = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:aaa",
+    providerPaymentId: null,
+    fingerprintDetail: "fp:bbb",
+    method: "PIX",
+  });
+  assert.equal(diverged.kind, "deny");
+  if (diverged.kind === "deny") assert.equal(diverged.reason, "fingerprint_mismatch");
+
+  const card = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:aaa",
+    providerPaymentId: null,
+    fingerprintDetail: "fp:aaa",
+    method: "CREDIT_CARD",
+  });
+  assert.equal(card.kind, "deny");
+  if (card.kind === "deny") assert.equal(card.reason, "card_uncertain");
+
+  const apply = readFileSync("src/lib/commerce/apply.ts", "utf8");
+  assert.match(apply, /claimChargeDispatch/);
+  assert.match(apply, /providerStatus: \{ notIn:/);
 });
 
 test("guards de concorrência: APPROVED não regride; overlap de checkout incerto", async () => {
