@@ -72,6 +72,16 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     await getPrisma().payment.update({ where: { id: prepared.paymentId }, data: { status: "REJECTED", providerStatus: "request_failed" } });
   }
   if (!charge.ok) return { ok: false as const, message: charge.message };
+  const method = acceptedMethod(parsed.data.paymentMethodId, parsed.data.token);
+  if (method === "PIX" && !charge.pix) {
+    // Cobrança criada; a página do pedido mostra erro recuperável e permite atualizar sem nova cobrança.
+    return {
+      ok: true as const,
+      status: charge.view.status,
+      pix: null,
+      message: "Pagamento Pix iniciado. Abra o pedido para atualizar o QR Code.",
+    };
+  }
   return { ok: true as const, status: charge.view.status, pix: charge.pix, message: "Pagamento enviado." };
 }
 

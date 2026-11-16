@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { config as loadEnv } from "dotenv";
 import test from "node:test";
 import { canReadLessonBody, visibleBlocks } from "../src/lib/learning/access";
 import { commerceAnalyticsPayload, purchaseDedupeKey } from "../src/lib/commerce/analytics";
 import { isCommerceEnabled } from "../src/lib/commerce/config";
+import { orderPaymentLockSql } from "../src/lib/commerce/orders";
 import { amountDueCents, eligibleCreditCents, quoteCart, type CreditSource, type SaleCourse, type SaleLesson, type SaleModule } from "../src/lib/commerce/quote";
 import { reconcileDecision, type ProviderPaymentView } from "../src/lib/commerce/reconcile";
-import { readProviderPayment } from "../src/lib/commerce/provider";
+import { acceptedMethod, readPix, readProviderPayment } from "../src/lib/commerce/provider";
 import { verifyMercadoPagoSignature } from "../src/lib/commerce/signature";
 import { purchaseEmail } from "../src/lib/email/purchase-mail";
 import { needsSession } from "../src/proxy";
@@ -786,5 +788,64 @@ test("comércio só abre com ambiente sintético explícito", () => {
     }),
     true,
   );
+});
+
+test("lock de pagamento usa a tabela física order e não o model Order", () => {
+  const sql = orderPaymentLockSql("order-1", "user-1");
+  const text = sql.strings.join("?");
+  assert.match(text, /FROM "order"/);
+  assert.equal(/FROM "Order"/.test(text), false);
+  assert.match(text, /FOR UPDATE/);
+  assert.match(text, /"userId"/);
+  const ordersSource = readFileSync("src/lib/commerce/orders.ts", "utf8");
+  assert.equal(ordersSource.includes('FROM "Order"'), false);
+  assert.match(ordersSource, /FROM "order"/);
+});
+
+test("Brick e painel Pix expõem erro recuperável e anti-duplo clique", () => {
+  const brick = readFileSync("src/components/commerce/PaymentBrick.tsx", "utf8");
+  assert.match(brick, /onError=/);
+  assert.match(brick, /onReady=/);
+  assert.match(brick, /submittingRef/);
+  assert.match(brick, /Tentar novamente/);
+  assert.match(brick, /role="alert"/);
+  assert.equal(/console\.(log|error|info)\(.*token/i.test(brick), false);
+
+  const panel = readFileSync("src/components/commerce/PixPaymentPanel.tsx", "utf8");
+  assert.match(panel, /Copiar Pix Copia e Cola/);
+  assert.match(panel, /QR Code ainda não está disponível/);
+  assert.match(panel, /Não gere outra cobrança/);
+
+  const page = readFileSync("src/app/(app)/app/compras/[id]/page.tsx", "utf8");
+  assert.match(page, /PixPaymentPanel/);
+  assert.match(page, /awaitingPix/);
+});
+
+test("Pix simulado lê QR e cartão continua aceito", () => {
+  assert.equal(acceptedMethod("pix"), "PIX");
+  assert.equal(acceptedMethod("master", "tok_card"), "CREDIT_CARD");
+  const payload = {
+    id: "ORD01PIX-SIM",
+    status: "action_required",
+    status_detail: "waiting_transfer",
+    total_amount: "14.90",
+    country_code: "BRA",
+    external_reference: "order-pix",
+    transactions: {
+      payments: [
+        {
+          amount: "14.90",
+          status: "action_required",
+          status_detail: "waiting_transfer",
+          payment_method: { id: "pix", type: "bank_transfer", qr_code: "0002012658", qr_code_base64: "aW1n" },
+        },
+      ],
+    },
+  };
+  const view = readProviderPayment(payload);
+  assert.equal(view?.status, "pending");
+  assert.equal(view?.paymentTypeId, "bank_transfer");
+  assert.deepEqual(readPix(payload), { copy: "0002012658", image: "aW1n" });
+  assert.equal(readPix({ ...payload, transactions: { payments: [{ amount: "14.90", payment_method: { id: "pix", type: "bank_transfer" } }] } }), null);
 });
 

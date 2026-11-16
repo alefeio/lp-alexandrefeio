@@ -5,7 +5,7 @@ import { loadCreditSources, loadOwnedLessonIds, loadSaleCatalog } from "@/lib/co
 import { quoteCart, type CartLine } from "@/lib/commerce/quote";
 import { formatPriceCents } from "@/lib/learning/money";
 import { deliverPurchaseEmail } from "@/lib/email/purchase-mail";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 function origin() {
   return (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -114,16 +114,21 @@ export async function revokeOrderAccess(orderId: string) {
   });
 }
 
+/** Lock pessimista no nome físico da tabela (`@@map("order")`), não no nome do model Prisma. */
+export function orderPaymentLockSql(orderId: string, userId: string) {
+  return Prisma.sql`
+    SELECT "id" FROM "order"
+    WHERE "id" = ${orderId} AND "userId" = ${userId}
+    FOR UPDATE
+  `;
+}
+
 export async function preparePaymentAttempt(userId: string, orderId: string) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
   const prisma = getPrisma();
 
   return prisma.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT "id" FROM "Order"
-      WHERE "id" = ${orderId} AND "userId" = ${userId}
-      FOR UPDATE
-    `;
+    const locked = await tx.$queryRaw<Array<{ id: string }>>(orderPaymentLockSql(orderId, userId));
     if (locked.length === 0) return { ok: false as const, message: "Pedido não encontrado." };
 
     const order = await tx.order.findUnique({ where: { id: orderId } });

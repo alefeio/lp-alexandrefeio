@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PurchaseBeacon } from "@/components/commerce/PurchaseBeacon";
+import { PixPaymentPanel } from "@/components/commerce/PixPaymentPanel";
 import { RefreshPayment } from "@/components/commerce/RefreshPayment";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
@@ -38,7 +39,8 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
   if (!order) notFound();
   const payment = order.payments[0] ?? null;
   const pending = order.status === "PENDING_PAYMENT";
-  const pix = pending && payment?.providerPaymentId && payment.paymentMethodType === "PIX"
+  const awaitingPix = pending && payment?.paymentMethodType === "PIX" && Boolean(payment.providerPaymentId);
+  const pix = awaitingPix && payment?.providerPaymentId
     ? await fetchPixPresentation(payment.providerPaymentId)
     : null;
   const item = order.items[0];
@@ -74,13 +76,8 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
           {payment.installments && payment.installments > 1 ? ` · ${payment.installments} parcelas` : ""}
         </p>
       ) : null}
-      {pix ? (
-        <div className="mt-6">
-          <p className="text-sm">Pix pendente. A aula só abre depois da confirmação.</p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="mt-3 h-48 w-48" alt="QR Code do Pix" src={`data:image/png;base64,${pix.image}`} />
-          <p className="mt-3 break-all text-sm">{pix.copy}</p>
-        </div>
+      {awaitingPix ? (
+        <PixPaymentPanel copy={pix?.copy} image={pix?.image} missing={!pix} />
       ) : null}
       <RefreshPayment orderId={order.id} pending={pending} />
       {start ? (

@@ -62,7 +62,10 @@ export function CheckoutScreen({ publicKey, payerEmail }: { publicKey: string | 
       <p className="text-base">
         Próximo passo: pagar <strong>{formatPriceCents(state.totalCents)}</strong>
       </p>
-      <p className="mt-2 text-sm text-muted">O formulário abaixo conclui o pagamento. Pix ou cartão de crédito, em até 3 parcelas quando o Mercado Pago oferecer. O valor cobrado é o deste pedido.</p>
+      <p className="mt-2 text-sm text-muted">
+        O formulário abaixo conclui o pagamento. Pix ou cartão de crédito, em até 3 parcelas quando o Mercado Pago oferecer. O valor cobrado é o deste pedido. Se o Pix falhar ao carregar, use
+        “Tentar novamente” — não feche esta página para gerar outra cobrança.
+      </p>
       <div className="mt-6">
         <PaymentBrick publicKey={publicKey} orderId={state.orderId} amountCents={state.totalCents} payerEmail={payerEmail} />
       </div>
