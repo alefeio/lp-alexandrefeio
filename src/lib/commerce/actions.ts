@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { isCommerceEnabled, mercadoPagoPublicKey } from "@/lib/commerce/config";
 import { createOrderForUser, getOrderForUser, preparePaymentAttempt, quoteForUser } from "@/lib/commerce/orders";
-import { applyProviderView, reconcileMercadoPagoPayment } from "@/lib/commerce/apply";
+import { applyProviderView, reconcileMercadoPagoPayment, updateOpenPaymentMarkers } from "@/lib/commerce/apply";
 import {
   acceptedMethod,
   chargeFingerprint,
@@ -111,9 +111,9 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     paymentMethodId: parsed.data.paymentMethodId,
     installments: parsed.data.installments,
   });
+  const fingerprintDetail = encodeChargeFingerprint(fingerprint);
 
   if (prepared.mode === "resume_idempotent") {
-    // Cartão gera token novo a cada submit: reenviar a mesma chave com outro body é inseguro.
     if (method !== "PIX") {
       return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "payment_uncertain" as const };
     }
@@ -126,14 +126,22 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "fingerprint_mismatch" as const };
   }
 
-  // Marca despacho antes da chamada: timeout/crash não libera nova chave de idempotência.
-  await getPrisma().payment.update({
-    where: { id: prepared.paymentId },
-    data: {
-      providerStatus: PROVIDER_STATUS_DISPATCHED,
-      providerStatusDetail: encodeChargeFingerprint(fingerprint),
-    },
+  const dispatched = await updateOpenPaymentMarkers(prepared.paymentId, {
+    providerStatus: PROVIDER_STATUS_DISPATCHED,
+    providerStatusDetail: fingerprintDetail,
   });
+  if (!dispatched.updated) {
+    if (dispatched.currentStatus === "APPROVED") {
+      return {
+        ok: true as const,
+        status: "APPROVED",
+        pix: null,
+        message: "Este pagamento já foi confirmado.",
+        code: "already_confirmed" as const,
+      };
+    }
+    return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "payment_uncertain" as const };
+  }
 
   const order = await getOrderForUser(session.user.id, orderId);
   if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
@@ -154,10 +162,11 @@ export async function payOrderAction(orderId: string, raw: unknown) {
 
   if (charge.ok) {
     await applyProviderView(prepared.paymentId, charge.view);
+    const refreshed = await getPrisma().payment.findUnique({ where: { id: prepared.paymentId } });
     if (method === "PIX" && !charge.pix) {
       return {
         ok: true as const,
-        status: charge.view.status,
+        status: refreshed?.status === "APPROVED" ? "approved" : charge.view.status,
         pix: null,
         message: "Pagamento Pix iniciado. Abra o pedido para atualizar o QR Code.",
         code: "pix_pending" as const,
@@ -165,7 +174,7 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     }
     return {
       ok: true as const,
-      status: charge.view.status,
+      status: refreshed?.status === "APPROVED" ? "approved" : charge.view.status,
       pix: charge.pix,
       message: "Pagamento enviado.",
       code: "charged" as const,
@@ -173,28 +182,40 @@ export async function payOrderAction(orderId: string, raw: unknown) {
   }
 
   if (charge.kind === "unknown") {
-    await getPrisma().payment.update({
-      where: { id: prepared.paymentId },
-      data: {
-        status: "PENDING",
-        providerStatus: PROVIDER_STATUS_UNKNOWN,
-        providerStatusDetail: encodeChargeFingerprint(fingerprint),
-      },
+    // Nunca força status=PENDING: se o webhook já aprovou, updateMany não altera a linha.
+    const marked = await updateOpenPaymentMarkers(prepared.paymentId, {
+      providerStatus: PROVIDER_STATUS_UNKNOWN,
+      providerStatusDetail: fingerprintDetail,
     });
     if (charge.view) await applyProviderView(prepared.paymentId, charge.view);
+    if (marked.currentStatus === "APPROVED") {
+      return {
+        ok: true as const,
+        status: "APPROVED",
+        pix: null,
+        message: "Este pagamento já foi confirmado.",
+        code: "already_confirmed" as const,
+      };
+    }
     return { ok: false as const, message: charge.message, code: "payment_uncertain" as const };
   }
 
   if (charge.view) await applyProviderView(prepared.paymentId, charge.view);
   else {
-    await getPrisma().payment.update({
-      where: { id: prepared.paymentId },
-      data: {
-        status: "REJECTED",
-        providerStatus: "request_failed",
-        providerStatusDetail: encodeChargeFingerprint(fingerprint),
-      },
+    const rejected = await updateOpenPaymentMarkers(prepared.paymentId, {
+      status: "REJECTED",
+      providerStatus: "request_failed",
+      providerStatusDetail: fingerprintDetail,
     });
+    if (rejected.currentStatus === "APPROVED") {
+      return {
+        ok: true as const,
+        status: "APPROVED",
+        pix: null,
+        message: "Este pagamento já foi confirmado.",
+        code: "already_confirmed" as const,
+      };
+    }
   }
   return { ok: false as const, message: charge.message, code: "rejected" as const };
 }

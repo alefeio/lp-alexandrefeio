@@ -1,0 +1,120 @@
+import type { InternalPaymentStatus } from "@/lib/commerce/reconcile";
+import { PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN } from "@/lib/commerce/provider";
+
+export const OPEN_PAYMENT_STATUSES: InternalPaymentStatus[] = ["PENDING", "IN_PROCESS"];
+
+const LOCKED_SUCCESS: ReadonlySet<InternalPaymentStatus> = new Set([
+  "APPROVED",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
+  "CHARGED_BACK",
+]);
+
+/** Statuses que nunca podem regredir para PENDING/REJECTED via timeout ou HTTP tardio. */
+export function isLockedPaymentStatus(status: InternalPaymentStatus): boolean {
+  return LOCKED_SUCCESS.has(status);
+}
+
+/**
+ * Impede regressão financeira: APPROVED só evolui para estorno/chargeback.
+ * REJECTED/CANCELLED podem ser sobrescritos apenas por APPROVED (webhook tardio de sucesso
+ * após falso negativo) — mas não por PENDING.
+ */
+export function mayOverwritePaymentStatus(current: InternalPaymentStatus, next: InternalPaymentStatus): boolean {
+  if (current === next) return true;
+  if (current === "APPROVED") {
+    return next === "REFUNDED" || next === "PARTIALLY_REFUNDED" || next === "CHARGED_BACK";
+  }
+  if (current === "REFUNDED" || current === "PARTIALLY_REFUNDED" || current === "CHARGED_BACK") {
+    return false;
+  }
+  return true;
+}
+
+export function shouldIgnoreStaleProviderStatus(
+  currentPayment: InternalPaymentStatus,
+  providerStatus: string,
+): boolean {
+  if (!isLockedPaymentStatus(currentPayment)) return false;
+  if (currentPayment !== "APPROVED") return true;
+  return (
+    providerStatus === "pending" ||
+    providerStatus === "in_process" ||
+    providerStatus === "authorized" ||
+    providerStatus === "rejected" ||
+    providerStatus === "cancelled"
+  );
+}
+
+export type PaymentRowLike = {
+  id: string;
+  status: InternalPaymentStatus;
+  providerStatus: string | null;
+  providerStatusDetail: string | null;
+};
+
+/** Aplica marcador de incerteza só se o pagamento ainda estiver aberto. */
+export function planUnknownOutcomeUpdate(row: PaymentRowLike, fingerprintDetail: string): {
+  apply: boolean;
+  data: { providerStatus: string; providerStatusDetail: string };
+} {
+  if (!OPEN_PAYMENT_STATUSES.includes(row.status)) {
+    return { apply: false, data: { providerStatus: PROVIDER_STATUS_UNKNOWN, providerStatusDetail: fingerprintDetail } };
+  }
+  return {
+    apply: true,
+    data: {
+      providerStatus: PROVIDER_STATUS_UNKNOWN,
+      providerStatusDetail: fingerprintDetail,
+    },
+  };
+}
+
+export function planRejectedIfOpen(row: PaymentRowLike, fingerprintDetail: string): {
+  apply: boolean;
+  data: { status: "REJECTED"; providerStatus: string; providerStatusDetail: string };
+} {
+  if (!OPEN_PAYMENT_STATUSES.includes(row.status)) {
+    return {
+      apply: false,
+      data: { status: "REJECTED", providerStatus: "request_failed", providerStatusDetail: fingerprintDetail },
+    };
+  }
+  return {
+    apply: true,
+    data: {
+      status: "REJECTED",
+      providerStatus: "request_failed",
+      providerStatusDetail: fingerprintDetail,
+    },
+  };
+}
+
+export function planDispatchMarker(row: PaymentRowLike, fingerprintDetail: string): {
+  apply: boolean;
+  data: { providerStatus: string; providerStatusDetail: string };
+} {
+  if (!OPEN_PAYMENT_STATUSES.includes(row.status)) {
+    return { apply: false, data: { providerStatus: PROVIDER_STATUS_DISPATCHED, providerStatusDetail: fingerprintDetail } };
+  }
+  return {
+    apply: true,
+    data: {
+      providerStatus: PROVIDER_STATUS_DISPATCHED,
+      providerStatusDetail: fingerprintDetail,
+    },
+  };
+}
+
+export function productKey(type: string, id: string): string {
+  return `${type}:${id}`;
+}
+
+/** Detecta sobreposição de produtos entre um pedido incerto e um novo carrinho. */
+export function cartOverlapsUncertainOrder(input: {
+  cartKeys: string[];
+  uncertainOrderKeys: string[];
+}): boolean {
+  const set = new Set(input.uncertainOrderKeys);
+  return input.cartKeys.some((key) => set.has(key));
+}

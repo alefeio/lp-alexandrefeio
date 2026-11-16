@@ -3,6 +3,8 @@ import { getPrisma } from "@/lib/db/prisma";
 import { isCommerceEnabled } from "@/lib/commerce/config";
 import { loadCreditSources, loadOwnedLessonIds, loadSaleCatalog } from "@/lib/commerce/catalog";
 import { quoteCart, type CartLine } from "@/lib/commerce/quote";
+import { cartOverlapsUncertainOrder, productKey } from "@/lib/commerce/payment-guards";
+import { PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN, UNCERTAIN_PAYMENT_MESSAGE } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
 import { deliverPurchaseEmail } from "@/lib/email/purchase-mail";
 import { Prisma } from "@/generated/prisma/client";
@@ -33,6 +35,18 @@ export async function createOrderForUser(userId: string, lines: CartLine[], chec
   }
   const quote = await quoteForUser(userId, lines);
   if (!quote.ok) return quote;
+
+  if (quote.kind !== "zero_upgrade") {
+    const blocked = await findOverlappingUncertainOrder(userId, quote.items.map((item) => productKey(item.productType, item.productId)));
+    if (blocked) {
+      return {
+        ok: false as const,
+        message: UNCERTAIN_PAYMENT_MESSAGE,
+        code: "payment_uncertain" as const,
+        orderId: blocked,
+      };
+    }
+  }
 
   let order;
   try {
@@ -91,6 +105,40 @@ async function grantItem(tx: Prisma.TransactionClient, userId: string, orderItem
       update: { status: "ACTIVE", revokedAt: null },
     });
   }
+}
+
+/** Impede novo checkoutKey enquanto existir cobrança incerta sobre os mesmos produtos. */
+export async function findOverlappingUncertainOrder(userId: string, cartKeys: string[]): Promise<string | null> {
+  if (cartKeys.length === 0) return null;
+  const candidates = await getPrisma().order.findMany({
+    where: {
+      userId,
+      status: "PENDING_PAYMENT",
+      payments: {
+        some: {
+          status: { in: ["PENDING", "IN_PROCESS"] },
+          providerStatus: { in: [PROVIDER_STATUS_UNKNOWN, PROVIDER_STATUS_DISPATCHED] },
+        },
+      },
+    },
+    include: {
+      items: { select: { productType: true, lessonId: true, moduleId: true, courseId: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+  for (const order of candidates) {
+    const keys = order.items
+      .map((item) => {
+        if (item.productType === "LESSON" && item.lessonId) return productKey("LESSON", item.lessonId);
+        if (item.productType === "MODULE" && item.moduleId) return productKey("MODULE", item.moduleId);
+        if (item.productType === "COURSE" && item.courseId) return productKey("COURSE", item.courseId);
+        return null;
+      })
+      .filter((key): key is string => Boolean(key));
+    if (cartOverlapsUncertainOrder({ cartKeys, uncertainOrderKeys: keys })) return order.id;
+  }
+  return null;
 }
 
 export async function grantOrderAccess(orderId: string) {

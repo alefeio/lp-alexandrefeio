@@ -943,9 +943,209 @@ test("actions marcam unknown sem REJECTED e exigem fingerprint estável", () => 
   assert.match(actions, /PROVIDER_STATUS_DISPATCHED/);
   assert.match(actions, /fingerprint_mismatch/);
   assert.match(actions, /kind === "unknown"/);
+  assert.match(actions, /updateOpenPaymentMarkers/);
   assert.equal(actions.includes('status: "REJECTED", providerStatus: "request_failed"') || actions.includes('providerStatus: "request_failed"'), true);
   // Não rejeita automaticamente em falha desconhecida.
   assert.match(actions, /charge\.kind === "unknown"/);
   assert.equal(/else if \(!charge\.ok\)[\s\S]*REJECTED/.test(actions), false);
+  // Timeout/unknown não força status=PENDING.
+  assert.equal(/kind === "unknown"[\s\S]*status:\s*"PENDING"/.test(actions), false);
+});
+
+test("guards de concorrência: APPROVED não regride; overlap de checkout incerto", async () => {
+  const {
+    mayOverwritePaymentStatus,
+    shouldIgnoreStaleProviderStatus,
+    planUnknownOutcomeUpdate,
+    planRejectedIfOpen,
+    cartOverlapsUncertainOrder,
+    productKey,
+  } = await import("../src/lib/commerce/payment-guards");
+  type PaymentRowLike = {
+    id: string;
+    status: import("../src/lib/commerce/reconcile").InternalPaymentStatus;
+    providerStatus: string | null;
+    providerStatusDetail: string | null;
+  };
+  type InternalPaymentStatus = import("../src/lib/commerce/reconcile").InternalPaymentStatus;
+
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "PENDING"), false);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "REJECTED"), false);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "IN_PROCESS"), false);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "APPROVED"), true);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "REFUNDED"), true);
+  assert.equal(mayOverwritePaymentStatus("PENDING", "APPROVED"), true);
+  assert.equal(mayOverwritePaymentStatus("REJECTED", "APPROVED"), true);
+
+  assert.equal(shouldIgnoreStaleProviderStatus("APPROVED", "pending"), true);
+  assert.equal(shouldIgnoreStaleProviderStatus("APPROVED", "rejected"), true);
+  assert.equal(shouldIgnoreStaleProviderStatus("APPROVED", "approved"), false);
+  assert.equal(shouldIgnoreStaleProviderStatus("PENDING", "pending"), false);
+
+  const open = planUnknownOutcomeUpdate(
+    { id: "p1", status: "PENDING", providerStatus: "charge_dispatched", providerStatusDetail: "fp:x" },
+    "fp:x",
+  );
+  assert.equal(open.apply, true);
+  const locked = planUnknownOutcomeUpdate(
+    { id: "p1", status: "APPROVED", providerStatus: "approved", providerStatusDetail: null },
+    "fp:x",
+  );
+  assert.equal(locked.apply, false);
+  assert.equal(planRejectedIfOpen({ id: "p1", status: "APPROVED", providerStatus: "approved", providerStatusDetail: null }, "fp:x").apply, false);
+
+  assert.equal(
+    cartOverlapsUncertainOrder({
+      cartKeys: [productKey("LESSON", "a")],
+      uncertainOrderKeys: [productKey("LESSON", "a")],
+    }),
+    true,
+  );
+  assert.equal(
+    cartOverlapsUncertainOrder({
+      cartKeys: [productKey("LESSON", "b")],
+      uncertainOrderKeys: [productKey("LESSON", "a")],
+    }),
+    false,
+  );
+
+  /** Simula a serialização FOR UPDATE de apply/updateOpenPaymentMarkers sem banco. */
+  type Row = PaymentRowLike & { orderStatus: "PENDING_PAYMENT" | "PAID" | "NEEDS_REVIEW"; entitlements: number; idempotencyKey: string };
+  const mutex = { locked: false };
+  async function withLock<T>(fn: () => T | Promise<T>): Promise<T> {
+    while (mutex.locked) await new Promise((r) => setTimeout(r, 1));
+    mutex.locked = true;
+    try {
+      return await fn();
+    } finally {
+      mutex.locked = false;
+    }
+  }
+
+  function markOpen(row: Row, kind: "unknown" | "rejected") {
+    return withLock(() => {
+      const plan = kind === "unknown" ? planUnknownOutcomeUpdate(row, "fp:x") : planRejectedIfOpen(row, "fp:x");
+      if (!plan.apply) return { updated: false as const, status: row.status };
+      Object.assign(row, plan.data);
+      return { updated: true as const, status: row.status };
+    });
+  }
+
+  function applyView(row: Row, providerStatus: string, amountCents = 1490) {
+    return withLock(() => {
+      if (shouldIgnoreStaleProviderStatus(row.status, providerStatus)) {
+        return { ignored: true as const };
+      }
+      const decision = reconcileDecision({
+        orderId: "order-1",
+        orderStatus: row.orderStatus,
+        orderTotalCents: amountCents,
+        paymentStatus: row.status as InternalPaymentStatus,
+        paymentAmountCents: amountCents,
+        provider: view({ status: providerStatus as ProviderPaymentView["status"], amountCents, externalReference: "order-1" }),
+        alreadyGranted: row.entitlements > 0,
+      });
+      if (!mayOverwritePaymentStatus(row.status, decision.paymentStatus)) {
+        return { ignored: true as const };
+      }
+      row.status = decision.paymentStatus;
+      row.providerStatus = providerStatus;
+      if (!decision.ignore) {
+        if (!(row.orderStatus === "PAID" && decision.orderStatus !== "PAID" && decision.orderStatus !== "REFUNDED")) {
+          row.orderStatus = decision.orderStatus as Row["orderStatus"];
+        }
+      }
+      if (decision.grant) row.entitlements = 1;
+      return { ignored: false as const, decision };
+    });
+  }
+
+  // Webhook APPROVED antes do timeout
+  const a: Row = {
+    id: "a",
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:x",
+    orderStatus: "PENDING_PAYMENT",
+    entitlements: 0,
+    idempotencyKey: "idem-a",
+  };
+  await applyView(a, "approved");
+  assert.equal(a.status, "APPROVED");
+  assert.equal(a.orderStatus, "PAID");
+  assert.equal(a.entitlements, 1);
+  assert.equal((await markOpen(a, "unknown")).updated, false);
+  assert.equal(a.status, "APPROVED");
+  await applyView(a, "pending");
+  await applyView(a, "rejected");
+  assert.equal(a.status, "APPROVED");
+  assert.equal(a.orderStatus, "PAID");
+  assert.notEqual(a.orderStatus, "NEEDS_REVIEW");
+  await applyView(a, "approved");
+  assert.equal(a.entitlements, 1);
+
+  // Timeout antes do webhook APPROVED
+  const b: Row = {
+    id: "b",
+    status: "PENDING",
+    providerStatus: null,
+    providerStatusDetail: null,
+    orderStatus: "PENDING_PAYMENT",
+    entitlements: 0,
+    idempotencyKey: "idem-b",
+  };
+  assert.equal((await markOpen(b, "unknown")).updated, true);
+  assert.equal(b.providerStatus, "outcome_unknown");
+  assert.equal(b.status, "PENDING");
+  // novo checkout com overlap incerto bloqueado
+  assert.equal(
+    cartOverlapsUncertainOrder({
+      cartKeys: [productKey("LESSON", "b")],
+      uncertainOrderKeys: [productKey("LESSON", "b")],
+    }),
+    true,
+  );
+  // mesma chave: decidePaymentAttempt resume_idempotent
+  assert.equal(
+    decidePaymentAttempt({
+      id: b.id,
+      idempotencyKey: b.idempotencyKey,
+      amountCents: 1490,
+      providerPaymentId: null,
+      providerStatus: b.providerStatus,
+      providerStatusDetail: "fp:x",
+      status: b.status,
+    }).action,
+    "resume_idempotent",
+  );
+  await Promise.all([applyView(b, "approved"), applyView(b, "approved")]);
+  assert.equal(b.status, "APPROVED");
+  assert.equal(b.entitlements, 1);
+  assert.equal((await markOpen(b, "unknown")).updated, false);
+
+  // HTTP rejected depois de APPROVED
+  const c: Row = {
+    id: "c",
+    status: "APPROVED",
+    providerStatus: "approved",
+    providerStatusDetail: null,
+    orderStatus: "PAID",
+    entitlements: 1,
+    idempotencyKey: "idem-c",
+  };
+  assert.equal((await markOpen(c, "rejected")).updated, false);
+  await applyView(c, "rejected");
+  assert.equal(c.status, "APPROVED");
+  assert.equal(c.orderStatus, "PAID");
+
+  const brick = readFileSync("src/components/commerce/PaymentBrick.tsx", "utf8");
+  assert.match(brick, /uncertainRef/);
+  assert.match(brick, /if \(uncertainRef\.current\) return/);
+  const apply = readFileSync("src/lib/commerce/apply.ts", "utf8");
+  assert.match(apply, /mayOverwritePaymentStatus/);
+  assert.match(apply, /updateOpenPaymentMarkers/);
+  assert.match(apply, /FOR UPDATE/);
+  const orders = readFileSync("src/lib/commerce/orders.ts", "utf8");
+  assert.match(orders, /findOverlappingUncertainOrder/);
 });
 

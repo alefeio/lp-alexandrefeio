@@ -30,11 +30,17 @@ export function PaymentBrick({
 }) {
   const router = useRouter();
   const submittingRef = useRef(false);
+  const uncertainRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState(false);
   const [brickKey, setBrickKey] = useState(0);
+
+  function markUncertain(next: boolean) {
+    uncertainRef.current = next;
+    setUncertain(next);
+  }
 
   useEffect(() => {
     initMercadoPago(publicKey, { locale: "pt-BR" });
@@ -42,7 +48,7 @@ export function PaymentBrick({
 
   /** Só remonta o formulário. Não autoriza nova cobrança financeira. */
   function reloadBrickUi() {
-    if (uncertain) return;
+    if (uncertainRef.current) return;
     submittingRef.current = false;
     setProcessing(false);
     setError(null);
@@ -98,7 +104,8 @@ export function PaymentBrick({
           }}
           onError={(brickError) => {
             if (brickError.type === "non_critical") return;
-            setUncertain(false);
+            // Erro tardio do Brick não pode desbloquear visualmente uma tentativa ainda incerta.
+            if (uncertainRef.current) return;
             setError(
               safeClientMessage(
                 new Error(brickError.message || "Não foi possível carregar o pagamento."),
@@ -107,7 +114,7 @@ export function PaymentBrick({
             );
           }}
           onSubmit={async ({ formData }) => {
-            if (uncertain) {
+            if (uncertainRef.current) {
               throw new Error("Há uma cobrança em verificação. Consulte o pedido.");
             }
             if (submittingRef.current || processing) {
@@ -136,7 +143,7 @@ export function PaymentBrick({
               if (!result.ok) {
                 const message = result.message || "Não foi possível concluir o pagamento.";
                 const isUncertain = "code" in result && (result.code === "payment_uncertain" || result.code === "fingerprint_mismatch");
-                setUncertain(Boolean(isUncertain));
+                markUncertain(Boolean(isUncertain));
                 setError(message);
                 throw new Error(message);
               }
