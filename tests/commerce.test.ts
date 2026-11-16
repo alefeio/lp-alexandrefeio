@@ -1,13 +1,22 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { config as loadEnv } from "dotenv";
 import test from "node:test";
 import { canReadLessonBody, visibleBlocks } from "../src/lib/learning/access";
 import { commerceAnalyticsPayload, purchaseDedupeKey } from "../src/lib/commerce/analytics";
 import { isCommerceEnabled } from "../src/lib/commerce/config";
+import { decidePaymentAttempt, orderPaymentLockSql } from "../src/lib/commerce/orders";
 import { amountDueCents, eligibleCreditCents, quoteCart, type CreditSource, type SaleCourse, type SaleLesson, type SaleModule } from "../src/lib/commerce/quote";
 import { reconcileDecision, type ProviderPaymentView } from "../src/lib/commerce/reconcile";
-import { readProviderPayment } from "../src/lib/commerce/provider";
+import {
+  acceptedMethod,
+  chargeFingerprint,
+  classifyProviderChargeFailure,
+  readPix,
+  readProviderPayment,
+  readStoredChargeFingerprint,
+} from "../src/lib/commerce/provider";
 import { verifyMercadoPagoSignature } from "../src/lib/commerce/signature";
 import { purchaseEmail } from "../src/lib/email/purchase-mail";
 import { needsSession } from "../src/proxy";
@@ -786,5 +795,526 @@ test("comércio só abre com ambiente sintético explícito", () => {
     }),
     true,
   );
+});
+
+test("lock de pagamento usa a tabela física order e não o model Order", () => {
+  const sql = orderPaymentLockSql("order-1", "user-1");
+  const text = sql.strings.join("?");
+  assert.match(text, /FROM "order"/);
+  assert.equal(/FROM "Order"/.test(text), false);
+  assert.match(text, /FOR UPDATE/);
+  assert.match(text, /"userId"/);
+  const ordersSource = readFileSync("src/lib/commerce/orders.ts", "utf8");
+  assert.equal(ordersSource.includes('FROM "Order"'), false);
+  assert.match(ordersSource, /FROM "order"/);
+});
+
+test("Brick distingue reload de UI e cobrança incerta; painel Pix permanece", () => {
+  const brick = readFileSync("src/components/commerce/PaymentBrick.tsx", "utf8");
+  assert.match(brick, /onError=/);
+  assert.match(brick, /onReady=/);
+  assert.match(brick, /submittingRef/);
+  assert.match(brick, /Recarregar formulário/);
+  assert.match(brick, /reloadBrickUi/);
+  assert.match(brick, /payment_uncertain/);
+  assert.match(brick, /Abrir o pedido/);
+  assert.equal(brick.includes("Tentar novamente"), false);
+  assert.equal(/console\.(log|error|info)\(.*token/i.test(brick), false);
+
+  const panel = readFileSync("src/components/commerce/PixPaymentPanel.tsx", "utf8");
+  assert.match(panel, /Copiar Pix Copia e Cola/);
+  assert.match(panel, /QR Code ainda não está disponível/);
+  assert.match(panel, /Não gere outra cobrança/);
+
+  const page = readFileSync("src/app/(app)/app/compras/[id]/page.tsx", "utf8");
+  assert.match(page, /PixPaymentPanel/);
+  assert.match(page, /awaitingPix/);
+
+  const ordersSource = readFileSync("src/lib/commerce/orders.ts", "utf8");
+  assert.equal(ordersSource.includes("20_000"), false);
+  // Cancelamento só via cancelAbandonedCheckoutForUser (explícito), nunca por timer.
+  assert.match(ordersSource, /cancelAbandonedCheckoutForUser/);
+  assert.equal(/setTimeout[\s\S]*CANCELLED|20_000[\s\S]*CANCELLED/.test(ordersSource), false);
+});
+
+test("Pix simulado lê QR e cartão continua aceito", () => {
+  assert.equal(acceptedMethod("pix"), "PIX");
+  assert.equal(acceptedMethod("master", "tok_card"), "CREDIT_CARD");
+  const payload = {
+    id: "ORD01PIX-SIM",
+    status: "action_required",
+    status_detail: "waiting_transfer",
+    total_amount: "14.90",
+    country_code: "BRA",
+    external_reference: "order-pix",
+    transactions: {
+      payments: [
+        {
+          amount: "14.90",
+          status: "action_required",
+          status_detail: "waiting_transfer",
+          payment_method: { id: "pix", type: "bank_transfer", qr_code: "0002012658", qr_code_base64: "aW1n" },
+        },
+      ],
+    },
+  };
+  const view = readProviderPayment(payload);
+  assert.equal(view?.status, "pending");
+  assert.equal(view?.paymentTypeId, "bank_transfer");
+  assert.deepEqual(readPix(payload), { copy: "0002012658", image: "aW1n" });
+  assert.equal(readPix({ ...payload, transactions: { payments: [{ amount: "14.90", payment_method: { id: "pix", type: "bank_transfer" } }] } }), null);
+});
+
+test("falha de provedor distingue rejeição definitiva de resultado desconhecido", () => {
+  assert.equal(classifyProviderChargeFailure({ networkError: true, httpStatus: null, view: null }), "unknown");
+  assert.equal(classifyProviderChargeFailure({ httpStatus: 504, view: null }), "unknown");
+  assert.equal(classifyProviderChargeFailure({ httpStatus: 502, view: null }), "unknown");
+  assert.equal(classifyProviderChargeFailure({ httpStatus: 400, view: null }), "rejected");
+  assert.equal(
+    classifyProviderChargeFailure({
+      httpStatus: 402,
+      view: {
+        id: "x",
+        status: "rejected",
+        statusDetail: "failed",
+        amountCents: 1490,
+        currency: "BRL",
+        externalReference: "o1",
+        paymentTypeId: "credit_card",
+        installments: 1,
+        refundedCents: 0,
+      },
+    }),
+    "rejected",
+  );
+  assert.equal(
+    classifyProviderChargeFailure({
+      httpStatus: 200,
+      view: {
+        id: "x",
+        status: "pending",
+        statusDetail: null,
+        amountCents: 1490,
+        currency: "BRL",
+        externalReference: "o1",
+        paymentTypeId: "bank_transfer",
+        installments: null,
+        refundedCents: 0,
+      },
+    }),
+    "unknown",
+  );
+});
+
+test("tentativa aberta nunca gera nova chave enquanto estiver incerta; rejeitada permite nova", () => {
+  const base = {
+    id: "pay-1",
+    idempotencyKey: "idem-1",
+    amountCents: 1490,
+    providerPaymentId: null as string | null,
+    providerStatus: null as string | null,
+    providerStatusDetail: null as string | null,
+    status: "PENDING",
+  };
+  assert.equal(decidePaymentAttempt(null).action, "create_new");
+  assert.equal(decidePaymentAttempt(base).action, "continue_same");
+  assert.equal(decidePaymentAttempt({ ...base, providerStatus: "charge_dispatched" }).action, "resume_idempotent");
+  assert.equal(decidePaymentAttempt({ ...base, providerStatus: "outcome_unknown" }).action, "resume_idempotent");
+  assert.equal(
+    decidePaymentAttempt({ ...base, providerPaymentId: "mp-1", providerStatus: "pending" }).action,
+    "reuse_provider",
+  );
+
+  // Simula “após 20s”: ainda assim resume_idempotent, sem create_new.
+  const aged = { ...base, providerStatus: "outcome_unknown" };
+  assert.equal(decidePaymentAttempt(aged).action, "resume_idempotent");
+
+  const fpPix = chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "a@test.com" });
+  const fpCard = chargeFingerprint({
+    orderId: "order-1",
+    amountCents: 1490,
+    paymentMethodId: "master",
+    installments: 1,
+    payerEmail: "a@test.com",
+  });
+  assert.notEqual(fpPix, fpCard);
+  assert.equal(readStoredChargeFingerprint(`fp:${fpPix}`), fpPix);
+  assert.equal(
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "a@test.com" }),
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", installments: 3, payerEmail: "a@test.com" }),
+  );
+  assert.notEqual(
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "a@test.com" }),
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", payerEmail: "b@test.com" }),
+  );
+});
+
+test("actions marcam unknown sem REJECTED e exigem fingerprint estável", () => {
+  const actions = readFileSync("src/lib/commerce/actions.ts", "utf8");
+  assert.match(actions, /PROVIDER_STATUS_UNKNOWN/);
+  assert.match(actions, /claimChargeDispatch/);
+  assert.match(actions, /fingerprint_mismatch/);
+  assert.match(actions, /kind === "unknown"/);
+  assert.match(actions, /updateOpenPaymentMarkers/);
+  assert.equal(actions.includes('status: "REJECTED", providerStatus: "request_failed"') || actions.includes('providerStatus: "request_failed"'), true);
+  // Não rejeita automaticamente em falha desconhecida.
+  assert.match(actions, /charge\.kind === "unknown"/);
+  assert.equal(/else if \(!charge\.ok\)[\s\S]*REJECTED/.test(actions), false);
+  // Timeout/unknown não força status=PENDING.
+  assert.equal(/kind === "unknown"[\s\S]*status:\s*"PENDING"/.test(actions), false);
+});
+
+test("claim de despacho: virgem, Pix idêntico, divergente e cartão incerto", async () => {
+  const { decideChargeDispatchClaim } = await import("../src/lib/commerce/payment-guards");
+  const virgin = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: null,
+    providerStatusDetail: null,
+    providerPaymentId: null,
+    fingerprintDetail: "fp:aaa",
+    method: "PIX",
+  });
+  assert.equal(virgin.kind, "dispatch");
+
+  const samePix = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:aaa",
+    providerPaymentId: null,
+    fingerprintDetail: "fp:aaa",
+    method: "PIX",
+  });
+  assert.equal(samePix.kind, "resume");
+
+  const diverged = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:aaa",
+    providerPaymentId: null,
+    fingerprintDetail: "fp:bbb",
+    method: "PIX",
+  });
+  assert.equal(diverged.kind, "deny");
+  if (diverged.kind === "deny") assert.equal(diverged.reason, "fingerprint_mismatch");
+
+  const card = decideChargeDispatchClaim({
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:aaa",
+    providerPaymentId: null,
+    fingerprintDetail: "fp:aaa",
+    method: "CREDIT_CARD",
+  });
+  assert.equal(card.kind, "deny");
+  if (card.kind === "deny") assert.equal(card.reason, "card_uncertain");
+
+  const apply = readFileSync("src/lib/commerce/apply.ts", "utf8");
+  assert.match(apply, /claimChargeDispatch/);
+  assert.match(apply, /providerStatus: \{ notIn:/);
+});
+
+test("guards de concorrência: APPROVED não regride; overlap de checkout incerto", async () => {
+  const {
+    mayOverwritePaymentStatus,
+    shouldIgnoreStaleProviderStatus,
+    planUnknownOutcomeUpdate,
+    planRejectedIfOpen,
+    cartOverlapsUncertainOrder,
+    productKey,
+    lessonSetsOverlap,
+    collectLessonIdsFromOrderItems,
+  } = await import("../src/lib/commerce/payment-guards");
+  type PaymentRowLike = {
+    id: string;
+    status: import("../src/lib/commerce/reconcile").InternalPaymentStatus;
+    providerStatus: string | null;
+    providerStatusDetail: string | null;
+  };
+  type InternalPaymentStatus = import("../src/lib/commerce/reconcile").InternalPaymentStatus;
+
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "PENDING"), false);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "REJECTED"), false);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "IN_PROCESS"), false);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "APPROVED"), true);
+  assert.equal(mayOverwritePaymentStatus("APPROVED", "REFUNDED"), true);
+  assert.equal(mayOverwritePaymentStatus("PENDING", "APPROVED"), true);
+  assert.equal(mayOverwritePaymentStatus("REJECTED", "APPROVED"), true);
+
+  assert.equal(shouldIgnoreStaleProviderStatus("APPROVED", "pending"), true);
+  assert.equal(shouldIgnoreStaleProviderStatus("APPROVED", "rejected"), true);
+  assert.equal(shouldIgnoreStaleProviderStatus("APPROVED", "approved"), false);
+  assert.equal(shouldIgnoreStaleProviderStatus("PENDING", "pending"), false);
+
+  const open = planUnknownOutcomeUpdate(
+    { id: "p1", status: "PENDING", providerStatus: "charge_dispatched", providerStatusDetail: "fp:x" },
+    "fp:x",
+  );
+  assert.equal(open.apply, true);
+  const locked = planUnknownOutcomeUpdate(
+    { id: "p1", status: "APPROVED", providerStatus: "approved", providerStatusDetail: null },
+    "fp:x",
+  );
+  assert.equal(locked.apply, false);
+  assert.equal(planRejectedIfOpen({ id: "p1", status: "APPROVED", providerStatus: "approved", providerStatusDetail: null }, "fp:x").apply, false);
+
+  assert.equal(
+    cartOverlapsUncertainOrder({
+      cartKeys: [productKey("LESSON", "a")],
+      uncertainOrderKeys: [productKey("LESSON", "a")],
+    }),
+    true,
+  );
+  assert.equal(
+    cartOverlapsUncertainOrder({
+      cartKeys: [productKey("LESSON", "b")],
+      uncertainOrderKeys: [productKey("LESSON", "a")],
+    }),
+    false,
+  );
+
+  // Sobreposição real por aulas (não só SKU)
+  assert.equal(lessonSetsOverlap(["a"], ["a"]), true);
+  assert.equal(lessonSetsOverlap(["a"], ["b"]), false);
+  assert.equal(lessonSetsOverlap(["a"], ["a", "b", "c"]), true); // aula → módulo
+  assert.equal(lessonSetsOverlap(["a", "b", "c"], ["a"]), true); // módulo → aula
+  assert.equal(lessonSetsOverlap(["a", "b"], ["c", "d", "a"]), true); // módulo → curso
+  assert.equal(lessonSetsOverlap(["x"], ["a", "b"]), false);
+  assert.deepEqual(
+    collectLessonIdsFromOrderItems([
+      { lessonId: "a", lessons: [{ lessonId: "a" }] },
+      { lessonId: null, lessons: [{ lessonId: "a" }, { lessonId: "b" }] },
+    ]).sort(),
+    ["a", "b"],
+  );
+
+  /** Simula a serialização FOR UPDATE de apply/updateOpenPaymentMarkers sem banco. */
+  type Row = PaymentRowLike & { orderStatus: "PENDING_PAYMENT" | "PAID" | "NEEDS_REVIEW"; entitlements: number; idempotencyKey: string };
+  const mutex = { locked: false };
+  async function withLock<T>(fn: () => T | Promise<T>): Promise<T> {
+    while (mutex.locked) await new Promise((r) => setTimeout(r, 1));
+    mutex.locked = true;
+    try {
+      return await fn();
+    } finally {
+      mutex.locked = false;
+    }
+  }
+
+  function markOpen(row: Row, kind: "unknown" | "rejected") {
+    return withLock(() => {
+      const plan = kind === "unknown" ? planUnknownOutcomeUpdate(row, "fp:x") : planRejectedIfOpen(row, "fp:x");
+      if (!plan.apply) return { updated: false as const, status: row.status };
+      Object.assign(row, plan.data);
+      return { updated: true as const, status: row.status };
+    });
+  }
+
+  function applyView(row: Row, providerStatus: string, amountCents = 1490) {
+    return withLock(() => {
+      if (shouldIgnoreStaleProviderStatus(row.status, providerStatus)) {
+        return { ignored: true as const };
+      }
+      const decision = reconcileDecision({
+        orderId: "order-1",
+        orderStatus: row.orderStatus,
+        orderTotalCents: amountCents,
+        paymentStatus: row.status as InternalPaymentStatus,
+        paymentAmountCents: amountCents,
+        provider: view({ status: providerStatus as ProviderPaymentView["status"], amountCents, externalReference: "order-1" }),
+        alreadyGranted: row.entitlements > 0,
+      });
+      if (!mayOverwritePaymentStatus(row.status, decision.paymentStatus)) {
+        return { ignored: true as const };
+      }
+      row.status = decision.paymentStatus;
+      row.providerStatus = providerStatus;
+      if (!decision.ignore) {
+        if (!(row.orderStatus === "PAID" && decision.orderStatus !== "PAID" && decision.orderStatus !== "REFUNDED")) {
+          row.orderStatus = decision.orderStatus as Row["orderStatus"];
+        }
+      }
+      if (decision.grant) row.entitlements = 1;
+      return { ignored: false as const, decision };
+    });
+  }
+
+  // Webhook APPROVED antes do timeout
+  const a: Row = {
+    id: "a",
+    status: "PENDING",
+    providerStatus: "charge_dispatched",
+    providerStatusDetail: "fp:x",
+    orderStatus: "PENDING_PAYMENT",
+    entitlements: 0,
+    idempotencyKey: "idem-a",
+  };
+  await applyView(a, "approved");
+  assert.equal(a.status, "APPROVED");
+  assert.equal(a.orderStatus, "PAID");
+  assert.equal(a.entitlements, 1);
+  assert.equal((await markOpen(a, "unknown")).updated, false);
+  assert.equal(a.status, "APPROVED");
+  await applyView(a, "pending");
+  await applyView(a, "rejected");
+  assert.equal(a.status, "APPROVED");
+  assert.equal(a.orderStatus, "PAID");
+  assert.notEqual(a.orderStatus, "NEEDS_REVIEW");
+  await applyView(a, "approved");
+  assert.equal(a.entitlements, 1);
+
+  // Timeout antes do webhook APPROVED
+  const b: Row = {
+    id: "b",
+    status: "PENDING",
+    providerStatus: null,
+    providerStatusDetail: null,
+    orderStatus: "PENDING_PAYMENT",
+    entitlements: 0,
+    idempotencyKey: "idem-b",
+  };
+  assert.equal((await markOpen(b, "unknown")).updated, true);
+  assert.equal(b.providerStatus, "outcome_unknown");
+  assert.equal(b.status, "PENDING");
+  // novo checkout com overlap incerto bloqueado (por aulas)
+  assert.equal(lessonSetsOverlap(["b"], ["b"]), true);
+  // mesma chave: decidePaymentAttempt resume_idempotent
+  assert.equal(
+    decidePaymentAttempt({
+      id: b.id,
+      idempotencyKey: b.idempotencyKey,
+      amountCents: 1490,
+      providerPaymentId: null,
+      providerStatus: b.providerStatus,
+      providerStatusDetail: "fp:x",
+      status: b.status,
+    }).action,
+    "resume_idempotent",
+  );
+  await Promise.all([applyView(b, "approved"), applyView(b, "approved")]);
+  assert.equal(b.status, "APPROVED");
+  assert.equal(b.entitlements, 1);
+  assert.equal((await markOpen(b, "unknown")).updated, false);
+
+  // HTTP rejected depois de APPROVED
+  const c: Row = {
+    id: "c",
+    status: "APPROVED",
+    providerStatus: "approved",
+    providerStatusDetail: null,
+    orderStatus: "PAID",
+    entitlements: 1,
+    idempotencyKey: "idem-c",
+  };
+  assert.equal((await markOpen(c, "rejected")).updated, false);
+  await applyView(c, "rejected");
+  assert.equal(c.status, "APPROVED");
+  assert.equal(c.orderStatus, "PAID");
+
+  const brick = readFileSync("src/components/commerce/PaymentBrick.tsx", "utf8");
+  assert.match(brick, /uncertainRef/);
+  assert.match(brick, /if \(uncertainRef\.current\) return/);
+  const apply = readFileSync("src/lib/commerce/apply.ts", "utf8");
+  assert.match(apply, /mayOverwritePaymentStatus/);
+  assert.match(apply, /updateOpenPaymentMarkers/);
+  assert.match(apply, /FOR UPDATE/);
+  const orders = readFileSync("src/lib/commerce/orders.ts", "utf8");
+  assert.match(orders, /findOverlappingPendingCheckout/);
+  assert.match(orders, /pg_advisory_xact_lock/);
+  assert.match(orders, /commerce-checkout:/);
+  assert.match(orders, /OrderItemLesson|lessons: \{ select: \{ lessonId/);
+});
+
+test("gate database-live de comércio recusa Prisma compartilhado e exige fingerprint isolado", async () => {
+  const { evaluateIsolatedCommerceDatabaseLive, fingerprintDatabaseUrl, canCancelAbandonedCheckout } = await import(
+    "../src/lib/db/urls"
+  ).then(async (urls) => ({
+    ...urls,
+    canCancelAbandonedCheckout: (await import("../src/lib/commerce/payment-guards")).canCancelAbandonedCheckout,
+  }));
+  const shared = "postgresql://user:secret@db.prisma.io:5432/postgres";
+  const local = "postgresql://u:p@127.0.0.1:55433/commerce_qa";
+  assert.equal(fingerprintDatabaseUrl(shared)?.hostClass, "prisma-postgres");
+  assert.equal(
+    evaluateIsolatedCommerceDatabaseLive({
+      ISOLATED_COMMERCE_DATABASE_TEST: "1",
+      DATABASE_ENV: "test",
+      MERCADO_PAGO_ENV: "test",
+      ISOLATED_COMMERCE_DATABASE_URL: shared,
+      RUNTIME_DATABASE_URL: shared,
+      POSTGRES_URL: shared,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    evaluateIsolatedCommerceDatabaseLive({
+      ISOLATED_COMMERCE_DATABASE_TEST: "1",
+      DATABASE_ENV: "test",
+      VERCEL_ENV: "production",
+      MERCADO_PAGO_ENV: "test",
+      ISOLATED_COMMERCE_DATABASE_URL: local,
+      RUNTIME_DATABASE_URL: local,
+      POSTGRES_URL: local,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    evaluateIsolatedCommerceDatabaseLive({
+      ISOLATED_COMMERCE_DATABASE_TEST: "1",
+      DATABASE_ENV: "test",
+      MERCADO_PAGO_ENV: "test",
+      ISOLATED_COMMERCE_DATABASE_URL: local,
+      RUNTIME_DATABASE_URL: local,
+      POSTGRES_URL: shared,
+    }).ok,
+    false,
+  );
+  const ok = evaluateIsolatedCommerceDatabaseLive({
+    ISOLATED_COMMERCE_DATABASE_TEST: "1",
+    DATABASE_ENV: "test",
+    MERCADO_PAGO_ENV: "test",
+    ISOLATED_COMMERCE_DATABASE_URL: local,
+    RUNTIME_DATABASE_URL: local,
+    POSTGRES_URL: local,
+    PRODUCTION_MIGRATE_HOST: "db.prisma.io",
+  });
+  assert.equal(ok.ok, true);
+  if (ok.ok) {
+    assert.equal(ok.identity.host, "127.0.0.1");
+    assert.equal(ok.identity.port, "55433");
+    assert.equal(ok.identity.database, "commerce_qa");
+    assert.equal(ok.identity.hostClass, "localhost");
+  }
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: null, providerPaymentId: null }],
+    }),
+    true,
+  );
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "outcome_unknown", providerPaymentId: null }],
+    }),
+    false,
+  );
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "charge_dispatched", providerPaymentId: null }],
+    }),
+    false,
+  );
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "pending", providerPaymentId: "mp-1" }],
+    }),
+    false,
+  );
+  const runner = readFileSync("scripts/run-database-live-tests.ts", "utf8");
+  assert.match(runner, /evaluateIsolatedCommerceDatabaseLive/);
+  assert.match(runner, /ABORT/);
+  assert.match(runner, /assertIsolatedCommerceLiveConnection/);
 });
 

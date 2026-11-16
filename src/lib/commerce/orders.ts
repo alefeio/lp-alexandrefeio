@@ -3,9 +3,21 @@ import { getPrisma } from "@/lib/db/prisma";
 import { isCommerceEnabled } from "@/lib/commerce/config";
 import { loadCreditSources, loadOwnedLessonIds, loadSaleCatalog } from "@/lib/commerce/catalog";
 import { quoteCart, type CartLine } from "@/lib/commerce/quote";
+import {
+  canCancelAbandonedCheckout,
+  collectLessonIdsFromOrderItems,
+  isUncertainProviderStatus,
+  lessonSetsOverlap,
+} from "@/lib/commerce/payment-guards";
+import { UNCERTAIN_PAYMENT_MESSAGE } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
 import { deliverPurchaseEmail } from "@/lib/email/purchase-mail";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+
+/** Serializa checkouts do mesmo usuário (create + prepare) entre conexões/poolers. */
+export function commerceCheckoutLockSql(userId: string) {
+  return Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`commerce-checkout:${userId}`}))`;
+}
 
 function origin() {
   return (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -26,17 +38,41 @@ export async function quoteForUser(userId: string | null, lines: CartLine[]) {
 export async function createOrderForUser(userId: string, lines: CartLine[], checkoutKey: string) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
   const prisma = getPrisma();
-  const existing = await prisma.order.findUnique({ where: { checkoutKey } });
-  if (existing) {
-    if (existing.userId !== userId) return { ok: false as const, message: "Não foi possível abrir este pedido." };
-    return { ok: true as const, orderId: existing.id, status: existing.status, totalCents: existing.totalCents };
-  }
   const quote = await quoteForUser(userId, lines);
   if (!quote.ok) return quote;
 
-  let order;
+  type Created = { id: string; status: string; totalCents: number };
+  let order: Created;
   try {
-    order = await prisma.$transaction(async (tx) => {
+    const outcome = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(commerceCheckoutLockSql(userId));
+
+      const existing = await tx.order.findUnique({ where: { checkoutKey } });
+      if (existing) {
+        if (existing.userId !== userId) {
+          return { kind: "error" as const, message: "Não foi possível abrir este pedido." };
+        }
+        return {
+          kind: "existing" as const,
+          order: { id: existing.id, status: existing.status, totalCents: existing.totalCents },
+        };
+      }
+
+      if (quote.kind !== "zero_upgrade") {
+        const cartLessonIds = quote.items.flatMap((item) => item.lessonIds);
+        const blocked = await findOverlappingPendingCheckout(tx, userId, cartLessonIds);
+        if (blocked) {
+          return {
+            kind: "blocked" as const,
+            orderId: blocked.orderId,
+            code: blocked.uncertain ? ("payment_uncertain" as const) : ("checkout_overlap" as const),
+            message: blocked.uncertain
+              ? UNCERTAIN_PAYMENT_MESSAGE
+              : "Já existe um checkout aberto para este conteúdo. Conclua ou aguarde a verificação do pedido anterior.",
+          };
+        }
+      }
+
       const created = await tx.order.create({
         data: {
           userId,
@@ -70,8 +106,19 @@ export async function createOrderForUser(userId: string, lines: CartLine[], chec
         }
         if (quote.kind === "zero_upgrade") await grantItem(tx, userId, row.id, item.lessonIds);
       }
-      return created;
+      return { kind: "created" as const, order: { id: created.id, status: created.status, totalCents: created.totalCents } };
     });
+
+    if (outcome.kind === "error") return { ok: false as const, message: outcome.message };
+    if (outcome.kind === "blocked") {
+      return {
+        ok: false as const,
+        message: outcome.message,
+        code: outcome.code,
+        orderId: outcome.orderId,
+      };
+    }
+    order = outcome.order;
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
     const raced = await prisma.order.findUnique({ where: { checkoutKey } });
@@ -91,6 +138,144 @@ async function grantItem(tx: Prisma.TransactionClient, userId: string, orderItem
       update: { status: "ACTIVE", revokedAt: null },
     });
   }
+}
+
+/**
+ * Impede novo checkout enquanto existir pedido PENDING_PAYMENT com aulas sobrepostas.
+ * Usa OrderItemLesson (aulas efetivas), não só chaves LESSON/MODULE/COURSE do SKU.
+ */
+export async function findOverlappingPendingCheckout(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  cartLessonIds: string[],
+  options?: { excludeOrderId?: string },
+): Promise<{ orderId: string; uncertain: boolean } | null> {
+  if (cartLessonIds.length === 0) return null;
+  const candidates = await tx.order.findMany({
+    where: {
+      userId,
+      status: "PENDING_PAYMENT",
+      ...(options?.excludeOrderId ? { id: { not: options.excludeOrderId } } : {}),
+    },
+    include: {
+      items: {
+        select: {
+          lessonId: true,
+          lessons: { select: { lessonId: true } },
+        },
+      },
+      payments: {
+        where: { status: { in: ["PENDING", "IN_PROCESS"] } },
+        select: { providerStatus: true, providerPaymentId: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 40,
+  });
+  for (const order of candidates) {
+    const orderLessonIds = collectLessonIdsFromOrderItems(order.items);
+    if (!lessonSetsOverlap(cartLessonIds, orderLessonIds)) continue;
+    const uncertain = order.payments.some(
+      (payment) => isUncertainProviderStatus(payment.providerStatus) || Boolean(payment.providerPaymentId),
+    );
+    return { orderId: order.id, uncertain };
+  }
+  return null;
+}
+
+/** Compat: só pedidos com marker incerto e aulas sobrepostas. */
+export async function findOverlappingUncertainOrder(userId: string, cartLessonIds: string[]): Promise<string | null> {
+  const hit = await findOverlappingPendingCheckout(
+    getPrisma() as unknown as Prisma.TransactionClient,
+    userId,
+    cartLessonIds,
+  );
+  return hit?.uncertain ? hit.orderId : null;
+}
+
+/**
+ * Cancela explicitamente um checkout abandonado (sem despacho/incerteza/provider id).
+ * Permite novo checkoutKey depois. Nunca toca tentativas uncertain.
+ */
+export async function cancelAbandonedCheckoutForUser(userId: string, orderId: string) {
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(commerceCheckoutLockSql(userId));
+    await tx.$queryRaw(orderPaymentLockSql(orderId, userId));
+
+    const order = await tx.order.findFirst({
+      where: { id: orderId, userId },
+      include: {
+        payments: {
+          select: { id: true, status: true, providerStatus: true, providerPaymentId: true },
+        },
+      },
+    });
+    if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
+
+    // Bloqueia linhas de pagamento abertas para serializar com claimChargeDispatch.
+    const openIds = order.payments
+      .filter((payment) => payment.status === "PENDING" || payment.status === "IN_PROCESS")
+      .map((payment) => payment.id);
+    if (openIds.length > 0) {
+      await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" IN (${Prisma.join(openIds)}) FOR UPDATE`;
+    }
+
+    const lockedPayments =
+      openIds.length === 0
+        ? order.payments
+        : await tx.payment.findMany({
+            where: { orderId: order.id },
+            select: { id: true, status: true, providerStatus: true, providerPaymentId: true },
+          });
+
+    if (!canCancelAbandonedCheckout({ orderStatus: order.status, payments: lockedPayments })) {
+      const uncertain = lockedPayments.some(
+        (payment) =>
+          Boolean(payment.providerPaymentId) || isUncertainProviderStatus(payment.providerStatus),
+      );
+      return {
+        ok: false as const,
+        message: uncertain
+          ? UNCERTAIN_PAYMENT_MESSAGE
+          : "Este pedido não pode ser cancelado automaticamente. Abra o pedido ou fale com o suporte.",
+        code: uncertain ? ("payment_uncertain" as const) : ("not_abandonable" as const),
+      };
+    }
+
+    const openVirginIds = lockedPayments
+      .filter((payment) => payment.status === "PENDING" || payment.status === "IN_PROCESS")
+      .map((payment) => payment.id);
+
+    if (openVirginIds.length > 0) {
+      const cancelledPayments = await tx.payment.updateMany({
+        where: {
+          id: { in: openVirginIds },
+          status: { in: ["PENDING", "IN_PROCESS"] },
+          providerPaymentId: null,
+          OR: [{ providerStatus: null }, { providerStatus: { notIn: ["charge_dispatched", "outcome_unknown"] } }],
+        },
+        data: { status: "CANCELLED", providerStatus: "checkout_abandoned" },
+      });
+      // Se um claim gravou charge_dispatched entre o read e o update, aborta sem cancelar o pedido.
+      if (cancelledPayments.count !== openVirginIds.length) {
+        return {
+          ok: false as const,
+          message: UNCERTAIN_PAYMENT_MESSAGE,
+          code: "payment_uncertain" as const,
+        };
+      }
+    }
+
+    const cancelled = await tx.order.updateMany({
+      where: { id: order.id, userId, status: "PENDING_PAYMENT" },
+      data: { status: "CANCELLED" },
+    });
+    if (cancelled.count !== 1) {
+      return { ok: false as const, message: "Não foi possível cancelar este checkout.", code: "conflict" as const };
+    }
+    return { ok: true as const, orderId: order.id, status: "CANCELLED" as const };
+  });
 }
 
 export async function grantOrderAccess(orderId: string) {
@@ -114,38 +299,111 @@ export async function revokeOrderAccess(orderId: string) {
   });
 }
 
+/** Lock pessimista no nome físico da tabela (`@@map("order")`), não no nome do model Prisma. */
+export function orderPaymentLockSql(orderId: string, userId: string) {
+  return Prisma.sql`
+    SELECT "id" FROM "order"
+    WHERE "id" = ${orderId} AND "userId" = ${userId}
+    FOR UPDATE
+  `;
+}
+
+export type OpenPaymentSnapshot = {
+  id: string;
+  idempotencyKey: string;
+  amountCents: number;
+  providerPaymentId: string | null;
+  providerStatus: string | null;
+  providerStatusDetail: string | null;
+  status: string;
+};
+
+export type PaymentAttemptDecision =
+  | { action: "reuse_provider"; payment: OpenPaymentSnapshot }
+  | { action: "continue_same"; payment: OpenPaymentSnapshot }
+  | { action: "resume_idempotent"; payment: OpenPaymentSnapshot }
+  | { action: "create_new" };
+
+/**
+ * Decide o que fazer com a tentativa aberta.
+ * Nunca cancela automaticamente uma tentativa ainda incerta para abrir outra chave.
+ */
+export function decidePaymentAttempt(open: OpenPaymentSnapshot | null): PaymentAttemptDecision {
+  if (!open) return { action: "create_new" };
+  if (open.providerPaymentId) return { action: "reuse_provider", payment: open };
+  if (open.providerStatus === "outcome_unknown" || open.providerStatus === "charge_dispatched") {
+    // Mesma chave/idempotência; payOrderAction só reenvia se a impressão coincidir (Pix estável).
+    return { action: "resume_idempotent", payment: open };
+  }
+  // PENDING virgem: reutiliza a mesma linha/chave (dois cliques / retry de UI sem nova cobrança).
+  return { action: "continue_same", payment: open };
+}
+
 export async function preparePaymentAttempt(userId: string, orderId: string) {
-  if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
+  if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas.", code: "commerce_disabled" as const };
   const prisma = getPrisma();
 
   return prisma.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT "id" FROM "Order"
-      WHERE "id" = ${orderId} AND "userId" = ${userId}
-      FOR UPDATE
-    `;
-    if (locked.length === 0) return { ok: false as const, message: "Pedido não encontrado." };
-
-    const order = await tx.order.findUnique({ where: { id: orderId } });
-    if (!order) return { ok: false as const, message: "Pedido não encontrado." };
-    if (order.status === "PAID") return { ok: false as const, message: "Este pedido já foi pago." };
-    if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
-      return { ok: false as const, message: "Este pedido não aceita uma nova cobrança." };
+    await tx.$executeRaw(commerceCheckoutLockSql(userId));
+    const locked = await tx.$queryRaw<Array<{ id: string }>>(orderPaymentLockSql(orderId, userId));
+    if (locked.length === 0) {
+      return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
     }
 
-    const open = await tx.payment.findFirst({
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: { include: { lessons: { select: { lessonId: true } } } } },
+    });
+    if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
+    if (order.status === "PAID") {
+      return { ok: false as const, message: "Este pedido já foi pago.", code: "already_paid" as const };
+    }
+    if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
+      return { ok: false as const, message: "Este pedido não aceita uma nova cobrança.", code: "not_chargeable" as const };
+    }
+
+    const cartLessonIds = collectLessonIdsFromOrderItems(order.items);
+    const blocked = await findOverlappingPendingCheckout(tx, userId, cartLessonIds, { excludeOrderId: order.id });
+    if (blocked) {
+      return {
+        ok: false as const,
+        message: blocked.uncertain
+          ? UNCERTAIN_PAYMENT_MESSAGE
+          : "Já existe um checkout aberto para este conteúdo. Conclua ou aguarde a verificação do pedido anterior.",
+        code: blocked.uncertain ? ("payment_uncertain" as const) : ("checkout_overlap" as const),
+      };
+    }
+
+    const openRow = await tx.payment.findFirst({
       where: { orderId: order.id, status: { in: ["PENDING", "IN_PROCESS"] } },
       orderBy: { createdAt: "desc" },
     });
-    if (open?.providerPaymentId) {
-      return { ok: true as const, paymentId: open.id, idempotencyKey: open.idempotencyKey, amountCents: open.amountCents, reused: true };
+    const open: OpenPaymentSnapshot | null = openRow
+      ? {
+          id: openRow.id,
+          idempotencyKey: openRow.idempotencyKey,
+          amountCents: openRow.amountCents,
+          providerPaymentId: openRow.providerPaymentId,
+          providerStatus: openRow.providerStatus,
+          providerStatusDetail: openRow.providerStatusDetail,
+          status: openRow.status,
+        }
+      : null;
+
+    const decision = decidePaymentAttempt(open);
+    if (decision.action === "reuse_provider" || decision.action === "continue_same" || decision.action === "resume_idempotent") {
+      return {
+        ok: true as const,
+        paymentId: decision.payment.id,
+        idempotencyKey: decision.payment.idempotencyKey,
+        amountCents: decision.payment.amountCents,
+        mode: decision.action,
+        storedFingerprint: decision.payment.providerStatusDetail?.startsWith("fp:")
+          ? decision.payment.providerStatusDetail.slice(3)
+          : null,
+      };
     }
-    if (open && Date.now() - open.createdAt.getTime() < 20_000) {
-      return { ok: false as const, message: "O pagamento já está em andamento." };
-    }
-    if (open) {
-      await tx.payment.update({ where: { id: open.id }, data: { status: "CANCELLED" } });
-    }
+
     const payment = await tx.payment.create({
       data: {
         orderId: order.id,
@@ -155,7 +413,14 @@ export async function preparePaymentAttempt(userId: string, orderId: string) {
         status: "PENDING",
       },
     });
-    return { ok: true as const, paymentId: payment.id, idempotencyKey: payment.idempotencyKey, amountCents: payment.amountCents, reused: false };
+    return {
+      ok: true as const,
+      paymentId: payment.id,
+      idempotencyKey: payment.idempotencyKey,
+      amountCents: payment.amountCents,
+      mode: "fresh" as const,
+      storedFingerprint: null,
+    };
   });
 }
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mercadoPagoRuntimeConfig } from "@/lib/commerce/config";
 import { reaisFromCents } from "@/lib/commerce/analytics";
 import type { ProviderPaymentView } from "@/lib/commerce/reconcile";
@@ -6,6 +7,11 @@ const CARD_METHODS = new Set(["visa", "master", "amex", "elo", "hipercard", "cab
 const ORDERS_URL = "https://api.mercadopago.com/v1/orders";
 /** E-mail exigido pela documentação de teste do Checkout Transparente. Não é o e-mail da conta. */
 const TEST_PAYER_EMAIL = "test@testuser.com";
+
+export const PROVIDER_STATUS_DISPATCHED = "charge_dispatched";
+export const PROVIDER_STATUS_UNKNOWN = "outcome_unknown";
+export const UNCERTAIN_PAYMENT_MESSAGE =
+  "Há uma cobrança em verificação. Abra o pedido em Minhas compras ou fale com o suporte. Não inicie outro pagamento agora.";
 
 export type ChargeInput = {
   orderId: string;
@@ -22,8 +28,9 @@ export type ChargeInput = {
 };
 
 export type ChargeResult =
-  | { ok: true; view: ProviderPaymentView; pix: { copy: string; image: string } | null }
-  | { ok: false; message: string; view: ProviderPaymentView | null };
+  | { ok: true; kind: "accepted"; view: ProviderPaymentView; pix: { copy: string; image: string } | null }
+  | { ok: false; kind: "rejected"; message: string; view: ProviderPaymentView | null }
+  | { ok: false; kind: "unknown"; message: string; view: ProviderPaymentView | null };
 
 export function acceptedMethod(paymentMethodId: string, token?: string): "PIX" | "CREDIT_CARD" | null {
   if (paymentMethodId === "pix") return "PIX";
@@ -31,19 +38,75 @@ export function acceptedMethod(paymentMethodId: string, token?: string): "PIX" |
   return null;
 }
 
+/** Impressão estável da operação financeira (sem token de cartão). Inclui pagador canônico. */
+export function chargeFingerprint(input: {
+  orderId: string;
+  amountCents: number;
+  paymentMethodId: string;
+  installments?: number;
+  payerEmail?: string;
+  identificationType?: string;
+  identificationNumber?: string;
+}): string {
+  const isPix = input.paymentMethodId === "pix";
+  const normalizedMethod = isPix ? "pix" : input.paymentMethodId;
+  const installments = isPix ? 1 : (input.installments ?? 1);
+  const payer = (input.payerEmail ?? "").trim().toLowerCase();
+  const idType = (input.identificationType ?? "").trim().toUpperCase();
+  const idNumber = (input.identificationNumber ?? "").replace(/\D/g, "");
+  const material = `${input.orderId}|${input.amountCents}|${normalizedMethod}|${installments}|${payer}|${idType}|${idNumber}`;
+  return createHash("sha256").update(material).digest("hex").slice(0, 32);
+}
+
+export function encodeChargeFingerprint(fingerprint: string): string {
+  return `fp:${fingerprint}`;
+}
+
+export function readStoredChargeFingerprint(providerStatusDetail: string | null | undefined): string | null {
+  if (!providerStatusDetail?.startsWith("fp:")) return null;
+  const value = providerStatusDetail.slice(3).trim();
+  return value.length >= 16 ? value : null;
+}
+
+export function isUnresolvedPaymentMarker(providerStatus: string | null | undefined): boolean {
+  return providerStatus === PROVIDER_STATUS_UNKNOWN || providerStatus === PROVIDER_STATUS_DISPATCHED;
+}
+
+/** Classifica falha HTTP/rede: rejected = definitivo; unknown = não pode abrir nova cobrança. */
+export function classifyProviderChargeFailure(input: {
+  networkError?: boolean;
+  httpStatus: number | null;
+  view: ProviderPaymentView | null;
+}): "rejected" | "unknown" {
+  if (input.networkError) return "unknown";
+  const status = input.httpStatus;
+  if (status == null) return "unknown";
+  if (status === 408 || status === 425 || status === 429 || status >= 500) return "unknown";
+  if (input.view) {
+    const viewStatus = input.view.status;
+    if (viewStatus === "rejected" || viewStatus === "cancelled") return "rejected";
+    // Resposta com view pendente/aprovada mas HTTP não-OK: inconclusivo.
+    if (!status || status < 200 || status >= 300) return "unknown";
+  }
+  if (status >= 400 && status < 500) return "rejected";
+  return "unknown";
+}
+
 export async function createProviderCharge(input: ChargeInput): Promise<ChargeResult> {
   const config = mercadoPagoRuntimeConfig();
-  if (!config) return { ok: false, message: "O pagamento não está configurado.", view: null };
+  if (!config) return { ok: false, kind: "rejected", message: "O pagamento não está configurado.", view: null };
   const method = acceptedMethod(input.paymentMethodId, input.token);
-  if (!method) return { ok: false, message: "Esta forma de pagamento não está disponível.", view: null };
-  if (method === "CREDIT_CARD" && !input.token) return { ok: false, message: "Não foi possível usar este cartão.", view: null };
+  if (!method) return { ok: false, kind: "rejected", message: "Esta forma de pagamento não está disponível.", view: null };
+  if (method === "CREDIT_CARD" && !input.token) {
+    return { ok: false, kind: "rejected", message: "Não foi possível usar este cartão.", view: null };
+  }
   const installments = input.installments ?? 1;
   if (!Number.isInteger(installments) || installments < 1 || installments > 3) {
-    return { ok: false, message: "O parcelamento máximo neste checkout é de 3 vezes.", view: null };
+    return { ok: false, kind: "rejected", message: "O parcelamento máximo neste checkout é de 3 vezes.", view: null };
   }
   const amount = reaisFromCents(input.amountCents).toFixed(2);
   if (Math.round(Number(amount) * 100) !== input.amountCents) {
-    return { ok: false, message: "Não foi possível cobrar este valor.", view: null };
+    return { ok: false, kind: "rejected", message: "Não foi possível cobrar este valor.", view: null };
   }
 
   const paymentMethod =
@@ -83,20 +146,38 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
     });
   } catch (error) {
     console.error("mercado pago request failed", { name: error instanceof Error ? error.name : "Error" });
-    return { ok: false, message: "Não foi possível falar com o Mercado Pago.", view: null };
+    return {
+      ok: false,
+      kind: "unknown",
+      message: "Não foi possível confirmar o pagamento com o Mercado Pago. Consulte o pedido antes de tentar de novo.",
+      view: null,
+    };
   }
 
   const payload = await response.json().catch(() => null);
   const view = readProviderPayment(payload);
-  if (!view) {
-    console.error("mercado pago charge rejected", { status: response.status, providerStatus: safeErrorCode(payload) });
-    return { ok: false, message: "O pagamento não foi aceito.", view: null };
+  if (response.ok && view) {
+    return { ok: true, kind: "accepted", view, pix: method === "PIX" ? readPix(payload) : null };
   }
-  if (!response.ok) {
-    console.error("mercado pago charge rejected", { status: response.status, providerStatus: view.status });
-    return { ok: false, message: "O pagamento não foi aceito.", view };
+
+  const failureKind = classifyProviderChargeFailure({
+    httpStatus: response.status,
+    view,
+  });
+  console.error("mercado pago charge inconclusive_or_rejected", {
+    status: response.status,
+    kind: failureKind,
+    providerStatus: view?.status ?? safeErrorCode(payload),
+  });
+  if (failureKind === "unknown") {
+    return {
+      ok: false,
+      kind: "unknown",
+      message: UNCERTAIN_PAYMENT_MESSAGE,
+      view,
+    };
   }
-  return { ok: true, view, pix: method === "PIX" ? readPix(payload) : null };
+  return { ok: false, kind: "rejected", message: "O pagamento não foi aceito.", view };
 }
 
 export async function fetchProviderPayment(providerPaymentId: string): Promise<ProviderPaymentView | null> {

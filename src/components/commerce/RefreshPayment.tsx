@@ -35,10 +35,14 @@ export function RefreshPayment({ orderId, pending }: { orderId: string; pending:
   if (!pending) return null;
   return (
     <div className="mt-4">
-      <button className={buttonClass("secondary")} type="button" onClick={() => void refresh()} disabled={pendingClick}>
-        Atualizar status
+      <button className={buttonClass("secondary")} type="button" onClick={() => void refresh()} disabled={pendingClick} aria-busy={pendingClick}>
+        {pendingClick ? "Atualizando…" : "Atualizar status"}
       </button>
-      {message ? <p className="mt-2 text-sm text-muted">{message}</p> : null}
+      {message ? (
+        <p className="mt-2 text-sm text-muted" role="status">
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }
