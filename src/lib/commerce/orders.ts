@@ -123,34 +123,86 @@ export function orderPaymentLockSql(orderId: string, userId: string) {
   `;
 }
 
+export type OpenPaymentSnapshot = {
+  id: string;
+  idempotencyKey: string;
+  amountCents: number;
+  providerPaymentId: string | null;
+  providerStatus: string | null;
+  providerStatusDetail: string | null;
+  status: string;
+};
+
+export type PaymentAttemptDecision =
+  | { action: "reuse_provider"; payment: OpenPaymentSnapshot }
+  | { action: "continue_same"; payment: OpenPaymentSnapshot }
+  | { action: "resume_idempotent"; payment: OpenPaymentSnapshot }
+  | { action: "create_new" };
+
+/**
+ * Decide o que fazer com a tentativa aberta.
+ * Nunca cancela automaticamente uma tentativa ainda incerta para abrir outra chave.
+ */
+export function decidePaymentAttempt(open: OpenPaymentSnapshot | null): PaymentAttemptDecision {
+  if (!open) return { action: "create_new" };
+  if (open.providerPaymentId) return { action: "reuse_provider", payment: open };
+  if (open.providerStatus === "outcome_unknown" || open.providerStatus === "charge_dispatched") {
+    // Mesma chave/idempotência; payOrderAction só reenvia se a impressão coincidir (Pix estável).
+    return { action: "resume_idempotent", payment: open };
+  }
+  // PENDING virgem: reutiliza a mesma linha/chave (dois cliques / retry de UI sem nova cobrança).
+  return { action: "continue_same", payment: open };
+}
+
 export async function preparePaymentAttempt(userId: string, orderId: string) {
-  if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
+  if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas.", code: "commerce_disabled" as const };
   const prisma = getPrisma();
 
   return prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>(orderPaymentLockSql(orderId, userId));
-    if (locked.length === 0) return { ok: false as const, message: "Pedido não encontrado." };
-
-    const order = await tx.order.findUnique({ where: { id: orderId } });
-    if (!order) return { ok: false as const, message: "Pedido não encontrado." };
-    if (order.status === "PAID") return { ok: false as const, message: "Este pedido já foi pago." };
-    if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
-      return { ok: false as const, message: "Este pedido não aceita uma nova cobrança." };
+    if (locked.length === 0) {
+      return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
     }
 
-    const open = await tx.payment.findFirst({
+    const order = await tx.order.findUnique({ where: { id: orderId } });
+    if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
+    if (order.status === "PAID") {
+      return { ok: false as const, message: "Este pedido já foi pago.", code: "already_paid" as const };
+    }
+    if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
+      return { ok: false as const, message: "Este pedido não aceita uma nova cobrança.", code: "not_chargeable" as const };
+    }
+
+    const openRow = await tx.payment.findFirst({
       where: { orderId: order.id, status: { in: ["PENDING", "IN_PROCESS"] } },
       orderBy: { createdAt: "desc" },
     });
-    if (open?.providerPaymentId) {
-      return { ok: true as const, paymentId: open.id, idempotencyKey: open.idempotencyKey, amountCents: open.amountCents, reused: true };
+    const open: OpenPaymentSnapshot | null = openRow
+      ? {
+          id: openRow.id,
+          idempotencyKey: openRow.idempotencyKey,
+          amountCents: openRow.amountCents,
+          providerPaymentId: openRow.providerPaymentId,
+          providerStatus: openRow.providerStatus,
+          providerStatusDetail: openRow.providerStatusDetail,
+          status: openRow.status,
+        }
+      : null;
+
+    const decision = decidePaymentAttempt(open);
+    if (decision.action === "reuse_provider" || decision.action === "continue_same" || decision.action === "resume_idempotent") {
+      return {
+        ok: true as const,
+        paymentId: decision.payment.id,
+        idempotencyKey: decision.payment.idempotencyKey,
+        amountCents: decision.payment.amountCents,
+        mode: decision.action,
+        storedFingerprint: decision.payment.providerStatusDetail?.startsWith("fp:")
+          ? decision.payment.providerStatusDetail.slice(3)
+          : null,
+      };
     }
-    if (open && Date.now() - open.createdAt.getTime() < 20_000) {
-      return { ok: false as const, message: "O pagamento já está em andamento." };
-    }
-    if (open) {
-      await tx.payment.update({ where: { id: open.id }, data: { status: "CANCELLED" } });
-    }
+
     const payment = await tx.payment.create({
       data: {
         orderId: order.id,
@@ -160,7 +212,14 @@ export async function preparePaymentAttempt(userId: string, orderId: string) {
         status: "PENDING",
       },
     });
-    return { ok: true as const, paymentId: payment.id, idempotencyKey: payment.idempotencyKey, amountCents: payment.amountCents, reused: false };
+    return {
+      ok: true as const,
+      paymentId: payment.id,
+      idempotencyKey: payment.idempotencyKey,
+      amountCents: payment.amountCents,
+      mode: "fresh" as const,
+      storedFingerprint: null,
+    };
   });
 }
 

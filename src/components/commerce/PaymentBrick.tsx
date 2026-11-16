@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type ComponentProps } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { payOrderAction } from "@/lib/commerce/actions";
 import { reaisFromCents } from "@/lib/commerce/analytics";
-import { buttonClass } from "@/lib/button-styles";
+import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 
 function safeClientMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
@@ -32,13 +33,16 @@ export function PaymentBrick({
   const [ready, setReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uncertain, setUncertain] = useState(false);
   const [brickKey, setBrickKey] = useState(0);
 
   useEffect(() => {
     initMercadoPago(publicKey, { locale: "pt-BR" });
   }, [publicKey]);
 
-  function retryBrick() {
+  /** Só remonta o formulário. Não autoriza nova cobrança financeira. */
+  function reloadBrickUi() {
+    if (uncertain) return;
     submittingRef.current = false;
     setProcessing(false);
     setError(null);
@@ -61,12 +65,24 @@ export function PaymentBrick({
       {error ? (
         <div className="mb-4 rounded-lg border border-border bg-surface px-4 py-3" role="alert">
           <p className="text-sm">{error}</p>
-          <button className={`${buttonClass("secondary")} mt-3`} type="button" onClick={retryBrick} disabled={processing}>
-            Tentar novamente
-          </button>
+          {uncertain ? (
+            <div className="mt-3 flex flex-col items-start gap-2">
+              <Link className={buttonClass("primary")} href={`/app/compras/${orderId}`}>
+                Abrir o pedido
+              </Link>
+              <Link className={navigationLinkClass()} href="/app/compras">
+                Minhas compras
+              </Link>
+              <p className="text-xs text-muted">Recarregar o formulário não inicia outra cobrança enquanto esta tentativa estiver em verificação.</p>
+            </div>
+          ) : (
+            <button className={`${buttonClass("secondary")} mt-3`} type="button" onClick={reloadBrickUi} disabled={processing}>
+              Recarregar formulário
+            </button>
+          )}
         </div>
       ) : null}
-      <div className={processing ? "pointer-events-none opacity-60" : undefined} aria-disabled={processing}>
+      <div className={processing || uncertain ? "pointer-events-none opacity-60" : undefined} aria-disabled={processing || uncertain}>
         <Payment
           key={brickKey}
           initialization={{ amount: reaisFromCents(amountCents), payer: { email: payerEmail } }}
@@ -82,14 +98,18 @@ export function PaymentBrick({
           }}
           onError={(brickError) => {
             if (brickError.type === "non_critical") return;
+            setUncertain(false);
             setError(
               safeClientMessage(
                 new Error(brickError.message || "Não foi possível carregar o pagamento."),
-                "Não foi possível carregar o formulário de pagamento. Tente novamente.",
+                "Não foi possível carregar o formulário de pagamento. Recarregue o formulário.",
               ),
             );
           }}
           onSubmit={async ({ formData }) => {
+            if (uncertain) {
+              throw new Error("Há uma cobrança em verificação. Consulte o pedido.");
+            }
             if (submittingRef.current || processing) {
               throw new Error("O pagamento já está em andamento.");
             }
@@ -115,13 +135,15 @@ export function PaymentBrick({
               });
               if (!result.ok) {
                 const message = result.message || "Não foi possível concluir o pagamento.";
+                const isUncertain = "code" in result && (result.code === "payment_uncertain" || result.code === "fingerprint_mismatch");
+                setUncertain(Boolean(isUncertain));
                 setError(message);
                 throw new Error(message);
               }
               router.push(`/app/compras/${orderId}`);
               return;
             } catch (caught) {
-              const message = safeClientMessage(caught, "Não foi possível concluir o pagamento. Tente novamente.");
+              const message = safeClientMessage(caught, "Não foi possível concluir o pagamento.");
               setError(message);
               throw caught instanceof Error ? caught : new Error(message);
             } finally {

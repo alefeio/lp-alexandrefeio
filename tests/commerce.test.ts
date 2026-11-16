@@ -6,10 +6,17 @@ import test from "node:test";
 import { canReadLessonBody, visibleBlocks } from "../src/lib/learning/access";
 import { commerceAnalyticsPayload, purchaseDedupeKey } from "../src/lib/commerce/analytics";
 import { isCommerceEnabled } from "../src/lib/commerce/config";
-import { orderPaymentLockSql } from "../src/lib/commerce/orders";
+import { decidePaymentAttempt, orderPaymentLockSql } from "../src/lib/commerce/orders";
 import { amountDueCents, eligibleCreditCents, quoteCart, type CreditSource, type SaleCourse, type SaleLesson, type SaleModule } from "../src/lib/commerce/quote";
 import { reconcileDecision, type ProviderPaymentView } from "../src/lib/commerce/reconcile";
-import { acceptedMethod, readPix, readProviderPayment } from "../src/lib/commerce/provider";
+import {
+  acceptedMethod,
+  chargeFingerprint,
+  classifyProviderChargeFailure,
+  readPix,
+  readProviderPayment,
+  readStoredChargeFingerprint,
+} from "../src/lib/commerce/provider";
 import { verifyMercadoPagoSignature } from "../src/lib/commerce/signature";
 import { purchaseEmail } from "../src/lib/email/purchase-mail";
 import { needsSession } from "../src/proxy";
@@ -802,13 +809,16 @@ test("lock de pagamento usa a tabela física order e não o model Order", () => 
   assert.match(ordersSource, /FROM "order"/);
 });
 
-test("Brick e painel Pix expõem erro recuperável e anti-duplo clique", () => {
+test("Brick distingue reload de UI e cobrança incerta; painel Pix permanece", () => {
   const brick = readFileSync("src/components/commerce/PaymentBrick.tsx", "utf8");
   assert.match(brick, /onError=/);
   assert.match(brick, /onReady=/);
   assert.match(brick, /submittingRef/);
-  assert.match(brick, /Tentar novamente/);
-  assert.match(brick, /role="alert"/);
+  assert.match(brick, /Recarregar formulário/);
+  assert.match(brick, /reloadBrickUi/);
+  assert.match(brick, /payment_uncertain/);
+  assert.match(brick, /Abrir o pedido/);
+  assert.equal(brick.includes("Tentar novamente"), false);
   assert.equal(/console\.(log|error|info)\(.*token/i.test(brick), false);
 
   const panel = readFileSync("src/components/commerce/PixPaymentPanel.tsx", "utf8");
@@ -819,6 +829,10 @@ test("Brick e painel Pix expõem erro recuperável e anti-duplo clique", () => {
   const page = readFileSync("src/app/(app)/app/compras/[id]/page.tsx", "utf8");
   assert.match(page, /PixPaymentPanel/);
   assert.match(page, /awaitingPix/);
+
+  const ordersSource = readFileSync("src/lib/commerce/orders.ts", "utf8");
+  assert.equal(ordersSource.includes("20_000"), false);
+  assert.equal(ordersSource.includes('status: "CANCELLED"'), false);
 });
 
 test("Pix simulado lê QR e cartão continua aceito", () => {
@@ -847,5 +861,91 @@ test("Pix simulado lê QR e cartão continua aceito", () => {
   assert.equal(view?.paymentTypeId, "bank_transfer");
   assert.deepEqual(readPix(payload), { copy: "0002012658", image: "aW1n" });
   assert.equal(readPix({ ...payload, transactions: { payments: [{ amount: "14.90", payment_method: { id: "pix", type: "bank_transfer" } }] } }), null);
+});
+
+test("falha de provedor distingue rejeição definitiva de resultado desconhecido", () => {
+  assert.equal(classifyProviderChargeFailure({ networkError: true, httpStatus: null, view: null }), "unknown");
+  assert.equal(classifyProviderChargeFailure({ httpStatus: 504, view: null }), "unknown");
+  assert.equal(classifyProviderChargeFailure({ httpStatus: 502, view: null }), "unknown");
+  assert.equal(classifyProviderChargeFailure({ httpStatus: 400, view: null }), "rejected");
+  assert.equal(
+    classifyProviderChargeFailure({
+      httpStatus: 402,
+      view: {
+        id: "x",
+        status: "rejected",
+        statusDetail: "failed",
+        amountCents: 1490,
+        currency: "BRL",
+        externalReference: "o1",
+        paymentTypeId: "credit_card",
+        installments: 1,
+        refundedCents: 0,
+      },
+    }),
+    "rejected",
+  );
+  assert.equal(
+    classifyProviderChargeFailure({
+      httpStatus: 200,
+      view: {
+        id: "x",
+        status: "pending",
+        statusDetail: null,
+        amountCents: 1490,
+        currency: "BRL",
+        externalReference: "o1",
+        paymentTypeId: "bank_transfer",
+        installments: null,
+        refundedCents: 0,
+      },
+    }),
+    "unknown",
+  );
+});
+
+test("tentativa aberta nunca gera nova chave enquanto estiver incerta; rejeitada permite nova", () => {
+  const base = {
+    id: "pay-1",
+    idempotencyKey: "idem-1",
+    amountCents: 1490,
+    providerPaymentId: null as string | null,
+    providerStatus: null as string | null,
+    providerStatusDetail: null as string | null,
+    status: "PENDING",
+  };
+  assert.equal(decidePaymentAttempt(null).action, "create_new");
+  assert.equal(decidePaymentAttempt(base).action, "continue_same");
+  assert.equal(decidePaymentAttempt({ ...base, providerStatus: "charge_dispatched" }).action, "resume_idempotent");
+  assert.equal(decidePaymentAttempt({ ...base, providerStatus: "outcome_unknown" }).action, "resume_idempotent");
+  assert.equal(
+    decidePaymentAttempt({ ...base, providerPaymentId: "mp-1", providerStatus: "pending" }).action,
+    "reuse_provider",
+  );
+
+  // Simula “após 20s”: ainda assim resume_idempotent, sem create_new.
+  const aged = { ...base, providerStatus: "outcome_unknown" };
+  assert.equal(decidePaymentAttempt(aged).action, "resume_idempotent");
+
+  const fpPix = chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix" });
+  const fpCard = chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "master", installments: 1 });
+  assert.notEqual(fpPix, fpCard);
+  assert.equal(readStoredChargeFingerprint(`fp:${fpPix}`), fpPix);
+  assert.equal(
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix" }),
+    chargeFingerprint({ orderId: "order-1", amountCents: 1490, paymentMethodId: "pix", installments: 3 }),
+  );
+});
+
+test("actions marcam unknown sem REJECTED e exigem fingerprint estável", () => {
+  const actions = readFileSync("src/lib/commerce/actions.ts", "utf8");
+  assert.match(actions, /PROVIDER_STATUS_UNKNOWN/);
+  assert.match(actions, /PROVIDER_STATUS_DISPATCHED/);
+  assert.match(actions, /fingerprint_mismatch/);
+  assert.match(actions, /kind === "unknown"/);
+  assert.equal(actions.includes('status: "REJECTED", providerStatus: "request_failed"') || actions.includes('providerStatus: "request_failed"'), true);
+  // Não rejeita automaticamente em falha desconhecida.
+  assert.match(actions, /charge\.kind === "unknown"/);
+  assert.equal(/else if \(!charge\.ok\)[\s\S]*REJECTED/.test(actions), false);
 });
 
