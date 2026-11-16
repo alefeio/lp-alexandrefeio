@@ -60,7 +60,8 @@ test("a suíte padrão recusa o client do banco compartilhado", () => {
   assert.equal(pkg.scripts.test.includes("mercado-pago.live"), false);
   assert.match(liveRunner, /SHARED_DATABASE_TEST_CONFIRM !== "true"/);
   assert.match(liveRunner, /evaluateIsolatedCommerceDatabaseLive/);
-  assert.match(liveRunner, /commerce-concurrency/);
+  assert.match(liveRunner, /assertIsolatedCommerceLiveConnection/);
+  assert.match(liveRunner, /ABORT/);
   assert.match(mercadoPagoRunner, /MP_LIVE_TEST !== "1"/);
   assert.match(mercadoPagoRunner, /MERCADO_PAGO_ENV === "production"/);
   assert.equal(pkg.scripts.build.includes("database-live"), false);

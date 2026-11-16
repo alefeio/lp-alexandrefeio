@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CancelAbandonedCheckout } from "@/components/commerce/CancelAbandonedCheckout";
 import { PurchaseBeacon } from "@/components/commerce/PurchaseBeacon";
 import { PixPaymentPanel } from "@/components/commerce/PixPaymentPanel";
 import { RefreshPayment } from "@/components/commerce/RefreshPayment";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
 import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
+import { canCancelAbandonedCheckout } from "@/lib/commerce/payment-guards";
 import { getOrderForUser } from "@/lib/commerce/orders";
 import { paidOrderStart } from "@/lib/commerce/purchase-cta";
 import { fetchPixPresentation } from "@/lib/commerce/provider";
@@ -39,6 +41,14 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
   if (!order) notFound();
   const payment = order.payments[0] ?? null;
   const pending = order.status === "PENDING_PAYMENT";
+  const abandonable = canCancelAbandonedCheckout({
+    orderStatus: order.status,
+    payments: order.payments.map((row) => ({
+      status: row.status,
+      providerStatus: row.providerStatus,
+      providerPaymentId: row.providerPaymentId,
+    })),
+  });
   const awaitingPix = pending && payment?.paymentMethodType === "PIX" && Boolean(payment.providerPaymentId);
   const pix = awaitingPix && payment?.providerPaymentId
     ? await fetchPixPresentation(payment.providerPaymentId)
@@ -80,6 +90,7 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
         <PixPaymentPanel copy={pix?.copy} image={pix?.image} missing={!pix} />
       ) : null}
       <RefreshPayment orderId={order.id} pending={pending} />
+      {abandonable ? <CancelAbandonedCheckout orderId={order.id} /> : null}
       {start ? (
         <div className="mt-6">
           <p className="text-base font-medium">Acesso liberado.</p>

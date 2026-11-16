@@ -4,6 +4,7 @@ import { isCommerceEnabled } from "@/lib/commerce/config";
 import { loadCreditSources, loadOwnedLessonIds, loadSaleCatalog } from "@/lib/commerce/catalog";
 import { quoteCart, type CartLine } from "@/lib/commerce/quote";
 import {
+  canCancelAbandonedCheckout,
   collectLessonIdsFromOrderItems,
   isUncertainProviderStatus,
   lessonSetsOverlap,
@@ -144,7 +145,7 @@ async function grantItem(tx: Prisma.TransactionClient, userId: string, orderItem
  * Usa OrderItemLesson (aulas efetivas), não só chaves LESSON/MODULE/COURSE do SKU.
  */
 export async function findOverlappingPendingCheckout(
-  tx: Prisma.TransactionClient | ReturnType<typeof getPrisma>,
+  tx: Prisma.TransactionClient,
   userId: string,
   cartLessonIds: string[],
   options?: { excludeOrderId?: string },
@@ -165,7 +166,7 @@ export async function findOverlappingPendingCheckout(
       },
       payments: {
         where: { status: { in: ["PENDING", "IN_PROCESS"] } },
-        select: { providerStatus: true },
+        select: { providerStatus: true, providerPaymentId: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -174,7 +175,9 @@ export async function findOverlappingPendingCheckout(
   for (const order of candidates) {
     const orderLessonIds = collectLessonIdsFromOrderItems(order.items);
     if (!lessonSetsOverlap(cartLessonIds, orderLessonIds)) continue;
-    const uncertain = order.payments.some((payment) => isUncertainProviderStatus(payment.providerStatus));
+    const uncertain = order.payments.some(
+      (payment) => isUncertainProviderStatus(payment.providerStatus) || Boolean(payment.providerPaymentId),
+    );
     return { orderId: order.id, uncertain };
   }
   return null;
@@ -182,8 +185,65 @@ export async function findOverlappingPendingCheckout(
 
 /** Compat: só pedidos com marker incerto e aulas sobrepostas. */
 export async function findOverlappingUncertainOrder(userId: string, cartLessonIds: string[]): Promise<string | null> {
-  const hit = await findOverlappingPendingCheckout(getPrisma(), userId, cartLessonIds);
+  const hit = await findOverlappingPendingCheckout(
+    getPrisma() as unknown as Prisma.TransactionClient,
+    userId,
+    cartLessonIds,
+  );
   return hit?.uncertain ? hit.orderId : null;
+}
+
+/**
+ * Cancela explicitamente um checkout abandonado (sem despacho/incerteza/provider id).
+ * Permite novo checkoutKey depois. Nunca toca tentativas uncertain.
+ */
+export async function cancelAbandonedCheckoutForUser(userId: string, orderId: string) {
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(commerceCheckoutLockSql(userId));
+    await tx.$queryRaw(orderPaymentLockSql(orderId, userId));
+
+    const order = await tx.order.findFirst({
+      where: { id: orderId, userId },
+      include: {
+        payments: {
+          select: { id: true, status: true, providerStatus: true, providerPaymentId: true },
+        },
+      },
+    });
+    if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
+    if (!canCancelAbandonedCheckout({ orderStatus: order.status, payments: order.payments })) {
+      const uncertain = order.payments.some(
+        (payment) =>
+          Boolean(payment.providerPaymentId) || isUncertainProviderStatus(payment.providerStatus),
+      );
+      return {
+        ok: false as const,
+        message: uncertain
+          ? UNCERTAIN_PAYMENT_MESSAGE
+          : "Este pedido não pode ser cancelado automaticamente. Abra o pedido ou fale com o suporte.",
+        code: uncertain ? ("payment_uncertain" as const) : ("not_abandonable" as const),
+      };
+    }
+
+    await tx.payment.updateMany({
+      where: {
+        orderId: order.id,
+        status: { in: ["PENDING", "IN_PROCESS"] },
+        providerPaymentId: null,
+        OR: [{ providerStatus: null }, { providerStatus: { notIn: ["charge_dispatched", "outcome_unknown"] } }],
+      },
+      data: { status: "CANCELLED", providerStatus: "checkout_abandoned" },
+    });
+    const cancelled = await tx.order.updateMany({
+      where: { id: order.id, userId, status: "PENDING_PAYMENT" },
+      data: { status: "CANCELLED" },
+    });
+    if (cancelled.count !== 1) {
+      return { ok: false as const, message: "Não foi possível cancelar este checkout.", code: "conflict" as const };
+    }
+    return { ok: true as const, orderId: order.id, status: "CANCELLED" as const };
+  });
 }
 
 export async function grantOrderAccess(orderId: string) {

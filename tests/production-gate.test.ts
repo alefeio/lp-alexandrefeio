@@ -39,6 +39,7 @@ test("teste e production não cruzam ambiente", () => {
     DATABASE_ENV: "development",
   };
   assert.equal(mercadoPagoTestConfig(testEnv)?.env, "test");
+  assert.equal(mercadoPagoTestConfig({ ...testEnv, DATABASE_ENV: "test" })?.env, "test");
   assert.equal(mercadoPagoTestConfig({ ...testEnv, VERCEL_ENV: "production" }), null);
   assert.equal(mercadoPagoTestConfig({ ...testEnv, DATABASE_ENV: "production" }), null);
   assert.equal(mercadoPagoTestConfig({ ...testEnv, COMMERCE_PRODUCTION_READY: "true" }), null);

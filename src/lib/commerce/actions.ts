@@ -3,7 +3,13 @@
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { isCommerceEnabled, mercadoPagoPublicKey } from "@/lib/commerce/config";
-import { createOrderForUser, getOrderForUser, preparePaymentAttempt, quoteForUser } from "@/lib/commerce/orders";
+import {
+  cancelAbandonedCheckoutForUser,
+  createOrderForUser,
+  getOrderForUser,
+  preparePaymentAttempt,
+  quoteForUser,
+} from "@/lib/commerce/orders";
 import { applyProviderView, reconcileMercadoPagoPayment, updateOpenPaymentMarkers } from "@/lib/commerce/apply";
 import {
   acceptedMethod,
@@ -237,4 +243,12 @@ export async function refreshOrderPaymentAction(orderId: string) {
     return { ok: false as const, message: "Ainda não há um pagamento para consultar." };
   }
   return reconcileMercadoPagoPayment(payment.providerPaymentId);
+}
+
+export async function cancelAbandonedCheckoutAction(orderId: string) {
+  const session = await requireSession();
+  if (!z.string().min(8).max(40).safeParse(orderId).success) {
+    return { ok: false as const, message: "Pedido inválido." };
+  }
+  return cancelAbandonedCheckoutForUser(session.user.id, orderId);
 }

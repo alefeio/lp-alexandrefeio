@@ -31,11 +31,15 @@ function credentialsPresent(input: ReturnType<typeof read>): boolean {
   return Boolean(input.publicKey && input.accessToken && input.webhookSecret.length >= 8);
 }
 
-/** Teste só em development, fora da Vercel de production, com a flag de produção desligada. */
+/**
+ * Teste em development ou test (Postgres isolado de QA), fora da Vercel de production,
+ * com a flag de produção desligada. Nunca usa DATABASE_ENV=production.
+ */
 export function mercadoPagoTestConfig(env: Env = process.env): MercadoPagoRuntimeConfig | null {
   const input = read(env);
   if (!input.commerce || input.ready) return null;
-  if (input.mercadoPago !== "test" || input.database !== "development" || input.vercel === "production") return null;
+  if (input.mercadoPago !== "test" || input.vercel === "production") return null;
+  if (input.database !== "development" && input.database !== "test") return null;
   if (!credentialsPresent(input)) return null;
   return { publicKey: input.publicKey, accessToken: input.accessToken, webhookSecret: input.webhookSecret, env: "test" };
 }

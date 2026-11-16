@@ -832,7 +832,9 @@ test("Brick distingue reload de UI e cobrança incerta; painel Pix permanece", (
 
   const ordersSource = readFileSync("src/lib/commerce/orders.ts", "utf8");
   assert.equal(ordersSource.includes("20_000"), false);
-  assert.equal(ordersSource.includes('status: "CANCELLED"'), false);
+  // Cancelamento só via cancelAbandonedCheckoutForUser (explícito), nunca por timer.
+  assert.match(ordersSource, /cancelAbandonedCheckoutForUser/);
+  assert.equal(/setTimeout[\s\S]*CANCELLED|20_000[\s\S]*CANCELLED/.test(ordersSource), false);
 });
 
 test("Pix simulado lê QR e cartão continua aceito", () => {
@@ -1164,15 +1166,23 @@ test("guards de concorrência: APPROVED não regride; overlap de checkout incert
 });
 
 test("gate database-live de comércio recusa Prisma compartilhado e exige fingerprint isolado", async () => {
-  const { evaluateIsolatedCommerceDatabaseLive, fingerprintDatabaseUrl } = await import("../src/lib/db/urls");
+  const { evaluateIsolatedCommerceDatabaseLive, fingerprintDatabaseUrl, canCancelAbandonedCheckout } = await import(
+    "../src/lib/db/urls"
+  ).then(async (urls) => ({
+    ...urls,
+    canCancelAbandonedCheckout: (await import("../src/lib/commerce/payment-guards")).canCancelAbandonedCheckout,
+  }));
   const shared = "postgresql://user:secret@db.prisma.io:5432/postgres";
+  const local = "postgresql://u:p@127.0.0.1:55433/commerce_qa";
   assert.equal(fingerprintDatabaseUrl(shared)?.hostClass, "prisma-postgres");
   assert.equal(
     evaluateIsolatedCommerceDatabaseLive({
       ISOLATED_COMMERCE_DATABASE_TEST: "1",
-      DATABASE_ENV: "development",
+      DATABASE_ENV: "test",
+      MERCADO_PAGO_ENV: "test",
       ISOLATED_COMMERCE_DATABASE_URL: shared,
       RUNTIME_DATABASE_URL: shared,
+      POSTGRES_URL: shared,
     }).ok,
     false,
   );
@@ -1181,8 +1191,21 @@ test("gate database-live de comércio recusa Prisma compartilhado e exige finger
       ISOLATED_COMMERCE_DATABASE_TEST: "1",
       DATABASE_ENV: "test",
       VERCEL_ENV: "production",
-      ISOLATED_COMMERCE_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
-      RUNTIME_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
+      MERCADO_PAGO_ENV: "test",
+      ISOLATED_COMMERCE_DATABASE_URL: local,
+      RUNTIME_DATABASE_URL: local,
+      POSTGRES_URL: local,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    evaluateIsolatedCommerceDatabaseLive({
+      ISOLATED_COMMERCE_DATABASE_TEST: "1",
+      DATABASE_ENV: "test",
+      MERCADO_PAGO_ENV: "test",
+      ISOLATED_COMMERCE_DATABASE_URL: local,
+      RUNTIME_DATABASE_URL: local,
+      POSTGRES_URL: shared,
     }).ok,
     false,
   );
@@ -1190,19 +1213,49 @@ test("gate database-live de comércio recusa Prisma compartilhado e exige finger
     ISOLATED_COMMERCE_DATABASE_TEST: "1",
     DATABASE_ENV: "test",
     MERCADO_PAGO_ENV: "test",
-    ISOLATED_COMMERCE_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
-    RUNTIME_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
-    POSTGRES_URL: shared,
+    ISOLATED_COMMERCE_DATABASE_URL: local,
+    RUNTIME_DATABASE_URL: local,
+    POSTGRES_URL: local,
     PRODUCTION_MIGRATE_HOST: "db.prisma.io",
   });
   assert.equal(ok.ok, true);
   if (ok.ok) {
     assert.equal(ok.identity.host, "127.0.0.1");
-    assert.equal(ok.identity.database, "commerce_test");
+    assert.equal(ok.identity.port, "55433");
+    assert.equal(ok.identity.database, "commerce_qa");
     assert.equal(ok.identity.hostClass, "localhost");
   }
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: null, providerPaymentId: null }],
+    }),
+    true,
+  );
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "outcome_unknown", providerPaymentId: null }],
+    }),
+    false,
+  );
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "charge_dispatched", providerPaymentId: null }],
+    }),
+    false,
+  );
+  assert.equal(
+    canCancelAbandonedCheckout({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "pending", providerPaymentId: "mp-1" }],
+    }),
+    false,
+  );
   const runner = readFileSync("scripts/run-database-live-tests.ts", "utf8");
   assert.match(runner, /evaluateIsolatedCommerceDatabaseLive/);
-  assert.match(runner, /BLOCKED/);
+  assert.match(runner, /ABORT/);
+  assert.match(runner, /assertIsolatedCommerceLiveConnection/);
 });
 

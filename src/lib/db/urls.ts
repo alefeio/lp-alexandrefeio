@@ -51,22 +51,39 @@ export function fingerprintDatabaseUrl(raw: string | undefined): DatabaseUrlFing
   }
 }
 
+export type IsolatedCommerceLiveIdentity = {
+  host: string;
+  port: string;
+  database: string;
+  hostClass: DatabaseUrlFingerprint["hostClass"];
+  userFingerprint: string;
+  valueHash12: string;
+};
+
 export type IsolatedCommerceLiveResult =
-  | {
-      ok: true;
-      identity: {
-        host: string;
-        database: string;
-        hostClass: DatabaseUrlFingerprint["hostClass"];
-        userFingerprint: string;
-        valueHash12: string;
-      };
-    }
+  | { ok: true; identity: IsolatedCommerceLiveIdentity }
   | { ok: false; message: string; code: "blocked" | "misconfigured" };
+
+export type LiveDatabaseProbe = {
+  database: string;
+  dbUser: string;
+  serverAddr: string | null;
+  version: string;
+};
+
+function samePhysicalTarget(a: DatabaseUrlFingerprint, b: DatabaseUrlFingerprint): boolean {
+  return (
+    a.host === b.host &&
+    a.port === b.port &&
+    a.database === b.database &&
+    a.userFingerprint === b.userFingerprint
+  );
+}
 
 /**
  * Gate de database-live de comércio: exige Postgres fisicamente isolado.
  * Recusa Production / host Prisma compartilhado aparente, mesmo com DATABASE_ENV=development.
+ * Exige POSTGRES_URL + RUNTIME_DATABASE_URL + ISOLATED_COMMERCE_DATABASE_URL no mesmo alvo.
  */
 export function evaluateIsolatedCommerceDatabaseLive(
   env: Record<string, string | undefined> = process.env,
@@ -103,24 +120,42 @@ export function evaluateIsolatedCommerceDatabaseLive(
 
   const isolated = env.ISOLATED_COMMERCE_DATABASE_URL?.trim();
   const runtime = env.RUNTIME_DATABASE_URL?.trim();
-  if (!isolated || !runtime) {
+  const postgres = env.POSTGRES_URL?.trim();
+  if (!isolated || !runtime || !postgres) {
     return {
       ok: false,
       code: "misconfigured",
-      message: "Defina ISOLATED_COMMERCE_DATABASE_URL e RUNTIME_DATABASE_URL apontando ao mesmo Postgres isolado.",
+      message:
+        "Defina ISOLATED_COMMERCE_DATABASE_URL, RUNTIME_DATABASE_URL e POSTGRES_URL apontando ao mesmo Postgres isolado.",
     };
   }
 
   const isolatedFp = fingerprintDatabaseUrl(isolated);
   const runtimeFp = fingerprintDatabaseUrl(runtime);
-  if (!isolatedFp || !runtimeFp) {
+  const postgresFp = fingerprintDatabaseUrl(postgres);
+  if (!isolatedFp || !runtimeFp || !postgresFp) {
     return { ok: false, code: "misconfigured", message: "URLs do banco isolado de comércio são inválidas." };
   }
-  if (isolatedFp.valueHash12 !== runtimeFp.valueHash12) {
+  if (isolatedFp.host === "non-postgresql" || runtimeFp.host === "non-postgresql" || postgresFp.host === "non-postgresql") {
+    return {
+      ok: false,
+      code: "blocked",
+      message: "URL não-PostgreSQL (ex.: accelerate) não serve como banco isolado de teste.",
+    };
+  }
+  if (!samePhysicalTarget(isolatedFp, runtimeFp) || !samePhysicalTarget(isolatedFp, postgresFp)) {
     return {
       ok: false,
       code: "misconfigured",
-      message: "RUNTIME_DATABASE_URL deve ser a mesma instância declarada em ISOLATED_COMMERCE_DATABASE_URL (fingerprint).",
+      message:
+        "ISOLATED_COMMERCE_DATABASE_URL, RUNTIME_DATABASE_URL e POSTGRES_URL devem apontar ao mesmo host/porta/database/usuário isolado.",
+    };
+  }
+  if (isolatedFp.valueHash12 !== runtimeFp.valueHash12 || isolatedFp.valueHash12 !== postgresFp.valueHash12) {
+    return {
+      ok: false,
+      code: "misconfigured",
+      message: "As três URLs isoladas devem ser idênticas (mesmo fingerprint de conexão).",
     };
   }
 
@@ -132,39 +167,33 @@ export function evaluateIsolatedCommerceDatabaseLive(
       message: "Host coincide com PRODUCTION_MIGRATE_HOST — recusando banco de Production.",
     };
   }
-
-  // Instância Prisma Postgres padrão do site (db compartilhado development/production).
-  if (isolatedFp.hostClass === "prisma-postgres" && (isolatedFp.database === "postgres" || isolatedFp.database === "")) {
+  if (isolatedFp.hostClass === "prisma-postgres") {
     return {
       ok: false,
       code: "blocked",
-      message: "Recusando host Prisma compartilhado aparente (db.prisma.io/postgres). Use Postgres isolado dedicado.",
+      message: "Recusando host Prisma (db.prisma.io). Use Postgres isolado dedicado.",
     };
   }
-  if (isolatedFp.host === "non-postgresql") {
+  if (isolatedFp.hostClass !== "localhost") {
     return {
       ok: false,
       code: "blocked",
-      message: "URL de runtime não-PostgreSQL (ex.: accelerate) não serve como banco isolado de teste.",
+      message: "Nesta etapa o Postgres isolado de comércio deve ser local (127.0.0.1/localhost).",
     };
   }
-
-  const sharedPostgres = fingerprintDatabaseUrl(env.POSTGRES_URL);
-  if (sharedPostgres && sharedPostgres.valueHash12 === isolatedFp.valueHash12) {
-    // Só bloqueia se POSTGRES_URL do ambiente de trabalho for o mesmo fingerprint — típico .env.local compartilhado.
-    if (sharedPostgres.hostClass === "prisma-postgres") {
-      return {
-        ok: false,
-        code: "blocked",
-        message: "ISOLATED_COMMERCE_DATABASE_URL coincide com POSTGRES_URL compartilhado (Prisma). Use instância dedicada.",
-      };
-    }
+  if (isolatedFp.database === "postgres" || isolatedFp.database === "") {
+    return {
+      ok: false,
+      code: "blocked",
+      message: "Use um database exclusivo de QA (não o database padrão 'postgres').",
+    };
   }
 
   return {
     ok: true,
     identity: {
       host: isolatedFp.host,
+      port: isolatedFp.port || "5432",
       database: isolatedFp.database,
       hostClass: isolatedFp.hostClass,
       userFingerprint: isolatedFp.userFingerprint,
@@ -179,6 +208,74 @@ export function assertIsolatedCommerceDatabaseLive(
   const result = evaluateIsolatedCommerceDatabaseLive(env);
   if (!result.ok) throw new Error(result.message);
   return result;
+}
+
+/** Consulta identidade real da conexão (não confia só em hash de URL). */
+export async function probeLiveDatabaseIdentity(connectionString: string): Promise<LiveDatabaseProbe> {
+  const { Client } = await import("pg");
+  const client = new Client({
+    connectionString,
+    connectionTimeoutMillis: 10_000,
+  });
+  await client.connect();
+  try {
+    const result = await client.query<{
+      database: string;
+      db_user: string;
+      server_addr: string | null;
+      version: string;
+    }>(`
+      SELECT
+        current_database() AS database,
+        current_user AS db_user,
+        inet_server_addr()::text AS server_addr,
+        split_part(version(), ' ', 2) AS version
+    `);
+    const row = result.rows[0];
+    if (!row) throw new Error("Probe de identidade do banco não retornou linhas.");
+    return {
+      database: row.database,
+      dbUser: row.db_user,
+      serverAddr: row.server_addr,
+      version: row.version,
+    };
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Confere URL declarada × identidade viva da sessão Postgres.
+ * Falha imediatamente se parecer Production ou divergir do database esperado.
+ */
+export async function assertIsolatedCommerceLiveConnection(
+  env: Record<string, string | undefined> = process.env,
+): Promise<{ declared: IsolatedCommerceLiveIdentity; live: LiveDatabaseProbe }> {
+  const declared = assertIsolatedCommerceDatabaseLive(env);
+  const url = env.ISOLATED_COMMERCE_DATABASE_URL?.trim();
+  if (!url) throw new Error("ISOLATED_COMMERCE_DATABASE_URL ausente no probe.");
+
+  const live = await probeLiveDatabaseIdentity(url);
+  if (live.database !== declared.identity.database) {
+    throw new Error(
+      `Database vivo '${live.database}' diverge do declarado '${declared.identity.database}'.`,
+    );
+  }
+  if (live.database === "postgres") {
+    throw new Error("Conexão viva no database 'postgres' — recusado para QA isolado.");
+  }
+  if (live.serverAddr && !["127.0.0.1", "::1", "0.0.0.0"].includes(live.serverAddr)) {
+    // Em Docker Desktop no Windows, inet_server_addr pode ser o IP da bridge; host da URL já foi validado como localhost.
+    const host = declared.identity.host;
+    if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1") {
+      throw new Error(`server_addr=${live.serverAddr} não é local — possível Production.`);
+    }
+  }
+  const productionHost = env.PRODUCTION_MIGRATE_HOST?.trim().toLowerCase();
+  if (productionHost && declared.identity.host === productionHost) {
+    throw new Error("Probe recusou host de Production.");
+  }
+  return { declared: declared.identity, live };
 }
 
 /**

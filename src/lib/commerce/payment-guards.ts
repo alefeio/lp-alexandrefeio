@@ -143,3 +143,31 @@ export function collectLessonIdsFromOrderItems(
 export function isUncertainProviderStatus(providerStatus: string | null | undefined): boolean {
   return providerStatus === PROVIDER_STATUS_UNKNOWN || providerStatus === PROVIDER_STATUS_DISPATCHED;
 }
+
+export type AbandonedPaymentLike = {
+  status: string;
+  providerStatus: string | null;
+  providerPaymentId: string | null;
+};
+
+/**
+ * Checkout abandonado = pedido ainda PENDING_PAYMENT sem despacho/incerteza
+ * e sem pagamento do provedor. Nunca cancela charge_dispatched / outcome_unknown / provider id.
+ */
+export function canCancelAbandonedCheckout(input: {
+  orderStatus: string;
+  payments: ReadonlyArray<AbandonedPaymentLike>;
+}): boolean {
+  if (input.orderStatus !== "PENDING_PAYMENT") return false;
+  for (const payment of input.payments) {
+    if (payment.providerPaymentId) return false;
+    if (isUncertainProviderStatus(payment.providerStatus)) return false;
+    if (payment.status === "APPROVED" || payment.status === "REFUNDED" || payment.status === "PARTIALLY_REFUNDED" || payment.status === "CHARGED_BACK") {
+      return false;
+    }
+    if (payment.status !== "PENDING" && payment.status !== "IN_PROCESS" && payment.status !== "CANCELLED" && payment.status !== "REJECTED") {
+      return false;
+    }
+  }
+  return true;
+}
