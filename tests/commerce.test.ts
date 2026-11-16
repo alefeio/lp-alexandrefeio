@@ -960,6 +960,8 @@ test("guards de concorrência: APPROVED não regride; overlap de checkout incert
     planRejectedIfOpen,
     cartOverlapsUncertainOrder,
     productKey,
+    lessonSetsOverlap,
+    collectLessonIdsFromOrderItems,
   } = await import("../src/lib/commerce/payment-guards");
   type PaymentRowLike = {
     id: string;
@@ -1007,6 +1009,21 @@ test("guards de concorrência: APPROVED não regride; overlap de checkout incert
       uncertainOrderKeys: [productKey("LESSON", "a")],
     }),
     false,
+  );
+
+  // Sobreposição real por aulas (não só SKU)
+  assert.equal(lessonSetsOverlap(["a"], ["a"]), true);
+  assert.equal(lessonSetsOverlap(["a"], ["b"]), false);
+  assert.equal(lessonSetsOverlap(["a"], ["a", "b", "c"]), true); // aula → módulo
+  assert.equal(lessonSetsOverlap(["a", "b", "c"], ["a"]), true); // módulo → aula
+  assert.equal(lessonSetsOverlap(["a", "b"], ["c", "d", "a"]), true); // módulo → curso
+  assert.equal(lessonSetsOverlap(["x"], ["a", "b"]), false);
+  assert.deepEqual(
+    collectLessonIdsFromOrderItems([
+      { lessonId: "a", lessons: [{ lessonId: "a" }] },
+      { lessonId: null, lessons: [{ lessonId: "a" }, { lessonId: "b" }] },
+    ]).sort(),
+    ["a", "b"],
   );
 
   /** Simula a serialização FOR UPDATE de apply/updateOpenPaymentMarkers sem banco. */
@@ -1097,14 +1114,8 @@ test("guards de concorrência: APPROVED não regride; overlap de checkout incert
   assert.equal((await markOpen(b, "unknown")).updated, true);
   assert.equal(b.providerStatus, "outcome_unknown");
   assert.equal(b.status, "PENDING");
-  // novo checkout com overlap incerto bloqueado
-  assert.equal(
-    cartOverlapsUncertainOrder({
-      cartKeys: [productKey("LESSON", "b")],
-      uncertainOrderKeys: [productKey("LESSON", "b")],
-    }),
-    true,
-  );
+  // novo checkout com overlap incerto bloqueado (por aulas)
+  assert.equal(lessonSetsOverlap(["b"], ["b"]), true);
   // mesma chave: decidePaymentAttempt resume_idempotent
   assert.equal(
     decidePaymentAttempt({
@@ -1146,6 +1157,52 @@ test("guards de concorrência: APPROVED não regride; overlap de checkout incert
   assert.match(apply, /updateOpenPaymentMarkers/);
   assert.match(apply, /FOR UPDATE/);
   const orders = readFileSync("src/lib/commerce/orders.ts", "utf8");
-  assert.match(orders, /findOverlappingUncertainOrder/);
+  assert.match(orders, /findOverlappingPendingCheckout/);
+  assert.match(orders, /pg_advisory_xact_lock/);
+  assert.match(orders, /commerce-checkout:/);
+  assert.match(orders, /OrderItemLesson|lessons: \{ select: \{ lessonId/);
+});
+
+test("gate database-live de comércio recusa Prisma compartilhado e exige fingerprint isolado", async () => {
+  const { evaluateIsolatedCommerceDatabaseLive, fingerprintDatabaseUrl } = await import("../src/lib/db/urls");
+  const shared = "postgresql://user:secret@db.prisma.io:5432/postgres";
+  assert.equal(fingerprintDatabaseUrl(shared)?.hostClass, "prisma-postgres");
+  assert.equal(
+    evaluateIsolatedCommerceDatabaseLive({
+      ISOLATED_COMMERCE_DATABASE_TEST: "1",
+      DATABASE_ENV: "development",
+      ISOLATED_COMMERCE_DATABASE_URL: shared,
+      RUNTIME_DATABASE_URL: shared,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    evaluateIsolatedCommerceDatabaseLive({
+      ISOLATED_COMMERCE_DATABASE_TEST: "1",
+      DATABASE_ENV: "test",
+      VERCEL_ENV: "production",
+      ISOLATED_COMMERCE_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
+      RUNTIME_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
+    }).ok,
+    false,
+  );
+  const ok = evaluateIsolatedCommerceDatabaseLive({
+    ISOLATED_COMMERCE_DATABASE_TEST: "1",
+    DATABASE_ENV: "test",
+    MERCADO_PAGO_ENV: "test",
+    ISOLATED_COMMERCE_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
+    RUNTIME_DATABASE_URL: "postgresql://u:p@127.0.0.1:5432/commerce_test",
+    POSTGRES_URL: shared,
+    PRODUCTION_MIGRATE_HOST: "db.prisma.io",
+  });
+  assert.equal(ok.ok, true);
+  if (ok.ok) {
+    assert.equal(ok.identity.host, "127.0.0.1");
+    assert.equal(ok.identity.database, "commerce_test");
+    assert.equal(ok.identity.hostClass, "localhost");
+  }
+  const runner = readFileSync("scripts/run-database-live-tests.ts", "utf8");
+  assert.match(runner, /evaluateIsolatedCommerceDatabaseLive/);
+  assert.match(runner, /BLOCKED/);
 });
 

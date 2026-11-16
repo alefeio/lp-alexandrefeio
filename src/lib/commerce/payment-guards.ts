@@ -118,3 +118,28 @@ export function cartOverlapsUncertainOrder(input: {
   const set = new Set(input.uncertainOrderKeys);
   return input.cartKeys.some((key) => set.has(key));
 }
+
+/** Sobreposição real por aulas incluídas (aula ↔ módulo ↔ curso). */
+export function lessonSetsOverlap(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length === 0 || right.length === 0) return false;
+  const set = new Set(left);
+  return right.some((id) => set.has(id));
+}
+
+export function collectLessonIdsFromOrderItems(
+  items: ReadonlyArray<{ lessonId?: string | null; lessons?: ReadonlyArray<{ lessonId: string }> }>,
+): string[] {
+  const ids = new Set<string>();
+  for (const item of items) {
+    if (item.lessons && item.lessons.length > 0) {
+      for (const row of item.lessons) ids.add(row.lessonId);
+      continue;
+    }
+    if (item.lessonId) ids.add(item.lessonId);
+  }
+  return [...ids];
+}
+
+export function isUncertainProviderStatus(providerStatus: string | null | undefined): boolean {
+  return providerStatus === PROVIDER_STATUS_UNKNOWN || providerStatus === PROVIDER_STATUS_DISPATCHED;
+}

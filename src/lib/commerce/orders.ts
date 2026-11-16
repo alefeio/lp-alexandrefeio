@@ -3,11 +3,20 @@ import { getPrisma } from "@/lib/db/prisma";
 import { isCommerceEnabled } from "@/lib/commerce/config";
 import { loadCreditSources, loadOwnedLessonIds, loadSaleCatalog } from "@/lib/commerce/catalog";
 import { quoteCart, type CartLine } from "@/lib/commerce/quote";
-import { cartOverlapsUncertainOrder, productKey } from "@/lib/commerce/payment-guards";
-import { PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN, UNCERTAIN_PAYMENT_MESSAGE } from "@/lib/commerce/provider";
+import {
+  collectLessonIdsFromOrderItems,
+  isUncertainProviderStatus,
+  lessonSetsOverlap,
+} from "@/lib/commerce/payment-guards";
+import { UNCERTAIN_PAYMENT_MESSAGE } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
 import { deliverPurchaseEmail } from "@/lib/email/purchase-mail";
 import { Prisma } from "@/generated/prisma/client";
+
+/** Serializa checkouts do mesmo usuário (create + prepare) entre conexões/poolers. */
+export function commerceCheckoutLockSql(userId: string) {
+  return Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`commerce-checkout:${userId}`}))`;
+}
 
 function origin() {
   return (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -28,29 +37,41 @@ export async function quoteForUser(userId: string | null, lines: CartLine[]) {
 export async function createOrderForUser(userId: string, lines: CartLine[], checkoutKey: string) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas." };
   const prisma = getPrisma();
-  const existing = await prisma.order.findUnique({ where: { checkoutKey } });
-  if (existing) {
-    if (existing.userId !== userId) return { ok: false as const, message: "Não foi possível abrir este pedido." };
-    return { ok: true as const, orderId: existing.id, status: existing.status, totalCents: existing.totalCents };
-  }
   const quote = await quoteForUser(userId, lines);
   if (!quote.ok) return quote;
 
-  if (quote.kind !== "zero_upgrade") {
-    const blocked = await findOverlappingUncertainOrder(userId, quote.items.map((item) => productKey(item.productType, item.productId)));
-    if (blocked) {
-      return {
-        ok: false as const,
-        message: UNCERTAIN_PAYMENT_MESSAGE,
-        code: "payment_uncertain" as const,
-        orderId: blocked,
-      };
-    }
-  }
-
-  let order;
+  type Created = { id: string; status: string; totalCents: number };
+  let order: Created;
   try {
-    order = await prisma.$transaction(async (tx) => {
+    const outcome = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(commerceCheckoutLockSql(userId));
+
+      const existing = await tx.order.findUnique({ where: { checkoutKey } });
+      if (existing) {
+        if (existing.userId !== userId) {
+          return { kind: "error" as const, message: "Não foi possível abrir este pedido." };
+        }
+        return {
+          kind: "existing" as const,
+          order: { id: existing.id, status: existing.status, totalCents: existing.totalCents },
+        };
+      }
+
+      if (quote.kind !== "zero_upgrade") {
+        const cartLessonIds = quote.items.flatMap((item) => item.lessonIds);
+        const blocked = await findOverlappingPendingCheckout(tx, userId, cartLessonIds);
+        if (blocked) {
+          return {
+            kind: "blocked" as const,
+            orderId: blocked.orderId,
+            code: blocked.uncertain ? ("payment_uncertain" as const) : ("checkout_overlap" as const),
+            message: blocked.uncertain
+              ? UNCERTAIN_PAYMENT_MESSAGE
+              : "Já existe um checkout aberto para este conteúdo. Conclua ou aguarde a verificação do pedido anterior.",
+          };
+        }
+      }
+
       const created = await tx.order.create({
         data: {
           userId,
@@ -84,8 +105,19 @@ export async function createOrderForUser(userId: string, lines: CartLine[], chec
         }
         if (quote.kind === "zero_upgrade") await grantItem(tx, userId, row.id, item.lessonIds);
       }
-      return created;
+      return { kind: "created" as const, order: { id: created.id, status: created.status, totalCents: created.totalCents } };
     });
+
+    if (outcome.kind === "error") return { ok: false as const, message: outcome.message };
+    if (outcome.kind === "blocked") {
+      return {
+        ok: false as const,
+        message: outcome.message,
+        code: outcome.code,
+        orderId: outcome.orderId,
+      };
+    }
+    order = outcome.order;
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
     const raced = await prisma.order.findUnique({ where: { checkoutKey } });
@@ -107,38 +139,51 @@ async function grantItem(tx: Prisma.TransactionClient, userId: string, orderItem
   }
 }
 
-/** Impede novo checkoutKey enquanto existir cobrança incerta sobre os mesmos produtos. */
-export async function findOverlappingUncertainOrder(userId: string, cartKeys: string[]): Promise<string | null> {
-  if (cartKeys.length === 0) return null;
-  const candidates = await getPrisma().order.findMany({
+/**
+ * Impede novo checkout enquanto existir pedido PENDING_PAYMENT com aulas sobrepostas.
+ * Usa OrderItemLesson (aulas efetivas), não só chaves LESSON/MODULE/COURSE do SKU.
+ */
+export async function findOverlappingPendingCheckout(
+  tx: Prisma.TransactionClient | ReturnType<typeof getPrisma>,
+  userId: string,
+  cartLessonIds: string[],
+  options?: { excludeOrderId?: string },
+): Promise<{ orderId: string; uncertain: boolean } | null> {
+  if (cartLessonIds.length === 0) return null;
+  const candidates = await tx.order.findMany({
     where: {
       userId,
       status: "PENDING_PAYMENT",
-      payments: {
-        some: {
-          status: { in: ["PENDING", "IN_PROCESS"] },
-          providerStatus: { in: [PROVIDER_STATUS_UNKNOWN, PROVIDER_STATUS_DISPATCHED] },
-        },
-      },
+      ...(options?.excludeOrderId ? { id: { not: options.excludeOrderId } } : {}),
     },
     include: {
-      items: { select: { productType: true, lessonId: true, moduleId: true, courseId: true } },
+      items: {
+        select: {
+          lessonId: true,
+          lessons: { select: { lessonId: true } },
+        },
+      },
+      payments: {
+        where: { status: { in: ["PENDING", "IN_PROCESS"] } },
+        select: { providerStatus: true },
+      },
     },
     orderBy: { createdAt: "desc" },
-    take: 20,
+    take: 40,
   });
   for (const order of candidates) {
-    const keys = order.items
-      .map((item) => {
-        if (item.productType === "LESSON" && item.lessonId) return productKey("LESSON", item.lessonId);
-        if (item.productType === "MODULE" && item.moduleId) return productKey("MODULE", item.moduleId);
-        if (item.productType === "COURSE" && item.courseId) return productKey("COURSE", item.courseId);
-        return null;
-      })
-      .filter((key): key is string => Boolean(key));
-    if (cartOverlapsUncertainOrder({ cartKeys, uncertainOrderKeys: keys })) return order.id;
+    const orderLessonIds = collectLessonIdsFromOrderItems(order.items);
+    if (!lessonSetsOverlap(cartLessonIds, orderLessonIds)) continue;
+    const uncertain = order.payments.some((payment) => isUncertainProviderStatus(payment.providerStatus));
+    return { orderId: order.id, uncertain };
   }
   return null;
+}
+
+/** Compat: só pedidos com marker incerto e aulas sobrepostas. */
+export async function findOverlappingUncertainOrder(userId: string, cartLessonIds: string[]): Promise<string | null> {
+  const hit = await findOverlappingPendingCheckout(getPrisma(), userId, cartLessonIds);
+  return hit?.uncertain ? hit.orderId : null;
 }
 
 export async function grantOrderAccess(orderId: string) {
@@ -207,18 +252,34 @@ export async function preparePaymentAttempt(userId: string, orderId: string) {
   const prisma = getPrisma();
 
   return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(commerceCheckoutLockSql(userId));
     const locked = await tx.$queryRaw<Array<{ id: string }>>(orderPaymentLockSql(orderId, userId));
     if (locked.length === 0) {
       return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
     }
 
-    const order = await tx.order.findUnique({ where: { id: orderId } });
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: { include: { lessons: { select: { lessonId: true } } } } },
+    });
     if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
     if (order.status === "PAID") {
       return { ok: false as const, message: "Este pedido já foi pago.", code: "already_paid" as const };
     }
     if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
       return { ok: false as const, message: "Este pedido não aceita uma nova cobrança.", code: "not_chargeable" as const };
+    }
+
+    const cartLessonIds = collectLessonIdsFromOrderItems(order.items);
+    const blocked = await findOverlappingPendingCheckout(tx, userId, cartLessonIds, { excludeOrderId: order.id });
+    if (blocked) {
+      return {
+        ok: false as const,
+        message: blocked.uncertain
+          ? UNCERTAIN_PAYMENT_MESSAGE
+          : "Já existe um checkout aberto para este conteúdo. Conclua ou aguarde a verificação do pedido anterior.",
+        code: blocked.uncertain ? ("payment_uncertain" as const) : ("checkout_overlap" as const),
+      };
     }
 
     const openRow = await tx.payment.findFirst({
