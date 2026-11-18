@@ -8,7 +8,7 @@ import { canCancelAbandonedCheckout } from "@/lib/commerce/payment-guards";
 import { getOrderForUser } from "@/lib/commerce/orders";
 import { decidePurchaseJourney } from "@/lib/commerce/purchase-journey";
 import { paidOrderStart } from "@/lib/commerce/purchase-cta";
-import { fetchPixPresentation } from "@/lib/commerce/provider";
+import { fetchPixPresentation, hasPresentablePix } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
 
 export const metadata = { title: "Pedido" };
@@ -96,7 +96,14 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
           {payment.installments && payment.installments > 1 ? ` · ${payment.installments} parcelas` : ""}
         </p>
       ) : null}
-      {awaitingPix ? <PixPaymentPanel copy={pix?.copy} image={pix?.image} ticketUrl={pix?.ticketUrl} missing={!pix} /> : null}
+      {awaitingPix ? (
+        <PixPaymentPanel
+          copy={pix?.copy}
+          image={pix?.image}
+          ticketUrl={pix?.ticketUrl}
+          missing={!hasPresentablePix(pix)}
+        />
+      ) : null}
       <PurchaseJourneyActions
         orderId={order.id}
         journey={journey}

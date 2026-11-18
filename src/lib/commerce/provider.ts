@@ -27,7 +27,43 @@ export type ChargeInput = {
   identificationNumber?: string;
 };
 
-export type PixPresentation = { copy: string; image: string; ticketUrl: string | null };
+export type PixPresentation = {
+  copy: string | null;
+  image: string | null;
+  ticketUrl: string | null;
+};
+
+/** Hosts oficiais aceitos para ticket_url do Pix (Orders API / sandbox). */
+const MERCADO_PAGO_TICKET_HOSTS = new Set([
+  "www.mercadopago.com.br",
+  "mercadopago.com.br",
+  "www.mercadopago.com",
+  "mercadopago.com",
+]);
+
+/** Aceita apenas tokens de status/código do provedor — nunca mensagens livres com PII. */
+export function sanitizeProviderDiagnosticToken(value: unknown, max = 80): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().slice(0, max);
+  if (!trimmed) return null;
+  if (!/^[a-zA-Z0-9_.:-]{1,80}$/.test(trimmed)) return "opaque";
+  return trimmed;
+}
+
+export function isAllowedMercadoPagoTicketUrl(raw: unknown): string | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:") return null;
+  if (parsed.username || parsed.password) return null;
+  const host = parsed.hostname.toLowerCase();
+  if (!MERCADO_PAGO_TICKET_HOSTS.has(host)) return null;
+  return parsed.toString();
+}
 
 export type ChargeResult =
   | { ok: true; kind: "accepted"; view: ProviderPaymentView; pix: PixPresentation | null }
@@ -92,7 +128,9 @@ export function extractProviderChargeDiagnostics(input: {
   method: "PIX" | "CREDIT_CARD" | null;
   correlationId?: string | null;
 }): ProviderChargeDiagnostics {
-  const codes = collectErrorCodes(input.payload);
+  const codes = collectErrorCodes(input.payload)
+    .map((code) => sanitizeProviderDiagnosticToken(code))
+    .filter((code): code is string => Boolean(code) && code !== "opaque");
   const row = unwrapOrder(input.payload);
   const payment = row ? firstPayment(row) : null;
   const rawStatus =
@@ -103,9 +141,9 @@ export function extractProviderChargeDiagnostics(input: {
         : input.view?.status ?? null;
   const rawDetail =
     typeof payment?.status_detail === "string"
-      ? payment.status_detail.slice(0, 80)
+      ? payment.status_detail
       : typeof row?.status_detail === "string"
-        ? row.status_detail.slice(0, 80)
+        ? row.status_detail
         : input.view?.statusDetail ?? null;
   const remoteId =
     typeof row?.id === "string" && row.id.length > 0
@@ -116,11 +154,11 @@ export function extractProviderChargeDiagnostics(input: {
   return {
     httpStatus: input.httpStatus,
     errorCode: codes[0] ?? null,
-    providerStatus: rawStatus ? String(rawStatus).slice(0, 40) : null,
-    statusDetail: rawDetail,
+    providerStatus: sanitizeProviderDiagnosticToken(rawStatus, 40),
+    statusDetail: sanitizeProviderDiagnosticToken(rawDetail, 80),
     method: input.method,
     remoteOrderIdPresent: Boolean(remoteId),
-    correlationId: input.correlationId ? input.correlationId.slice(0, 40) : null,
+    correlationId: sanitizeProviderDiagnosticToken(input.correlationId, 40),
   };
 }
 
@@ -313,15 +351,25 @@ export function readProviderPayment(payload: unknown): ProviderPaymentView | nul
   };
 }
 
+/**
+ * Aceita campos Pix de forma independente.
+ * Não exige Base64 para liberar Copia e Cola ou ticket_url oficial.
+ * Retorna null somente quando nenhum dado apresentável existe.
+ */
 export function readPix(payload: unknown): PixPresentation | null {
   const row = unwrapOrder(payload);
   if (!row) return null;
   const method = firstPayment(row)?.payment_method;
-  const copy = method?.qr_code;
-  const image = method?.qr_code_base64;
-  const ticketUrl = typeof method?.ticket_url === "string" && method.ticket_url.startsWith("https://") ? method.ticket_url : null;
-  if (typeof copy !== "string" || typeof image !== "string" || !copy || !image) return null;
+  const copy = typeof method?.qr_code === "string" && method.qr_code.trim() ? method.qr_code.trim() : null;
+  const image =
+    typeof method?.qr_code_base64 === "string" && method.qr_code_base64.trim() ? method.qr_code_base64.trim() : null;
+  const ticketUrl = isAllowedMercadoPagoTicketUrl(method?.ticket_url);
+  if (!copy && !image && !ticketUrl) return null;
   return { copy, image, ticketUrl };
+}
+
+export function hasPresentablePix(pix: PixPresentation | null | undefined): boolean {
+  return Boolean(pix && (pix.copy || pix.image || pix.ticketUrl));
 }
 
 function firstPayment(row: Record<string, unknown>): {
@@ -391,19 +439,18 @@ function legacyStatus(status: string, detail: string | null): string {
 
 function collectErrorCodes(payload: unknown): string[] {
   if (!payload || typeof payload !== "object") return [];
-  const row = payload as { message?: unknown; error?: unknown; errors?: unknown; code?: unknown };
+  const row = payload as { error?: unknown; errors?: unknown; code?: unknown };
   const codes: string[] = [];
   if (Array.isArray(row.errors)) {
     for (const item of row.errors) {
       if (!item || typeof item !== "object") continue;
       const code = (item as { code?: unknown }).code;
-      if (typeof code === "string" && code.trim()) codes.push(code.trim().slice(0, 80));
+      const sanitized = sanitizeProviderDiagnosticToken(code);
+      if (sanitized && sanitized !== "opaque") codes.push(sanitized);
     }
   }
-  if (typeof row.error === "string" && row.error.trim()) codes.push(row.error.trim().slice(0, 80));
-  if (typeof row.code === "string" && row.code.trim()) codes.push(row.code.trim().slice(0, 80));
-  if (typeof row.message === "string" && row.message.trim() && codes.length === 0) {
-    codes.push(row.message.trim().slice(0, 80));
-  }
+  const topLevel = sanitizeProviderDiagnosticToken(typeof row.error === "string" ? row.error : row.code);
+  if (topLevel && topLevel !== "opaque") codes.push(topLevel);
+  // Nunca promove `message` livre do provedor para o log — pode carregar PII.
   return codes;
 }

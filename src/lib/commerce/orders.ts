@@ -468,6 +468,29 @@ export async function listOrdersForUser(userId: string) {
   });
 }
 
+/**
+ * Compara total do pedido atual com um cancelado do mesmo usuário.
+ * Valores vêm só do servidor — a URL pode informar o id, nunca os centavos.
+ */
+export async function getRepurchasePriceNoticeForUser(
+  userId: string,
+  currentOrderId: string,
+  fromCancelledOrderId: string | null | undefined,
+): Promise<{ previousCents: number; currentCents: number } | null> {
+  if (!fromCancelledOrderId || fromCancelledOrderId === currentOrderId) return null;
+  const [current, previous] = await Promise.all([
+    getPrisma().order.findFirst({ where: { id: currentOrderId, userId }, select: { id: true, totalCents: true, status: true } }),
+    getPrisma().order.findFirst({
+      where: { id: fromCancelledOrderId, userId, status: "CANCELLED" },
+      select: { id: true, totalCents: true, status: true },
+    }),
+  ]);
+  if (!current || !previous) return null;
+  if (current.status !== "PENDING_PAYMENT" && current.status !== "PAID") return null;
+  if (current.totalCents === previous.totalCents) return null;
+  return { previousCents: previous.totalCents, currentCents: current.totalCents };
+}
+
 /** Retoma checkout de um pedido PENDING_PAYMENT do próprio usuário, sem novo checkoutKey. */
 export async function getResumeCheckoutForUser(userId: string, orderId: string) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas.", code: "commerce_disabled" as const };

@@ -45,10 +45,10 @@ export function PurchaseJourneyActions({
         router.push(`/app/compras/${result.orderId}`);
         return;
       }
-      const priceNote = result.priceChanged
-        ? `?priceChanged=1&previous=${result.previousTotalCents}&current=${result.totalCents}`
-        : "";
-      router.push(`/app/checkout?orderId=${encodeURIComponent(result.orderId)}${priceNote}`);
+      // Só IDs na URL — valores financeiros vêm do servidor para pedidos do usuário autenticado.
+      const from = encodeURIComponent(orderId);
+      const next = encodeURIComponent(result.orderId);
+      router.push(`/app/checkout?orderId=${next}&fromOrderId=${from}`);
     } finally {
       setBusy(false);
     }

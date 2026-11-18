@@ -2,6 +2,7 @@ import { CheckoutScreen } from "@/components/commerce/CheckoutScreen";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
 import { mercadoPagoPublicKey } from "@/lib/commerce/config";
+import { getRepurchasePriceNoticeForUser } from "@/lib/commerce/orders";
 
 export const metadata = {
   title: "Pagamento",
@@ -11,16 +12,15 @@ export const metadata = {
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orderId?: string; priceChanged?: string; previous?: string; current?: string }>;
+  searchParams: Promise<{ orderId?: string; fromOrderId?: string }>;
 }) {
   const session = await requireSession();
   const params = await searchParams;
   const resumeOrderId = typeof params.orderId === "string" && params.orderId.length >= 8 ? params.orderId : null;
-  const previousCents = params.previous && /^\d+$/.test(params.previous) ? Number(params.previous) : null;
-  const currentCents = params.current && /^\d+$/.test(params.current) ? Number(params.current) : null;
+  const fromOrderId = typeof params.fromOrderId === "string" && params.fromOrderId.length >= 8 ? params.fromOrderId : null;
   const priceChange =
-    params.priceChanged === "1" && previousCents != null && currentCents != null
-      ? { previousCents, currentCents }
+    resumeOrderId != null
+      ? await getRepurchasePriceNoticeForUser(session.user.id, resumeOrderId, fromOrderId)
       : null;
 
   return (
