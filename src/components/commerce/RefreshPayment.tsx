@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import { refreshOrderPaymentAction } from "@/lib/commerce/actions";
 import { buttonClass } from "@/lib/button-styles";
 
-export function RefreshPayment({ orderId, pending }: { orderId: string; pending: boolean }) {
+export function RefreshPayment({
+  orderId,
+  pending,
+  emphasis = false,
+}: {
+  orderId: string;
+  pending: boolean;
+  emphasis?: boolean;
+}) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [pendingClick, setPendingClick] = useState(false);
@@ -34,15 +42,16 @@ export function RefreshPayment({ orderId, pending }: { orderId: string; pending:
 
   if (!pending) return null;
   return (
-    <div className="mt-4">
-      <button className={buttonClass("secondary")} type="button" onClick={() => void refresh()} disabled={pendingClick} aria-busy={pendingClick}>
-        {pendingClick ? "Atualizando…" : "Atualizar status"}
+    <div className={emphasis ? "mt-0" : "mt-4"}>
+      <button
+        className={buttonClass(emphasis ? "primary" : "secondary")}
+        type="button"
+        onClick={() => void refresh()}
+        disabled={pendingClick}
+      >
+        Atualizar status
       </button>
-      {message ? (
-        <p className="mt-2 text-sm text-muted" role="status">
-          {message}
-        </p>
-      ) : null}
+      {message ? <p className="mt-2 text-sm text-muted">{message}</p> : null}
     </div>
   );
 }

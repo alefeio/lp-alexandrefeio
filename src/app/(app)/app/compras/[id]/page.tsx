@@ -1,14 +1,12 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CancelAbandonedCheckout } from "@/components/commerce/CancelAbandonedCheckout";
 import { PurchaseBeacon } from "@/components/commerce/PurchaseBeacon";
 import { PixPaymentPanel } from "@/components/commerce/PixPaymentPanel";
-import { RefreshPayment } from "@/components/commerce/RefreshPayment";
+import { PurchaseJourneyActions } from "@/components/commerce/PurchaseJourneyActions";
 import { Container } from "@/components/ui/Container";
 import { requireSession } from "@/lib/auth/session";
-import { buttonClass, navigationLinkClass } from "@/lib/button-styles";
 import { canCancelAbandonedCheckout } from "@/lib/commerce/payment-guards";
 import { getOrderForUser } from "@/lib/commerce/orders";
+import { decidePurchaseJourney } from "@/lib/commerce/purchase-journey";
 import { paidOrderStart } from "@/lib/commerce/purchase-cta";
 import { fetchPixPresentation } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
@@ -40,7 +38,6 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
   const order = await getOrderForUser(session.user.id, id);
   if (!order) notFound();
   const payment = order.payments[0] ?? null;
-  const pending = order.status === "PENDING_PAYMENT";
   const abandonable = canCancelAbandonedCheckout({
     orderStatus: order.status,
     payments: order.payments.map((row) => ({
@@ -49,14 +46,23 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
       providerPaymentId: row.providerPaymentId,
     })),
   });
-  const awaitingPix = pending && payment?.paymentMethodType === "PIX" && Boolean(payment.providerPaymentId);
-  const pix = awaitingPix && payment?.providerPaymentId
-    ? await fetchPixPresentation(payment.providerPaymentId)
-    : null;
+  const journey = decidePurchaseJourney({
+    orderStatus: order.status,
+    payments: order.payments.map((row) => ({
+      status: row.status,
+      providerStatus: row.providerStatus,
+      providerPaymentId: row.providerPaymentId,
+      paymentMethodType: row.paymentMethodType,
+    })),
+    abandonable,
+  });
+  const awaitingPix = journey.kind === "pix_pending" && Boolean(payment?.providerPaymentId);
+  const pix = awaitingPix && payment?.providerPaymentId ? await fetchPixPresentation(payment.providerPaymentId) : null;
   const item = order.items[0];
-  const start = order.status === "PAID"
-    ? paidOrderStart(order.items.map((row) => ({ productType: row.productType, lessonSlug: row.lesson?.slug ?? null })))
-    : null;
+  const start =
+    order.status === "PAID"
+      ? paidOrderStart(order.items.map((row) => ({ productType: row.productType, lessonSlug: row.lesson?.slug ?? null })))
+      : null;
 
   return (
     <Container className="max-w-2xl">
@@ -69,7 +75,9 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
       />
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Pedido</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">{ORDER_STATUS[order.status] ?? "Pedido"}</h1>
-      {order.zeroValueUpgrade ? <p className="mt-3 text-sm text-muted">Upgrade sem cobrança nova, coberto pelo que você já tinha pago.</p> : null}
+      {order.zeroValueUpgrade ? (
+        <p className="mt-3 text-sm text-muted">Upgrade sem cobrança nova, coberto pelo que você já tinha pago.</p>
+      ) : null}
       <ul className="mt-6 space-y-2 text-base">
         {order.items.map((row) => (
           <li key={row.id}>{row.titleSnapshot}</li>
@@ -77,7 +85,9 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
       </ul>
       <p className="mt-6 text-base">Subtotal {formatPriceCents(order.subtotalCents)}.</p>
       <p>Crédito {formatPriceCents(order.creditCents)}.</p>
-      <p><strong>Total {formatPriceCents(order.totalCents)}.</strong></p>
+      <p>
+        <strong>Total {formatPriceCents(order.totalCents)}.</strong>
+      </p>
       {payment ? (
         <p className="mt-4 text-sm text-muted">
           Pagamento {PAYMENT_STATUS[payment.status] ?? "em atualização"}
@@ -86,25 +96,13 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
           {payment.installments && payment.installments > 1 ? ` · ${payment.installments} parcelas` : ""}
         </p>
       ) : null}
-      {awaitingPix ? (
-        <PixPaymentPanel copy={pix?.copy} image={pix?.image} missing={!pix} />
-      ) : null}
-      <RefreshPayment orderId={order.id} pending={pending} />
-      {abandonable ? <CancelAbandonedCheckout orderId={order.id} /> : null}
-      {start ? (
-        <div className="mt-6">
-          <p className="text-base font-medium">Acesso liberado.</p>
-          <p className="mt-2 text-sm text-muted">Você comprou {order.items.map((row) => row.titleSnapshot).join(", ")}.</p>
-          <div className="mt-4 flex flex-col items-start gap-3">
-            <Link className={buttonClass("primary")} href={start.href}>
-              {start.cta}
-            </Link>
-            <Link className={navigationLinkClass()} href="/app/aprendizado">
-              Ver meu aprendizado
-            </Link>
-          </div>
-        </div>
-      ) : null}
+      {awaitingPix ? <PixPaymentPanel copy={pix?.copy} image={pix?.image} ticketUrl={pix?.ticketUrl} missing={!pix} /> : null}
+      <PurchaseJourneyActions
+        orderId={order.id}
+        journey={journey}
+        accessHref={start?.href}
+        accessCta={start?.cta}
+      />
     </Container>
   );
 }

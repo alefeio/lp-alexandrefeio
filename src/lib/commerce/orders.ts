@@ -467,3 +467,119 @@ export async function listOrdersForUser(userId: string) {
     include: { items: { include: { lesson: { select: { slug: true } } } } },
   });
 }
+
+/** Retoma checkout de um pedido PENDING_PAYMENT do próprio usuário, sem novo checkoutKey. */
+export async function getResumeCheckoutForUser(userId: string, orderId: string) {
+  if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas.", code: "commerce_disabled" as const };
+  const order = await getOrderForUser(userId, orderId);
+  if (!order) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
+  if (order.status === "PAID") {
+    return {
+      ok: true as const,
+      orderId: order.id,
+      status: order.status,
+      totalCents: order.totalCents,
+      itemType: (order.items[0]?.productType ?? "LESSON") as "LESSON" | "MODULE" | "COURSE",
+      redirectPaid: true as const,
+    };
+  }
+  if (order.status !== "PENDING_PAYMENT" || order.totalCents <= 0) {
+    return { ok: false as const, message: "Este pedido não aceita continuar o pagamento.", code: "not_chargeable" as const };
+  }
+  const open = order.payments.filter((payment) => payment.status === "PENDING" || payment.status === "IN_PROCESS");
+  const uncertain = open.some(
+    (payment) => isUncertainProviderStatus(payment.providerStatus) || Boolean(payment.providerPaymentId && payment.paymentMethodType !== "PIX"),
+  );
+  const pixPending = open.some((payment) => payment.paymentMethodType === "PIX" && Boolean(payment.providerPaymentId));
+  if (uncertain && !pixPending) {
+    return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "payment_uncertain" as const };
+  }
+  if (pixPending) {
+    return {
+      ok: true as const,
+      orderId: order.id,
+      status: order.status,
+      totalCents: order.totalCents,
+      itemType: (order.items[0]?.productType ?? "LESSON") as "LESSON" | "MODULE" | "COURSE",
+      redirectPaid: false as const,
+      redirectPurchase: true as const,
+    };
+  }
+  return {
+    ok: true as const,
+    orderId: order.id,
+    status: order.status,
+    totalCents: order.totalCents,
+    itemType: (order.items[0]?.productType ?? "LESSON") as "LESSON" | "MODULE" | "COURSE",
+    redirectPaid: false as const,
+    redirectPurchase: false as const,
+  };
+}
+
+function linesFromCancelledOrder(items: Array<{
+  productType: string;
+  lessonId: string | null;
+  moduleId: string | null;
+  courseId: string | null;
+}>): CartLine[] | null {
+  const lines: CartLine[] = [];
+  for (const item of items) {
+    if (item.productType === "LESSON" && item.lessonId) lines.push({ type: "LESSON", id: item.lessonId });
+    else if (item.productType === "MODULE" && item.moduleId) lines.push({ type: "MODULE", id: item.moduleId });
+    else if (item.productType === "COURSE" && item.courseId) lines.push({ type: "COURSE", id: item.courseId });
+    else return null;
+  }
+  return lines.length > 0 ? lines : null;
+}
+
+/**
+ * Compra novamente a partir de pedido CANCELLED.
+ * Nunca reabre o pedido cancelado; cria pedido novo com checkoutKey novo e preços atuais.
+ */
+export async function repurchaseCancelledOrderForUser(userId: string, orderId: string, checkoutKey: string) {
+  if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas.", code: "commerce_disabled" as const };
+  if (!checkoutKey || checkoutKey.length < 8) {
+    return { ok: false as const, message: "Não foi possível abrir um novo checkout.", code: "invalid_checkout_key" as const };
+  }
+  const previous = await getPrisma().order.findFirst({
+    where: { id: orderId, userId },
+    include: {
+      items: {
+        select: {
+          productType: true,
+          lessonId: true,
+          moduleId: true,
+          courseId: true,
+          titleSnapshot: true,
+          finalPriceCents: true,
+        },
+      },
+    },
+  });
+  if (!previous) return { ok: false as const, message: "Pedido não encontrado.", code: "not_found" as const };
+  if (previous.status !== "CANCELLED") {
+    return { ok: false as const, message: "Só é possível comprar novamente a partir de um pedido cancelado.", code: "not_cancelled" as const };
+  }
+  const lines = linesFromCancelledOrder(previous.items);
+  if (!lines) {
+    return { ok: false as const, message: "Não foi possível reconstruir os itens deste pedido.", code: "invalid_items" as const };
+  }
+  const created = await createOrderForUser(userId, lines, checkoutKey);
+  if (!created.ok) {
+    return {
+      ok: false as const,
+      message: created.message,
+      code: "code" in created ? created.code : ("create_failed" as const),
+      orderId: "orderId" in created ? created.orderId : undefined,
+    };
+  }
+  return {
+    ok: true as const,
+    orderId: created.orderId,
+    status: created.status,
+    totalCents: created.totalCents,
+    previousTotalCents: previous.totalCents,
+    priceChanged: created.totalCents !== previous.totalCents,
+    previousOrderId: previous.id,
+  };
+}

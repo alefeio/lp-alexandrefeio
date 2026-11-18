@@ -7,8 +7,10 @@ import {
   cancelAbandonedCheckoutForUser,
   createOrderForUser,
   getOrderForUser,
+  getResumeCheckoutForUser,
   preparePaymentAttempt,
   quoteForUser,
+  repurchaseCancelledOrderForUser,
 } from "@/lib/commerce/orders";
 import {
   applyProviderView,
@@ -251,4 +253,23 @@ export async function cancelAbandonedCheckoutAction(orderId: string) {
     return { ok: false as const, message: "Pedido inválido." };
   }
   return cancelAbandonedCheckoutForUser(session.user.id, orderId);
+}
+
+export async function resumeCheckoutAction(orderId: string) {
+  const session = await requireSession();
+  if (!z.string().min(8).max(40).safeParse(orderId).success) {
+    return { ok: false as const, message: "Pedido inválido.", code: "invalid_order" as const };
+  }
+  return getResumeCheckoutForUser(session.user.id, orderId);
+}
+
+export async function repurchaseCancelledOrderAction(orderId: string, checkoutKey: string) {
+  const session = await requireSession();
+  if (!z.string().min(8).max(40).safeParse(orderId).success) {
+    return { ok: false as const, message: "Pedido inválido.", code: "invalid_order" as const };
+  }
+  if (!z.string().uuid().safeParse(checkoutKey).success) {
+    return { ok: false as const, message: "Não foi possível abrir um novo checkout.", code: "invalid_checkout_key" as const };
+  }
+  return repurchaseCancelledOrderForUser(session.user.id, orderId, checkoutKey);
 }
