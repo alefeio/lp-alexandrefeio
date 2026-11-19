@@ -27,8 +27,46 @@ export type ChargeInput = {
   identificationNumber?: string;
 };
 
+export type PixPresentation = {
+  copy: string | null;
+  image: string | null;
+  ticketUrl: string | null;
+};
+
+/** Hosts oficiais aceitos para ticket_url do Pix (Orders API / sandbox). */
+const MERCADO_PAGO_TICKET_HOSTS = new Set([
+  "www.mercadopago.com.br",
+  "mercadopago.com.br",
+  "www.mercadopago.com",
+  "mercadopago.com",
+]);
+
+/** Aceita apenas tokens de status/código do provedor — nunca mensagens livres com PII. */
+export function sanitizeProviderDiagnosticToken(value: unknown, max = 80): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().slice(0, max);
+  if (!trimmed) return null;
+  if (!/^[a-zA-Z0-9_.:-]{1,80}$/.test(trimmed)) return "opaque";
+  return trimmed;
+}
+
+export function isAllowedMercadoPagoTicketUrl(raw: unknown): string | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:") return null;
+  if (parsed.username || parsed.password) return null;
+  const host = parsed.hostname.toLowerCase();
+  if (!MERCADO_PAGO_TICKET_HOSTS.has(host)) return null;
+  return parsed.toString();
+}
+
 export type ChargeResult =
-  | { ok: true; kind: "accepted"; view: ProviderPaymentView; pix: { copy: string; image: string } | null }
+  | { ok: true; kind: "accepted"; view: ProviderPaymentView; pix: PixPresentation | null }
   | { ok: false; kind: "rejected"; message: string; view: ProviderPaymentView | null }
   | { ok: false; kind: "unknown"; message: string; view: ProviderPaymentView | null };
 
@@ -72,11 +110,79 @@ export function isUnresolvedPaymentMarker(providerStatus: string | null | undefi
   return providerStatus === PROVIDER_STATUS_UNKNOWN || providerStatus === PROVIDER_STATUS_DISPATCHED;
 }
 
+export type ProviderChargeDiagnostics = {
+  httpStatus: number | null;
+  errorCode: string | null;
+  providerStatus: string | null;
+  statusDetail: string | null;
+  method: "PIX" | "CREDIT_CARD" | null;
+  remoteOrderIdPresent: boolean;
+  correlationId: string | null;
+};
+
+/** Extrai campos seguros do retorno do provedor — sem token, CPF, e-mail, QR ou payload completo. */
+export function extractProviderChargeDiagnostics(input: {
+  httpStatus: number | null;
+  payload: unknown;
+  view: ProviderPaymentView | null;
+  method: "PIX" | "CREDIT_CARD" | null;
+  correlationId?: string | null;
+}): ProviderChargeDiagnostics {
+  const codes = collectErrorCodes(input.payload)
+    .map((code) => sanitizeProviderDiagnosticToken(code))
+    .filter((code): code is string => Boolean(code) && code !== "opaque");
+  const row = unwrapOrder(input.payload);
+  const payment = row ? firstPayment(row) : null;
+  const rawStatus =
+    typeof payment?.status === "string"
+      ? payment.status
+      : typeof row?.status === "string"
+        ? row.status
+        : input.view?.status ?? null;
+  const rawDetail =
+    typeof payment?.status_detail === "string"
+      ? payment.status_detail
+      : typeof row?.status_detail === "string"
+        ? row.status_detail
+        : input.view?.statusDetail ?? null;
+  const remoteId =
+    typeof row?.id === "string" && row.id.length > 0
+      ? row.id
+      : typeof input.view?.id === "string" && input.view.id.length > 0
+        ? input.view.id
+        : null;
+  return {
+    httpStatus: input.httpStatus,
+    errorCode: codes[0] ?? null,
+    providerStatus: sanitizeProviderDiagnosticToken(rawStatus, 40),
+    statusDetail: sanitizeProviderDiagnosticToken(rawDetail, 80),
+    method: input.method,
+    remoteOrderIdPresent: Boolean(remoteId),
+    correlationId: sanitizeProviderDiagnosticToken(input.correlationId, 40),
+  };
+}
+
+export function userMessageForProviderRejection(diagnostics: ProviderChargeDiagnostics): string {
+  const detail = (diagnostics.statusDetail ?? "").toLowerCase();
+  const code = (diagnostics.errorCode ?? "").toLowerCase();
+  if (detail.includes("high_risk") || code.includes("high_risk")) {
+    return "O provedor recusou esta tentativa por análise de risco. Tente outro método ou fale com o suporte.";
+  }
+  if (detail.includes("insufficient") || code.includes("insufficient")) {
+    return "O provedor recusou esta tentativa. Verifique o saldo ou tente outro método.";
+  }
+  if (code === "failed" || diagnostics.httpStatus === 402) {
+    return "O provedor não concluiu esta cobrança (tentativa recusada). Você pode tentar de novo no mesmo pedido se ele ainda estiver aberto.";
+  }
+  return "O pagamento não foi aceito pelo provedor. Você pode tentar de novo se o pedido ainda estiver aguardando pagamento.";
+}
+
 /** Classifica falha HTTP/rede: rejected = definitivo; unknown = não pode abrir nova cobrança. */
 export function classifyProviderChargeFailure(input: {
   networkError?: boolean;
   httpStatus: number | null;
   view: ProviderPaymentView | null;
+  remoteOrderIdPresent?: boolean;
 }): "rejected" | "unknown" {
   if (input.networkError) return "unknown";
   const status = input.httpStatus;
@@ -88,6 +194,8 @@ export function classifyProviderChargeFailure(input: {
     // Resposta com view pendente/aprovada mas HTTP não-OK: inconclusivo.
     if (!status || status < 200 || status >= 300) return "unknown";
   }
+  // HTTP 402 pode ter criado ordem remota mesmo sem view parseável — não tratar como “nada criado”.
+  if (status === 402 && input.remoteOrderIdPresent && !input.view) return "unknown";
   if (status >= 400 && status < 500) return "rejected";
   return "unknown";
 }
@@ -160,14 +268,27 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
     return { ok: true, kind: "accepted", view, pix: method === "PIX" ? readPix(payload) : null };
   }
 
+  const diagnostics = extractProviderChargeDiagnostics({
+    httpStatus: response.status,
+    payload,
+    view,
+    method,
+    correlationId: input.orderId,
+  });
   const failureKind = classifyProviderChargeFailure({
     httpStatus: response.status,
     view,
+    remoteOrderIdPresent: diagnostics.remoteOrderIdPresent,
   });
   console.error("mercado pago charge inconclusive_or_rejected", {
-    status: response.status,
+    status: diagnostics.httpStatus,
     kind: failureKind,
-    providerStatus: view?.status ?? safeErrorCode(payload),
+    errorCode: diagnostics.errorCode,
+    providerStatus: diagnostics.providerStatus ?? view?.status ?? null,
+    statusDetail: diagnostics.statusDetail,
+    method: diagnostics.method,
+    remoteOrderIdPresent: diagnostics.remoteOrderIdPresent,
+    correlationId: diagnostics.correlationId,
   });
   if (failureKind === "unknown") {
     return {
@@ -177,7 +298,7 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
       view,
     };
   }
-  return { ok: false, kind: "rejected", message: "O pagamento não foi aceito.", view };
+  return { ok: false, kind: "rejected", message: userMessageForProviderRejection(diagnostics), view };
 }
 
 export async function fetchProviderPayment(providerPaymentId: string): Promise<ProviderPaymentView | null> {
@@ -193,7 +314,7 @@ export async function fetchProviderPayment(providerPaymentId: string): Promise<P
   return readProviderPayment(await response.json().catch(() => null));
 }
 
-export async function fetchPixPresentation(providerPaymentId: string): Promise<{ copy: string; image: string } | null> {
+export async function fetchPixPresentation(providerPaymentId: string): Promise<PixPresentation | null> {
   const config = mercadoPagoRuntimeConfig();
   if (!config) return null;
   const response = await fetch(`${ORDERS_URL}/${encodeURIComponent(providerPaymentId)}`, {
@@ -230,21 +351,38 @@ export function readProviderPayment(payload: unknown): ProviderPaymentView | nul
   };
 }
 
-export function readPix(payload: unknown): { copy: string; image: string } | null {
+/**
+ * Aceita campos Pix de forma independente.
+ * Não exige Base64 para liberar Copia e Cola ou ticket_url oficial.
+ * Retorna null somente quando nenhum dado apresentável existe.
+ */
+export function readPix(payload: unknown): PixPresentation | null {
   const row = unwrapOrder(payload);
   if (!row) return null;
   const method = firstPayment(row)?.payment_method;
-  const copy = method?.qr_code;
-  const image = method?.qr_code_base64;
-  if (typeof copy !== "string" || typeof image !== "string" || !copy || !image) return null;
-  return { copy, image };
+  const copy = typeof method?.qr_code === "string" && method.qr_code.trim() ? method.qr_code.trim() : null;
+  const image =
+    typeof method?.qr_code_base64 === "string" && method.qr_code_base64.trim() ? method.qr_code_base64.trim() : null;
+  const ticketUrl = isAllowedMercadoPagoTicketUrl(method?.ticket_url);
+  if (!copy && !image && !ticketUrl) return null;
+  return { copy, image, ticketUrl };
+}
+
+export function hasPresentablePix(pix: PixPresentation | null | undefined): boolean {
+  return Boolean(pix && (pix.copy || pix.image || pix.ticketUrl));
 }
 
 function firstPayment(row: Record<string, unknown>): {
   amount?: unknown;
   status?: unknown;
   status_detail?: unknown;
-  payment_method?: { type?: unknown; installments?: unknown; qr_code?: unknown; qr_code_base64?: unknown };
+  payment_method?: {
+    type?: unknown;
+    installments?: unknown;
+    qr_code?: unknown;
+    qr_code_base64?: unknown;
+    ticket_url?: unknown;
+  };
 } | null {
   const transactions = row.transactions;
   if (!transactions || typeof transactions !== "object" || !("payments" in transactions)) return null;
@@ -255,7 +393,13 @@ function firstPayment(row: Record<string, unknown>): {
     amount?: unknown;
     status?: unknown;
     status_detail?: unknown;
-    payment_method?: { type?: unknown; installments?: unknown; qr_code?: unknown; qr_code_base64?: unknown };
+    payment_method?: {
+      type?: unknown;
+      installments?: unknown;
+      qr_code?: unknown;
+      qr_code_base64?: unknown;
+      ticket_url?: unknown;
+    };
   };
 }
 
@@ -293,10 +437,20 @@ function legacyStatus(status: string, detail: string | null): string {
   return status;
 }
 
-function safeErrorCode(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "unknown";
-  const row = payload as { message?: unknown; error?: unknown; errors?: { code?: unknown }[] };
-  const nested = row.errors?.[0]?.code;
-  const code = typeof nested === "string" ? nested : typeof row.error === "string" ? row.error : typeof row.message === "string" ? row.message : "unknown";
-  return code.length > 80 ? "long_error" : code;
+function collectErrorCodes(payload: unknown): string[] {
+  if (!payload || typeof payload !== "object") return [];
+  const row = payload as { error?: unknown; errors?: unknown; code?: unknown };
+  const codes: string[] = [];
+  if (Array.isArray(row.errors)) {
+    for (const item of row.errors) {
+      if (!item || typeof item !== "object") continue;
+      const code = (item as { code?: unknown }).code;
+      const sanitized = sanitizeProviderDiagnosticToken(code);
+      if (sanitized && sanitized !== "opaque") codes.push(sanitized);
+    }
+  }
+  const topLevel = sanitizeProviderDiagnosticToken(typeof row.error === "string" ? row.error : row.code);
+  if (topLevel && topLevel !== "opaque") codes.push(topLevel);
+  // Nunca promove `message` livre do provedor para o log — pode carregar PII.
+  return codes;
 }

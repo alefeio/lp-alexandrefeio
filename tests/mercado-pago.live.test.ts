@@ -156,7 +156,7 @@ test("Checkout Transparente via Orders em credencial de teste", { skip: !enabled
     assert.equal(pix.ok, true);
     if (!pix.ok) return;
     assert.equal(pix.view.status, "pending");
-    assert.ok(pix.pix && pix.pix.copy.length > 20 && pix.pix.image.length > 20);
+    assert.ok(pix.pix && (Boolean(pix.pix.copy?.length) || Boolean(pix.pix.ticketUrl) || Boolean(pix.pix.image?.length)));
     await applyProviderView(pixAttempt.paymentId, pix.view);
     assert.equal(await hasActiveEntitlement(userId, lesson.id), false);
     const samePix = await createProviderCharge({

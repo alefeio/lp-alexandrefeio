@@ -1,0 +1,133 @@
+# Postgres 17 isolado (commerce_qa) — sem secrets de Production.
+# Service container descartado ao fim do job.
+name: commerce-qa-isolated
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: commerce-qa-isolated-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-live:
+    name: Postgres 17 commerce_qa
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: commerce_qa
+          POSTGRES_PASSWORD: commerce_qa_ci_only
+          POSTGRES_DB: commerce_qa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U commerce_qa -d commerce_qa"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_ENV: test
+      ISOLATED_COMMERCE_DATABASE_TEST: "1"
+      SHARED_DATABASE_TEST_CONFIRM: "true"
+      MERCADO_PAGO_ENV: test
+      COMMERCE_ENABLED: "true"
+      NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY: APP_USR-example-public
+      MERCADO_PAGO_ACCESS_TOKEN: APP_USR-example-token
+      MERCADO_PAGO_WEBHOOK_SECRET: example-webhook-secret
+      ISOLATED_AI_IDEMPOTENCY_TEST: "1"
+      # Suíte auto-contida no commerce_qa vazio (sem catálogo compartilhado).
+      DATABASE_LIVE_FILTER: commerce-isolated
+      # Três URLs idênticas → 127.0.0.1:5432/commerce_qa (somente runner)
+      ISOLATED_COMMERCE_DATABASE_URL: postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+      RUNTIME_DATABASE_URL: postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+      POSTGRES_URL: postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+      ISOLATED_AI_IDEMPOTENCY_DATABASE_URL: postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Write isolated env file
+        run: |
+          cat > .env.commerce-isolated.local <<'EOF'
+          DATABASE_ENV=test
+          ISOLATED_COMMERCE_DATABASE_TEST=1
+          SHARED_DATABASE_TEST_CONFIRM=true
+          MERCADO_PAGO_ENV=test
+          COMMERCE_ENABLED=true
+          NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY=APP_USR-example-public
+          MERCADO_PAGO_ACCESS_TOKEN=APP_USR-example-token
+          MERCADO_PAGO_WEBHOOK_SECRET=example-webhook-secret
+          ISOLATED_COMMERCE_DATABASE_URL=postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+          RUNTIME_DATABASE_URL=postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+          POSTGRES_URL=postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+          ISOLATED_AI_IDEMPOTENCY_TEST=1
+          ISOLATED_AI_IDEMPOTENCY_DATABASE_URL=postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
+          EOF
+          # Remove leading indentation from heredoc lines
+          sed -i 's/^[[:space:]]*//' .env.commerce-isolated.local
+
+      - name: Probe isolated identity (before migrate)
+        id: probe
+        run: |
+          set -euo pipefail
+          OUT=$(npx tsx scripts/probe-commerce-isolated.ts)
+          echo "$OUT"
+          echo "probe<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$OUT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "$OUT" | grep -q '"productionHostMatch":false'
+          echo "$OUT" | grep -q '"database":"commerce_qa"'
+
+      - name: Deploy migrations to commerce_qa only
+        run: |
+          set -euo pipefail
+          echo "Migration dirs: $(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          npm run db:deploy
+
+      - name: Seed synthetic QA user
+        run: npx tsx scripts/seed-commerce-qa-user.ts
+
+      - name: Database-live suite
+        run: npm run test:database-live
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## commerce-qa-isolated"
+            echo ""
+            echo "- Postgres image: postgres:17 (service container)"
+            echo "- Database: commerce_qa @ 127.0.0.1:5432"
+            echo "- Probe: \`${{ steps.probe.outputs.probe }}\`"
+            echo "- Filter: DATABASE_LIVE_FILTER=commerce-isolated"
+            echo "- Production secrets: none imported"
+            echo "- Service discarded after job"
+          } >> "$GITHUB_STEP_SUMMARY"

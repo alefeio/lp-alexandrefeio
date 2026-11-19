@@ -13,10 +13,16 @@ import {
   acceptedMethod,
   chargeFingerprint,
   classifyProviderChargeFailure,
+  extractProviderChargeDiagnostics,
+  hasPresentablePix,
+  isAllowedMercadoPagoTicketUrl,
   readPix,
   readProviderPayment,
   readStoredChargeFingerprint,
+  sanitizeProviderDiagnosticToken,
+  userMessageForProviderRejection,
 } from "../src/lib/commerce/provider";
+import { decidePurchaseJourney } from "../src/lib/commerce/purchase-journey";
 import { verifyMercadoPagoSignature } from "../src/lib/commerce/signature";
 import { purchaseEmail } from "../src/lib/email/purchase-mail";
 import { needsSession } from "../src/proxy";
@@ -861,8 +867,56 @@ test("Pix simulado lê QR e cartão continua aceito", () => {
   const view = readProviderPayment(payload);
   assert.equal(view?.status, "pending");
   assert.equal(view?.paymentTypeId, "bank_transfer");
-  assert.deepEqual(readPix(payload), { copy: "0002012658", image: "aW1n" });
+  assert.deepEqual(readPix(payload), { copy: "0002012658", image: "aW1n", ticketUrl: null });
   assert.equal(readPix({ ...payload, transactions: { payments: [{ amount: "14.90", payment_method: { id: "pix", type: "bank_transfer" } }] } }), null);
+  assert.deepEqual(
+    readPix({
+      id: "ORD1",
+      external_reference: "o1",
+      total_amount: "14.90",
+      country_code: "BRA",
+      transactions: {
+        payments: [
+          {
+            amount: "14.90",
+            payment_method: {
+              id: "pix",
+              type: "bank_transfer",
+              qr_code: "000201copia",
+              qr_code_base64: "",
+              ticket_url: "https://www.mercadopago.com.br/sandbox/payments/1/ticket",
+            },
+          },
+        ],
+      },
+    }),
+    {
+      copy: "000201copia",
+      image: null,
+      ticketUrl: "https://www.mercadopago.com.br/sandbox/payments/1/ticket",
+    },
+  );
+  assert.deepEqual(
+    readPix({
+      id: "ORD2",
+      external_reference: "o2",
+      total_amount: "14.90",
+      country_code: "BRA",
+      transactions: {
+        payments: [
+          {
+            amount: "14.90",
+            payment_method: {
+              id: "pix",
+              type: "bank_transfer",
+              ticket_url: "https://evil.example/phish",
+            },
+          },
+        ],
+      },
+    }),
+    null,
+  );
 });
 
 test("falha de provedor distingue rejeição definitiva de resultado desconhecido", () => {
@@ -886,6 +940,14 @@ test("falha de provedor distingue rejeição definitiva de resultado desconhecid
       },
     }),
     "rejected",
+  );
+  assert.equal(
+    classifyProviderChargeFailure({
+      httpStatus: 402,
+      view: null,
+      remoteOrderIdPresent: true,
+    }),
+    "unknown",
   );
   assert.equal(
     classifyProviderChargeFailure({
@@ -1316,5 +1378,144 @@ test("gate database-live de comércio recusa Prisma compartilhado e exige finger
   assert.match(runner, /evaluateIsolatedCommerceDatabaseLive/);
   assert.match(runner, /ABORT/);
   assert.match(runner, /assertIsolatedCommerceLiveConnection/);
+});
+
+test("HTTP 402 estruturado extrai status_detail e códigos sem dados sensíveis", () => {
+  const payload = {
+    errors: [{ code: "failed", message: "transaction failed" }],
+    data: {
+      id: "ORD_REMOTE_402",
+      external_reference: "order-local-1",
+      total_amount: "14.90",
+      country_code: "BRA",
+      status: "failed",
+      status_detail: "failed",
+      transactions: {
+        payments: [
+          {
+            amount: "14.90",
+            status: "failed",
+            status_detail: "high_risk",
+            payment_method: { id: "pix", type: "bank_transfer" },
+          },
+        ],
+      },
+    },
+  };
+  const view = readProviderPayment(payload);
+  assert.equal(view?.id, "ORD_REMOTE_402");
+  assert.equal(view?.status, "rejected");
+  assert.equal(view?.statusDetail, "high_risk");
+  const diagnostics = extractProviderChargeDiagnostics({
+    httpStatus: 402,
+    payload,
+    view,
+    method: "PIX",
+    correlationId: "order-local-1",
+  });
+  assert.equal(diagnostics.httpStatus, 402);
+  assert.equal(diagnostics.errorCode, "failed");
+  assert.equal(diagnostics.statusDetail, "high_risk");
+  assert.equal(diagnostics.providerStatus, "failed");
+  assert.equal(diagnostics.remoteOrderIdPresent, true);
+  assert.equal(diagnostics.correlationId, "order-local-1");
+  assert.equal(diagnostics.method, "PIX");
+  const serialized = JSON.stringify(diagnostics);
+  assert.equal(serialized.includes("cpf"), false);
+  assert.equal(serialized.includes("@"), false);
+  assert.match(userMessageForProviderRejection(diagnostics), /risco|provedor/i);
+});
+
+test("jornada do pedido cobre pendente, rejeitado, Pix, incerto, cancelado e pago", () => {
+  assert.equal(
+    decidePurchaseJourney({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [],
+      abandonable: true,
+    }).primaryCta,
+    "continue_payment",
+  );
+  assert.equal(
+    decidePurchaseJourney({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "REJECTED", providerStatus: "request_failed", providerPaymentId: "ord_x", paymentMethodType: "PIX" }],
+      abandonable: true,
+    }).kind,
+    "rejected_retry",
+  );
+  assert.equal(
+    decidePurchaseJourney({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "pending", providerPaymentId: "ord_pix", paymentMethodType: "PIX" }],
+      abandonable: false,
+    }).kind,
+    "pix_pending",
+  );
+  assert.equal(
+    decidePurchaseJourney({
+      orderStatus: "PENDING_PAYMENT",
+      payments: [{ status: "PENDING", providerStatus: "outcome_unknown", providerPaymentId: null, paymentMethodType: null }],
+      abandonable: false,
+    }).kind,
+    "uncertain",
+  );
+  assert.equal(
+    decidePurchaseJourney({
+      orderStatus: "CANCELLED",
+      payments: [{ status: "CANCELLED", providerStatus: "checkout_abandoned", providerPaymentId: null, paymentMethodType: null }],
+      abandonable: false,
+    }).primaryCta,
+    "buy_again",
+  );
+  assert.equal(
+    decidePurchaseJourney({
+      orderStatus: "PAID",
+      payments: [{ status: "APPROVED", providerStatus: "approved", providerPaymentId: "ord_ok", paymentMethodType: "PIX" }],
+      abandonable: false,
+    }).primaryCta,
+    "access_content",
+  );
+});
+
+test("checkout resume e recompra não reutilizam pedido cancelado", () => {
+  const ordersSource = readFileSync("src/lib/commerce/orders.ts", "utf8");
+  assert.match(ordersSource, /getResumeCheckoutForUser/);
+  assert.match(ordersSource, /repurchaseCancelledOrderForUser/);
+  assert.match(ordersSource, /getRepurchasePriceNoticeForUser/);
+  assert.match(ordersSource, /Só é possível comprar novamente a partir de um pedido cancelado/);
+  assert.match(ordersSource, /previousTotalCents/);
+  assert.equal(ordersSource.includes('data: { status: "PENDING_PAYMENT" }'), false);
+  const actions = readFileSync("src/lib/commerce/actions.ts", "utf8");
+  assert.match(actions, /resumeCheckoutAction/);
+  assert.match(actions, /repurchaseCancelledOrderAction/);
+  const checkout = readFileSync("src/components/commerce/CheckoutScreen.tsx", "utf8");
+  assert.match(checkout, /resumeOrderId/);
+  assert.match(checkout, /resumeCheckoutAction/);
+  assert.match(checkout, /Recarregar formulário/);
+  assert.match(checkout, /não há conclusão automática/i);
+  const checkoutPage = readFileSync("src/app/(app)/app/checkout/page.tsx", "utf8");
+  assert.match(checkoutPage, /getRepurchasePriceNoticeForUser/);
+  assert.match(checkoutPage, /fromOrderId/);
+  assert.equal(checkoutPage.includes("params.previous"), false);
+  assert.equal(checkoutPage.includes("params.current"), false);
+  const buyAgain = readFileSync("src/components/commerce/PurchaseJourneyActions.tsx", "utf8");
+  assert.match(buyAgain, /fromOrderId/);
+  assert.equal(buyAgain.includes("previous="), false);
+  assert.equal(buyAgain.includes("current="), false);
+});
+
+test("diagnóstico e ticket_url rejeitam conteúdo livre ou host estranho", () => {
+  assert.equal(sanitizeProviderDiagnosticToken("waiting_transfer"), "waiting_transfer");
+  assert.equal(sanitizeProviderDiagnosticToken("failed"), "failed");
+  assert.equal(sanitizeProviderDiagnosticToken("cpf 123.456.789-00"), "opaque");
+  assert.equal(sanitizeProviderDiagnosticToken("user@example.com"), "opaque");
+  assert.equal(isAllowedMercadoPagoTicketUrl("https://www.mercadopago.com.br/sandbox/payments/1/ticket")?.includes("mercadopago.com.br"), true);
+  assert.equal(isAllowedMercadoPagoTicketUrl("https://evil.example/ticket"), null);
+  assert.equal(isAllowedMercadoPagoTicketUrl("http://www.mercadopago.com.br/ticket"), null);
+  assert.equal(
+    hasPresentablePix({ copy: "000201", image: null, ticketUrl: null }),
+    true,
+  );
+  assert.equal(hasPresentablePix({ copy: null, image: null, ticketUrl: null }), false);
 });
 
