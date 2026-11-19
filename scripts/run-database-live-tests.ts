@@ -45,14 +45,29 @@ async function main() {
     process.exit(2);
   }
 
+  const filter = (process.env.DATABASE_LIVE_FILTER ?? "").trim().toLowerCase();
+  // commerce-isolated: fixtures auto-contidas no Postgres vazio commerce_qa (Gate D / CI).
+  // Não inclui seeds de aulas/editorial que exigem catálogo do banco compartilhado.
+  const allow =
+    filter === "commerce-isolated"
+      ? new Set([
+          "commerce-concurrency.database.test.ts",
+          "commerce-purchase-recovery.database.test.ts",
+          "commerce.database.test.ts",
+          "ai-idempotency.live.test.ts",
+        ])
+      : null;
+
   const files = readdirSync("tests/database-live")
     .filter((name) => name.endsWith(".test.ts"))
+    .filter((name) => (allow ? allow.has(name) : true))
     .map((name) => `tests/database-live/${name}`);
 
   if (files.length === 0) {
     console.error("Nenhum teste de banco encontrado.");
     process.exit(1);
   }
+  console.info("[database-live] arquivos", { filter: filter || "all", count: files.length, files });
 
   const env: NodeJS.ProcessEnv = { ...process.env };
   delete env.UNIT_TEST_ISOLATION;

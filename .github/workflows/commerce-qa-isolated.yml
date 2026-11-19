@@ -41,6 +41,8 @@ jobs:
       MERCADO_PAGO_ACCESS_TOKEN: APP_USR-example-token
       MERCADO_PAGO_WEBHOOK_SECRET: example-webhook-secret
       ISOLATED_AI_IDEMPOTENCY_TEST: "1"
+      # Suíte auto-contida no commerce_qa vazio (sem catálogo compartilhado).
+      DATABASE_LIVE_FILTER: commerce-isolated
       # Três URLs idênticas → 127.0.0.1:5432/commerce_qa (somente runner)
       ISOLATED_COMMERCE_DATABASE_URL: postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
       RUNTIME_DATABASE_URL: postgresql://commerce_qa:commerce_qa_ci_only@127.0.0.1:5432/commerce_qa
@@ -125,6 +127,7 @@ jobs:
             echo "- Postgres image: postgres:17 (service container)"
             echo "- Database: commerce_qa @ 127.0.0.1:5432"
             echo "- Probe: \`${{ steps.probe.outputs.probe }}\`"
+            echo "- Filter: DATABASE_LIVE_FILTER=commerce-isolated"
             echo "- Production secrets: none imported"
             echo "- Service discarded after job"
           } >> "$GITHUB_STEP_SUMMARY"
