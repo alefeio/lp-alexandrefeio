@@ -21,7 +21,7 @@ async function requireIsolatedGate() {
   return declared.identity;
 }
 
-test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorrência", async () => {
+test("recuperação: retomar, overlap, rejeição, incerteza, recompra, preço e concorrência", async () => {
   await requireIsolatedGate();
 
   const previous = {
@@ -65,6 +65,7 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
   const prisma = getPrisma();
   const stamp = Date.now();
   const userId = `recov-iso-${stamp}`;
+  let courseId = "";
 
   await prisma.user.create({
     data: {
@@ -88,6 +89,8 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
       publishedAt: new Date(),
     },
   });
+  courseId = course.id;
+
   const moduleRow = await prisma.module.create({
     data: {
       courseId: course.id,
@@ -99,11 +102,11 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
       bundlePriceCents: 2690,
     },
   });
-  const lesson = await prisma.lesson.create({
+  const lessonA = await prisma.lesson.create({
     data: {
       moduleId: moduleRow.id,
-      slug: `recov-aula-${stamp}`,
-      title: "Aula",
+      slug: `recov-aula-a-${stamp}`,
+      title: "Aula A",
       summary: "Resumo",
       status: "PUBLISHED",
       accessType: "PAID",
@@ -112,10 +115,23 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
       publishedAt: new Date(),
     },
   });
+  const lessonB = await prisma.lesson.create({
+    data: {
+      moduleId: moduleRow.id,
+      slug: `recov-aula-b-${stamp}`,
+      title: "Aula B",
+      summary: "Resumo",
+      status: "PUBLISHED",
+      accessType: "PAID",
+      commerceStatus: "AVAILABLE",
+      priceCents: 1590,
+      publishedAt: new Date(),
+    },
+  });
 
   try {
-    // 1) Retomar pedido pendente sem cobrança
-    const pending = await createOrderForUser(userId, [{ type: "LESSON", id: lesson.id }], randomUUID());
+    // 1) Retomar pedido pendente sem cobrança (lessonA)
+    const pending = await createOrderForUser(userId, [{ type: "LESSON", id: lessonA.id }], randomUUID());
     assert.equal(pending.ok, true);
     if (!pending.ok) return;
     const resumePending = await getResumeCheckoutForUser(userId, pending.orderId);
@@ -141,8 +157,14 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
     assert.equal(afterReject.mode, "fresh");
     assert.notEqual(afterReject.paymentId, rejectedAttempt.paymentId);
 
-    // 3) Bloquear nova cobrança incerta
-    const uncertainOrder = await createOrderForUser(userId, [{ type: "MODULE", id: moduleRow.id }], randomUUID());
+    // 3) Negativo: overlap permanece ativo enquanto lessonA está PENDING_PAYMENT
+    const blockedModule = await createOrderForUser(userId, [{ type: "MODULE", id: moduleRow.id }], randomUUID());
+    assert.equal(blockedModule.ok, false);
+    if (blockedModule.ok) return;
+    assert.equal(blockedModule.code, "checkout_overlap");
+
+    // 4) Incerteza em lessonB (fixture independente — sem overlap com A)
+    const uncertainOrder = await createOrderForUser(userId, [{ type: "LESSON", id: lessonB.id }], randomUUID());
     assert.equal(uncertainOrder.ok, true);
     if (!uncertainOrder.ok) return;
     const uncertainAttempt = await preparePaymentAttempt(userId, uncertainOrder.orderId);
@@ -177,19 +199,29 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
       method: "CREDIT_CARD",
     });
     assert.equal(claimDenied.ok, false);
+    const refuseCancel = await cancelAbandonedCheckoutForUser(userId, uncertainOrder.orderId);
+    assert.equal(refuseCancel.ok, false);
+    if (refuseCancel.ok) return;
+    assert.equal(refuseCancel.code, "payment_uncertain");
+    // Encerramento de fixture QA (não é cancelamento automático de produção)
+    await prisma.payment.update({
+      where: { id: uncertainAttempt.paymentId },
+      data: { status: "REJECTED", providerStatus: "request_failed", providerPaymentId: null },
+    });
+    await prisma.order.update({ where: { id: uncertainOrder.orderId }, data: { status: "CANCELLED" } });
 
-    // 4/5) Cancelar e comprar novamente com preço recalculado
-    const cancelTarget = await createOrderForUser(userId, [{ type: "LESSON", id: lesson.id }], randomUUID());
+    // 5) Cancelar abandonado de lessonA → recompra com preço recalculado
+    const cancelledPending = await cancelAbandonedCheckoutForUser(userId, pending.orderId);
+    assert.equal(cancelledPending.ok, true);
+    const cancelTarget = await createOrderForUser(userId, [{ type: "LESSON", id: lessonA.id }], randomUUID());
     assert.equal(cancelTarget.ok, true);
     if (!cancelTarget.ok) return;
-    // Força overlap livre: cancela o pendente original primeiro
-    await cancelAbandonedCheckoutForUser(userId, pending.orderId);
     const cancelled = await cancelAbandonedCheckoutForUser(userId, cancelTarget.orderId);
     assert.equal(cancelled.ok, true);
     const cancelledRow = await prisma.order.findUnique({ where: { id: cancelTarget.orderId } });
     assert.equal(cancelledRow?.status, "CANCELLED");
 
-    await prisma.lesson.update({ where: { id: lesson.id }, data: { priceCents: 1990 } });
+    await prisma.lesson.update({ where: { id: lessonA.id }, data: { priceCents: 1990 } });
     const repurchase = await repurchaseCancelledOrderForUser(userId, cancelTarget.orderId, randomUUID());
     assert.equal(repurchase.ok, true);
     if (!repurchase.ok) return;
@@ -205,12 +237,11 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
     assert.equal(forged, null);
 
     // 6) Dois cliques em Comprar novamente com a mesma checkoutKey
+    await cancelAbandonedCheckoutForUser(userId, repurchase.orderId);
     const cancelled2 = await createOrderForUser(userId, [{ type: "COURSE", id: course.id }], randomUUID());
     assert.equal(cancelled2.ok, true);
     if (!cancelled2.ok) return;
     await cancelAbandonedCheckoutForUser(userId, cancelled2.orderId);
-    // limpa overlap do repurchase anterior
-    await cancelAbandonedCheckoutForUser(userId, repurchase.orderId);
     const twinKey = randomUUID();
     const [a, b] = await Promise.all([
       repurchaseCancelledOrderForUser(userId, cancelled2.orderId, twinKey),
@@ -221,16 +252,21 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
     if (!a.ok || !b.ok) return;
     assert.equal(a.orderId, b.orderId);
 
-    // 7) Webhook tardio sem duplicar entitlements
-    const paidOrder = await createOrderForUser(userId, [{ type: "LESSON", id: lesson.id }], randomUUID());
+    // 7) Webhook tardio sem duplicar entitlements (lessonA)
+    await cancelAbandonedCheckoutForUser(userId, a.orderId);
+    const paidOrder = await createOrderForUser(userId, [{ type: "LESSON", id: lessonA.id }], randomUUID());
     assert.equal(paidOrder.ok, true);
     if (!paidOrder.ok) return;
-    await cancelAbandonedCheckoutForUser(userId, a.orderId);
     const payAttempt = await preparePaymentAttempt(userId, paidOrder.orderId);
     assert.equal(payAttempt.ok, true);
     if (!payAttempt.ok) return;
     const fp = encodeChargeFingerprint(
-      chargeFingerprint({ orderId: paidOrder.orderId, amountCents: paidOrder.totalCents, paymentMethodId: "pix", payerEmail: "a@test.com" }),
+      chargeFingerprint({
+        orderId: paidOrder.orderId,
+        amountCents: paidOrder.totalCents,
+        paymentMethodId: "pix",
+        payerEmail: "a@test.com",
+      }),
     );
     await updateOpenPaymentMarkers(payAttempt.paymentId, {
       providerStatus: PROVIDER_STATUS_DISPATCHED,
@@ -250,19 +286,29 @@ test("recuperação: retomar, rejeição, incerteza, recompra, preço e concorr�
     await applyProviderView(payAttempt.paymentId, approvedView);
     await applyProviderView(payAttempt.paymentId, approvedView);
     const entitlements = await prisma.entitlement.count({
-      where: { userId, lessonId: lesson.id, status: "ACTIVE" },
+      where: { userId, lessonId: lessonA.id, status: "ACTIVE" },
     });
     assert.equal(entitlements, 1);
-    assert.equal(await hasActiveEntitlement(userId, lesson.id), true);
+    assert.equal(await hasActiveEntitlement(userId, lessonA.id), true);
     const orderPaid = await prisma.order.findUnique({ where: { id: paidOrder.orderId } });
     assert.equal(orderPaid?.status, "PAID");
   } finally {
-    process.env.COMMERCE_ENABLED = previous.commerce;
-    process.env.MERCADO_PAGO_ENV = previous.mpEnv;
-    process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY = previous.key;
-    process.env.MERCADO_PAGO_ACCESS_TOKEN = previous.token;
-    process.env.MERCADO_PAGO_WEBHOOK_SECRET = previous.secret;
-    process.env.RESEND_API_KEY = previous.resend;
     setPurchaseEmailSenderForTests(null);
+    await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+    if (courseId) {
+      await prisma.course.delete({ where: { id: courseId } }).catch(() => undefined);
+    }
+    if (previous.commerce === undefined) delete process.env.COMMERCE_ENABLED;
+    else process.env.COMMERCE_ENABLED = previous.commerce;
+    if (previous.mpEnv === undefined) delete process.env.MERCADO_PAGO_ENV;
+    else process.env.MERCADO_PAGO_ENV = previous.mpEnv;
+    if (previous.key === undefined) delete process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY;
+    else process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY = previous.key;
+    if (previous.token === undefined) delete process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    else process.env.MERCADO_PAGO_ACCESS_TOKEN = previous.token;
+    if (previous.secret === undefined) delete process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+    else process.env.MERCADO_PAGO_WEBHOOK_SECRET = previous.secret;
+    if (previous.resend === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = previous.resend;
   }
 });
