@@ -1073,6 +1073,11 @@ test("claim de despacho: virgem, Pix idêntico, divergente e cartão incerto", a
   const apply = readFileSync("src/lib/commerce/apply.ts", "utf8");
   assert.match(apply, /claimChargeDispatch/);
   assert.match(apply, /providerStatus: \{ notIn:/);
+  assert.match(apply, /providerApiKind/);
+  assert.match(apply, /api_kind_mismatch/);
+  const webhook = readFileSync("src/app/api/webhooks/mercado-pago/route.ts", "utf8");
+  assert.match(webhook, /type === "payment"/);
+  assert.match(webhook, /type === "order"/);
 });
 
 test("guards de concorrência: APPROVED não regride; overlap de checkout incerto", async () => {

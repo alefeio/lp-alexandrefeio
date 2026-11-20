@@ -5,11 +5,30 @@ import {
   mayOverwritePaymentStatus,
   shouldIgnoreStaleProviderStatus,
 } from "@/lib/commerce/payment-guards";
+import {
+  isChargeApiKind,
+  legacyChargeApiKind,
+  type ChargeApiKind,
+} from "@/lib/commerce/charge-api";
 import { fetchProviderPayment, PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN } from "@/lib/commerce/provider";
 import { reconcileDecision, type InternalPaymentStatus, type ProviderPaymentView } from "@/lib/commerce/reconcile";
 
-export async function reconcileMercadoPagoPayment(providerPaymentId: string) {
-  const view = await fetchProviderPayment(providerPaymentId);
+export async function reconcileMercadoPagoPayment(
+  providerPaymentId: string,
+  preferredApiKind?: ChargeApiKind,
+) {
+  const existing = await getPrisma().payment.findFirst({
+    where: { providerPaymentId },
+    select: { providerApiKind: true },
+  });
+  const storedKind = isChargeApiKind(existing?.providerApiKind) ? existing.providerApiKind : null;
+  // Preferência: kind persistido > kind do webhook > legado orders (pré-P0.1.4).
+  const chargeApiKind = storedKind ?? preferredApiKind ?? legacyChargeApiKind();
+  if (storedKind && preferredApiKind && storedKind !== preferredApiKind) {
+    return { ok: false as const, message: "O aviso não corresponde ao mecanismo desta tentativa." };
+  }
+
+  const view = await fetchProviderPayment(providerPaymentId, chargeApiKind);
   if (!view) return { ok: false as const, message: "Pagamento não encontrado no Mercado Pago." };
   const payment = await getPrisma().payment.findFirst({
     where: {
@@ -19,6 +38,9 @@ export async function reconcileMercadoPagoPayment(providerPaymentId: string) {
   });
   if (!payment || payment.orderId !== view.externalReference) {
     return { ok: false as const, message: "Este aviso não corresponde a um pedido local." };
+  }
+  if (isChargeApiKind(payment.providerApiKind) && payment.providerApiKind !== chargeApiKind) {
+    return { ok: false as const, message: "O aviso não corresponde ao mecanismo desta tentativa." };
   }
   await applyProviderView(payment.id, view);
   return { ok: true as const, orderId: payment.orderId };
@@ -168,10 +190,18 @@ export async function updateOpenPaymentMarkers(
 }
 
 export type ClaimChargeDispatchResult =
-  | { ok: true; kind: "dispatch" | "resume"; currentStatus: InternalPaymentStatus }
+  | { ok: true; kind: "dispatch" | "resume"; currentStatus: InternalPaymentStatus; chargeApiKind: ChargeApiKind }
   | {
       ok: false;
-      reason: "approved" | "uncertain" | "fingerprint_mismatch" | "card_uncertain" | "not_found" | "not_open" | "lost_race";
+      reason:
+        | "approved"
+        | "uncertain"
+        | "fingerprint_mismatch"
+        | "card_uncertain"
+        | "api_kind_mismatch"
+        | "not_found"
+        | "not_open"
+        | "lost_race";
       currentStatus: InternalPaymentStatus | null;
     };
 
@@ -183,12 +213,22 @@ export async function claimChargeDispatch(input: {
   paymentId: string;
   fingerprintDetail: string;
   method: "PIX" | "CREDIT_CARD";
+  chargeApiKind: ChargeApiKind;
 }): Promise<ClaimChargeDispatchResult> {
   const prisma = getPrisma();
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" = ${input.paymentId} FOR UPDATE`;
     const row = await tx.payment.findUnique({ where: { id: input.paymentId } });
     if (!row) return { ok: false as const, reason: "not_found" as const, currentStatus: null };
+
+    // Nunca troca de API depois que a tentativa já vinculou um mecanismo.
+    if (isChargeApiKind(row.providerApiKind) && row.providerApiKind !== input.chargeApiKind) {
+      return {
+        ok: false as const,
+        reason: "api_kind_mismatch" as const,
+        currentStatus: row.status as InternalPaymentStatus,
+      };
+    }
 
     const decision = decideChargeDispatchClaim({
       status: row.status,
@@ -212,6 +252,7 @@ export async function claimChargeDispatch(input: {
         ok: true as const,
         kind: "resume" as const,
         currentStatus: row.status as InternalPaymentStatus,
+        chargeApiKind: isChargeApiKind(row.providerApiKind) ? row.providerApiKind : input.chargeApiKind,
       };
     }
 
@@ -226,6 +267,8 @@ export async function claimChargeDispatch(input: {
       data: {
         providerStatus: PROVIDER_STATUS_DISPATCHED,
         providerStatusDetail: input.fingerprintDetail,
+        providerApiKind: input.chargeApiKind,
+        paymentMethodType: input.method === "PIX" ? "PIX" : "CREDIT_CARD",
       },
     });
 
@@ -234,12 +277,20 @@ export async function claimChargeDispatch(input: {
         ok: true as const,
         kind: "dispatch" as const,
         currentStatus: row.status as InternalPaymentStatus,
+        chargeApiKind: input.chargeApiKind,
       };
     }
 
     // Corrida: outro worker gravou o marker. Reavalia sem sobrescrever.
     const again = await tx.payment.findUnique({ where: { id: input.paymentId } });
     if (!again) return { ok: false as const, reason: "not_found" as const, currentStatus: null };
+    if (isChargeApiKind(again.providerApiKind) && again.providerApiKind !== input.chargeApiKind) {
+      return {
+        ok: false as const,
+        reason: "api_kind_mismatch" as const,
+        currentStatus: again.status as InternalPaymentStatus,
+      };
+    }
     const retry = decideChargeDispatchClaim({
       status: again.status,
       providerStatus: again.providerStatus,
@@ -253,6 +304,7 @@ export async function claimChargeDispatch(input: {
         ok: true as const,
         kind: "resume" as const,
         currentStatus: again.status as InternalPaymentStatus,
+        chargeApiKind: isChargeApiKind(again.providerApiKind) ? again.providerApiKind : input.chargeApiKind,
       };
     }
     if (retry.kind === "deny") {

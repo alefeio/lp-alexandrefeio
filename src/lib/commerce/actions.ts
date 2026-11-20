@@ -19,6 +19,11 @@ import {
   updateOpenPaymentMarkers,
 } from "@/lib/commerce/apply";
 import {
+  isChargeApiKind,
+  legacyChargeApiKind,
+  resolveChargeApiKindForMethod,
+} from "@/lib/commerce/charge-api";
+import {
   acceptedMethod,
   chargeFingerprint,
   createProviderCharge,
@@ -95,11 +100,13 @@ export async function payOrderAction(orderId: string, raw: unknown) {
       };
     }
     if (current?.providerPaymentId) {
-      await reconcileMercadoPagoPayment(current.providerPaymentId);
+      const kind = isChargeApiKind(current.providerApiKind) ? current.providerApiKind : legacyChargeApiKind();
+      await reconcileMercadoPagoPayment(current.providerPaymentId, kind);
       const refreshed = await getPrisma().payment.findUnique({ where: { id: prepared.paymentId } });
+      const pixKind = isChargeApiKind(refreshed?.providerApiKind) ? refreshed.providerApiKind : kind;
       const pix =
         refreshed?.providerPaymentId && refreshed.paymentMethodType === "PIX"
-          ? await fetchPixPresentation(refreshed.providerPaymentId)
+          ? await fetchPixPresentation(refreshed.providerPaymentId, pixKind)
           : null;
       return {
         ok: true as const,
@@ -128,12 +135,15 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     identificationNumber: parsed.data.identificationNumber,
   });
   const fingerprintDetail = encodeChargeFingerprint(fingerprint);
+  const chargeApiKind = resolveChargeApiKindForMethod(method);
 
   // Claim atômico: só o vencedor (ou retomada Pix idêntica) chama o provedor.
+  // Vincula providerApiKind antes do despacho — sem troca automática de API depois.
   const claimed = await claimChargeDispatch({
     paymentId: prepared.paymentId,
     fingerprintDetail,
     method,
+    chargeApiKind,
   });
   if (!claimed.ok) {
     if (claimed.reason === "approved") {
@@ -145,8 +155,8 @@ export async function payOrderAction(orderId: string, raw: unknown) {
         code: "already_confirmed" as const,
       };
     }
-    if (claimed.reason === "fingerprint_mismatch") {
-      return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "fingerprint_mismatch" as const };
+    if (claimed.reason === "fingerprint_mismatch" || claimed.reason === "api_kind_mismatch") {
+      return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: claimed.reason };
     }
     return { ok: false as const, message: UNCERTAIN_PAYMENT_MESSAGE, code: "payment_uncertain" as const };
   }
@@ -166,6 +176,7 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     payerEmail: parsed.data.payerEmail,
     identificationType: parsed.data.identificationType,
     identificationNumber: parsed.data.identificationNumber,
+    chargeApiKind: claimed.chargeApiKind,
   });
 
   if (charge.ok) {
@@ -244,7 +255,8 @@ export async function refreshOrderPaymentAction(orderId: string) {
     }
     return { ok: false as const, message: "Ainda não há um pagamento para consultar." };
   }
-  return reconcileMercadoPagoPayment(payment.providerPaymentId);
+  const kind = isChargeApiKind(payment.providerApiKind) ? payment.providerApiKind : legacyChargeApiKind();
+  return reconcileMercadoPagoPayment(payment.providerPaymentId, kind);
 }
 
 export async function cancelAbandonedCheckoutAction(orderId: string) {

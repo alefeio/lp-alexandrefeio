@@ -1,3 +1,4 @@
+import { CHARGE_API_ORDERS, CHARGE_API_PAYMENTS } from "@/lib/commerce/charge-api";
 import { mercadoPagoRuntimeConfig, webhookLiveModeAllowed } from "@/lib/commerce/config";
 import { reconcileMercadoPagoPayment } from "@/lib/commerce/apply";
 import { verifyMercadoPagoSignature } from "@/lib/commerce/signature";
@@ -15,11 +16,25 @@ export async function POST(request: Request) {
     dataId,
   });
   if (!valid) return new Response("Assinatura inválida.", { status: 401 });
-  const type = body && typeof body === "object" && "type" in body ? String((body as { type?: unknown }).type ?? "") : url.searchParams.get("type") ?? "";
-  const liveMode = body && typeof body === "object" && "live_mode" in body ? (body as { live_mode?: unknown }).live_mode : null;
-  if (type !== "order" || !webhookLiveModeAllowed(config.env, liveMode)) return new Response("ok");
-  if (!dataId) return new Response("ok");
-  await reconcileMercadoPagoPayment(dataId);
+  const type =
+    body && typeof body === "object" && "type" in body
+      ? String((body as { type?: unknown }).type ?? "")
+      : (url.searchParams.get("type") ?? "");
+  const liveMode =
+    body && typeof body === "object" && "live_mode" in body ? (body as { live_mode?: unknown }).live_mode : null;
+  if (!webhookLiveModeAllowed(config.env, liveMode)) return new Response("ok");
+
+  // Orders (cartão / Pix-orders) e Payments (Pix-payments) — nunca confiar só no body; reconcilia via GET.
+  if (type === "order") {
+    if (!dataId) return new Response("ok");
+    await reconcileMercadoPagoPayment(dataId, CHARGE_API_ORDERS);
+    return new Response("ok");
+  }
+  if (type === "payment") {
+    if (!dataId) return new Response("ok");
+    await reconcileMercadoPagoPayment(dataId, CHARGE_API_PAYMENTS);
+    return new Response("ok");
+  }
   return new Response("ok");
 }
 
