@@ -4,9 +4,14 @@ import { resolveChargeApiKindForMethod, resolvePixChargeApiKind } from "../src/l
 import {
   readPixFromPayments,
   readProviderPaymentFromPayments,
+  resolvePaymentsPaymentTypeId,
 } from "../src/lib/commerce/payments-api";
 import { hasPresentablePix } from "../src/lib/commerce/provider";
 import { reconcileDecision } from "../src/lib/commerce/reconcile";
+import {
+  resolveMercadoPagoTestAccessToken,
+  TEST_CREDENTIAL_SOURCE_CONFIRMATION,
+} from "../src/lib/commerce/sandbox-credentials";
 import { readFileSync } from "node:fs";
 
 test("Pix charge API: default orders; payments só com env explícita; cartão sempre orders", () => {
@@ -123,6 +128,112 @@ test("Payments API: rejeição e reembolso mapeiam para a regra única", () => {
   });
   assert.equal(d.paymentStatus, "REFUNDED");
   assert.equal(d.revoke, true);
+});
+
+test("Payments API: sem payment_type_id não presume bank_transfer; sem evidência Pix não concede", () => {
+  const bare = {
+    id: 99,
+    status: "approved",
+    transaction_amount: 10,
+    currency_id: "BRL",
+    external_reference: "order-bare",
+    installments: 1,
+    transaction_amount_refunded: 0,
+  };
+  assert.equal(resolvePaymentsPaymentTypeId(bare), "");
+  const view = readProviderPaymentFromPayments(bare);
+  assert.ok(view);
+  assert.equal(view.paymentTypeId, "");
+  const decision = reconcileDecision({
+    orderId: "order-bare",
+    orderStatus: "PENDING_PAYMENT",
+    orderTotalCents: 1000,
+    paymentStatus: "PENDING",
+    paymentAmountCents: 1000,
+    provider: view,
+    alreadyGranted: false,
+    expectedMethod: "PIX",
+  });
+  assert.equal(decision.needsReview, true);
+  assert.equal(decision.grant, false);
+
+  assert.equal(
+    resolvePaymentsPaymentTypeId({
+      ...bare,
+      payment_method_id: "pix",
+    }),
+    "pix",
+  );
+  assert.equal(
+    resolvePaymentsPaymentTypeId({
+      ...bare,
+      point_of_interaction: { type: "PIX", transaction_data: { qr_code: "000201" } },
+    }),
+    "pix",
+  );
+});
+
+test("sandbox credentials: exige token de teste exclusivo sem fallback Production", () => {
+  assert.equal(
+    resolveMercadoPagoTestAccessToken({
+      MERCADO_PAGO_ENV: "test",
+      MERCADO_PAGO_ACCESS_TOKEN: "APP_USR-live-token",
+      MERCADO_PAGO_TEST_ACCESS_TOKEN: "",
+      MERCADO_PAGO_TEST_CREDENTIAL_SOURCE: TEST_CREDENTIAL_SOURCE_CONFIRMATION,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    resolveMercadoPagoTestAccessToken({
+      MERCADO_PAGO_ENV: "test",
+      MERCADO_PAGO_ACCESS_TOKEN: "APP_USR-same",
+      MERCADO_PAGO_TEST_ACCESS_TOKEN: "APP_USR-same",
+      MERCADO_PAGO_TEST_CREDENTIAL_SOURCE: TEST_CREDENTIAL_SOURCE_CONFIRMATION,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    resolveMercadoPagoTestAccessToken({
+      MERCADO_PAGO_ENV: "test",
+      MERCADO_PAGO_ACCESS_TOKEN: "APP_USR-live",
+      MERCADO_PAGO_TEST_ACCESS_TOKEN: "APP_USR-test-only",
+      MERCADO_PAGO_TEST_CREDENTIAL_SOURCE: "wrong",
+    }).ok,
+    false,
+  );
+  const ok = resolveMercadoPagoTestAccessToken({
+    MERCADO_PAGO_ENV: "test",
+    MERCADO_PAGO_ACCESS_TOKEN: "APP_USR-live",
+    MERCADO_PAGO_TEST_ACCESS_TOKEN: "APP_USR-test-only",
+    MERCADO_PAGO_TEST_CREDENTIAL_SOURCE: TEST_CREDENTIAL_SOURCE_CONFIRMATION,
+  });
+  assert.equal(ok.ok, true);
+  if (ok.ok) assert.equal(ok.token, "APP_USR-test-only");
+});
+
+test("reconcile: método local PIX vs provedor cartão não concede entitlement", () => {
+  const decision = reconcileDecision({
+    orderId: "o1",
+    orderStatus: "PENDING_PAYMENT",
+    orderTotalCents: 1000,
+    paymentStatus: "PENDING",
+    paymentAmountCents: 1000,
+    alreadyGranted: false,
+    expectedMethod: "PIX",
+    provider: {
+      id: "1",
+      status: "approved",
+      statusDetail: null,
+      amountCents: 1000,
+      currency: "BRL",
+      externalReference: "o1",
+      paymentTypeId: "credit_card",
+      installments: 1,
+      refundedCents: 0,
+    },
+  });
+  assert.equal(decision.needsReview, true);
+  assert.equal(decision.grant, false);
 });
 
 test("arquitetura: Pix payments isolado; webhook aceita payment; cartão Orders preservado", () => {

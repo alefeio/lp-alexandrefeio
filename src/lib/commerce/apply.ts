@@ -10,6 +10,7 @@ import {
   legacyChargeApiKind,
   type ChargeApiKind,
 } from "@/lib/commerce/charge-api";
+import { selectPaymentForProviderView } from "@/lib/commerce/payment-match";
 import { fetchProviderPayment, PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN } from "@/lib/commerce/provider";
 import { reconcileDecision, type InternalPaymentStatus, type ProviderPaymentView } from "@/lib/commerce/reconcile";
 
@@ -30,20 +31,65 @@ export async function reconcileMercadoPagoPayment(
 
   const view = await fetchProviderPayment(providerPaymentId, chargeApiKind);
   if (!view) return { ok: false as const, message: "Pagamento não encontrado no Mercado Pago." };
-  const payment = await getPrisma().payment.findFirst({
-    where: {
-      OR: [{ providerPaymentId: view.id }, { orderId: view.externalReference, providerPaymentId: null, amountCents: view.amountCents }],
-    },
-    include: { order: true },
+  return reconcileFetchedProviderView(view, chargeApiKind);
+}
+
+/**
+ * Reconcilia um view já obtido via GET remoto (webhook/HTTP).
+ * Associa à tentativa correta sob lock — não usa fallback cego pedido+valor.
+ */
+export async function reconcileFetchedProviderView(
+  view: ProviderPaymentView,
+  chargeApiKind: ChargeApiKind,
+) {
+  const prisma = getPrisma();
+  const matched = await prisma.$transaction(async (tx) => {
+    // Serializa com claim/despacho: trava pedido + tentativas candidatas.
+    await tx.$queryRaw`SELECT "id" FROM "order" WHERE "id" = ${view.externalReference} FOR UPDATE`;
+    await tx.$queryRaw`
+      SELECT "id" FROM "payment"
+      WHERE "providerPaymentId" = ${view.id}
+         OR ("orderId" = ${view.externalReference} AND "providerPaymentId" IS NULL)
+      FOR UPDATE
+    `;
+
+    const locked = await tx.payment.findMany({
+      where: {
+        OR: [
+          { providerPaymentId: view.id },
+          { orderId: view.externalReference, providerPaymentId: null },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (locked.length === 0) {
+      return { ok: false as const, message: "Este aviso não corresponde a um pedido local." };
+    }
+
+    const selected = selectPaymentForProviderView({
+      candidates: locked.map((row) => ({
+        id: row.id,
+        orderId: row.orderId,
+        providerPaymentId: row.providerPaymentId,
+        providerApiKind: row.providerApiKind,
+        status: row.status,
+        amountCents: row.amountCents,
+        paymentMethodType: row.paymentMethodType,
+        providerStatus: row.providerStatus,
+        createdAt: row.createdAt,
+      })),
+      view,
+      chargeApiKind,
+    });
+    if (!selected.ok) {
+      return { ok: false as const, message: selected.reason };
+    }
+    return { ok: true as const, paymentId: selected.paymentId, orderId: view.externalReference };
   });
-  if (!payment || payment.orderId !== view.externalReference) {
-    return { ok: false as const, message: "Este aviso não corresponde a um pedido local." };
-  }
-  if (isChargeApiKind(payment.providerApiKind) && payment.providerApiKind !== chargeApiKind) {
-    return { ok: false as const, message: "O aviso não corresponde ao mecanismo desta tentativa." };
-  }
-  await applyProviderView(payment.id, view);
-  return { ok: true as const, orderId: payment.orderId };
+
+  if (!matched.ok) return matched;
+  await applyProviderView(matched.paymentId, view);
+  return { ok: true as const, orderId: matched.orderId };
 }
 
 export async function applyProviderView(paymentId: string, view: ProviderPaymentView) {
@@ -61,6 +107,10 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
     const granted = await tx.entitlement.count({
       where: { orderItem: { orderId: payment.orderId }, status: "ACTIVE" },
     });
+    const expectedMethod =
+      payment.paymentMethodType === "PIX" || payment.paymentMethodType === "CREDIT_CARD"
+        ? payment.paymentMethodType
+        : null;
     let decision = reconcileDecision({
       orderId: payment.orderId,
       orderStatus: payment.order.status,
@@ -69,6 +119,7 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
       paymentAmountCents: payment.amountCents,
       provider: view,
       alreadyGranted: granted > 0,
+      expectedMethod,
     });
 
     if (!mayOverwritePaymentStatus(payment.status as InternalPaymentStatus, decision.paymentStatus)) {

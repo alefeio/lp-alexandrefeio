@@ -10,70 +10,55 @@
 A escolha ocorre **antes** do despacho (`claimChargeDispatch`) e fica em `Payment.providerApiKind`.  
 Não há troca automática de API após timeout, pendência ou resultado desconhecido.
 
+Reconciliação (`selectPaymentForProviderView` + lock de pedido/tentativas):
+
+1. Preferência por `providerPaymentId` exato.
+2. Corrida (webhook antes do HTTP): só tentativa **aberta** (`PENDING`/`IN_PROCESS`), mesmo valor, kind compatível e método compatível.
+3. Payments **não** associa a legado `null`/Orders.
+4. Tentativas rejeitadas antigas não recebem webhook novo só porque pedido+valor coincidem.
+
 ## Compatibilidade da aplicação
 
 - A mesma aplicação Mercado Pago (`APP_USR`) costuma atender Orders e Payments.
-- Pix exige **chave Pix cadastrada** na conta recebedora (docs oficiais).
-- Se Payments rejeitar Pix por restrição de conta, **não** migrar automaticamente — avaliar Checkout Pro ou outro provedor após evidência.
+- Pix exige **chave Pix cadastrada** na conta recebedora.
 - **Não** alterar a configuração da aplicação do cartão nesta sprint.
-- Nova aplicação só se o titular concluir que a atual não habilita Payments/Pix; documentar e solicitar ação humana.
+- Webhook: configurar tópico `payment` (e manter `order`) para a URL `/api/webhooks/mercado-pago`.
 
-## Credenciais
+## Credenciais de teste (sandbox)
 
-- Teste: Access Token de teste + `MERCADO_PAGO_ENV=test`.
-- Production: credenciais Production existentes; piloto só com autorização explícita.
-- Nunca versionar segredos.
+Exclusivas — **sem** fallback para `MERCADO_PAGO_ACCESS_TOKEN`:
+
+```bash
+MERCADO_PAGO_ENV=test
+MERCADO_PAGO_TEST_ACCESS_TOKEN=…   # painel → Credenciais de teste
+MERCADO_PAGO_TEST_CREDENTIAL_SOURCE=developers_test_credentials
+MP_PAYMENTS_PIX_SANDBOX_TEST=1
+```
+
+Preflight read-only `GET /users/me` antes de qualquer `POST /v1/payments`.  
+Recusa token idêntico ao genérico e ambientes Production.
+
+```bash
+npx tsx --test tests/mercado-pago-payments-pix-sandbox.test.ts
+```
 
 ## Migration
 
-`prisma/migrations/20261120194500_add_payment_provider_api_kind` — **aditiva**, coluna `providerApiKind`.  
+`prisma/migrations/20261120194500_add_payment_provider_api_kind` — **aditiva**.  
 **Não executar em Production** sem autorização.
 
 ## Webhooks
 
-A rota `/api/webhooks/mercado-pago` aceita:
+- `type=order` → Orders GET
+- `type=payment` → Payments GET  
+Sempre consulta o recurso remoto; valida assinatura e `live_mode`.
 
-- `type=order` → reconcilia via Orders GET
-- `type=payment` → reconcilia via Payments GET
+## Método Pix (Payments)
 
-Sempre consulta o recurso remoto; nunca confia só no body.
+Não presume `bank_transfer` quando `payment_type_id` falta.  
+Exige evidência: `payment_type_id`, `payment_method_id=pix` ou `point_of_interaction` PIX/QR.  
+Sem evidência → `NEEDS_REVIEW`, sem entitlement.
 
-## Sandbox
+## Piloto Production
 
-```bash
-MP_PAYMENTS_PIX_SANDBOX_TEST=1 MERCADO_PAGO_ENV=test npx tsx --test tests/mercado-pago-payments-pix-sandbox.test.ts
-```
-
-### Resultado local (2026-11-20)
-
-| Checagem | Resultado |
-|----------|-----------|
-| Unitários | PASS (incl. adaptador Payments + seleção de API) |
-| Lint / typecheck / build | PASS |
-| `GET /users/me` com token local | HTTP 200 (token válido) |
-| Sandbox `POST /v1/payments` Pix | **FAIL HTTP 401** — `Unauthorized use of live credentials` (cause 7) |
-
-O `.env.local` tem `MERCADO_PAGO_ENV=test`, mas o Access Token é de **produção** (live).  
-A Payments API recusa misturar credencial live com fluxo de teste.
-
-**Ação do titular (sem alterar a app do cartão):**
-
-1. No painel Developers do Mercado Pago, copiar **Credenciais de teste** (`Access Token` de teste).
-2. Usar só em ambiente local/CI de sandbox (nunca versionar).
-3. Reexecutar: `MP_PAYMENTS_PIX_SANDBOX_TEST=1` + token de teste.
-4. Confirmar QR / copia-e-cola / GET / idempotência.
-
-Nova aplicação Mercado Pago **não** é obrigatória só por causa deste 401; basta o par de credenciais de teste da app atual.  
-Se, com token de teste válido, Pix ainda falhar por restrição de conta/chave Pix, registrar e avaliar Checkout Pro — sem migração automática.
-
-Até o sandbox autenticar e devolver QR + GET + idempotência: **NO-GO** para piloto Production.
-
-## Piloto Production (não automático)
-
-1. Autorização do responsável  
-2. `MERCADO_PAGO_PIX_CHARGE_API=payments`  
-3. Migration aplicada  
-4. Comprador ≠ recebedora  
-5. Uma cobrança  
-6. QR válido + PAID + entitlement  
-7. Rollback: voltar env para `orders`
+**NO-GO** até sandbox com token de teste autenticar e devolver QR + GET + idempotência, com autorização explícita do titular.

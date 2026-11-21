@@ -7,25 +7,31 @@ import {
   readPixFromPayments,
   readProviderPaymentFromPayments,
 } from "../src/lib/commerce/payments-api";
+import {
+  preflightMercadoPagoTestToken,
+  resolveMercadoPagoTestAccessToken,
+} from "../src/lib/commerce/sandbox-credentials";
 
 /**
  * Sandbox Payments API Pix (não Orders).
- * Ativar: MP_PAYMENTS_PIX_SANDBOX_TEST=1 + MERCADO_PAGO_ENV=test + Access Token de teste.
- * Não usa Production. Não altera pedidos reais.
- * Docs: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-payments/integration-configuration/integrate-pix
+ * Ativar: MP_PAYMENTS_PIX_SANDBOX_TEST=1
+ * Credencial exclusiva: MERCADO_PAGO_TEST_ACCESS_TOKEN
+ * Confirmação: MERCADO_PAGO_TEST_CREDENTIAL_SOURCE=developers_test_credentials
+ * Sem fallback para MERCADO_PAGO_ACCESS_TOKEN.
  */
 loadEnv({ path: ".env.local" });
 
 const enabled = process.env.MP_PAYMENTS_PIX_SANDBOX_TEST === "1";
 
-test("sandbox Payments API Pix: create, QR, GET, idempotência", { skip: !enabled }, async () => {
-  assert.notEqual((process.env.MERCADO_PAGO_ENV ?? "").toLowerCase(), "production");
-  assert.notEqual((process.env.VERCEL_ENV ?? "").toLowerCase(), "production");
-  assert.notEqual(process.env.COMMERCE_PRODUCTION_READY, "true");
+test("sandbox Payments API Pix: preflight, create, QR, GET, idempotência", { skip: !enabled }, async () => {
+  const resolved = resolveMercadoPagoTestAccessToken(process.env);
+  assert.equal(resolved.ok, true, resolved.ok ? "" : resolved.reason);
+  if (!resolved.ok) return;
 
-  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? "";
-  assert.ok(accessToken.startsWith("APP_USR"), "Access Token de teste ausente");
-  assert.equal(process.env.MERCADO_PAGO_ENV, "test");
+  const accessToken = resolved.token;
+  const preflight = await preflightMercadoPagoTestToken(accessToken);
+  assert.equal(preflight.ok, true, preflight.ok ? "" : preflight.reason);
+  if (!preflight.ok) return;
 
   const externalReference = `pay-pix-sandbox-${randomUUID()}`;
   const idempotencyKey = randomUUID();
@@ -68,6 +74,7 @@ test("sandbox Payments API Pix: create, QR, GET, idempotência", { skip: !enable
   assert.equal(view.amountCents, 100);
   assert.equal(view.status, "pending");
   assert.equal(view.currency, "BRL");
+  assert.ok(view.paymentTypeId === "bank_transfer" || view.paymentTypeId === "pix");
 
   const pix = readPixFromPayments(first.payload);
   assert.ok(hasPresentablePix(pix), "sandbox Payments deve devolver qr_code ou ticket_url");

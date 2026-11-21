@@ -145,6 +145,8 @@ export function readProviderPaymentFromPayments(payload: unknown): ProviderPayme
   const status = typeof row.status === "string" ? row.status : "";
   const statusDetail = typeof row.status_detail === "string" ? row.status_detail.slice(0, 80) : null;
   const refundedCents = centsFromNumber(row.transaction_amount_refunded) ?? 0;
+  // Sem presumir bank_transfer: só classifica Pix com evidência explícita.
+  const paymentTypeId = resolvePaymentsPaymentTypeId(row);
   return {
     id,
     status: normalizePaymentsStatus(status),
@@ -152,10 +154,37 @@ export function readProviderPaymentFromPayments(payload: unknown): ProviderPayme
     amountCents,
     currency: "BRL",
     externalReference,
-    paymentTypeId: typeof row.payment_type_id === "string" ? row.payment_type_id : "bank_transfer",
+    paymentTypeId,
     installments: typeof row.installments === "number" ? row.installments : 1,
     refundedCents,
   };
+}
+
+/**
+ * Evidência Pix: payment_type_id, payment_method_id=pix ou point_of_interaction PIX/qr.
+ * Ausência → string vazia (reconciliação não concede entitlement).
+ */
+export function resolvePaymentsPaymentTypeId(row: Record<string, unknown>): string {
+  if (typeof row.payment_type_id === "string" && row.payment_type_id.trim()) {
+    return row.payment_type_id.trim();
+  }
+  if (typeof row.payment_method_id === "string" && row.payment_method_id.trim().toLowerCase() === "pix") {
+    return "pix";
+  }
+  const poi = row.point_of_interaction;
+  if (poi && typeof poi === "object") {
+    const poiRow = poi as Record<string, unknown>;
+    if (typeof poiRow.type === "string" && poiRow.type.toUpperCase() === "PIX") {
+      return "pix";
+    }
+    const tx = poiRow.transaction_data;
+    if (tx && typeof tx === "object") {
+      const data = tx as Record<string, unknown>;
+      if (typeof data.qr_code === "string" && data.qr_code.trim()) return "pix";
+      if (typeof data.qr_code_base64 === "string" && data.qr_code_base64.trim()) return "pix";
+    }
+  }
+  return "";
 }
 
 export function readPixFromPayments(payload: unknown): PixPresentation | null {
