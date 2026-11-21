@@ -279,22 +279,92 @@ test("payments reconcile isolado: tentativa correta, webhook payment, entitlemen
     );
     assert.equal(raceDivergent.ok, false);
 
-    // ID já vinculado + método divergente → NEEDS_REVIEW sem entitlement.
-    const divergent = await reconcileFetchedProviderView(
-      pixView({
-        id: `mp-card-${stamp}`,
-        externalReference: otherOrder.id,
-        amountCents: 1490,
-        status: "approved",
-        paymentTypeId: "credit_card",
-      }),
-      "payments",
-    );
-    assert.equal(divergent.ok, true);
+    // ID já vinculado + método divergente (2×) → NEEDS_REVIEW, método PIX preservado, zero entitlements.
+    const divergentView = pixView({
+      id: `mp-card-${stamp}`,
+      externalReference: otherOrder.id,
+      amountCents: 1490,
+      status: "approved",
+      paymentTypeId: "credit_card",
+    });
+    const divergent1 = await reconcileFetchedProviderView(divergentView, "payments");
+    const divergent2 = await reconcileFetchedProviderView(divergentView, "payments");
+    assert.equal(divergent1.ok, true);
+    assert.equal(divergent2.ok, true);
     assert.equal((await prisma.order.findUnique({ where: { id: otherOrder.id } }))?.status, "NEEDS_REVIEW");
+    const divergentPayment = await prisma.payment.findFirst({
+      where: { orderId: otherOrder.id, providerPaymentId: `mp-card-${stamp}` },
+    });
+    assert.equal(divergentPayment?.paymentMethodType, "PIX");
     assert.equal(
       await prisma.entitlement.count({ where: { orderItem: { orderId: otherOrder.id }, status: "ACTIVE" } }),
       0,
+    );
+
+    // Dois IDs remotos distintos na mesma tentativa aberta — só um vincula.
+    const raceOrder = await prisma.order.create({
+      data: {
+        userId,
+        status: "PENDING_PAYMENT",
+        currency: "BRL",
+        subtotalCents: 1490,
+        creditCents: 0,
+        totalCents: 1490,
+        checkoutKey: `pay-rec-ck-race-${stamp}`,
+        items: {
+          create: {
+            productType: "LESSON",
+            lessonId: lesson.id,
+            titleSnapshot: "Aula",
+            listPriceCents: 1490,
+            creditAppliedCents: 0,
+            finalPriceCents: 1490,
+            lessons: { create: { lessonId: lesson.id } },
+          },
+        },
+        payments: {
+          create: {
+            provider: "MERCADO_PAGO",
+            providerPaymentId: null,
+            providerApiKind: "payments",
+            idempotencyKey: `idem-race-${stamp}`,
+            status: "PENDING",
+            amountCents: 1490,
+            paymentMethodType: "PIX",
+            providerStatus: "charge_dispatched",
+          },
+        },
+      },
+      include: { payments: true },
+    });
+    const racePaymentId = raceOrder.payments[0].id;
+    const [remoteA, remoteB] = await Promise.all([
+      reconcileFetchedProviderView(
+        pixView({
+          id: `mp-race-a-${stamp}`,
+          externalReference: raceOrder.id,
+          amountCents: 1490,
+          status: "approved",
+        }),
+        "payments",
+      ),
+      reconcileFetchedProviderView(
+        pixView({
+          id: `mp-race-b-${stamp}`,
+          externalReference: raceOrder.id,
+          amountCents: 1490,
+          status: "approved",
+        }),
+        "payments",
+      ),
+    ]);
+    assert.equal([remoteA.ok, remoteB.ok].filter(Boolean).length, 1);
+    const raced = await prisma.payment.findUnique({ where: { id: racePaymentId } });
+    assert.ok(raced?.providerPaymentId === `mp-race-a-${stamp}` || raced?.providerPaymentId === `mp-race-b-${stamp}`);
+    assert.equal(raced?.paymentMethodType, "PIX");
+    assert.equal(
+      await prisma.entitlement.count({ where: { orderItem: { orderId: raceOrder.id }, status: "ACTIVE" } }),
+      1,
     );
 
     await applyProviderView(

@@ -84,6 +84,8 @@ export function reconcileDecision(input: {
   if (!matches || !KNOWN.has(input.provider.status) || !method || methodMismatch) {
     return {
       ...base,
+      // Divergência de método: decisão carrega o método do claim (não o do provedor).
+      method: methodMismatch && expectedMethod ? expectedMethod : method,
       paymentStatus: input.paymentStatus === "APPROVED" ? "APPROVED" : "PENDING",
       orderStatus: "NEEDS_REVIEW",
       needsReview: true,

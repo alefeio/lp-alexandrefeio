@@ -1,4 +1,5 @@
 import { getPrisma } from "@/lib/db/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { sendPurchaseConfirmationIfNeeded } from "@/lib/commerce/orders";
 import {
   decideChargeDispatchClaim,
@@ -34,17 +35,20 @@ export async function reconcileMercadoPagoPayment(
   return reconcileFetchedProviderView(view, chargeApiKind);
 }
 
+type ApplyProviderResult =
+  | { bound: true; emailed: boolean; orderId: string }
+  | { bound: false; emailed: false; reason: string };
+
 /**
  * Reconcilia um view já obtido via GET remoto (webhook/HTTP).
- * Associa à tentativa correta sob lock — não usa fallback cego pedido+valor.
+ * Match + bind do ID remoto na mesma transação (atualização condicional).
  */
 export async function reconcileFetchedProviderView(
   view: ProviderPaymentView,
   chargeApiKind: ChargeApiKind,
 ) {
   const prisma = getPrisma();
-  const matched = await prisma.$transaction(async (tx) => {
-    // Serializa com claim/despacho: trava pedido + tentativas candidatas.
+  const outcome = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "order" WHERE "id" = ${view.externalReference} FOR UPDATE`;
     await tx.$queryRaw`
       SELECT "id" FROM "payment"
@@ -84,121 +88,153 @@ export async function reconcileFetchedProviderView(
     if (!selected.ok) {
       return { ok: false as const, message: selected.reason };
     }
-    return { ok: true as const, paymentId: selected.paymentId, orderId: view.externalReference };
+
+    const applied = await applyProviderViewInTx(tx, selected.paymentId, view);
+    if (!applied.bound) {
+      return { ok: false as const, message: applied.reason };
+    }
+    return {
+      ok: true as const,
+      orderId: applied.orderId,
+      emailed: applied.emailed,
+    };
   });
 
-  if (!matched.ok) return matched;
-  await applyProviderView(matched.paymentId, view);
-  return { ok: true as const, orderId: matched.orderId };
+  if (!outcome.ok) return outcome;
+  if (outcome.emailed) {
+    await sendPurchaseConfirmationIfNeeded(outcome.orderId);
+  }
+  return { ok: true as const, orderId: outcome.orderId };
 }
 
 export async function applyProviderView(paymentId: string, view: ProviderPaymentView) {
   const prisma = getPrisma();
+  const result = await prisma.$transaction(async (tx) => applyProviderViewInTx(tx, paymentId, view));
+  if (result.bound && result.emailed) {
+    await sendPurchaseConfirmationIfNeeded(result.orderId);
+  }
+  return result;
+}
 
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" = ${paymentId} FOR UPDATE`;
-    const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { order: true } });
-    if (!payment) return { emailed: false as const };
+async function applyProviderViewInTx(
+  tx: Prisma.TransactionClient,
+  paymentId: string,
+  view: ProviderPaymentView,
+): Promise<ApplyProviderResult> {
+  await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" = ${paymentId} FOR UPDATE`;
+  const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { order: true } });
+  if (!payment) return { bound: false, emailed: false, reason: "Tentativa local não encontrada." };
 
-    if (shouldIgnoreStaleProviderStatus(payment.status as InternalPaymentStatus, view.status)) {
-      return { emailed: false as const };
-    }
+  if (shouldIgnoreStaleProviderStatus(payment.status as InternalPaymentStatus, view.status)) {
+    return { bound: true, emailed: false, orderId: payment.orderId };
+  }
 
-    const granted = await tx.entitlement.count({
-      where: { orderItem: { orderId: payment.orderId }, status: "ACTIVE" },
-    });
-    const expectedMethod =
-      payment.paymentMethodType === "PIX" || payment.paymentMethodType === "CREDIT_CARD"
-        ? payment.paymentMethodType
-        : null;
-    let decision = reconcileDecision({
-      orderId: payment.orderId,
-      orderStatus: payment.order.status,
-      orderTotalCents: payment.order.totalCents,
+  // Já vinculado a outro ID remoto — não sobrescreve.
+  if (payment.providerPaymentId && payment.providerPaymentId !== view.id) {
+    return {
+      bound: false,
+      emailed: false,
+      reason: "Esta tentativa já está vinculada a outro identificador remoto.",
+    };
+  }
+
+  const granted = await tx.entitlement.count({
+    where: { orderItem: { orderId: payment.orderId }, status: "ACTIVE" },
+  });
+  const claimedMethod =
+    payment.paymentMethodType === "PIX" || payment.paymentMethodType === "CREDIT_CARD"
+      ? payment.paymentMethodType
+      : null;
+  let decision = reconcileDecision({
+    orderId: payment.orderId,
+    orderStatus: payment.order.status,
+    orderTotalCents: payment.order.totalCents,
+    paymentStatus: payment.status as InternalPaymentStatus,
+    paymentAmountCents: payment.amountCents,
+    provider: view,
+    alreadyGranted: granted > 0,
+    expectedMethod: claimedMethod,
+  });
+
+  if (!mayOverwritePaymentStatus(payment.status as InternalPaymentStatus, decision.paymentStatus)) {
+    decision = {
+      ...decision,
       paymentStatus: payment.status as InternalPaymentStatus,
-      paymentAmountCents: payment.amountCents,
-      provider: view,
-      alreadyGranted: granted > 0,
-      expectedMethod,
-    });
+      orderStatus: payment.order.status === "PAID" ? "PAID" : decision.orderStatus,
+      grant: false,
+      revoke: false,
+      ignore: true,
+      // Divergência de método não pode ser apagada por ignore de status.
+      needsReview: decision.needsReview,
+      method: claimedMethod ?? decision.method,
+    };
+  }
 
-    if (!mayOverwritePaymentStatus(payment.status as InternalPaymentStatus, decision.paymentStatus)) {
-      // Webhook/HTTP tardio não pode rebaixar APPROVED → PENDING/REJECTED.
-      decision = {
-        ...decision,
-        paymentStatus: payment.status as InternalPaymentStatus,
-        orderStatus: payment.order.status === "PAID" ? "PAID" : decision.orderStatus,
-        grant: false,
-        revoke: false,
-        ignore: true,
-        needsReview: false,
-      };
+  const order = await tx.order.findUnique({
+    where: { id: payment.orderId },
+    include: { items: { include: { lessons: true } } },
+  });
+  if (!order) return { bound: false, emailed: false, reason: "Pedido local não encontrado." };
+
+  // Bind atômico: só null→id ou mesmo id. Método do claim nunca é substituído.
+  const paymentUpdate = await tx.payment.updateMany({
+    where: {
+      id: payment.id,
+      status: payment.status,
+      OR: [{ providerPaymentId: null }, { providerPaymentId: view.id }],
+    },
+    data: {
+      providerPaymentId: view.id,
+      status: decision.paymentStatus,
+      refundedAmountCents: decision.refundedAmountCents,
+      providerStatus: view.status,
+      providerStatusDetail: view.statusDetail,
+      ...(claimedMethod ? {} : decision.method ? { paymentMethodType: decision.method } : {}),
+      installments: view.installments,
+      approvedAt: decision.approvedAt ? new Date() : payment.approvedAt,
+    },
+  });
+  if (paymentUpdate.count !== 1) {
+    return {
+      bound: false,
+      emailed: false,
+      reason: "Não foi possível vincular o identificador remoto a esta tentativa.",
+    };
+  }
+
+  if (!decision.ignore) {
+    if (order.status === "PAID" && decision.orderStatus !== "PAID" && decision.orderStatus !== "REFUNDED") {
+      // Não derruba PAID para NEEDS_REVIEW/PENDING por evento stale.
+    } else {
+      await tx.order.updateMany({
+        where: { id: payment.orderId, status: order.status },
+        data: { status: decision.orderStatus },
+      });
     }
-
-    const order = await tx.order.findUnique({
-      where: { id: payment.orderId },
-      include: { items: { include: { lessons: true } } },
-    });
-    if (!order) return { emailed: false as const };
-
-    // Atualização condicional: se outro worker já aprovou, count=0 e não regredimos.
-    const paymentUpdate = await tx.payment.updateMany({
-      where: {
-        id: payment.id,
-        status: payment.status,
-      },
-      data: {
-        providerPaymentId: view.id,
-        status: decision.paymentStatus,
-        refundedAmountCents: decision.refundedAmountCents,
-        providerStatus: view.status,
-        providerStatusDetail: view.statusDetail,
-        paymentMethodType: decision.method,
-        installments: view.installments,
-        approvedAt: decision.approvedAt ? new Date() : payment.approvedAt,
-      },
-    });
-    if (paymentUpdate.count !== 1) {
-      return { emailed: false as const };
-    }
-
-    if (!decision.ignore) {
-      if (order.status === "PAID" && decision.orderStatus !== "PAID" && decision.orderStatus !== "REFUNDED") {
-        // Não derruba PAID para NEEDS_REVIEW/PENDING por evento stale.
-      } else {
-        await tx.order.updateMany({
-          where: { id: payment.orderId, status: order.status },
-          data: { status: decision.orderStatus },
+  }
+  if (decision.grant) {
+    const now = new Date();
+    for (const item of order.items) {
+      for (const lesson of item.lessons) {
+        await tx.entitlement.upsert({
+          where: { orderItemId_lessonId: { orderItemId: item.id, lessonId: lesson.lessonId } },
+          create: { userId: order.userId, lessonId: lesson.lessonId, orderItemId: item.id, status: "ACTIVE", grantedAt: now },
+          update: { status: "ACTIVE", revokedAt: null },
         });
       }
     }
-    if (decision.grant) {
-      const now = new Date();
-      for (const item of order.items) {
-        for (const lesson of item.lessons) {
-          await tx.entitlement.upsert({
-            where: { orderItemId_lessonId: { orderItemId: item.id, lessonId: lesson.lessonId } },
-            create: { userId: order.userId, lessonId: lesson.lessonId, orderItemId: item.id, status: "ACTIVE", grantedAt: now },
-            update: { status: "ACTIVE", revokedAt: null },
-          });
-        }
-      }
-    }
-    if (decision.revoke) {
-      await tx.entitlement.updateMany({
-        where: { orderItem: { orderId: order.id }, status: "ACTIVE" },
-        data: { status: "REVOKED", revokedAt: new Date() },
-      });
-    }
-    return {
-      emailed: decision.orderStatus === "PAID" && decision.paymentStatus === "APPROVED",
-      orderId: payment.orderId,
-    };
-  });
-
-  if (result.emailed && "orderId" in result && result.orderId) {
-    await sendPurchaseConfirmationIfNeeded(result.orderId);
   }
+  if (decision.revoke) {
+    await tx.entitlement.updateMany({
+      where: { orderItem: { orderId: order.id }, status: "ACTIVE" },
+      data: { status: "REVOKED", revokedAt: new Date() },
+    });
+  }
+  return {
+    bound: true,
+    emailed: decision.orderStatus === "PAID" && decision.paymentStatus === "APPROVED",
+    orderId: payment.orderId,
+  };
 }
 
 /** Marca despacho/incerto/rejeição apenas enquanto o pagamento continuar aberto. */

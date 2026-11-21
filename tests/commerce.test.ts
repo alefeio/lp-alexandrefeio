@@ -1075,6 +1075,8 @@ test("claim de despacho: virgem, Pix idêntico, divergente e cartão incerto", a
   assert.match(apply, /providerStatus: \{ notIn:/);
   assert.match(apply, /providerApiKind/);
   assert.match(apply, /api_kind_mismatch/);
+  assert.match(apply, /providerPaymentId: null/);
+  assert.match(apply, /claimedMethod/);
   const webhook = readFileSync("src/app/api/webhooks/mercado-pago/route.ts", "utf8");
   assert.match(webhook, /type === "payment"/);
   assert.match(webhook, /type === "order"/);

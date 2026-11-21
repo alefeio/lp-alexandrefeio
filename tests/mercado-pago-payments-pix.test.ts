@@ -211,7 +211,7 @@ test("sandbox credentials: exige token de teste exclusivo sem fallback Productio
   if (ok.ok) assert.equal(ok.token, "APP_USR-test-only");
 });
 
-test("reconcile: método local PIX vs provedor cartão não concede entitlement", () => {
+test("reconcile: método local PIX vs provedor cartão não concede entitlement e preserva PIX na decisão", () => {
   const decision = reconcileDecision({
     orderId: "o1",
     orderStatus: "PENDING_PAYMENT",
@@ -234,6 +234,7 @@ test("reconcile: método local PIX vs provedor cartão não concede entitlement"
   });
   assert.equal(decision.needsReview, true);
   assert.equal(decision.grant, false);
+  assert.equal(decision.method, "PIX");
 });
 
 test("arquitetura: Pix payments isolado; webhook aceita payment; cartão Orders preservado", () => {
