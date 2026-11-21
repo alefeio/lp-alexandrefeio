@@ -378,7 +378,11 @@ test("payments reconcile isolado: tentativa correta, webhook payment, entitlemen
       }),
     );
     assert.equal((await prisma.order.findUnique({ where: { id: order.id } }))?.status, "REFUNDED");
-    assert.equal(await prisma.entitlement.count({ where: { userId, lessonId: lesson.id, status: "ACTIVE" } }), 0);
+    // Escopo no pedido reembolsado (outro pedido da corrida pode manter entitlement da mesma aula).
+    assert.equal(
+      await prisma.entitlement.count({ where: { orderItem: { orderId: order.id }, status: "ACTIVE" } }),
+      0,
+    );
 
     assert.equal(webhookLiveModeAllowed("test", false), true);
     assert.equal(webhookLiveModeAllowed("test", true), false);
