@@ -8,6 +8,7 @@ import { canCancelAbandonedCheckout } from "@/lib/commerce/payment-guards";
 import { getOrderForUser } from "@/lib/commerce/orders";
 import { decidePurchaseJourney } from "@/lib/commerce/purchase-journey";
 import { paidOrderStart } from "@/lib/commerce/purchase-cta";
+import { isChargeApiKind, legacyChargeApiKind } from "@/lib/commerce/charge-api";
 import { fetchPixPresentation, hasPresentablePix } from "@/lib/commerce/provider";
 import { formatPriceCents } from "@/lib/learning/money";
 
@@ -57,7 +58,11 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
     abandonable,
   });
   const awaitingPix = journey.kind === "pix_pending" && Boolean(payment?.providerPaymentId);
-  const pix = awaitingPix && payment?.providerPaymentId ? await fetchPixPresentation(payment.providerPaymentId) : null;
+  const pixApiKind = isChargeApiKind(payment?.providerApiKind) ? payment.providerApiKind : legacyChargeApiKind();
+  const pix =
+    awaitingPix && payment?.providerPaymentId
+      ? await fetchPixPresentation(payment.providerPaymentId, pixApiKind)
+      : null;
   const item = order.items[0];
   const start =
     order.status === "PAID"

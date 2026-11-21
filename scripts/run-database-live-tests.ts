@@ -53,6 +53,7 @@ async function main() {
       ? new Set([
           "commerce-concurrency.database.test.ts",
           "commerce-purchase-recovery.database.test.ts",
+          "commerce-payments-reconcile.database.test.ts",
           "commerce.database.test.ts",
           "ai-idempotency.live.test.ts",
         ])

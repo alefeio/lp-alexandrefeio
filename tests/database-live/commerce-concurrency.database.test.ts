@@ -463,8 +463,8 @@ test("claim atômico: submits simultâneos Pix/cartão, divergente, pagador e ca
 
     // Dois submits Pix idênticos em paralelo → ambos ok (dispatch + resume); fingerprint único
     const twin = await Promise.all([
-      claimChargeDispatch({ paymentId: prep.paymentId, fingerprintDetail: fpPixA, method: "PIX" }),
-      claimChargeDispatch({ paymentId: prep.paymentId, fingerprintDetail: fpPixA, method: "PIX" }),
+      claimChargeDispatch({ paymentId: prep.paymentId, fingerprintDetail: fpPixA, method: "PIX", chargeApiKind: "orders" }),
+      claimChargeDispatch({ paymentId: prep.paymentId, fingerprintDetail: fpPixA, method: "PIX", chargeApiKind: "orders" }),
     ]);
     assert.equal(twin.every((row) => row.ok), true);
     assert.equal(twin.filter((row) => row.ok && row.kind === "dispatch").length, 1);
@@ -477,6 +477,7 @@ test("claim atômico: submits simultâneos Pix/cartão, divergente, pagador e ca
       paymentId: prep.paymentId,
       fingerprintDetail: fpPixB,
       method: "PIX",
+      chargeApiKind: "orders",
     });
     assert.equal(divergedPayer.ok, false);
     if (!divergedPayer.ok) assert.equal(divergedPayer.reason, "fingerprint_mismatch");
@@ -487,6 +488,7 @@ test("claim atômico: submits simultâneos Pix/cartão, divergente, pagador e ca
       paymentId: prep.paymentId,
       fingerprintDetail: fpCard,
       method: "CREDIT_CARD",
+      chargeApiKind: "orders",
     });
     assert.equal(cardAfter.ok, false);
     if (!cardAfter.ok) assert.equal(cardAfter.reason, "card_uncertain");
@@ -548,7 +550,7 @@ test("claim atômico: submits simultâneos Pix/cartão, divergente, pagador e ca
     );
 
     const racedCancel = await Promise.all([
-      claimChargeDispatch({ paymentId: prep2.paymentId, fingerprintDetail: fp2, method: "PIX" }),
+      claimChargeDispatch({ paymentId: prep2.paymentId, fingerprintDetail: fp2, method: "PIX", chargeApiKind: "orders" }),
       cancelAbandonedCheckoutForUser(userId, claimOrderId),
     ]);
     const claimResult = racedCancel[0];
@@ -616,8 +618,8 @@ test("claim atômico: submits simultâneos Pix/cartão, divergente, pagador e ca
       }),
     );
     const divergentTwin = await Promise.all([
-      claimChargeDispatch({ paymentId: prep3.paymentId, fingerprintDetail: fp3a, method: "PIX" }),
-      claimChargeDispatch({ paymentId: prep3.paymentId, fingerprintDetail: fp3b, method: "PIX" }),
+      claimChargeDispatch({ paymentId: prep3.paymentId, fingerprintDetail: fp3a, method: "PIX", chargeApiKind: "orders" }),
+      claimChargeDispatch({ paymentId: prep3.paymentId, fingerprintDetail: fp3b, method: "PIX", chargeApiKind: "orders" }),
     ]);
     const winners = divergentTwin.filter((row) => row.ok);
     const losers = divergentTwin.filter((row) => !row.ok);

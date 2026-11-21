@@ -56,8 +56,10 @@ export function reconcileDecision(input: {
   paymentAmountCents: number;
   provider: ProviderPaymentView;
   alreadyGranted: boolean;
+  /** Método local da tentativa; diverge do provedor → NEEDS_REVIEW sem entitlement. */
+  expectedMethod?: "PIX" | "CREDIT_CARD" | null;
 }): ReconcileDecision {
-  const method = methodOf(input.provider.paymentTypeId);
+  const method = methodFromPaymentTypeId(input.provider.paymentTypeId);
   const base = {
     paymentStatus: input.paymentStatus,
     orderStatus: input.orderStatus,
@@ -76,8 +78,20 @@ export function reconcileDecision(input: {
     input.provider.amountCents === input.paymentAmountCents &&
     input.provider.amountCents === input.orderTotalCents;
 
-  if (!matches || !KNOWN.has(input.provider.status) || !method) {
-    return { ...base, paymentStatus: input.paymentStatus === "APPROVED" ? "APPROVED" : "PENDING", orderStatus: "NEEDS_REVIEW", needsReview: true };
+  const expectedMethod = input.expectedMethod ?? null;
+  const methodMismatch = Boolean(expectedMethod && method && expectedMethod !== method);
+
+  if (!matches || !KNOWN.has(input.provider.status) || !method || methodMismatch) {
+    return {
+      ...base,
+      // Divergência de método: decisão carrega o método do claim (não o do provedor).
+      method: methodMismatch && expectedMethod ? expectedMethod : method,
+      paymentStatus: input.paymentStatus === "APPROVED" ? "APPROVED" : "PENDING",
+      orderStatus: "NEEDS_REVIEW",
+      needsReview: true,
+      grant: false,
+      revoke: false,
+    };
   }
 
   if (input.provider.status === "partially_refunded" || (input.provider.refundedCents > 0 && input.provider.refundedCents < input.provider.amountCents)) {
@@ -116,7 +130,7 @@ export function reconcileDecision(input: {
   return { ...base, paymentStatus: "PENDING", orderStatus: input.orderStatus === "PAID" ? "PAID" : "PENDING_PAYMENT" };
 }
 
-function methodOf(paymentTypeId: string): "PIX" | "CREDIT_CARD" | null {
+export function methodFromPaymentTypeId(paymentTypeId: string): "PIX" | "CREDIT_CARD" | null {
   if (paymentTypeId === "bank_transfer" || paymentTypeId === "pix") return "PIX";
   if (paymentTypeId === "credit_card") return "CREDIT_CARD";
   return null;

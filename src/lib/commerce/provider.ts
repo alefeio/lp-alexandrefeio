@@ -25,6 +25,8 @@ export type ChargeInput = {
   payerEmail: string;
   identificationType?: string;
   identificationNumber?: string;
+  /** Mecanismo remoto já vinculado à tentativa (claim). Cartão = orders; Pix = orders|payments. */
+  chargeApiKind?: "orders" | "payments";
 };
 
 export type PixPresentation = {
@@ -208,6 +210,11 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
   if (method === "CREDIT_CARD" && !input.token) {
     return { ok: false, kind: "rejected", message: "Não foi possível usar este cartão.", view: null };
   }
+  // Pix via Payments API: adaptador isolado. Cartão e Pix-orders permanecem abaixo.
+  if (method === "PIX" && input.chargeApiKind === "payments") {
+    const { createPixViaPaymentsApi } = await import("@/lib/commerce/payments-api");
+    return createPixViaPaymentsApi(input);
+  }
   const installments = input.installments ?? 1;
   if (!Number.isInteger(installments) || installments < 1 || installments > 3) {
     return { ok: false, kind: "rejected", message: "O parcelamento máximo neste checkout é de 3 vezes.", view: null };
@@ -301,7 +308,14 @@ export async function createProviderCharge(input: ChargeInput): Promise<ChargeRe
   return { ok: false, kind: "rejected", message: userMessageForProviderRejection(diagnostics), view };
 }
 
-export async function fetchProviderPayment(providerPaymentId: string): Promise<ProviderPaymentView | null> {
+export async function fetchProviderPayment(
+  providerPaymentId: string,
+  chargeApiKind: "orders" | "payments" = "orders",
+): Promise<ProviderPaymentView | null> {
+  if (chargeApiKind === "payments") {
+    const { fetchPaymentById } = await import("@/lib/commerce/payments-api");
+    return (await fetchPaymentById(providerPaymentId)).view;
+  }
   const config = mercadoPagoRuntimeConfig();
   if (!config) return null;
   const response = await fetch(`${ORDERS_URL}/${encodeURIComponent(providerPaymentId)}`, {
@@ -314,7 +328,14 @@ export async function fetchProviderPayment(providerPaymentId: string): Promise<P
   return readProviderPayment(await response.json().catch(() => null));
 }
 
-export async function fetchPixPresentation(providerPaymentId: string): Promise<PixPresentation | null> {
+export async function fetchPixPresentation(
+  providerPaymentId: string,
+  chargeApiKind: "orders" | "payments" = "orders",
+): Promise<PixPresentation | null> {
+  if (chargeApiKind === "payments") {
+    const { fetchPaymentById } = await import("@/lib/commerce/payments-api");
+    return (await fetchPaymentById(providerPaymentId)).pix;
+  }
   const config = mercadoPagoRuntimeConfig();
   if (!config) return null;
   const response = await fetch(`${ORDERS_URL}/${encodeURIComponent(providerPaymentId)}`, {

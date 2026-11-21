@@ -197,6 +197,7 @@ test("recuperação: retomar, overlap, rejeição, incerteza, recompra, preço e
         }),
       ),
       method: "CREDIT_CARD",
+      chargeApiKind: "orders",
     });
     assert.equal(claimDenied.ok, false);
     const refuseCancel = await cancelAbandonedCheckoutForUser(userId, uncertainOrder.orderId);

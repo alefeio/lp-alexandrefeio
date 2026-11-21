@@ -745,6 +745,8 @@ model Payment {
   order                Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   provider             PaymentProvider
   providerPaymentId    String?            @unique
+  /// Mecanismo remoto vinculado na tentativa: "orders" | "payments". Nunca inferir só pelo formato do ID.
+  providerApiKind      String?
   idempotencyKey       String             @unique
   status               PaymentStatus      @default(PENDING)
   amountCents          Int
