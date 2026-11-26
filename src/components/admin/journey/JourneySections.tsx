@@ -178,6 +178,10 @@ export function JourneyCommercial({ view }: { view: JourneyDashboardView }) {
     <section className="mt-10">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Resultado operacional</p>
       <h2 className="mt-2 text-lg font-semibold">Resultado real</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+        Pedidos pagos e receita excluem contas marcadas administrativamente como teste.
+        Eventos anônimos de jornada permanecem não identificados — não são tratados como clientes comerciais.
+      </p>
       <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <li className="rounded-lg border border-border p-4">
           <p className="text-sm">Pedidos pagos</p>

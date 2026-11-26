@@ -339,7 +339,17 @@ export function decidePaymentAttempt(open: OpenPaymentSnapshot | null): PaymentA
   return { action: "continue_same", payment: open };
 }
 
-export async function preparePaymentAttempt(userId: string, orderId: string) {
+export type PaymentAttemptOrigin = {
+  channel: "checkout" | "resume";
+  correlationId: string;
+  deviceCategory?: "desktop" | "mobile" | "tablet" | "unknown" | null;
+};
+
+export async function preparePaymentAttempt(
+  userId: string,
+  orderId: string,
+  origin?: PaymentAttemptOrigin,
+) {
   if (!isCommerceEnabled()) return { ok: false as const, message: "As compras ainda não estão abertas.", code: "commerce_disabled" as const };
   const prisma = getPrisma();
 
@@ -411,6 +421,13 @@ export async function preparePaymentAttempt(userId: string, orderId: string) {
         idempotencyKey: randomUUID(),
         amountCents: order.totalCents,
         status: "PENDING",
+        ...(origin
+          ? {
+              originChannel: origin.channel,
+              originCorrelationId: origin.correlationId.slice(0, 64),
+              originDeviceCategory: origin.deviceCategory ?? null,
+            }
+          : {}),
       },
     });
     return {

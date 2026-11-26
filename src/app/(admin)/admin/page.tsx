@@ -16,7 +16,10 @@ export default async function AdminHomePage() {
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-cta">Admin</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">Visão operacional</h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
-        Acompanhamento somente leitura. Aulas iniciadas e concluídas contam registros de progresso. Receita recebida soma pagamentos aprovados e parcialmente reembolsados, já líquidos do valor estornado. R$ 0,00 é o estado válido enquanto não houver venda.
+        Acompanhamento somente leitura. Métricas comerciais excluem contas marcadas como teste.
+        Eventos anônimos de jornada permanecem não identificados (não são presumidos como clientes).
+        Receita recebida soma pagamentos aprovados e parcialmente reembolsados, já líquidos do valor estornado.
+        Taxa de conversão de pedidos: ver Gestão comercial (PAID ÷ pedidos no filtro).
       </p>
       <OverviewGrid cards={view.cards} />
       <FunnelCounts funnel={view.funnel} />

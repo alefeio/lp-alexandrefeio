@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { TestAccountToggle } from "@/components/admin/Commerce";
 import {
   ADMIN_FILTER_LABEL,
   ADMIN_FILTERS,
@@ -67,7 +68,9 @@ export function OverviewGrid({
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">{card.group}</p>
           <p className="mt-2 text-sm">{card.label}</p>
           <p className="mt-3 text-2xl font-semibold tracking-tight">
-            {card.label === "Receita recebida" ? formatPriceCents(Number(card.value)) : card.value}
+            {card.label === "Receita recebida" || card.label === "Receita de teste"
+              ? formatPriceCents(Number(card.value))
+              : card.value}
           </p>
         </li>
       ))}
@@ -145,7 +148,7 @@ export function UserTable({ list }: { list: UserList }) {
         <table className="w-full min-w-[980px] border-collapse text-left text-sm">
           <thead className="border-b border-border text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
-              {["Nome", "E-mail", "Verificado", "Cadastro", "Última atividade", "Aulas iniciadas", "Aulas concluídas", "Projetos", "Diagnósticos", "Compras", "Acesso pago"].map((heading) => (
+              {["Nome", "E-mail", "Verificado", "Classificação", "Cadastro", "Última atividade", "Aulas iniciadas", "Aulas concluídas", "Projetos", "Diagnósticos", "Compras", "Acesso pago"].map((heading) => (
                 <th key={heading} className="px-2 py-3 font-medium">{heading}</th>
               ))}
             </tr>
@@ -158,6 +161,7 @@ export function UserTable({ list }: { list: UserList }) {
                 </td>
                 <td className="px-2 py-3">{user.email}</td>
                 <td className="px-2 py-3">{user.verified ? "Sim" : "Não"}</td>
+                <td className="px-2 py-3">{user.isTestAccount ? "Teste" : "Comercial"}</td>
                 <td className="px-2 py-3">{formatAdminDate(user.createdAt)}</td>
                 <td className="px-2 py-3">{formatAdminDate(user.lastActivity)}</td>
                 <td className="px-2 py-3">{user.started}</td>
@@ -197,6 +201,7 @@ export function UserDetailView({ user }: { user: UserDetail }) {
           <div><dt className="text-muted">Última atividade</dt><dd>{formatAdminDate(user.lastActivity)}</dd></div>
         </dl>
         <p className="mt-3 text-sm text-muted">{LAST_ACTIVITY_NOTE}</p>
+        <TestAccountToggle userId={user.id} isTestAccount={user.isTestAccount} />
       </header>
 
       <section>

@@ -141,7 +141,9 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
     prisma.$queryRaw<Array<{ orders: number; buyers: number }>>(Prisma.sql`
       SELECT COUNT(*)::int AS orders, COUNT(DISTINCT o."userId")::int AS buyers
       FROM "order" o
+      INNER JOIN "user" u ON u.id = o."userId"
       WHERE o.status = 'PAID'
+        AND u."isTestAccount" = false
         AND o."createdAt" >= ${bounds.start}
         AND o."createdAt" < ${bounds.end}
         AND ${orderCourseSql(course)}
@@ -150,7 +152,9 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       WITH paid AS (
         SELECT DISTINCT o."userId" AS user_id
         FROM "order" o
+        INNER JOIN "user" u ON u.id = o."userId"
         WHERE o.status = 'PAID'
+          AND u."isTestAccount" = false
           AND o."createdAt" >= ${bounds.start}
           AND o."createdAt" < ${bounds.end}
           AND ${orderCourseSql(course)}
@@ -174,6 +178,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
           SELECT COALESCE(SUM(i."finalPriceCents"), 0)::int AS cents
           FROM order_item i
           JOIN "order" o ON o.id = i."orderId"
+          INNER JOIN "user" u ON u.id = o."userId"
           LEFT JOIN course c ON c.id = i."courseId"
           LEFT JOIN module m ON m.id = i."moduleId"
           LEFT JOIN course mc ON mc.id = m."courseId"
@@ -181,6 +186,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
           LEFT JOIN module lm ON lm.id = l."moduleId"
           LEFT JOIN course lc ON lc.id = lm."courseId"
           WHERE o.status = 'PAID'
+            AND u."isTestAccount" = false
             AND o."createdAt" >= ${bounds.start}
             AND o."createdAt" < ${bounds.end}
             AND (c.slug = ${course} OR mc.slug = ${course} OR lc.slug = ${course})
@@ -189,6 +195,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       ? prisma.payment.findMany({
           where: {
             status: { in: ["APPROVED", "PARTIALLY_REFUNDED"] },
+            order: { user: { isTestAccount: false } },
             OR: [
               { approvedAt: { gte: bounds.start, lt: bounds.end } },
               { AND: [{ approvedAt: null }, { createdAt: { gte: bounds.start, lt: bounds.end } }] },
