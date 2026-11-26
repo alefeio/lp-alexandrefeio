@@ -2,10 +2,11 @@
  * Leitura J2-A: entrada e primeira interação por sessão.
  * Não altera UX_C_PRODUCTION_AT nem PRODUCT_JOURNEY_REPORTING_START_AT.
  *
- * `J2A_ENTRY_INSTRUMENTATION_AT` permanece null até o go-live Production com
- * SHA e deployment verificáveis (mesmo padrão da UX-C). Preview não define o marco.
+ * Início oficial J2-A em Production: deployment dpl_EVhum6kpoo8iTJco3VdW484FB86G
+ * READY em 2026-11-09T03:44:15.113Z, commit 8171c98a3c10325bad18daa7e33af1f7313ea5d4.
+ * Preview/testes anteriores ficam fora do recorte, preservando UX-C.
  */
-export const J2A_ENTRY_INSTRUMENTATION_AT: Date | null = null;
+export const J2A_ENTRY_INSTRUMENTATION_AT: Date | null = new Date("2026-11-09T03:44:15.113Z");
 
 export const J2A_ENTRY_NOTE =
   "Entrada e primeira interação descrevem a plataforma inteira e não obedecem ao filtro de formação. Não misture esses denominadores com o funil filtrado por curso.";
