@@ -11,6 +11,7 @@ import {
   type AccountScope,
   type AttentionReason,
 } from "@/lib/admin/commerce";
+// AccountScope re-exported for table pagination props
 import {
   inspectMercadoPagoPaymentAction,
   reconcileAdminPaymentAction,
@@ -70,10 +71,11 @@ export function CommerceMetricsGrid({
     conversionRate: number | null;
     ordersWithRejectedAttempts: number;
     attentionCount: number;
+    anomalousMultiApprovedOrders: number;
   };
 }) {
   const cards = [
-    { label: "Receita aprovada", value: formatPriceCents(metrics.approvedRevenueCents) },
+    { label: "Receita líquida recebida", value: formatPriceCents(metrics.approvedRevenueCents) },
     { label: "Pedidos pendentes (valor)", value: formatPriceCents(metrics.pendingOrdersCents) },
     { label: "Pedidos pagos", value: String(metrics.paidOrders) },
     { label: "Pedidos cancelados", value: String(metrics.cancelledOrders) },
@@ -84,6 +86,7 @@ export function CommerceMetricsGrid({
     },
     { label: "Com tentativas recusadas", value: String(metrics.ordersWithRejectedAttempts) },
     { label: "Precisam de atenção", value: String(metrics.attentionCount) },
+    { label: "Aprovações múltiplas (anomalia)", value: String(metrics.anomalousMultiApprovedOrders) },
   ];
   return (
     <div className="mt-6">
@@ -162,6 +165,10 @@ export function CommerceFilters({
 
 export function CommerceOrdersTable({
   orders,
+  page,
+  pages,
+  scope,
+  query,
 }: {
   orders: Array<{
     id: string;
@@ -171,46 +178,90 @@ export function CommerceOrdersTable({
     isTestAccount: boolean;
     productTitles: string[];
     reason: AttentionReason | null;
+    anomalousApprovals?: boolean;
     user: { id: string; name: string; email: string; isTestAccount: boolean };
   }>;
+  page: number;
+  pages: number;
+  scope: AccountScope;
+  query: {
+    periodo?: string;
+    usuario?: string;
+    produto?: string;
+    status?: string;
+    metodo?: string;
+    atencao?: string;
+  };
 }) {
   if (orders.length === 0) {
     return <p className="mt-6 text-sm text-muted">Nenhum pedido neste filtro.</p>;
   }
   return (
-    <div className="mt-6 overflow-x-auto">
-      <table className="w-full min-w-[880px] border-collapse text-left text-sm">
-        <thead className="border-b border-border text-xs uppercase tracking-[0.08em] text-muted">
-          <tr>
-            {["Data", "Usuário", "Produto", "Valor", "Status", "Atenção", ""].map((h) => (
-              <th key={h || "a"} className="px-2 py-3 font-medium">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order.id} className="border-b border-border align-top">
-              <td className="px-2 py-3">
-                <Link className="underline underline-offset-4" href={`/admin/compras/${order.id}`}>
-                  {formatAdminDateTime(order.createdAt)}
-                </Link>
-              </td>
-              <td className="px-2 py-3">
-                <span className="block">{order.user.name}</span>
-                <span className="text-muted">{order.user.email}</span>
-                {order.isTestAccount ? <span className="mt-1 block text-xs text-muted">Conta de teste</span> : null}
-              </td>
-              <td className="px-2 py-3">{order.productTitles.join(", ") || "Sem item"}</td>
-              <td className="px-2 py-3 tabular-nums">{formatPriceCents(order.totalCents)}</td>
-              <td className="px-2 py-3">{ORDER_STATUS[order.status] ?? order.status}</td>
-              <td className="px-2 py-3">{order.reason ? ATTENTION_LABEL[order.reason] : "—"}</td>
-              <td className="px-2 py-3">
-                <Link className="underline underline-offset-4" href={`/admin/usuarios/${order.user.id}`}>Usuário</Link>
-              </td>
+    <div className="mt-6">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[880px] border-collapse text-left text-sm">
+          <thead className="border-b border-border text-xs uppercase tracking-[0.08em] text-muted">
+            <tr>
+              {["Data", "Usuário", "Produto", "Valor", "Status", "Atenção", ""].map((h) => (
+                <th key={h || "a"} className="px-2 py-3 font-medium">{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id} className="border-b border-border align-top">
+                <td className="px-2 py-3">
+                  <Link className="underline underline-offset-4" href={`/admin/compras/${order.id}`}>
+                    {formatAdminDateTime(order.createdAt)}
+                  </Link>
+                  {order.anomalousApprovals ? (
+                    <span className="mt-1 block text-xs text-muted">Aprovações múltiplas</span>
+                  ) : null}
+                </td>
+                <td className="px-2 py-3">
+                  <span className="block">{order.user.name}</span>
+                  <span className="text-muted">{order.user.email}</span>
+                  {order.isTestAccount ? <span className="mt-1 block text-xs text-muted">Conta de teste</span> : null}
+                </td>
+                <td className="px-2 py-3">{order.productTitles.join(", ") || "Sem item"}</td>
+                <td className="px-2 py-3 tabular-nums">{formatPriceCents(order.totalCents)}</td>
+                <td className="px-2 py-3">{ORDER_STATUS[order.status] ?? order.status}</td>
+                <td className="px-2 py-3">{order.reason ? ATTENTION_LABEL[order.reason] : "—"}</td>
+                <td className="px-2 py-3">
+                  <Link className="underline underline-offset-4" href={`/admin/usuarios/${order.user.id}`}>Usuário</Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {pages > 1 ? (
+        <nav className="mt-4 flex flex-wrap gap-3 text-sm" aria-label="Paginação">
+          {page > 1 ? (
+            <Link
+              className="underline underline-offset-4"
+              href={commerceHref({ scope, ...query, pagina: page - 1 })}
+            >
+              Anterior
+            </Link>
+          ) : (
+            <span className="text-muted">Anterior</span>
+          )}
+          <span className="text-muted">
+            Página {page} de {pages}
+          </span>
+          {page < pages ? (
+            <Link
+              className="underline underline-offset-4"
+              href={commerceHref({ scope, ...query, pagina: page + 1 })}
+            >
+              Próxima
+            </Link>
+          ) : (
+            <span className="text-muted">Próxima</span>
+          )}
+        </nav>
+      ) : null}
     </div>
   );
 }

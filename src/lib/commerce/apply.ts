@@ -24,16 +24,33 @@ export async function reconcileMercadoPagoPayment(providerPaymentId: string) {
   return { ok: true as const, orderId: payment.orderId };
 }
 
-export async function applyProviderView(paymentId: string, view: ProviderPaymentView) {
+export type ApplyProviderViewOptions = {
+  /** Escrito na mesma transação financeira (COM-AUDIT-1.1). */
+  audit?: {
+    actorUserId: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    summary: string;
+  };
+  /** Não substitui paymentMethodType local quando já registrado. */
+  preserveLocalMethod?: boolean;
+};
+
+export async function applyProviderView(
+  paymentId: string,
+  view: ProviderPaymentView,
+  options?: ApplyProviderViewOptions,
+): Promise<{ emailed: boolean; orderId?: string; ignored: boolean; audited: boolean }> {
   const prisma = getPrisma();
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" = ${paymentId} FOR UPDATE`;
     const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { order: true } });
-    if (!payment) return { emailed: false as const };
+    if (!payment) return { emailed: false as const, ignored: true as const, audited: false as const };
 
     if (shouldIgnoreStaleProviderStatus(payment.status as InternalPaymentStatus, view.status)) {
-      return { emailed: false as const };
+      return { emailed: false as const, ignored: true as const, audited: false as const };
     }
 
     const granted = await tx.entitlement.count({
@@ -66,7 +83,12 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
       where: { id: payment.orderId },
       include: { items: { include: { lessons: true } } },
     });
-    if (!order) return { emailed: false as const };
+    if (!order) return { emailed: false as const, ignored: true as const, audited: false as const };
+
+    const nextMethod =
+      options?.preserveLocalMethod && payment.paymentMethodType
+        ? payment.paymentMethodType
+        : decision.method;
 
     // Atualização condicional: se outro worker já aprovou, count=0 e não regredimos.
     const paymentUpdate = await tx.payment.updateMany({
@@ -80,13 +102,13 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
         refundedAmountCents: decision.refundedAmountCents,
         providerStatus: view.status,
         providerStatusDetail: view.statusDetail,
-        paymentMethodType: decision.method,
+        paymentMethodType: nextMethod,
         installments: view.installments,
         approvedAt: decision.approvedAt ? new Date() : payment.approvedAt,
       },
     });
     if (paymentUpdate.count !== 1) {
-      return { emailed: false as const };
+      return { emailed: false as const, ignored: true as const, audited: false as const };
     }
 
     if (!decision.ignore) {
@@ -117,15 +139,38 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
         data: { status: "REVOKED", revokedAt: new Date() },
       });
     }
+
+    let audited = false;
+    if (options?.audit) {
+      await tx.adminAuditLog.create({
+        data: {
+          actorUserId: options.audit.actorUserId,
+          action: options.audit.action,
+          targetType: options.audit.targetType,
+          targetId: options.audit.targetId,
+          summary: options.audit.summary.slice(0, 500),
+        },
+      });
+      audited = true;
+    }
+
     return {
       emailed: decision.orderStatus === "PAID" && decision.paymentStatus === "APPROVED",
       orderId: payment.orderId,
+      ignored: decision.ignore,
+      audited,
     };
   });
 
   if (result.emailed && "orderId" in result && result.orderId) {
     await sendPurchaseConfirmationIfNeeded(result.orderId);
   }
+  return {
+    emailed: Boolean(result.emailed),
+    orderId: "orderId" in result ? result.orderId : undefined,
+    ignored: Boolean(result.ignored),
+    audited: Boolean(result.audited),
+  };
 }
 
 /** Marca despacho/incerto/rejeição apenas enquanto o pagamento continuar aberto. */

@@ -70,12 +70,45 @@ export type CommerceMetrics = {
   conversionRate: number | null;
   ordersWithRejectedAttempts: number;
   attentionCount: number;
+  /** Pedidos com mais de uma tentativa APPROVED/PARTIALLY_REFUNDED (anomalia). */
+  anomalousMultiApprovedOrders: number;
 };
 
 export const ABANDONED_AFTER_MS = 48 * 60 * 60 * 1000;
 
+export const ORDER_STATUS_FILTERS = [
+  "PENDING_PAYMENT",
+  "PAID",
+  "CANCELLED",
+  "REFUNDED",
+  "NEEDS_REVIEW",
+] as const;
+
+export const PAYMENT_METHOD_FILTERS = ["PIX", "CREDIT_CARD"] as const;
+
+export const COMMERCE_PAGE_SIZE = 50;
+
 export function parseAccountScope(raw: string | undefined): AccountScope {
   return ACCOUNT_SCOPES.includes(raw as AccountScope) ? (raw as AccountScope) : "commercial";
+}
+
+export function parseOrderStatusFilter(raw: string | undefined): (typeof ORDER_STATUS_FILTERS)[number] | null {
+  if (!raw) return null;
+  return ORDER_STATUS_FILTERS.includes(raw as (typeof ORDER_STATUS_FILTERS)[number])
+    ? (raw as (typeof ORDER_STATUS_FILTERS)[number])
+    : null;
+}
+
+export function parsePaymentMethodFilter(raw: string | undefined): (typeof PAYMENT_METHOD_FILTERS)[number] | null {
+  if (!raw) return null;
+  return PAYMENT_METHOD_FILTERS.includes(raw as (typeof PAYMENT_METHOD_FILTERS)[number])
+    ? (raw as (typeof PAYMENT_METHOD_FILTERS)[number])
+    : null;
+}
+
+export function parseCommercePage(raw: string | undefined): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : 1;
 }
 
 export function formatAdminDateTime(value: Date | string | null | undefined): string {
@@ -103,6 +136,10 @@ export function approvedRevenueCents(payments: Array<{ status: string; amountCen
   }, 0);
 }
 
+export function countApprovedAttempts(payments: CommercePaymentSnap[]): number {
+  return payments.filter((p) => p.status === "APPROVED" || p.status === "PARTIALLY_REFUNDED").length;
+}
+
 export function computeCommerceMetrics(orders: CommerceOrderSnap[], now = new Date()): CommerceMetrics {
   const paidOrders = orders.filter((o) => o.status === "PAID").length;
   const cancelledOrders = orders.filter((o) => o.status === "CANCELLED").length;
@@ -118,6 +155,8 @@ export function computeCommerceMetrics(orders: CommerceOrderSnap[], now = new Da
     o.payments.some((p) => p.status === "REJECTED"),
   ).length;
 
+  const anomalousMultiApprovedOrders = orders.filter((o) => countApprovedAttempts(o.payments) > 1).length;
+
   const attentionCount = orders.filter((o) => classifyAttention(o, now) != null).length;
   const totalOrders = orders.length;
   const conversionRate = totalOrders === 0 ? null : paidOrders / totalOrders;
@@ -132,7 +171,24 @@ export function computeCommerceMetrics(orders: CommerceOrderSnap[], now = new Da
     conversionRate,
     ordersWithRejectedAttempts,
     attentionCount,
+    anomalousMultiApprovedOrders,
   };
+}
+
+/** Estados financeiros inconclusivos — não são abandono recuperável. */
+export function isInconclusivePayment(payment: CommercePaymentSnap | null): boolean {
+  if (!payment) return false;
+  const status = (payment.providerStatus ?? "").toLowerCase();
+  if (status === "outcome_unknown" || status === "charge_dispatched") return true;
+  if (payment.status === "IN_PROCESS") return true;
+  if (
+    (payment.status === "PENDING" || payment.status === "IN_PROCESS") &&
+    !payment.providerPaymentId &&
+    (status === "charge_dispatched" || status === "outcome_unknown" || status.startsWith("fp:"))
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function latestPayment(order: CommerceOrderSnap): CommercePaymentSnap | null {
@@ -148,24 +204,26 @@ function isExpiredDetail(detail: string | null | undefined): boolean {
 
 /**
  * Uma razão por pedido (prioridade operacional).
- * Pendência financeira com Pix aberto ≠ abandono.
+ * Pix aguardando ≠ abandono. charge_dispatched / outcome_unknown ≠ abandono.
  */
 export function classifyAttention(order: CommerceOrderSnap, now = new Date()): AttentionReason | null {
   if (order.status === "NEEDS_REVIEW") return "needs_review";
   if (order.status === "PAID" || order.status === "REFUNDED" || order.status === "CANCELLED") return null;
 
   const latest = latestPayment(order);
-  if (latest?.providerStatus === "outcome_unknown") return "outcome_unknown";
 
   if (
     latest &&
     (latest.status === "PENDING" || latest.status === "IN_PROCESS") &&
     latest.paymentMethodType === "PIX" &&
     latest.providerPaymentId &&
-    !isExpiredDetail(latest.providerStatusDetail)
+    !isExpiredDetail(latest.providerStatusDetail) &&
+    latest.providerStatus !== "outcome_unknown"
   ) {
     return "pix_waiting";
   }
+
+  if (isInconclusivePayment(latest)) return "outcome_unknown";
 
   if (latest && isExpiredDetail(latest.providerStatusDetail) && latest.status !== "APPROVED") {
     return "charge_expired";
@@ -181,6 +239,9 @@ export function classifyAttention(order: CommerceOrderSnap, now = new Date()): A
       (latest.status === "PENDING" || latest.status === "IN_PROCESS") &&
       Boolean(latest.providerPaymentId);
     if (openWaiting) return null;
+
+    // Em processamento / despacho sem resolução: nunca abandono.
+    if (isInconclusivePayment(latest)) return "outcome_unknown";
 
     const anchor = latest?.updatedAt ?? order.updatedAt;
     if (now.getTime() - anchor.getTime() >= ABANDONED_AFTER_MS) return "abandoned";
@@ -240,6 +301,7 @@ export function commerceHref(input: {
   status?: string;
   metodo?: string;
   atencao?: string;
+  pagina?: number;
 } = {}) {
   const params = new URLSearchParams();
   if (input.scope && input.scope !== "commercial") params.set("escopo", input.scope);
@@ -249,9 +311,16 @@ export function commerceHref(input: {
   if (input.status) params.set("status", input.status);
   if (input.metodo) params.set("metodo", input.metodo);
   if (input.atencao === "1") params.set("atencao", "1");
+  if (input.pagina && input.pagina > 1) params.set("pagina", String(input.pagina));
   const q = params.toString();
   return q ? `/admin/compras?${q}` : "/admin/compras";
 }
 
 export const CONVERSION_DENOMINATOR_NOTE =
-  "Taxa de conversão = pedidos com status PAID ÷ total de pedidos no filtro. Tentativas de pagamento não entram no denominador nem na receita.";
+  "Conversão = pedidos PAID ÷ pedidos no filtro (criação do pedido). Receita líquida = soma de tentativas APPROVED/PARTIALLY_REFUNDED (aprovação financeira), já líquida de estorno — não é a mesma métrica. Tentativas recusadas não entram. Filtro de método = qualquer tentativa do pedido com aquele método.";
+
+export const TEMPORAL_METRICS_NOTE =
+  "Período filtra pela data de criação do pedido. Receita usa pagamentos aprovados cujos pedidos entram no filtro; a data de approvedAt pode cair fora do período.";
+
+export const METHOD_FILTER_NOTE =
+  "Filtro de método corresponde a qualquer tentativa do pedido (não necessariamente a tentativa financeira efetiva).";

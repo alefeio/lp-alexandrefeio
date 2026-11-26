@@ -34,6 +34,11 @@ export const JOURNEY_SAMPLE_MIN = 20;
 export const JOURNEY_EMPTY = "Ainda não há dados suficientes neste período.";
 export const JOURNEY_SAMPLE_NOTE = "De 1 a 19 jornadas neste recorte: confira a coleta e problemas evidentes.";
 export const JOURNEY_REVENUE_NOTE = "Receita financeira é exibida apenas na visão geral.";
+
+/** COM-AUDIT-1.1 — limitações de atribuição e segregação. */
+export const JOURNEY_TEST_SEGREGATION_NOTE =
+  "Pedidos, compradores, receita, progresso, diagnósticos e usuários autenticados excluem contas marcadas como teste. Eventos anônimos permanecem não identificados (não são reclassificados). Funis por anonymousId podem misturar jornadas que depois autenticam como teste — limitação de atribuição.";
+
 export const JOURNEY_DIAGNOSTIC_NOTE = "Diagnósticos operacionais não estão ligados a uma formação e aparecem só na visão geral.";
 
 export const JOURNEY_PERIODS = ["7", "30", "90", "all"] as const;
