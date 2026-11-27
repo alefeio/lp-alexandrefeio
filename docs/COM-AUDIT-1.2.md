@@ -5,11 +5,12 @@
 `applyProviderView` (webhook e admin) na camada compartilhada:
 
 - Preserva `paymentMethodType` já registrado no claim (sem `preserveLocalMethod` opcional).
-- Recusa sobrescrita de `providerPaymentId` por outro ID remoto.
-- Revalida valor/moeda/referência sob `FOR UPDATE`.
+- Recusa sobrescrita de `providerPaymentId` por outro ID remoto (corrida sob `FOR UPDATE`).
+- Revalida ID remoto, `external_reference`, moeda e valor sob lock — **sempre**, inclusive em reembolso.
+- Exceção de reembolso/chargeback restringida a divergência de **método** com identidade ok e pagamento elegível.
 - `method_mismatch` impede grant e **não** é limpo por webhook “compatível”.
 - Distingue divergência financeira de outros `NEEDS_REVIEW`.
-- Reembolso/chargeback legítimo sobre `APPROVED` permanece permitido (anti-regressão).
+- Reembolso legítimo mantém Order/Payment/Entitlement coerentes (`REFUNDED` + revoke).
 - Audit na mesma transação; falha de audit faz rollback (`__force_audit_fail__` só em teste).
 - Outcomes administrativos: `applied` | `ignored` | `needs_review` | `rejected`.
 

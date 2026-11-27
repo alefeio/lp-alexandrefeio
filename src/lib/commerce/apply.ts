@@ -71,6 +71,7 @@ export async function applyProviderView(
       localProviderPaymentId: payment.providerPaymentId,
       localMethod: payment.paymentMethodType as "PIX" | "CREDIT_CARD" | null,
       localStatusDetail: payment.providerStatusDetail,
+      orderId: payment.orderId,
       orderStatus: payment.order.status,
       orderTotalCents: payment.order.totalCents,
       paymentAmountCents: payment.amountCents,
@@ -84,9 +85,46 @@ export async function applyProviderView(
       view.status === "partially_refunded" ||
       view.refundedCents > 0;
 
-    // Divergência financeira de método: não concede, não limpa marcador, preserva método.
-    // Reembolso/chargeback legítimo sobre APPROVED ainda pode seguir (anti-regressão em mayOverwrite).
-    if (!binding.ok && binding.recordMethodMismatch && !isRefundOrChargeback) {
+    const refundEligibleStatus =
+      payment.status === "APPROVED" ||
+      payment.status === "PARTIALLY_REFUNDED" ||
+      payment.order.status === "PAID";
+
+    /** Exceção de reembolso: só método; identidade financeira permanece obrigatória. */
+    const allowRefundDespiteMethod =
+      isRefundOrChargeback && binding.identityOk && refundEligibleStatus;
+
+    async function writeAuditOutcome(label: "needs_review" | "rejected", reason: string) {
+      if (!options?.audit) return false;
+      if (options.audit.summary === "__force_audit_fail__") throw new Error("audit_write_failed");
+      await tx.adminAuditLog.create({
+        data: {
+          actorUserId: options.audit.actorUserId,
+          action: options.audit.action,
+          targetType: options.audit.targetType,
+          targetId: options.audit.targetId,
+          summary: `Reconciliação ${label}: ${reason}`.slice(0, 500),
+        },
+      });
+      return true;
+    }
+
+    // Identidade (ID remoto, referência, moeda, valor) nunca é dispensada — inclusive em reembolso.
+    if (!binding.identityOk) {
+      const audited = await writeAuditOutcome("rejected", binding.reason);
+      return {
+        emailed: false as const,
+        orderId: payment.orderId,
+        ignored: true as const,
+        audited,
+        outcome: "rejected" as const,
+        reason: binding.reason,
+      };
+    }
+
+    // Divergência de método: não concede, não limpa marcador, preserva método.
+    // Reembolso/chargeback legítimo (identidade ok + APPROVED/PAID) ainda pode seguir.
+    if (!binding.ok && binding.recordMethodMismatch && !allowRefundDespiteMethod) {
       const remoteMethod = providerMethodFromTypeId(view.paymentTypeId);
       await tx.payment.updateMany({
         where: { id: payment.id },
@@ -103,20 +141,7 @@ export async function applyProviderView(
           data: { status: "NEEDS_REVIEW" },
         });
       }
-      let audited = false;
-      if (options?.audit) {
-        if (options.audit.summary === "__force_audit_fail__") throw new Error("audit_write_failed");
-        await tx.adminAuditLog.create({
-          data: {
-            actorUserId: options.audit.actorUserId,
-            action: options.audit.action,
-            targetType: options.audit.targetType,
-            targetId: options.audit.targetId,
-            summary: `Reconciliação needs_review: ${binding.reason}`.slice(0, 500),
-          },
-        });
-        audited = true;
-      }
+      const audited = await writeAuditOutcome("needs_review", binding.reason);
       return {
         emailed: false as const,
         orderId: payment.orderId,
@@ -127,21 +152,8 @@ export async function applyProviderView(
       };
     }
 
-    if (!binding.ok && !isRefundOrChargeback) {
-      let audited = false;
-      if (options?.audit) {
-        if (options.audit.summary === "__force_audit_fail__") throw new Error("audit_write_failed");
-        await tx.adminAuditLog.create({
-          data: {
-            actorUserId: options.audit.actorUserId,
-            action: options.audit.action,
-            targetType: options.audit.targetType,
-            targetId: options.audit.targetId,
-            summary: `Reconciliação rejected: ${binding.reason}`.slice(0, 500),
-          },
-        });
-        audited = true;
-      }
+    if (!binding.ok && !allowRefundDespiteMethod) {
+      const audited = await writeAuditOutcome("rejected", binding.reason);
       return {
         emailed: false as const,
         orderId: payment.orderId,
@@ -188,9 +200,17 @@ export async function applyProviderView(
       };
     }
 
-    // Divergência financeira impede concessão mesmo se reconcileDecision pedir grant.
-    if (binding.blockGrant || hasRecordedMethodMismatch(payment.providerStatusDetail)) {
-      decision = { ...decision, grant: false, needsReview: true, orderStatus: payment.order.status === "PAID" ? "PAID" : "NEEDS_REVIEW" };
+    // Divergência de método impede grant; em reembolso legítimo não força NEEDS_REVIEW
+    // (mantém Order/Payment/Entitlement coerentes: REFUNDED + revoke).
+    if (!allowRefundDespiteMethod && (binding.blockGrant || hasRecordedMethodMismatch(payment.providerStatusDetail))) {
+      decision = {
+        ...decision,
+        grant: false,
+        needsReview: true,
+        orderStatus: payment.order.status === "PAID" ? "PAID" : "NEEDS_REVIEW",
+      };
+    } else if (allowRefundDespiteMethod) {
+      decision = { ...decision, grant: false };
     }
 
     const order = await tx.order.findUnique({
@@ -203,10 +223,12 @@ export async function applyProviderView(
 
     // Método original do claim sempre preservado quando já registrado.
     const nextMethod = payment.paymentMethodType ?? binding.preservedMethod ?? decision.method;
+    // Em reembolso legítimo, detalhe do provedor (refunded/charged_back) prevalece;
+    // em demais casos, marcador method_mismatch não é apagado.
     const nextDetail =
-      hasRecordedMethodMismatch(payment.providerStatusDetail) && !isRefundOrChargeback
-        ? payment.providerStatusDetail
-        : view.statusDetail;
+      allowRefundDespiteMethod || !hasRecordedMethodMismatch(payment.providerStatusDetail)
+        ? view.statusDetail
+        : payment.providerStatusDetail;
 
     const paymentUpdate = await tx.payment.updateMany({
       where: {

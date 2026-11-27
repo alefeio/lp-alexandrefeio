@@ -22,32 +22,39 @@ export function methodMismatchDetail(remoteMethod: string | null): string {
   return `${METHOD_MISMATCH_PREFIX}${remoteMethod ?? "unknown"}`.slice(0, 80);
 }
 
+export type ProviderBindingResult = {
+  ok: boolean;
+  /** Identidade financeira (ID remoto, external_reference, moeda, valores) válida. Sempre obrigatória — inclusive em reembolso/chargeback. */
+  identityOk: boolean;
+  blockGrant: boolean;
+  recordMethodMismatch: boolean;
+  reason: string;
+  preservedMethod: "PIX" | "CREDIT_CARD" | null;
+};
+
 /**
  * Decisão compartilhada (webhook + admin) sobre vínculo remoto e método.
  * Não concede entitlement enquanto houver divergência financeira impeditiva.
+ * Falhas de identidade nunca são “ok”; divergência de método é separada.
  */
 export function evaluateProviderBinding(input: {
   localProviderPaymentId: string | null;
   localMethod: "PIX" | "CREDIT_CARD" | null;
   localStatusDetail: string | null;
+  orderId: string;
   orderStatus: string;
   orderTotalCents: number;
   paymentAmountCents: number;
   paymentStatus: InternalPaymentStatus;
   view: ProviderPaymentView;
-}): {
-  ok: boolean;
-  blockGrant: boolean;
-  recordMethodMismatch: boolean;
-  reason: string;
-  preservedMethod: "PIX" | "CREDIT_CARD" | null;
-} {
+}): ProviderBindingResult {
   const remoteMethod = providerMethodFromTypeId(input.view.paymentTypeId);
   const preservedMethod = input.localMethod ?? remoteMethod;
 
   if (input.localProviderPaymentId && input.localProviderPaymentId !== input.view.id) {
     return {
       ok: false,
+      identityOk: false,
       blockGrant: true,
       recordMethodMismatch: false,
       reason: "Identificador remoto diverge do vínculo existente.",
@@ -55,9 +62,14 @@ export function evaluateProviderBinding(input: {
     };
   }
 
-  if (input.view.externalReference === "" || input.view.currency !== "BRL") {
+  if (
+    !input.view.externalReference ||
+    input.view.externalReference !== input.orderId ||
+    input.view.currency !== "BRL"
+  ) {
     return {
       ok: false,
+      identityOk: false,
       blockGrant: true,
       recordMethodMismatch: false,
       reason: "Referência ou moeda remota inválida.",
@@ -71,6 +83,7 @@ export function evaluateProviderBinding(input: {
   ) {
     return {
       ok: false,
+      identityOk: false,
       blockGrant: true,
       recordMethodMismatch: false,
       reason: "Valor remoto diverge da tentativa ou do pedido.",
@@ -81,6 +94,7 @@ export function evaluateProviderBinding(input: {
   if (hasRecordedMethodMismatch(input.localStatusDetail)) {
     return {
       ok: false,
+      identityOk: true,
       blockGrant: true,
       recordMethodMismatch: true,
       reason: "Divergência de método previamente registrada.",
@@ -91,6 +105,7 @@ export function evaluateProviderBinding(input: {
   if (input.localMethod && remoteMethod && input.localMethod !== remoteMethod) {
     return {
       ok: false,
+      identityOk: true,
       blockGrant: true,
       recordMethodMismatch: true,
       reason: `Método divergente (local ${input.localMethod} ≠ remoto ${remoteMethod}).`,
@@ -101,6 +116,7 @@ export function evaluateProviderBinding(input: {
   if (input.localMethod && !remoteMethod) {
     return {
       ok: false,
+      identityOk: true,
       blockGrant: true,
       recordMethodMismatch: true,
       reason: "Método remoto não reconhecido.",
@@ -110,6 +126,7 @@ export function evaluateProviderBinding(input: {
 
   return {
     ok: true,
+    identityOk: true,
     blockGrant: false,
     recordMethodMismatch: false,
     reason: "ok",

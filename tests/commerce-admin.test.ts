@@ -272,6 +272,7 @@ test("binding compartilhado bloqueia id remoto e método divergente", async () =
     localProviderPaymentId: "mp-1",
     localMethod: "PIX" as const,
     localStatusDetail: null as string | null,
+    orderId: "ord",
     orderStatus: "PENDING_PAYMENT",
     orderTotalCents: 3990,
     paymentAmountCents: 3990,
@@ -289,7 +290,10 @@ test("binding compartilhado bloqueia id remoto e método divergente", async () =
     },
   };
   assert.equal(evaluateProviderBinding(base).recordMethodMismatch, true);
-  assert.equal(evaluateProviderBinding({ ...base, view: { ...base.view, id: "mp-2", paymentTypeId: "pix" } }).ok, false);
+  assert.equal(evaluateProviderBinding(base).identityOk, true);
+  const idClash = evaluateProviderBinding({ ...base, view: { ...base.view, id: "mp-2", paymentTypeId: "pix" } });
+  assert.equal(idClash.ok, false);
+  assert.equal(idClash.identityOk, false);
   assert.equal(hasRecordedMethodMismatch("method_mismatch:CREDIT_CARD"), true);
   assert.equal(
     evaluateProviderBinding({
@@ -299,6 +303,12 @@ test("binding compartilhado bloqueia id remoto e método divergente", async () =
     }).ok,
     false,
   );
+  const badRef = evaluateProviderBinding({
+    ...base,
+    view: { ...base.view, externalReference: "other", paymentTypeId: "pix" },
+  });
+  assert.equal(badRef.identityOk, false);
+  assert.match(readFileSync(new URL("../src/lib/commerce/apply.ts", import.meta.url), "utf8"), /allowRefundDespiteMethod/);
 });
 
 test("loader documenta método e remove take 500 antes da agregação", () => {
