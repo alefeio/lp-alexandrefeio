@@ -178,6 +178,11 @@ export function JourneyCommercial({ view }: { view: JourneyDashboardView }) {
     <section className="mt-10">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Resultado operacional</p>
       <h2 className="mt-2 text-lg font-semibold">Resultado real</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+        Pedidos pagos, compradores, receita, aprendizagem e diagnósticos excluem contas de teste.
+        Eventos anônimos permanecem não identificados — sem reclassificação retroativa.
+        Limitação: funis por anonymousId podem incluir jornadas que só depois autenticam como teste.
+      </p>
       <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <li className="rounded-lg border border-border p-4">
           <p className="text-sm">Pedidos pagos</p>

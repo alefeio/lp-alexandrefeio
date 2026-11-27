@@ -56,22 +56,27 @@ test("visão geral agrega contagens definidas e não inventa conversão", () => 
     orders: 0,
     approvedPayments: 0,
     receivedRevenueCents: 0,
+    testOrders: 0,
+    testReceivedRevenueCents: 0,
     funnel: { registered: 3, startedLesson: 2, completedLesson: 1, completedDiagnostic: 1, purchased: 0 },
   });
   assert.deepEqual(cards.map((card) => [card.group, card.label, card.value]), [
-    ["Usuários", "Cadastrados", "3"],
+    ["Usuários", "Cadastrados (comercial)", "3"],
     ["Usuários", "E-mail verificado", "2"],
     ["Aprendizado", "Aulas iniciadas", "4"],
     ["Aprendizado", "Aulas concluídas", "1"],
     ["Projetos", "Criados", "1"],
     ["Diagnósticos", "Concluídos", "1"],
-    ["Commerce", "Pedidos", "0"],
+    ["Commerce", "Pedidos (comercial)", "0"],
     ["Commerce", "Pagamentos aprovados", "0"],
     ["Commerce", "Receita recebida", 0],
+    ["Testes", "Pedidos de teste", "0"],
+    ["Testes", "Receita de teste", 0],
   ]);
   assert.equal(JSON.stringify(cards).includes("convers"), false);
   const home = readFileSync(new URL("../src/app/(admin)/admin/page.tsx", import.meta.url), "utf8");
   assert.match(home, /loadAdminOverview/);
+  assert.match(home, /contas marcadas como teste/);
   assert.equal(home.includes("trackEvent"), false);
 });
 
@@ -184,15 +189,18 @@ test("admin permanece fora do índice e a compra aponta para o usuário", () => 
   const robots = readFileSync(new URL("../src/app/robots.ts", import.meta.url), "utf8");
   const purchases = readFileSync(new URL("../src/app/(admin)/admin/compras/page.tsx", import.meta.url), "utf8");
   const order = readFileSync(new URL("../src/app/(admin)/admin/compras/[id]/page.tsx", import.meta.url), "utf8");
+  const commerceUi = readFileSync(new URL("../src/components/admin/Commerce.tsx", import.meta.url), "utf8");
   assert.match(layout, /index: false/);
   assert.match(layout, /follow: false/);
   assert.match(layout, /Visão geral/);
   assert.match(layout, /Usuários/);
   assert.match(robots, /\/admin/);
-  assert.match(purchases, /\/admin\/usuarios\/\$\{order\.user\.id\}/);
-  assert.match(purchases, /EMPTY_PURCHASES/);
+  assert.match(purchases, /loadCommerceDashboard/);
+  assert.match(purchases, /CommerceOrdersTable/);
+  assert.match(commerceUi, /\/admin\/usuarios\/\$\{order\.user\.id\}/);
   assert.match(order, /Ver usuário/);
-  assert.equal(order.includes("providerPaymentId"), false);
+  assert.match(commerceUi, /maskRemoteId\(payment\.providerPaymentId\)/);
+  assert.equal(commerceUi.includes("idempotencyKey"), false);
   assert.equal(purchases.includes("trackEvent"), false);
   const sitemap = readFileSync(new URL("../src/lib/seo/public-sitemap.ts", import.meta.url), "utf8");
   assert.equal(sitemap.includes("/admin"), false);

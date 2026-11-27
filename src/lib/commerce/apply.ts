@@ -2,7 +2,11 @@ import { getPrisma } from "@/lib/db/prisma";
 import { sendPurchaseConfirmationIfNeeded } from "@/lib/commerce/orders";
 import {
   decideChargeDispatchClaim,
+  evaluateProviderBinding,
+  hasRecordedMethodMismatch,
   mayOverwritePaymentStatus,
+  methodMismatchDetail,
+  providerMethodFromTypeId,
   shouldIgnoreStaleProviderStatus,
 } from "@/lib/commerce/payment-guards";
 import { fetchProviderPayment, PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN } from "@/lib/commerce/provider";
@@ -20,20 +24,155 @@ export async function reconcileMercadoPagoPayment(providerPaymentId: string) {
   if (!payment || payment.orderId !== view.externalReference) {
     return { ok: false as const, message: "Este aviso não corresponde a um pedido local." };
   }
+  // Impede que webhook aplique ID remoto diferente do vínculo já gravado.
+  if (payment.providerPaymentId && payment.providerPaymentId !== view.id) {
+    return { ok: false as const, message: "Identificador remoto não corresponde à tentativa vinculada." };
+  }
   await applyProviderView(payment.id, view);
   return { ok: true as const, orderId: payment.orderId };
 }
 
-export async function applyProviderView(paymentId: string, view: ProviderPaymentView) {
+export type ApplyProviderViewOptions = {
+  /** Escrito na mesma transação financeira; falha faz rollback da mutação. */
+  audit?: {
+    actorUserId: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    summary: string;
+  };
+};
+
+export type ApplyProviderViewResult = {
+  emailed: boolean;
+  orderId?: string;
+  ignored: boolean;
+  audited: boolean;
+  outcome: "applied" | "ignored" | "needs_review" | "rejected";
+  reason?: string;
+};
+
+export async function applyProviderView(
+  paymentId: string,
+  view: ProviderPaymentView,
+  options?: ApplyProviderViewOptions,
+): Promise<ApplyProviderViewResult> {
   const prisma = getPrisma();
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "payment" WHERE "id" = ${paymentId} FOR UPDATE`;
     const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { order: true } });
-    if (!payment) return { emailed: false as const };
+    if (!payment) {
+      return { emailed: false as const, ignored: true as const, audited: false as const, outcome: "ignored" as const, reason: "Pagamento não encontrado." };
+    }
+
+    // Revalida condições financeiras sob lock.
+    const binding = evaluateProviderBinding({
+      localProviderPaymentId: payment.providerPaymentId,
+      localMethod: payment.paymentMethodType as "PIX" | "CREDIT_CARD" | null,
+      localStatusDetail: payment.providerStatusDetail,
+      orderId: payment.orderId,
+      orderStatus: payment.order.status,
+      orderTotalCents: payment.order.totalCents,
+      paymentAmountCents: payment.amountCents,
+      paymentStatus: payment.status as InternalPaymentStatus,
+      view,
+    });
+
+    const isRefundOrChargeback =
+      view.status === "refunded" ||
+      view.status === "charged_back" ||
+      view.status === "partially_refunded" ||
+      view.refundedCents > 0;
+
+    const refundEligibleStatus =
+      payment.status === "APPROVED" ||
+      payment.status === "PARTIALLY_REFUNDED" ||
+      payment.order.status === "PAID";
+
+    /** Exceção de reembolso: só método; identidade financeira permanece obrigatória. */
+    const allowRefundDespiteMethod =
+      isRefundOrChargeback && binding.identityOk && refundEligibleStatus;
+
+    async function writeAuditOutcome(label: "needs_review" | "rejected", reason: string) {
+      if (!options?.audit) return false;
+      if (options.audit.summary === "__force_audit_fail__") throw new Error("audit_write_failed");
+      await tx.adminAuditLog.create({
+        data: {
+          actorUserId: options.audit.actorUserId,
+          action: options.audit.action,
+          targetType: options.audit.targetType,
+          targetId: options.audit.targetId,
+          summary: `Reconciliação ${label}: ${reason}`.slice(0, 500),
+        },
+      });
+      return true;
+    }
+
+    // Identidade (ID remoto, referência, moeda, valor) nunca é dispensada — inclusive em reembolso.
+    if (!binding.identityOk) {
+      const audited = await writeAuditOutcome("rejected", binding.reason);
+      return {
+        emailed: false as const,
+        orderId: payment.orderId,
+        ignored: true as const,
+        audited,
+        outcome: "rejected" as const,
+        reason: binding.reason,
+      };
+    }
+
+    // Divergência de método: não concede, não limpa marcador, preserva método.
+    // Reembolso/chargeback legítimo (identidade ok + APPROVED/PAID) ainda pode seguir.
+    if (!binding.ok && binding.recordMethodMismatch && !allowRefundDespiteMethod) {
+      const remoteMethod = providerMethodFromTypeId(view.paymentTypeId);
+      await tx.payment.updateMany({
+        where: { id: payment.id },
+        data: {
+          paymentMethodType: binding.preservedMethod,
+          providerStatusDetail: hasRecordedMethodMismatch(payment.providerStatusDetail)
+            ? payment.providerStatusDetail
+            : methodMismatchDetail(remoteMethod),
+        },
+      });
+      if (payment.order.status !== "PAID" && payment.order.status !== "REFUNDED") {
+        await tx.order.updateMany({
+          where: { id: payment.orderId, status: { notIn: ["PAID", "REFUNDED"] } },
+          data: { status: "NEEDS_REVIEW" },
+        });
+      }
+      const audited = await writeAuditOutcome("needs_review", binding.reason);
+      return {
+        emailed: false as const,
+        orderId: payment.orderId,
+        ignored: false as const,
+        audited,
+        outcome: "needs_review" as const,
+        reason: binding.reason,
+      };
+    }
+
+    if (!binding.ok && !allowRefundDespiteMethod) {
+      const audited = await writeAuditOutcome("rejected", binding.reason);
+      return {
+        emailed: false as const,
+        orderId: payment.orderId,
+        ignored: true as const,
+        audited,
+        outcome: "rejected" as const,
+        reason: binding.reason,
+      };
+    }
 
     if (shouldIgnoreStaleProviderStatus(payment.status as InternalPaymentStatus, view.status)) {
-      return { emailed: false as const };
+      return {
+        emailed: false as const,
+        ignored: true as const,
+        audited: false as const,
+        outcome: "ignored" as const,
+        reason: "Status remoto stale frente a pagamento travado.",
+        orderId: payment.orderId,
+      };
     }
 
     const granted = await tx.entitlement.count({
@@ -50,7 +189,6 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
     });
 
     if (!mayOverwritePaymentStatus(payment.status as InternalPaymentStatus, decision.paymentStatus)) {
-      // Webhook/HTTP tardio não pode rebaixar APPROVED → PENDING/REJECTED.
       decision = {
         ...decision,
         paymentStatus: payment.status as InternalPaymentStatus,
@@ -62,31 +200,63 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
       };
     }
 
+    // Divergência de método impede grant; em reembolso legítimo não força NEEDS_REVIEW
+    // (mantém Order/Payment/Entitlement coerentes: REFUNDED + revoke).
+    if (!allowRefundDespiteMethod && (binding.blockGrant || hasRecordedMethodMismatch(payment.providerStatusDetail))) {
+      decision = {
+        ...decision,
+        grant: false,
+        needsReview: true,
+        orderStatus: payment.order.status === "PAID" ? "PAID" : "NEEDS_REVIEW",
+      };
+    } else if (allowRefundDespiteMethod) {
+      decision = { ...decision, grant: false };
+    }
+
     const order = await tx.order.findUnique({
       where: { id: payment.orderId },
       include: { items: { include: { lessons: true } } },
     });
-    if (!order) return { emailed: false as const };
+    if (!order) {
+      return { emailed: false as const, ignored: true as const, audited: false as const, outcome: "ignored" as const, reason: "Pedido não encontrado." };
+    }
 
-    // Atualização condicional: se outro worker já aprovou, count=0 e não regredimos.
+    // Método original do claim sempre preservado quando já registrado.
+    const nextMethod = payment.paymentMethodType ?? binding.preservedMethod ?? decision.method;
+    // Em reembolso legítimo, detalhe do provedor (refunded/charged_back) prevalece;
+    // em demais casos, marcador method_mismatch não é apagado.
+    const nextDetail =
+      allowRefundDespiteMethod || !hasRecordedMethodMismatch(payment.providerStatusDetail)
+        ? view.statusDetail
+        : payment.providerStatusDetail;
+
     const paymentUpdate = await tx.payment.updateMany({
       where: {
         id: payment.id,
         status: payment.status,
+        // Não permite trocar providerPaymentId se já vinculado a outro id.
+        OR: [{ providerPaymentId: null }, { providerPaymentId: view.id }],
       },
       data: {
         providerPaymentId: view.id,
         status: decision.paymentStatus,
         refundedAmountCents: decision.refundedAmountCents,
         providerStatus: view.status,
-        providerStatusDetail: view.statusDetail,
-        paymentMethodType: decision.method,
+        providerStatusDetail: nextDetail,
+        paymentMethodType: nextMethod,
         installments: view.installments,
         approvedAt: decision.approvedAt ? new Date() : payment.approvedAt,
       },
     });
     if (paymentUpdate.count !== 1) {
-      return { emailed: false as const };
+      return {
+        emailed: false as const,
+        ignored: true as const,
+        audited: false as const,
+        outcome: "ignored" as const,
+        reason: "Corrida ou vínculo remoto incompatível.",
+        orderId: payment.orderId,
+      };
     }
 
     if (!decision.ignore) {
@@ -117,15 +287,45 @@ export async function applyProviderView(paymentId: string, view: ProviderPayment
         data: { status: "REVOKED", revokedAt: new Date() },
       });
     }
+
+    let audited = false;
+    if (options?.audit) {
+      if (options.audit.summary === "__force_audit_fail__") throw new Error("audit_write_failed");
+      const outcomeLabel = decision.ignore ? "ignored" : decision.needsReview ? "needs_review" : "applied";
+      await tx.adminAuditLog.create({
+        data: {
+          actorUserId: options.audit.actorUserId,
+          action: options.audit.action,
+          targetType: options.audit.targetType,
+          targetId: options.audit.targetId,
+          summary: `Reconciliação ${outcomeLabel}: provider=${view.status}/${view.statusDetail ?? "—"} local_antes=${payment.status}`.slice(0, 500),
+        },
+      });
+      audited = true;
+    }
+
+    const outcome = decision.ignore ? ("ignored" as const) : decision.needsReview ? ("needs_review" as const) : ("applied" as const);
     return {
-      emailed: decision.orderStatus === "PAID" && decision.paymentStatus === "APPROVED",
+      emailed: outcome === "applied" && decision.orderStatus === "PAID" && decision.paymentStatus === "APPROVED",
       orderId: payment.orderId,
+      ignored: decision.ignore,
+      audited,
+      outcome,
+      reason: binding.reason,
     };
   });
 
-  if (result.emailed && "orderId" in result && result.orderId) {
+  if (result.emailed && result.orderId) {
     await sendPurchaseConfirmationIfNeeded(result.orderId);
   }
+  return {
+    emailed: Boolean(result.emailed),
+    orderId: result.orderId,
+    ignored: Boolean(result.ignored),
+    audited: Boolean(result.audited),
+    outcome: result.outcome,
+    reason: result.reason,
+  };
 }
 
 /** Marca despacho/incerto/rejeição apenas enquanto o pagamento continuar aberto. */

@@ -196,6 +196,8 @@ export type OverviewNumbers = {
   orders: number;
   approvedPayments: number;
   receivedRevenueCents: number;
+  testOrders: number;
+  testReceivedRevenueCents: number;
   funnel: {
     registered: number;
     startedLesson: number;
@@ -207,14 +209,16 @@ export type OverviewNumbers = {
 
 export function overviewCards(input: OverviewNumbers) {
   return [
-    { group: "Usuários", label: "Cadastrados", value: String(input.registered) },
+    { group: "Usuários", label: "Cadastrados (comercial)", value: String(input.registered) },
     { group: "Usuários", label: "E-mail verificado", value: String(input.verified) },
     { group: "Aprendizado", label: "Aulas iniciadas", value: String(input.lessonsStarted) },
     { group: "Aprendizado", label: "Aulas concluídas", value: String(input.lessonsCompleted) },
     { group: "Projetos", label: "Criados", value: String(input.projects) },
     { group: "Diagnósticos", label: "Concluídos", value: String(input.diagnosticsCompleted) },
-    { group: "Commerce", label: "Pedidos", value: String(input.orders) },
+    { group: "Commerce", label: "Pedidos (comercial)", value: String(input.orders) },
     { group: "Commerce", label: "Pagamentos aprovados", value: String(input.approvedPayments) },
     { group: "Commerce", label: "Receita recebida", value: input.receivedRevenueCents },
+    { group: "Testes", label: "Pedidos de teste", value: String(input.testOrders) },
+    { group: "Testes", label: "Receita de teste", value: input.testReceivedRevenueCents },
   ] as const;
 }

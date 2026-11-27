@@ -1,8 +1,11 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { isCommerceEnabled, mercadoPagoPublicKey } from "@/lib/commerce/config";
+import { classifyDeviceCategory } from "@/lib/commerce/payment-origin";
 import {
   cancelAbandonedCheckoutForUser,
   createOrderForUser,
@@ -73,7 +76,12 @@ export async function payOrderAction(orderId: string, raw: unknown) {
     return { ok: false as const, message: "Esta forma de pagamento não está disponível.", code: "method_unavailable" as const };
   }
 
-  const prepared = await preparePaymentAttempt(session.user.id, orderId);
+  const requestHeaders = await headers();
+  const prepared = await preparePaymentAttempt(session.user.id, orderId, {
+    channel: "checkout",
+    correlationId: randomUUID(),
+    deviceCategory: classifyDeviceCategory(requestHeaders.get("user-agent")),
+  });
   if (!prepared.ok) {
     return {
       ok: false as const,

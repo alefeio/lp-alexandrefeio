@@ -14,7 +14,14 @@ import {
   type OverviewNumbers,
 } from "@/lib/admin/operations";
 
-const USER_LIST_SELECT = { id: true, name: true, email: true, emailVerified: true, createdAt: true } as const;
+const USER_LIST_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  emailVerified: true,
+  isTestAccount: true,
+  createdAt: true,
+} as const;
 
 function editorialBlockLabel(type: string, payload: unknown): string | null {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
@@ -27,6 +34,7 @@ function editorialBlockLabel(type: string, payload: unknown): string | null {
 
 export async function loadAdminOverview(): Promise<OverviewNumbers> {
   const prisma = getPrisma();
+  const commercialUser = { isTestAccount: false } as const;
   const [
     registered,
     verified,
@@ -41,23 +49,33 @@ export async function loadAdminOverview(): Promise<OverviewNumbers> {
     completedUsers,
     diagnosticUsers,
     paidUsers,
+    testOrders,
+    testRevenueRows,
   ] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { emailVerified: true } }),
-    prisma.lessonProgress.count(),
-    prisma.lessonProgress.count({ where: { completedAt: { not: null } } }),
-    prisma.project.count(),
-    prisma.diagnostic.count({ where: { status: "COMPLETED" } }),
-    prisma.order.count(),
-    prisma.payment.count({ where: { status: "APPROVED" } }),
+    prisma.user.count({ where: commercialUser }),
+    prisma.user.count({ where: { ...commercialUser, emailVerified: true } }),
+    prisma.lessonProgress.count({ where: { user: commercialUser } }),
+    prisma.lessonProgress.count({ where: { user: commercialUser, completedAt: { not: null } } }),
+    prisma.project.count({ where: { user: commercialUser } }),
+    prisma.diagnostic.count({ where: { user: commercialUser, status: "COMPLETED" } }),
+    prisma.order.count({ where: { user: commercialUser } }),
+    prisma.payment.count({ where: { status: "APPROVED", order: { user: commercialUser } } }),
     prisma.payment.findMany({
-      where: { status: { in: ["APPROVED", "PARTIALLY_REFUNDED"] } },
+      where: { status: { in: ["APPROVED", "PARTIALLY_REFUNDED"] }, order: { user: commercialUser } },
       select: { status: true, amountCents: true, refundedAmountCents: true },
     }),
-    prisma.lessonProgress.groupBy({ by: ["userId"] }),
-    prisma.lessonProgress.groupBy({ by: ["userId"], where: { completedAt: { not: null } } }),
-    prisma.diagnostic.groupBy({ by: ["userId"], where: { status: "COMPLETED" } }),
-    prisma.order.groupBy({ by: ["userId"], where: { status: "PAID" } }),
+    prisma.lessonProgress.groupBy({ by: ["userId"], where: { user: commercialUser } }),
+    prisma.lessonProgress.groupBy({ by: ["userId"], where: { user: commercialUser, completedAt: { not: null } } }),
+    prisma.diagnostic.groupBy({ by: ["userId"], where: { user: commercialUser, status: "COMPLETED" } }),
+    prisma.order.groupBy({ by: ["userId"], where: { user: commercialUser, status: "PAID" } }),
+    prisma.order.count({ where: { user: { isTestAccount: true } } }),
+    prisma.payment.findMany({
+      where: {
+        status: { in: ["APPROVED", "PARTIALLY_REFUNDED"] },
+        order: { user: { isTestAccount: true } },
+      },
+      select: { status: true, amountCents: true, refundedAmountCents: true },
+    }),
   ]);
 
   return {
@@ -70,6 +88,8 @@ export async function loadAdminOverview(): Promise<OverviewNumbers> {
     orders,
     approvedPayments,
     receivedRevenueCents: receivedRevenueCents(revenueRows),
+    testOrders,
+    testReceivedRevenueCents: receivedRevenueCents(testRevenueRows),
     funnel: {
       registered,
       startedLesson: startedUsers.length,
@@ -123,6 +143,7 @@ export async function loadAdminUsers(query: { pagina?: string; filtro?: string; 
       name: user.name,
       email: user.email,
       verified: user.emailVerified,
+      isTestAccount: user.isTestAccount,
       createdAt: user.createdAt,
       lastActivity: signals.get(user.id)?.lastActivity ?? null,
       started: signals.get(user.id)?.started ?? 0,
@@ -327,6 +348,7 @@ export async function loadAdminUser(userId: string) {
     name: user.name,
     email: user.email,
     verified: user.emailVerified,
+    isTestAccount: user.isTestAccount,
     createdAt: user.createdAt,
     lastActivity: activity.get(userId)?.lastActivity ?? null,
     lessons: orderedLessons.map((lesson) => {

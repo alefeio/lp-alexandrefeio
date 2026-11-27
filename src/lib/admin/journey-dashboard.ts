@@ -61,10 +61,14 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       SELECT
         COUNT(DISTINCT "anonymousId")::int AS journeys,
         COUNT(DISTINCT "sessionId")::int AS sessions,
-        COUNT(DISTINCT "userId")::int AS authenticated,
+        COUNT(DISTINCT e."userId") FILTER (
+          WHERE e."userId" IS NOT NULL AND EXISTS (
+            SELECT 1 FROM "user" u WHERE u.id = e."userId" AND u."isTestAccount" = false
+          )
+        )::int AS authenticated,
         COUNT(DISTINCT "anonymousId") FILTER (WHERE "eventName" = 'diagnostic_started')::int AS diagnostic_started,
         ${funnelSelect}
-      FROM journey_event
+      FROM journey_event e
       WHERE ${where}
     `),
     prisma.$queryRaw<Array<{ scenario: string; event_name: string; journeys: number }>>(Prisma.sql`
@@ -141,7 +145,9 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
     prisma.$queryRaw<Array<{ orders: number; buyers: number }>>(Prisma.sql`
       SELECT COUNT(*)::int AS orders, COUNT(DISTINCT o."userId")::int AS buyers
       FROM "order" o
+      INNER JOIN "user" u ON u.id = o."userId"
       WHERE o.status = 'PAID'
+        AND u."isTestAccount" = false
         AND o."createdAt" >= ${bounds.start}
         AND o."createdAt" < ${bounds.end}
         AND ${orderCourseSql(course)}
@@ -150,7 +156,9 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       WITH paid AS (
         SELECT DISTINCT o."userId" AS user_id
         FROM "order" o
+        INNER JOIN "user" u ON u.id = o."userId"
         WHERE o.status = 'PAID'
+          AND u."isTestAccount" = false
           AND o."createdAt" >= ${bounds.start}
           AND o."createdAt" < ${bounds.end}
           AND ${orderCourseSql(course)}
@@ -158,6 +166,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       journey AS (
         SELECT DISTINCT e."userId" AS user_id
         FROM journey_event e
+        INNER JOIN "user" u ON u.id = e."userId" AND u."isTestAccount" = false
         WHERE e."eventName" = 'purchase_completed'
           AND e."userId" IS NOT NULL
           AND e."occurredAt" >= ${bounds.start}
@@ -174,6 +183,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
           SELECT COALESCE(SUM(i."finalPriceCents"), 0)::int AS cents
           FROM order_item i
           JOIN "order" o ON o.id = i."orderId"
+          INNER JOIN "user" u ON u.id = o."userId"
           LEFT JOIN course c ON c.id = i."courseId"
           LEFT JOIN module m ON m.id = i."moduleId"
           LEFT JOIN course mc ON mc.id = m."courseId"
@@ -181,6 +191,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
           LEFT JOIN module lm ON lm.id = l."moduleId"
           LEFT JOIN course lc ON lc.id = lm."courseId"
           WHERE o.status = 'PAID'
+            AND u."isTestAccount" = false
             AND o."createdAt" >= ${bounds.start}
             AND o."createdAt" < ${bounds.end}
             AND (c.slug = ${course} OR mc.slug = ${course} OR lc.slug = ${course})
@@ -189,6 +200,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
       ? prisma.payment.findMany({
           where: {
             status: { in: ["APPROVED", "PARTIALLY_REFUNDED"] },
+            order: { user: { isTestAccount: false } },
             OR: [
               { approvedAt: { gte: bounds.start, lt: bounds.end } },
               { AND: [{ approvedAt: null }, { createdAt: { gte: bounds.start, lt: bounds.end } }] },
@@ -200,6 +212,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
     prisma.$queryRaw<Array<{ users: number }>>(Prisma.sql`
       SELECT COUNT(DISTINCT p."userId")::int AS users
       FROM lesson_progress p
+      INNER JOIN "user" u ON u.id = p."userId" AND u."isTestAccount" = false
       JOIN lesson l ON l.id = p."lessonId"
       JOIN module m ON m.id = l."moduleId"
       JOIN course c ON c.id = m."courseId"
@@ -210,6 +223,7 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
     prisma.$queryRaw<Array<{ users: number }>>(Prisma.sql`
       SELECT COUNT(DISTINCT p."userId")::int AS users
       FROM lesson_progress p
+      INNER JOIN "user" u ON u.id = p."userId" AND u."isTestAccount" = false
       JOIN lesson l ON l.id = p."lessonId"
       JOIN module m ON m.id = l."moduleId"
       JOIN course c ON c.id = m."courseId"
@@ -220,11 +234,12 @@ export async function loadJourneyDashboard(query: JourneyQuery, now = new Date()
     `),
     course === "all"
       ? prisma.$queryRaw<Array<{ users: number }>>(Prisma.sql`
-          SELECT COUNT(DISTINCT "userId")::int AS users
-          FROM diagnostic
-          WHERE status = 'COMPLETED'
-            AND "completedAt" >= ${bounds.start}
-            AND "completedAt" < ${bounds.end}
+          SELECT COUNT(DISTINCT d."userId")::int AS users
+          FROM diagnostic d
+          INNER JOIN "user" u ON u.id = d."userId" AND u."isTestAccount" = false
+          WHERE d.status = 'COMPLETED'
+            AND d."completedAt" >= ${bounds.start}
+            AND d."completedAt" < ${bounds.end}
         `)
       : Promise.resolve([]),
     prisma.course.findMany({
