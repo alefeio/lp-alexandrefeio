@@ -257,10 +257,48 @@ test("ações admin usam serviços transacionais e não forçam PAID", () => {
   assert.match(actions, /setUserTestAccountAtomic/);
   assert.match(actions, /reconcileAdminPaymentService/);
   assert.match(actions, /inspectMercadoPagoPaymentService/);
-  assert.match(reconcile, /preserveLocalMethod/);
   assert.match(reconcile, /\$transaction/);
+  const apply = readFileSync(new URL("../src/lib/commerce/apply.ts", import.meta.url), "utf8");
+  assert.match(apply, /evaluateProviderBinding/);
+  assert.match(apply, /paymentMethodType: nextMethod/);
+  assert.equal(apply.includes("preserveLocalMethod"), false);
   assert.equal(actions.includes("createProviderCharge"), false);
   assert.equal(reconcile.includes("payments-api"), false);
+});
+
+test("binding compartilhado bloqueia id remoto e método divergente", async () => {
+  const { evaluateProviderBinding, hasRecordedMethodMismatch } = await import("../src/lib/commerce/payment-guards");
+  const base = {
+    localProviderPaymentId: "mp-1",
+    localMethod: "PIX" as const,
+    localStatusDetail: null as string | null,
+    orderStatus: "PENDING_PAYMENT",
+    orderTotalCents: 3990,
+    paymentAmountCents: 3990,
+    paymentStatus: "PENDING" as const,
+    view: {
+      id: "mp-1",
+      status: "approved",
+      statusDetail: null,
+      amountCents: 3990,
+      currency: "BRL",
+      externalReference: "ord",
+      paymentTypeId: "credit_card",
+      installments: null,
+      refundedCents: 0,
+    },
+  };
+  assert.equal(evaluateProviderBinding(base).recordMethodMismatch, true);
+  assert.equal(evaluateProviderBinding({ ...base, view: { ...base.view, id: "mp-2", paymentTypeId: "pix" } }).ok, false);
+  assert.equal(hasRecordedMethodMismatch("method_mismatch:CREDIT_CARD"), true);
+  assert.equal(
+    evaluateProviderBinding({
+      ...base,
+      localStatusDetail: "method_mismatch:CREDIT_CARD",
+      view: { ...base.view, paymentTypeId: "pix" },
+    }).ok,
+    false,
+  );
 });
 
 test("loader documenta método e remove take 500 antes da agregação", () => {

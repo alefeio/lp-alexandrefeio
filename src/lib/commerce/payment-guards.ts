@@ -1,7 +1,121 @@
-import type { InternalPaymentStatus } from "@/lib/commerce/reconcile";
+import type { InternalPaymentStatus, ProviderPaymentView } from "@/lib/commerce/reconcile";
 import { PROVIDER_STATUS_DISPATCHED, PROVIDER_STATUS_UNKNOWN } from "@/lib/commerce/provider";
 
 export const OPEN_PAYMENT_STATUSES: InternalPaymentStatus[] = ["PENDING", "IN_PROCESS"];
+
+export const METHOD_MISMATCH_PREFIX = "method_mismatch:";
+
+/** Método financeiro a partir do tipo do provedor (Orders API). */
+export function providerMethodFromTypeId(paymentTypeId: string): "PIX" | "CREDIT_CARD" | null {
+  if (paymentTypeId === "bank_transfer" || paymentTypeId === "pix") return "PIX";
+  if (paymentTypeId === "credit_card") return "CREDIT_CARD";
+  return null;
+}
+
+/** Divergência financeira de método já registrada — não é NEEDS_REVIEW genérico. */
+export function hasRecordedMethodMismatch(providerStatusDetail: string | null | undefined): boolean {
+  const detail = (providerStatusDetail ?? "").toLowerCase();
+  return detail.includes("method_mismatch") || detail.includes("método divergente");
+}
+
+export function methodMismatchDetail(remoteMethod: string | null): string {
+  return `${METHOD_MISMATCH_PREFIX}${remoteMethod ?? "unknown"}`.slice(0, 80);
+}
+
+/**
+ * Decisão compartilhada (webhook + admin) sobre vínculo remoto e método.
+ * Não concede entitlement enquanto houver divergência financeira impeditiva.
+ */
+export function evaluateProviderBinding(input: {
+  localProviderPaymentId: string | null;
+  localMethod: "PIX" | "CREDIT_CARD" | null;
+  localStatusDetail: string | null;
+  orderStatus: string;
+  orderTotalCents: number;
+  paymentAmountCents: number;
+  paymentStatus: InternalPaymentStatus;
+  view: ProviderPaymentView;
+}): {
+  ok: boolean;
+  blockGrant: boolean;
+  recordMethodMismatch: boolean;
+  reason: string;
+  preservedMethod: "PIX" | "CREDIT_CARD" | null;
+} {
+  const remoteMethod = providerMethodFromTypeId(input.view.paymentTypeId);
+  const preservedMethod = input.localMethod ?? remoteMethod;
+
+  if (input.localProviderPaymentId && input.localProviderPaymentId !== input.view.id) {
+    return {
+      ok: false,
+      blockGrant: true,
+      recordMethodMismatch: false,
+      reason: "Identificador remoto diverge do vínculo existente.",
+      preservedMethod: input.localMethod,
+    };
+  }
+
+  if (input.view.externalReference === "" || input.view.currency !== "BRL") {
+    return {
+      ok: false,
+      blockGrant: true,
+      recordMethodMismatch: false,
+      reason: "Referência ou moeda remota inválida.",
+      preservedMethod,
+    };
+  }
+
+  if (
+    input.view.amountCents !== input.paymentAmountCents ||
+    input.view.amountCents !== input.orderTotalCents
+  ) {
+    return {
+      ok: false,
+      blockGrant: true,
+      recordMethodMismatch: false,
+      reason: "Valor remoto diverge da tentativa ou do pedido.",
+      preservedMethod,
+    };
+  }
+
+  if (hasRecordedMethodMismatch(input.localStatusDetail)) {
+    return {
+      ok: false,
+      blockGrant: true,
+      recordMethodMismatch: true,
+      reason: "Divergência de método previamente registrada.",
+      preservedMethod: input.localMethod,
+    };
+  }
+
+  if (input.localMethod && remoteMethod && input.localMethod !== remoteMethod) {
+    return {
+      ok: false,
+      blockGrant: true,
+      recordMethodMismatch: true,
+      reason: `Método divergente (local ${input.localMethod} ≠ remoto ${remoteMethod}).`,
+      preservedMethod: input.localMethod,
+    };
+  }
+
+  if (input.localMethod && !remoteMethod) {
+    return {
+      ok: false,
+      blockGrant: true,
+      recordMethodMismatch: true,
+      reason: "Método remoto não reconhecido.",
+      preservedMethod: input.localMethod,
+    };
+  }
+
+  return {
+    ok: true,
+    blockGrant: false,
+    recordMethodMismatch: false,
+    reason: "ok",
+    preservedMethod,
+  };
+}
 
 const LOCKED_SUCCESS: ReadonlySet<InternalPaymentStatus> = new Set([
   "APPROVED",

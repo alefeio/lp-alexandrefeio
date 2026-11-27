@@ -1,3 +1,5 @@
+import { providerMethodFromTypeId } from "@/lib/commerce/payment-guards";
+
 export type InternalPaymentStatus =
   | "PENDING"
   | "IN_PROCESS"
@@ -117,7 +119,5 @@ export function reconcileDecision(input: {
 }
 
 function methodOf(paymentTypeId: string): "PIX" | "CREDIT_CARD" | null {
-  if (paymentTypeId === "bank_transfer" || paymentTypeId === "pix") return "PIX";
-  if (paymentTypeId === "credit_card") return "CREDIT_CARD";
-  return null;
+  return providerMethodFromTypeId(paymentTypeId);
 }

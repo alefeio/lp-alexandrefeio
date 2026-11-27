@@ -10,7 +10,8 @@ import { fingerprintDatabaseUrl, probeLiveDatabaseIdentity } from "../src/lib/db
 
 const CONTAINER = "lp-commerce-qa-pg17";
 const HOST = "127.0.0.1";
-const PORT = "55433";
+/** 55433 frequentemente ocupada por outros Postgres locais; 55434 é o alvo QA deste repo. */
+const PORT = "55434";
 const USER = "commerce_qa";
 const DATABASE = "commerce_qa";
 const IMAGE = "postgres:17";

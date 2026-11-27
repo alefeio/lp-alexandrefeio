@@ -5,6 +5,7 @@
 
 import type { AdminAuditAction } from "@/lib/admin/commerce-audit";
 import { applyProviderView } from "@/lib/commerce/apply";
+import { hasRecordedMethodMismatch, providerMethodFromTypeId } from "@/lib/commerce/payment-guards";
 import type { ProviderPaymentView } from "@/lib/commerce/reconcile";
 import { getPrisma } from "@/lib/db/prisma";
 
@@ -16,20 +17,14 @@ export type AdminReconcileValidation = {
   mayApply: boolean;
 };
 
-export function providerMethodOf(paymentTypeId: string): "PIX" | "CREDIT_CARD" | null {
-  if (paymentTypeId === "bank_transfer" || paymentTypeId === "pix") return "PIX";
-  if (paymentTypeId === "credit_card") return "CREDIT_CARD";
-  return null;
-}
+export const providerMethodOf = providerMethodFromTypeId;
 
-/** Divergência metodológica já registrada — reconciliação repetida não a apaga. */
+/** Divergência financeira de método — não confundir com outros NEEDS_REVIEW. */
 export function hasOpenMethodDivergence(input: {
   orderStatus: string;
   providerStatusDetail: string | null | undefined;
 }): boolean {
-  if (input.orderStatus !== "NEEDS_REVIEW") return false;
-  const detail = (input.providerStatusDetail ?? "").toLowerCase();
-  return detail.includes("method_mismatch") || detail.includes("método divergente");
+  return hasRecordedMethodMismatch(input.providerStatusDetail);
 }
 
 export function validateAdminReconcile(input: {
@@ -226,10 +221,15 @@ export async function reconcileAdminPaymentService(input: {
           data: { status: "NEEDS_REVIEW" },
         });
         if (validation.reason.includes("Método divergente") || validation.reason.includes("método")) {
+          const remoteMethod = view ? providerMethodOf(view.paymentTypeId) : null;
           await tx.payment.updateMany({
             where: { id: payment.id },
             data: {
-              providerStatusDetail: `method_mismatch:${(view && providerMethodOf(view.paymentTypeId)) || "unknown"}`.slice(0, 80),
+              // Preserva o método do claim; só registra a divergência financeira.
+              paymentMethodType: payment.paymentMethodType,
+              providerStatusDetail: hasRecordedMethodMismatch(payment.providerStatusDetail)
+                ? payment.providerStatusDetail
+                : `method_mismatch:${remoteMethod || "unknown"}`.slice(0, 80),
             },
           });
         }
@@ -251,36 +251,32 @@ export async function reconcileAdminPaymentService(input: {
     return { outcome: "rejected", reason: "Provedor não retornou o pagamento.", orderId: payment.orderId };
   }
 
-  // apply + audit na mesma transação quando a atualização financeira ocorre.
+  // apply + audit na mesma transação; outcome reflete a decisão efetiva.
   const applyResult = await applyProviderView(payment.id, view, {
     audit: {
       actorUserId: input.actorUserId,
       action: "payment_reconcile",
       targetType: "payment",
       targetId: payment.id,
-      summary: `Reconciliação applied: provider=${view.status}/${view.statusDetail ?? "—"} local_antes=${payment.status}`,
+      summary: `Reconciliação: provider=${view.status}/${view.statusDetail ?? "—"} local_antes=${payment.status}`,
     },
-    preserveLocalMethod: true,
   });
 
-  if (applyResult.ignored) {
-    if (!applyResult.audited) {
-      await prisma.adminAuditLog.create({
-        data: {
-          actorUserId: input.actorUserId,
-          action: "payment_reconcile",
-          targetType: "payment",
-          targetId: payment.id,
-          summary: "Reconciliação ignored: estado local preservado (stale/race/anti-regressão).",
-        },
-      });
-    }
-    return {
-      outcome: "ignored",
-      reason: "Aplicação ignorada pelo mecanismo de anti-regressão/idempotência.",
-      orderId: payment.orderId,
-    };
+  if (!applyResult.audited && (applyResult.outcome === "ignored" || applyResult.outcome === "rejected")) {
+    await prisma.adminAuditLog.create({
+      data: {
+        actorUserId: input.actorUserId,
+        action: "payment_reconcile",
+        targetType: "payment",
+        targetId: payment.id,
+        summary: `Reconciliação ${applyResult.outcome}: ${applyResult.reason ?? "estado local preservado"}`.slice(0, 500),
+      },
+    });
   }
 
-  return { outcome: "applied", reason: validation.reason, orderId: payment.orderId };
+  return {
+    outcome: applyResult.outcome,
+    reason: applyResult.reason ?? validation.reason,
+    orderId: payment.orderId,
+  };
 }

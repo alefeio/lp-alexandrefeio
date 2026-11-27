@@ -55,6 +55,7 @@ async function main() {
           "commerce-purchase-recovery.database.test.ts",
           "commerce.database.test.ts",
           "commerce-admin-audit.database.test.ts",
+          "commerce-shared-protection.database.test.ts",
           "ai-idempotency.live.test.ts",
         ])
       : null;
